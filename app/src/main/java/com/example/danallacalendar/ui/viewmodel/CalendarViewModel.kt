@@ -1,0 +1,330 @@
+package com.example.danallacalendar.ui.viewmodel
+
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.example.danallacalendar.data.CalendarCategory
+import com.example.danallacalendar.data.CalendarRepository
+import com.example.danallacalendar.data.Event
+import com.example.danallacalendar.ui.sync.SyncManager
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.launch
+import java.util.Calendar
+import java.util.UUID
+
+enum class CalendarViewMode {
+    MONTH, WEEK
+}
+
+enum class EventFilter {
+    ALL, ESTIMATE, CONTRACT
+}
+
+class CalendarViewModel(private val repository: CalendarRepository) : ViewModel() {
+
+    // Sync Manager initialization
+    val syncManager = SyncManager(
+        onEventReceived = { event ->
+            val sharedCatId = getOrCreateSharedCategory()
+            val eventToInsert = event.copy(calendarId = sharedCatId, isSynced = true)
+            val existing = repository.eventDao.getEventBySyncId(event.syncId ?: "")
+            if (existing != null) {
+                repository.updateEvent(eventToInsert.copy(id = existing.id))
+            } else {
+                repository.insertEvent(eventToInsert)
+            }
+        },
+        onEventDeleted = { syncId ->
+            repository.eventDao.deleteEventBySyncId(syncId)
+        },
+        getCurrentEventsProvider = {
+            repository.eventDao.getSyncedEvents()
+        }
+    )
+
+    suspend fun getOrCreateSharedCategory(): Int {
+        val list = repository.eventDao.getAllCategoriesList()
+        val found = list.find { it.name == "공유 캘린더" }
+        return if (found != null) {
+            found.id
+        } else {
+            repository.eventDao.insertCategory(
+                CalendarCategory(
+                    name = "공유 캘린더",
+                    colorHex = "#34c759", // Green color for synced calendar
+                    accountName = "공유 계정",
+                    isVisible = true
+                )
+            ).toInt()
+        }
+    }
+
+    init {
+        viewModelScope.launch {
+            // 1. Deduplicate existing categories by name
+            val currentList = repository.eventDao.getAllCategoriesList()
+            val groupedByName = currentList.groupBy { it.name }
+            groupedByName.forEach { (name, categories) ->
+                if (categories.size > 1) {
+                    val keep = categories.first()
+                    val toDelete = categories.drop(1)
+                    val toDeleteIds = toDelete.map { it.id }
+                    
+                    // Update events pointing to duplicate categories
+                    repository.eventDao.updateEventsCalendarId(toDeleteIds, keep.id)
+                    // Delete duplicate categories
+                    repository.eventDao.deleteCategories(toDelete)
+                }
+            }
+
+            // 2. Insert other default categories (excluding the 4 main ones generated on DB creation)
+            val updatedList = repository.eventDao.getAllCategoriesList()
+            val defaultCategories = listOf(
+                CalendarCategory(name = "공유 캘린더", colorHex = "#34c759", accountName = "공유 계정", isVisible = true),
+                CalendarCategory(name = "주황색 캘린더", colorHex = "#ff9500", accountName = "기타", isVisible = true),
+                CalendarCategory(name = "노란색 캘린더", colorHex = "#ffcc00", accountName = "기타", isVisible = true),
+                CalendarCategory(name = "핑크색 캘린더", colorHex = "#ff2d55", accountName = "기타", isVisible = true),
+                CalendarCategory(name = "청록색 캘린더", colorHex = "#5ac8fa", accountName = "기타", isVisible = true),
+                CalendarCategory(name = "남색 캘린더", colorHex = "#5856d6", accountName = "기타", isVisible = true),
+                CalendarCategory(name = "하늘색 캘린더", colorHex = "#00cbd6", accountName = "기타", isVisible = true),
+                CalendarCategory(name = "갈색 캘린더", colorHex = "#a2845e", accountName = "기타", isVisible = true),
+                CalendarCategory(name = "민트색 캘린더", colorHex = "#63e6be", accountName = "기타", isVisible = true),
+                CalendarCategory(name = "라벤더색 캘린더", colorHex = "#bf8bff", accountName = "기타", isVisible = true),
+                CalendarCategory(name = "복숭아색 캘린더", colorHex = "#ffb3ba", accountName = "기타", isVisible = true)
+            )
+            for (defaultCat in defaultCategories) {
+                val exists = updatedList.any { it.name == defaultCat.name }
+                if (!exists) {
+                    repository.eventDao.insertCategory(defaultCat)
+                }
+            }
+        }
+    }
+
+    // View States
+    private val _selectedDate = MutableStateFlow(System.currentTimeMillis())
+    val selectedDate: StateFlow<Long> = _selectedDate.asStateFlow()
+
+    private val _currentMonth = MutableStateFlow(Calendar.getInstance().apply {
+        set(Calendar.DAY_OF_MONTH, 1)
+        clearTimeToZero()
+    })
+    val currentMonth: StateFlow<Calendar> = _currentMonth.asStateFlow()
+
+    private val _viewMode = MutableStateFlow(CalendarViewMode.MONTH)
+    val viewMode: StateFlow<CalendarViewMode> = _viewMode.asStateFlow()
+
+    private val _eventFilter = MutableStateFlow(EventFilter.ALL)
+    val eventFilter: StateFlow<EventFilter> = _eventFilter.asStateFlow()
+
+    private val _searchQuery = MutableStateFlow("")
+    val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
+
+    // Database Flows
+    val categories: StateFlow<List<CalendarCategory>> = repository.getAllCategories()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val monthlyEvents: StateFlow<List<Event>> = combine(
+        _currentMonth.flatMapLatest { cal ->
+            val start = cal.timeInMillis - (45 * 24 * 60 * 60 * 1000L) // -45 days
+            val end = cal.timeInMillis + (75 * 24 * 60 * 60 * 1000L) // +75 days
+            repository.getEventsInRange(start, end)
+        },
+        categories,
+        _eventFilter
+    ) { events, cats, filter ->
+        events.filter { event ->
+            val isVisible = cats.find { it.id == event.calendarId }?.isVisible ?: true
+            val matchesFilter = when (filter) {
+                EventFilter.ALL -> true
+                EventFilter.ESTIMATE -> !event.isAllDay
+                EventFilter.CONTRACT -> event.isAllDay
+            }
+            isVisible && matchesFilter
+        }.sortedWith(
+            compareByDescending<Event> { it.isAllDay }
+                .thenBy { it.startMillis }
+        )
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val selectedDateEvents: StateFlow<List<Event>> = combine(
+        _selectedDate.flatMapLatest { millis ->
+            val cal = Calendar.getInstance().apply { timeInMillis = millis }
+            cal.clearTimeToZero()
+            val start = cal.timeInMillis
+            cal.set(Calendar.HOUR_OF_DAY, 23)
+            cal.set(Calendar.MINUTE, 59)
+            cal.set(Calendar.SECOND, 59)
+            cal.set(Calendar.MILLISECOND, 999)
+            val end = cal.timeInMillis
+            repository.getEventsInRange(start, end)
+        },
+        categories,
+        _eventFilter
+    ) { events, cats, filter ->
+        events.filter { event ->
+            val isVisible = cats.find { it.id == event.calendarId }?.isVisible ?: true
+            val matchesFilter = when (filter) {
+                EventFilter.ALL -> true
+                EventFilter.ESTIMATE -> !event.isAllDay
+                EventFilter.CONTRACT -> event.isAllDay
+            }
+            isVisible && matchesFilter
+        }.sortedWith(
+            compareByDescending<Event> { it.isAllDay }
+                .thenBy { it.startMillis }
+        )
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val searchResults: StateFlow<List<Event>> = combine(
+        _searchQuery
+            .debounce(300)
+            .flatMapLatest { query ->
+                if (query.isBlank()) {
+                    flowOf(emptyList())
+                } else {
+                    repository.searchEvents(query)
+                }
+            },
+        categories
+    ) { events, cats ->
+        events.filter { event ->
+            cats.find { it.id == event.calendarId }?.isVisible ?: true
+        }.sortedWith(
+            compareByDescending<Event> { it.isAllDay }
+                .thenBy { it.startMillis }
+        )
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    // Actions
+    fun selectDate(millis: Long) {
+        _selectedDate.value = millis
+        // Update visible month if the selected date moves to another month
+        val calSelected = Calendar.getInstance().apply { timeInMillis = millis }
+        val calCurrent = _currentMonth.value
+        if (calSelected.get(Calendar.YEAR) != calCurrent.get(Calendar.YEAR) ||
+            calSelected.get(Calendar.MONTH) != calCurrent.get(Calendar.MONTH)
+        ) {
+            val newMonth = Calendar.getInstance().apply {
+                timeInMillis = millis
+                set(Calendar.DAY_OF_MONTH, 1)
+                clearTimeToZero()
+            }
+            _currentMonth.value = newMonth
+        }
+    }
+
+    fun nextMonth() {
+        val cal = _currentMonth.value.clone() as Calendar
+        cal.add(Calendar.MONTH, 1)
+        _currentMonth.value = cal
+        
+        // Also select the 1st of the new month as a default experience
+        val selectCal = Calendar.getInstance().apply {
+            timeInMillis = cal.timeInMillis
+            set(Calendar.DAY_OF_MONTH, 1)
+            clearTimeToZero()
+        }
+        _selectedDate.value = selectCal.timeInMillis
+    }
+
+    fun prevMonth() {
+        val cal = _currentMonth.value.clone() as Calendar
+        cal.add(Calendar.MONTH, -1)
+        _currentMonth.value = cal
+
+        // Also select the 1st of the new month
+        val selectCal = Calendar.getInstance().apply {
+            timeInMillis = cal.timeInMillis
+            set(Calendar.DAY_OF_MONTH, 1)
+            clearTimeToZero()
+        }
+        _selectedDate.value = selectCal.timeInMillis
+    }
+
+    fun toggleViewMode() {
+        _viewMode.value = if (_viewMode.value == CalendarViewMode.MONTH) {
+            CalendarViewMode.WEEK
+        } else {
+            CalendarViewMode.MONTH
+        }
+    }
+
+    fun setViewMode(mode: CalendarViewMode) {
+        _viewMode.value = mode
+    }
+
+    fun setSearchQuery(query: String) {
+        _searchQuery.value = query
+    }
+
+    fun setEventFilter(filter: EventFilter) {
+        _eventFilter.value = filter
+    }
+
+    fun toggleCategoryVisibility(category: CalendarCategory) {
+        viewModelScope.launch {
+            repository.updateCategory(category.copy(isVisible = !category.isVisible))
+        }
+    }
+
+    fun addEvent(event: Event) {
+        viewModelScope.launch {
+            val sharedId = getOrCreateSharedCategory()
+            val eventToInsert = if (event.calendarId == sharedId) {
+                event.copy(
+                    isSynced = true,
+                    syncId = event.syncId ?: UUID.randomUUID().toString()
+                )
+            } else {
+                event
+            }
+            repository.insertEvent(eventToInsert)
+            if (eventToInsert.isSynced) {
+                syncManager.broadcastLocalUpdate(eventToInsert)
+            }
+        }
+    }
+
+    fun updateEvent(event: Event) {
+        viewModelScope.launch {
+            val sharedId = getOrCreateSharedCategory()
+            val eventToUpdate = if (event.calendarId == sharedId) {
+                event.copy(
+                    isSynced = true,
+                    syncId = event.syncId ?: UUID.randomUUID().toString()
+                )
+            } else {
+                event
+            }
+            repository.updateEvent(eventToUpdate)
+            if (eventToUpdate.isSynced) {
+                syncManager.broadcastLocalUpdate(eventToUpdate)
+            }
+        }
+    }
+
+    fun deleteEvent(event: Event) {
+        viewModelScope.launch {
+            repository.deleteEvent(event)
+            if (event.isSynced && event.syncId != null) {
+                syncManager.broadcastLocalDelete(event.syncId)
+            }
+        }
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        syncManager.stopAll()
+    }
+
+    private fun Calendar.clearTimeToZero() {
+        set(Calendar.HOUR_OF_DAY, 0)
+        set(Calendar.MINUTE, 0)
+        set(Calendar.SECOND, 0)
+        set(Calendar.MILLISECOND, 0)
+    }
+}
