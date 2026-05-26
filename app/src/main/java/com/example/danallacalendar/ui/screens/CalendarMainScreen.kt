@@ -28,6 +28,11 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -267,6 +272,8 @@ fun CalendarMainScreen(
                             current + normalized
                         }
                     },
+                    viewMode = viewMode,
+                    onSwipeDownAtTop = { viewModel.setViewMode(CalendarViewMode.MONTH) },
                     modifier = Modifier.weight(1f)
                 )
             }
@@ -849,16 +856,35 @@ fun EventListSection(
     onToggleComplete: (Event) -> Unit,
     isDeadlineSet: Boolean = false,
     onDeadlineToggle: (Long) -> Unit = {},
+    viewMode: CalendarViewMode = CalendarViewMode.MONTH,
+    onSwipeDownAtTop: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val dateFormat = SimpleDateFormat("M월 d일 EEEE", Locale.KOREAN)
     val lunarStr = getKoreanLunarDateString(selectedDate)
     val dateHeaderStr = "${dateFormat.format(Date(selectedDate))} ($lunarStr)"
 
+    val lazyListState = rememberLazyListState()
+    val nestedScrollConnection = remember(lazyListState, viewMode) {
+        object : NestedScrollConnection {
+            override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
+                if (available.y > 0.5f && viewMode == CalendarViewMode.WEEK) {
+                    val isAtTop = lazyListState.firstVisibleItemIndex == 0 && lazyListState.firstVisibleItemScrollOffset == 0
+                    if (isAtTop) {
+                        onSwipeDownAtTop()
+                        return Offset(0f, available.y)
+                    }
+                }
+                return Offset.Zero
+            }
+        }
+    }
+
     Column(
         modifier = modifier
             .fillMaxWidth()
             .background(MaterialTheme.colorScheme.background)
+            .nestedScroll(nestedScrollConnection)
     ) {
         // Date Header Row with Deadline button
         Row(
@@ -911,7 +937,15 @@ fun EventListSection(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .weight(1f),
+                    .weight(1f)
+                    .pointerInput(viewMode) {
+                        detectVerticalDragGestures { change, dragAmount ->
+                            if (dragAmount > 0.5f && viewMode == CalendarViewMode.WEEK) {
+                                change.consume()
+                                onSwipeDownAtTop()
+                            }
+                        }
+                    },
                 contentAlignment = Alignment.Center
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -931,6 +965,7 @@ fun EventListSection(
             }
         } else {
             LazyColumn(
+                state = lazyListState,
                 modifier = Modifier
                     .fillMaxWidth()
                     .weight(1f),
