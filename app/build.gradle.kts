@@ -90,6 +90,9 @@ dependencies {
 
   // Material Icons Extended
   implementation(libs.androidx.compose.material.icons.extended)
+
+  // Kotlin Serialization
+  implementation(libs.kotlinx.serialization.json)
 }
 
 tasks.withType<org.jetbrains.kotlin.gradle.internal.KaptWithoutKotlincTask>().configureEach {

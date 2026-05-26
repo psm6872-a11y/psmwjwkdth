@@ -11,6 +11,8 @@ import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import java.util.Calendar
 import java.util.UUID
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.decodeFromString
 
 enum class CalendarViewMode {
     MONTH, WEEK
@@ -316,6 +318,36 @@ class CalendarViewModel(private val repository: CalendarRepository) : ViewModel(
         }
     }
 
+    fun importEventsFromJson(
+        jsonString: String,
+        targetCalendarId: Int,
+        onSuccess: (Int) -> Unit,
+        onError: (Throwable) -> Unit
+    ) {
+        viewModelScope.launch {
+            try {
+                val jsonParser = Json { ignoreUnknownKeys = true }
+                val list = jsonParser.decodeFromString<List<ImportEvent>>(jsonString)
+                for (imported in list) {
+                    val event = Event(
+                        title = imported.title,
+                        startMillis = imported.startMillis,
+                        endMillis = imported.endMillis,
+                        isAllDay = imported.isAllDay,
+                        location = imported.location,
+                        notes = imported.notes,
+                        calendarId = targetCalendarId,
+                        colorHex = imported.colorHex
+                    )
+                    repository.insertEvent(event)
+                }
+                onSuccess(list.size)
+            } catch (e: Exception) {
+                onError(e)
+            }
+        }
+    }
+
     override fun onCleared() {
         super.onCleared()
         syncManager.stopAll()
@@ -328,3 +360,14 @@ class CalendarViewModel(private val repository: CalendarRepository) : ViewModel(
         set(Calendar.MILLISECOND, 0)
     }
 }
+
+@kotlinx.serialization.Serializable
+data class ImportEvent(
+    val title: String,
+    val startMillis: Long,
+    val endMillis: Long,
+    val isAllDay: Boolean = false,
+    val location: String = "",
+    val notes: String = "",
+    val colorHex: String? = null
+)

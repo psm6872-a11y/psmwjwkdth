@@ -49,6 +49,12 @@ import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.*
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import android.net.Uri
+import android.widget.Toast
+import androidx.compose.ui.platform.LocalContext
+
 data class CalendarDay(
     val dateInMillis: Long,
     val dayOfMonth: Int,
@@ -64,6 +70,7 @@ fun CalendarMainScreen(
     viewModel: CalendarViewModel,
     modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val scope = rememberCoroutineScope()
 
@@ -78,6 +85,32 @@ fun CalendarMainScreen(
     // 마감 날짜 Set (날짜 millis를 자정 기준으로 저장)
     val deadlineDates = remember { mutableStateOf(setOf<Long>()) }
 
+    val filePickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        uri?.let {
+            try {
+                val inputStream = context.contentResolver.openInputStream(it)
+                val jsonString = inputStream?.bufferedReader()?.use { reader -> reader.readText() }
+                if (jsonString != null) {
+                    val defaultCatId = categories.firstOrNull()?.id ?: 1
+                    viewModel.importEventsFromJson(
+                        jsonString = jsonString,
+                        targetCalendarId = defaultCatId,
+                        onSuccess = { count ->
+                            Toast.makeText(context, "${count}개의 일정을 성공적으로 가져왔습니다.", Toast.LENGTH_SHORT).show()
+                        },
+                        onError = { error ->
+                            Toast.makeText(context, "가져오기 실패: ${error.localizedMessage}", Toast.LENGTH_LONG).show()
+                        }
+                    )
+                }
+            } catch (e: Exception) {
+                Toast.makeText(context, "파일 열기 실패: ${e.localizedMessage}", Toast.LENGTH_LONG).show()
+            }
+        }
+    }
+
     ModalNavigationDrawer(
         drawerState = drawerState,
         drawerContent = {
@@ -88,6 +121,10 @@ fun CalendarMainScreen(
                     onNavigateToSync = {
                         scope.launch { drawerState.close() }
                         onNavigate(SyncCenter)
+                    },
+                    onImportClick = {
+                        scope.launch { drawerState.close() }
+                        filePickerLauncher.launch("*/*")
                     }
                 )
             }

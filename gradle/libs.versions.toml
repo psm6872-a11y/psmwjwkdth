@@ -14,8 +14,10 @@ kotlin = "2.3.20"
 room = "2.8.4"
 nav3Core = "1.0.1"
 lifecycleViewmodelNav3 = "2.10.0"
+kotlinxSerializationJson = "1.6.3"
 
 [libraries]
+kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "kotlinxSerializationJson" }
 room-runtime = { group = "androidx.room", name = "room-runtime", version.ref = "room" }
 room-compiler = { group = "androidx.room", name = "room-compiler", version.ref = "room" }
 room-ktx = { group = "androidx.room", name = "room-ktx", version.ref = "room" }
