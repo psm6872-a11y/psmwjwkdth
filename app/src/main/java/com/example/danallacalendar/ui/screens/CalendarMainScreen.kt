@@ -330,35 +330,56 @@ fun MainTopAppBar(
             }
         },
         navigationIcon = {
-            IconButton(onClick = onToggleDrawer) {
-                Icon(imageVector = Icons.Default.Menu, contentDescription = "메뉴")
+            IconButton(
+                onClick = onToggleDrawer,
+                modifier = Modifier.size(36.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Menu,
+                    contentDescription = "메뉴",
+                    modifier = Modifier.size(20.dp)
+                )
             }
         },
         actions = {
-            IconButton(onClick = onGoToToday) {
+            IconButton(
+                onClick = onGoToToday,
+                modifier = Modifier.size(36.dp)
+            ) {
                 // Go to today icon (calendar sheet with today's date inside)
                 val dayStr = SimpleDateFormat("d", Locale.getDefault()).format(Date())
                 Box(
                     contentAlignment = Alignment.Center,
                     modifier = Modifier
-                        .size(24.dp)
-                        .border(1.5.dp, MaterialTheme.colorScheme.onSurface, RoundedCornerShape(4.dp))
+                        .size(20.dp)
+                        .border(1.2.dp, MaterialTheme.colorScheme.onSurface, RoundedCornerShape(3.dp))
                 ) {
                     Text(
                         text = dayStr,
-                        fontSize = 11.sp,
+                        fontSize = 9.sp,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurface
                     )
                 }
             }
-            IconButton(onClick = onNavigateToSearch) {
-                Icon(imageVector = Icons.Default.Search, contentDescription = "검색")
+            IconButton(
+                onClick = onNavigateToSearch,
+                modifier = Modifier.size(36.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Search,
+                    contentDescription = "검색",
+                    modifier = Modifier.size(20.dp)
+                )
             }
-            IconButton(onClick = onToggleViewMode) {
+            IconButton(
+                onClick = onToggleViewMode,
+                modifier = Modifier.size(36.dp)
+            ) {
                 Icon(
                     imageVector = if (viewMode == CalendarViewMode.MONTH) Icons.Default.ViewWeek else Icons.Default.CalendarViewMonth,
-                    contentDescription = "뷰 모드 전환"
+                    contentDescription = "뷰 모드 전환",
+                    modifier = Modifier.size(20.dp)
                 )
             }
         },
@@ -379,15 +400,15 @@ fun FilterButton(
     
     Box(
         modifier = Modifier
-            .clip(RoundedCornerShape(6.dp))
+            .clip(RoundedCornerShape(4.dp))
             .background(containerColor)
             .clickable { onClick() }
-            .padding(horizontal = 8.dp, vertical = 4.dp),
+            .padding(horizontal = 6.dp, vertical = 3.dp),
         contentAlignment = Alignment.Center
     ) {
         Text(
             text = text,
-            fontSize = 11.sp,
+            fontSize = 10.sp,
             fontWeight = FontWeight.Bold,
             color = contentColor
         )
