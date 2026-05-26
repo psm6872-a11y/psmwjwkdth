@@ -197,6 +197,18 @@ fun CalendarMainScreen(
                         } catch (e: Exception) {
                             Toast.makeText(context, "앱 공유 실패: ${e.localizedMessage}", Toast.LENGTH_LONG).show()
                         }
+                    },
+                    onUpdateClick = {
+                        scope.launch { drawerState.close() }
+                        try {
+                            val intent = android.content.Intent(
+                                android.content.Intent.ACTION_VIEW,
+                                Uri.parse("https://github.com/psm6872-a11y/psmwjwkdth")
+                            )
+                            context.startActivity(intent)
+                        } catch (e: Exception) {
+                            Toast.makeText(context, "업데이트 페이지 열기 실패: ${e.localizedMessage}", Toast.LENGTH_LONG).show()
+                        }
                     }
                 )
             }
