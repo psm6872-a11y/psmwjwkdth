@@ -22,6 +22,7 @@ import com.example.danallacalendar.data.CalendarCategory
 
 import androidx.compose.material.icons.filled.CloudSync
 import androidx.compose.material.icons.filled.FileDownload
+import androidx.compose.material.icons.filled.Share
 
 @Composable
 fun DrawerContent(
@@ -30,6 +31,7 @@ fun DrawerContent(
     onNavigateToSync: () -> Unit,
     onImportClick: () -> Unit,
     onImportDeviceClick: () -> Unit,
+    onShareAppClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val grouped = categories
@@ -143,6 +145,33 @@ fun DrawerContent(
                 fontSize = 15.sp,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.primary
+            )
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        // Share App Button
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(MaterialTheme.shapes.medium)
+                .clickable { onShareAppClick() }
+                .background(MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.4f))
+                .padding(vertical = 12.dp, horizontal = 12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = Icons.Default.Share,
+                contentDescription = "앱 공유하기",
+                tint = MaterialTheme.colorScheme.tertiary,
+                modifier = Modifier.size(24.dp)
+            )
+            Spacer(modifier = Modifier.width(16.dp))
+            Text(
+                text = "앱 공유하기 (APK)",
+                fontSize = 15.sp,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.tertiary
             )
         }
 
