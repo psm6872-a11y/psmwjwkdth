@@ -56,6 +56,14 @@ import java.text.SimpleDateFormat
 import java.util.*
 
 import androidx.activity.compose.rememberLauncherForActivityResult
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import java.net.HttpURLConnection
+import java.net.URL
 import androidx.activity.result.contract.ActivityResultContracts
 import android.net.Uri
 import android.widget.Toast
@@ -79,6 +87,69 @@ fun CalendarMainScreen(
     val context = LocalContext.current
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val scope = rememberCoroutineScope()
+
+    val downloadIdState = remember { mutableStateOf<Long?>(null) }
+
+    DisposableEffect(context) {
+        val receiver = object : android.content.BroadcastReceiver() {
+            override fun onReceive(c: android.content.Context, intent: android.content.Intent) {
+                val id = intent.getLongExtra(android.app.DownloadManager.EXTRA_DOWNLOAD_ID, -1)
+                if (id == downloadIdState.value) {
+                    try {
+                        val downloadManager = c.getSystemService(android.content.Context.DOWNLOAD_SERVICE) as android.app.DownloadManager
+                        val query = android.app.DownloadManager.Query().setFilterById(id)
+                        val cursor = downloadManager.query(query)
+                        if (cursor != null && cursor.moveToFirst()) {
+                            val statusIndex = cursor.getColumnIndex(android.app.DownloadManager.COLUMN_STATUS)
+                            val status = cursor.getInt(statusIndex)
+                            if (status == android.app.DownloadManager.STATUS_SUCCESSFUL) {
+                                val file = java.io.File(c.getExternalFilesDir(android.os.Environment.DIRECTORY_DOWNLOADS), "app-debug.apk")
+                                if (file.exists()) {
+                                    val apkUri = androidx.core.content.FileProvider.getUriForFile(
+                                        c,
+                                        "com.example.danallacalendar.fileprovider",
+                                        file
+                                    )
+                                    val installIntent = android.content.Intent(android.content.Intent.ACTION_VIEW).apply {
+                                        setDataAndType(apkUri, "application/vnd.android.package-archive")
+                                        addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                                        addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                                    }
+                                    c.startActivity(installIntent)
+                                } else {
+                                    Toast.makeText(c, "다운로드된 파일을 찾을 수 없습니다.", Toast.LENGTH_SHORT).show()
+                                }
+                            } else {
+                                val reasonIndex = cursor.getColumnIndex(android.app.DownloadManager.COLUMN_REASON)
+                                val reason = if (reasonIndex >= 0) cursor.getInt(reasonIndex) else -1
+                                Toast.makeText(c, "다운로드 실패: 상태 코드 $status, 사유 $reason", Toast.LENGTH_LONG).show()
+                            }
+                            cursor.close()
+                        } else {
+                            Toast.makeText(c, "다운로드 쿼리 실패", Toast.LENGTH_SHORT).show()
+                        }
+                    } catch (e: Exception) {
+                        Toast.makeText(c, "다운로드 처리 중 오류: ${e.localizedMessage}", Toast.LENGTH_LONG).show()
+                    }
+                }
+            }
+        }
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+            context.registerReceiver(
+                receiver,
+                android.content.IntentFilter(android.app.DownloadManager.ACTION_DOWNLOAD_COMPLETE),
+                android.content.Context.RECEIVER_EXPORTED
+            )
+        } else {
+            context.registerReceiver(
+                receiver,
+                android.content.IntentFilter(android.app.DownloadManager.ACTION_DOWNLOAD_COMPLETE)
+            )
+        }
+        onDispose {
+            context.unregisterReceiver(receiver)
+        }
+    }
 
     val categories by viewModel.categories.collectAsStateWithLifecycle()
     val monthlyEvents by viewModel.monthlyEvents.collectAsStateWithLifecycle()
@@ -201,13 +272,21 @@ fun CalendarMainScreen(
                     onUpdateClick = {
                         scope.launch { drawerState.close() }
                         try {
-                            val intent = android.content.Intent(
-                                android.content.Intent.ACTION_VIEW,
-                                Uri.parse("https://github.com/psm6872-a11y/psmwjwkdth")
-                            )
-                            context.startActivity(intent)
+                            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                                if (!context.packageManager.canRequestPackageInstalls()) {
+                                    Toast.makeText(context, "앱 업데이트를 설치하려면 출처를 알 수 없는 앱 설치 권한이 필요합니다.", Toast.LENGTH_LONG).show()
+                                    val intent = android.content.Intent(android.provider.Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES).apply {
+                                        data = Uri.parse("package:${context.packageName}")
+                                    }
+                                    context.startActivity(intent)
+                                } else {
+                                    startApkDownload(context, downloadIdState, scope)
+                                }
+                            } else {
+                                startApkDownload(context, downloadIdState, scope)
+                            }
                         } catch (e: Exception) {
-                            Toast.makeText(context, "업데이트 페이지 열기 실패: ${e.localizedMessage}", Toast.LENGTH_LONG).show()
+                            Toast.makeText(context, "업데이트 오류: ${e.localizedMessage}", Toast.LENGTH_LONG).show()
                         }
                     }
                 )
@@ -288,6 +367,101 @@ fun CalendarMainScreen(
                     onSwipeDownAtTop = { viewModel.setViewMode(CalendarViewMode.MONTH) },
                     modifier = Modifier.weight(1f)
                 )
+            }
+        }
+    }
+}
+
+private fun startApkDownload(
+    context: android.content.Context,
+    downloadIdState: androidx.compose.runtime.MutableState<Long?>,
+    scope: kotlinx.coroutines.CoroutineScope
+) {
+    scope.launch(Dispatchers.IO) {
+        try {
+            withContext(Dispatchers.Main) {
+                Toast.makeText(context, "업데이트 정보를 확인 중입니다...", Toast.LENGTH_SHORT).show()
+            }
+            
+            val token = ""
+            val apiUrl = "https://api.github.com/repos/psm6872-a11y/psmwjwkdth/releases/latest"
+            
+            val connection = URL(apiUrl).openConnection() as HttpURLConnection
+            connection.requestMethod = "GET"
+            connection.setRequestProperty("Authorization", "token $token")
+            connection.setRequestProperty("Accept", "application/vnd.github.v3+json")
+            connection.connectTimeout = 10000
+            connection.readTimeout = 10000
+            
+            val responseCode = connection.responseCode
+            if (responseCode != HttpURLConnection.HTTP_OK) {
+                throw Exception("API 호출 실패 ($responseCode)")
+            }
+            
+            val responseText = connection.inputStream.bufferedReader().use { it.readText() }
+            connection.disconnect()
+            
+            val json = Json.parseToJsonElement(responseText).jsonObject
+            val assets = json["assets"]?.jsonArray ?: throw Exception("에셋 정보를 찾을 수 없습니다.")
+            
+            var assetUrl: String? = null
+            for (assetElement in assets) {
+                val assetObj = assetElement.jsonObject
+                val name = assetObj["name"]?.jsonPrimitive?.content
+                if (name == "app-debug.apk") {
+                    assetUrl = assetObj["url"]?.jsonPrimitive?.content
+                    break
+                }
+            }
+            
+            if (assetUrl == null) {
+                throw Exception("업데이트 파일(app-debug.apk)을 찾을 수 없습니다.")
+            }
+            
+            val assetConnection = URL(assetUrl).openConnection() as HttpURLConnection
+            assetConnection.requestMethod = "GET"
+            assetConnection.setRequestProperty("Authorization", "token $token")
+            assetConnection.setRequestProperty("Accept", "application/octet-stream")
+            assetConnection.instanceFollowRedirects = false
+            assetConnection.connectTimeout = 10000
+            assetConnection.readTimeout = 10000
+            
+            val assetResponseCode = assetConnection.responseCode
+            val finalDownloadUrl: String
+            if (assetResponseCode == HttpURLConnection.HTTP_MOVED_TEMP || 
+                assetResponseCode == HttpURLConnection.HTTP_MOVED_PERM ||
+                assetResponseCode == 307 || assetResponseCode == 308) {
+                finalDownloadUrl = assetConnection.getHeaderField("Location") ?: throw Exception("다운로드 주소를 받아오지 못했습니다.")
+            } else {
+                throw Exception("주소 변환 실패 ($assetResponseCode)")
+            }
+            assetConnection.disconnect()
+            
+            withContext(Dispatchers.Main) {
+                try {
+                    val downloadManager = context.getSystemService(android.content.Context.DOWNLOAD_SERVICE) as android.app.DownloadManager
+                    val request = android.app.DownloadManager.Request(Uri.parse(finalDownloadUrl)).apply {
+                        setTitle("다날라 캘린더 업데이트")
+                        setDescription("최신 버전의 업데이트 파일을 다운로드 중입니다...")
+                        setNotificationVisibility(android.app.DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
+                        setDestinationInExternalFilesDir(context, android.os.Environment.DIRECTORY_DOWNLOADS, "app-debug.apk")
+                    }
+                    
+                    val file = java.io.File(context.getExternalFilesDir(android.os.Environment.DIRECTORY_DOWNLOADS), "app-debug.apk")
+                    if (file.exists()) {
+                        file.delete()
+                    }
+                    
+                    val id = downloadManager.enqueue(request)
+                    downloadIdState.value = id
+                    Toast.makeText(context, "업데이트 다운로드를 시작합니다...", Toast.LENGTH_SHORT).show()
+                } catch (e: Exception) {
+                    Toast.makeText(context, "다운로드 요청 실패: ${e.localizedMessage}", Toast.LENGTH_LONG).show()
+                }
+            }
+        } catch (e: Exception) {
+            withContext(Dispatchers.Main) {
+                Toast.makeText(context, "업데이트 확인 실패: ${e.localizedMessage}", Toast.LENGTH_LONG).show()
             }
         }
     }
