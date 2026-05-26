@@ -542,7 +542,7 @@ fun CalendarGridSection(
                     text = day,
                     modifier = Modifier.weight(1f),
                     textAlign = TextAlign.Center,
-                    fontSize = 16.sp,
+                    fontSize = 13.sp,
                     fontWeight = FontWeight.Bold,
                     color = textColor
                 )
@@ -665,7 +665,7 @@ fun CalendarDayCell(
                     Text(
                         text = day.dayOfMonth.toString(),
                         color = if (isSelected) MaterialTheme.colorScheme.onPrimary else dayTextColor,
-                        fontSize = 18.sp,
+                        fontSize = 15.sp,
                         fontWeight = if (day.isToday || isSelected) FontWeight.Bold else FontWeight.Medium
                     )
                 }
