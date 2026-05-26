@@ -1,5 +1,6 @@
 package com.example.danallacalendar.ui.screens
 
+import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
@@ -486,38 +487,60 @@ fun CalendarGridSection(
         return baseCal
     }
 
-    val pagerState = rememberPagerState(
-        initialPage = if (viewMode == CalendarViewMode.MONTH) getMonthPage(currentMonth) else getWeekPage(selectedDate)
+    val monthPagerState = rememberPagerState(
+        initialPage = getMonthPage(currentMonth)
     ) { 5000 }
 
-    // Sync PagerState with ViewModel currentMonth / selectedDate
-    LaunchedEffect(currentMonth, selectedDate, viewMode) {
-        val targetPage = if (viewMode == CalendarViewMode.MONTH) {
-            getMonthPage(currentMonth)
-        } else {
-            getWeekPage(selectedDate)
-        }
-        if (pagerState.settledPage != targetPage) {
-            pagerState.scrollToPage(targetPage)
+    val weekPagerState = rememberPagerState(
+        initialPage = getWeekPage(selectedDate)
+    ) { 5000 }
+
+    // Sync Month PagerState with ViewModel currentMonth
+    LaunchedEffect(currentMonth) {
+        val targetPage = getMonthPage(currentMonth)
+        if (monthPagerState.currentPage != targetPage) {
+            monthPagerState.scrollToPage(targetPage)
         }
     }
 
-    // Sync from PagerState to ViewModel when settled
-    LaunchedEffect(pagerState.settledPage) {
+    // Sync Week PagerState with ViewModel selectedDate
+    LaunchedEffect(selectedDate) {
+        val targetPage = getWeekPage(selectedDate)
+        if (weekPagerState.currentPage != targetPage) {
+            weekPagerState.scrollToPage(targetPage)
+        }
+    }
+
+    // Sync when viewMode toggles
+    LaunchedEffect(viewMode) {
+        if (viewMode == CalendarViewMode.WEEK) {
+            weekPagerState.scrollToPage(getWeekPage(selectedDate))
+        } else {
+            monthPagerState.scrollToPage(getMonthPage(currentMonth))
+        }
+    }
+
+    // Sync from Month PagerState to ViewModel when settled
+    LaunchedEffect(monthPagerState.settledPage) {
         if (viewMode == CalendarViewMode.MONTH) {
-            val targetMonth = getCalendarFromMonthPage(pagerState.settledPage)
-            if (getMonthPage(currentMonth) != pagerState.settledPage) {
+            val targetMonth = getCalendarFromMonthPage(monthPagerState.settledPage)
+            if (getMonthPage(currentMonth) != monthPagerState.settledPage) {
                 onMonthChanged(targetMonth)
             }
-        } else {
-            val targetWeekSunday = getCalendarFromWeekPage(pagerState.settledPage)
+        }
+    }
+
+    // Sync from Week PagerState to ViewModel when settled
+    LaunchedEffect(weekPagerState.settledPage) {
+        if (viewMode == CalendarViewMode.WEEK) {
+            val targetWeekSunday = getCalendarFromWeekPage(weekPagerState.settledPage)
             val currentSelectedCal = Calendar.getInstance().apply { timeInMillis = selectedDate }
             val currentDayOfWeek = currentSelectedCal.get(Calendar.DAY_OF_WEEK)
             
             val targetDateCal = targetWeekSunday.clone() as Calendar
             targetDateCal.add(Calendar.DAY_OF_YEAR, currentDayOfWeek - 1)
             
-            if (getWeekPage(selectedDate) != pagerState.settledPage) {
+            if (getWeekPage(selectedDate) != weekPagerState.settledPage) {
                 onWeekSelected(targetDateCal.timeInMillis)
             }
         }
@@ -570,41 +593,86 @@ fun CalendarGridSection(
             }
         }
 
-        // Animated Smooth Pager
-        HorizontalPager(
-            state = pagerState,
-            modifier = Modifier.fillMaxWidth()
-        ) { page ->
-            val pageDays = if (viewMode == CalendarViewMode.MONTH) {
-                val pageMonthCal = getCalendarFromMonthPage(page)
-                getGridDays(pageMonthCal)
-            } else {
-                val pageWeekCal = getCalendarFromWeekPage(page)
-                getWeekDays(pageWeekCal.timeInMillis)
-            }
-
-            Column {
-                val rowsCount = pageDays.size / 7
-                for (r in 0 until rowsCount) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(if (viewMode == CalendarViewMode.MONTH) 72.dp else 64.dp)
-                    ) {
-                        for (c in 0 until 7) {
-                            val dayIndex = r * 7 + c
-                            if (dayIndex < pageDays.size) {
-                                val day = pageDays[dayIndex]
-                                val dayEvents = getDayEvents(day.dateInMillis, monthlyEvents)
-                                CalendarDayCell(
-                                    day = day,
-                                    isSelected = isSameDay(day.dateInMillis, selectedDate),
-                                    isDeadline = deadlineDates.any { isSameDay(it, day.dateInMillis) },
-                                    dayEvents = dayEvents,
-                                    categories = categories,
-                                    onClick = { onDaySelected(day.dateInMillis) },
-                                    modifier = Modifier.weight(1f)
-                                )
+        // Animated Smooth Pager Container
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .animateContentSize(
+                    animationSpec = spring(
+                        dampingRatio = Spring.DampingRatioLowBouncy,
+                        stiffness = Spring.StiffnessMedium
+                    )
+                )
+        ) {
+            AnimatedContent(
+                targetState = viewMode,
+                transitionSpec = {
+                    fadeIn(animationSpec = tween(220, delayMillis = 90)) togetherWith
+                    fadeOut(animationSpec = tween(90))
+                },
+                label = "calendar_pager_transition"
+            ) { targetMode ->
+                if (targetMode == CalendarViewMode.MONTH) {
+                    HorizontalPager(
+                        state = monthPagerState,
+                        modifier = Modifier.fillMaxWidth()
+                    ) { page ->
+                        val pageMonthCal = getCalendarFromMonthPage(page)
+                        val pageDays = getGridDays(pageMonthCal)
+                        Column {
+                            val rowsCount = pageDays.size / 7
+                            for (r in 0 until rowsCount) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(72.dp)
+                                ) {
+                                    for (c in 0 until 7) {
+                                        val dayIndex = r * 7 + c
+                                        if (dayIndex < pageDays.size) {
+                                            val day = pageDays[dayIndex]
+                                            val dayEvents = getDayEvents(day.dateInMillis, monthlyEvents)
+                                            CalendarDayCell(
+                                                day = day,
+                                                isSelected = isSameDay(day.dateInMillis, selectedDate),
+                                                isDeadline = deadlineDates.any { isSameDay(it, day.dateInMillis) },
+                                                dayEvents = dayEvents,
+                                                categories = categories,
+                                                onClick = { onDaySelected(day.dateInMillis) },
+                                                modifier = Modifier.weight(1f)
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    HorizontalPager(
+                        state = weekPagerState,
+                        modifier = Modifier.fillMaxWidth()
+                    ) { page ->
+                        val pageWeekCal = getCalendarFromWeekPage(page)
+                        val pageDays = getWeekDays(pageWeekCal.timeInMillis)
+                        Column {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(64.dp)
+                            ) {
+                                for (c in 0 until 7) {
+                                    val day = pageDays[c]
+                                    val dayEvents = getDayEvents(day.dateInMillis, monthlyEvents)
+                                    CalendarDayCell(
+                                        day = day,
+                                        isSelected = isSameDay(day.dateInMillis, selectedDate),
+                                        isDeadline = deadlineDates.any { isSameDay(it, day.dateInMillis) },
+                                        dayEvents = dayEvents,
+                                        categories = categories,
+                                        onClick = { onDaySelected(day.dateInMillis) },
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                }
                             }
                         }
                     }
