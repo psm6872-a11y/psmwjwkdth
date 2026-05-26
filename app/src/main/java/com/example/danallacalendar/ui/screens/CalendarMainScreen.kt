@@ -111,6 +111,26 @@ fun CalendarMainScreen(
         }
     }
 
+    val deviceCalendarImportLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { isGranted: Boolean ->
+        if (isGranted) {
+            val defaultCatId = categories.firstOrNull()?.id ?: 1
+            viewModel.importEventsFromDevice(
+                context = context,
+                targetCalendarId = defaultCatId,
+                onSuccess = { count ->
+                    Toast.makeText(context, "${count}개의 일정을 성공적으로 가져왔습니다.", Toast.LENGTH_SHORT).show()
+                },
+                onError = { error ->
+                    Toast.makeText(context, "가져오기 실패: ${error.localizedMessage}", Toast.LENGTH_LONG).show()
+                }
+            )
+        } else {
+            Toast.makeText(context, "일정을 가져오려면 캘린더 읽기 권한이 필요합니다.", Toast.LENGTH_LONG).show()
+        }
+    }
+
     ModalNavigationDrawer(
         drawerState = drawerState,
         drawerContent = {
@@ -125,6 +145,29 @@ fun CalendarMainScreen(
                     onImportClick = {
                         scope.launch { drawerState.close() }
                         filePickerLauncher.launch("*/*")
+                    },
+                    onImportDeviceClick = {
+                        scope.launch { drawerState.close() }
+                        val hasPermission = androidx.core.content.ContextCompat.checkSelfPermission(
+                            context,
+                            android.Manifest.permission.READ_CALENDAR
+                        ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+                        
+                        if (hasPermission) {
+                            val defaultCatId = categories.firstOrNull()?.id ?: 1
+                            viewModel.importEventsFromDevice(
+                                context = context,
+                                targetCalendarId = defaultCatId,
+                                onSuccess = { count ->
+                                    Toast.makeText(context, "${count}개의 일정을 성공적으로 가져왔습니다.", Toast.LENGTH_SHORT).show()
+                                },
+                                onError = { error ->
+                                    Toast.makeText(context, "가져오기 실패: ${error.localizedMessage}", Toast.LENGTH_LONG).show()
+                                }
+                            )
+                        } else {
+                            deviceCalendarImportLauncher.launch(android.Manifest.permission.READ_CALENDAR)
+                        }
                     }
                 )
             }

@@ -13,6 +13,8 @@ import java.util.Calendar
 import java.util.UUID
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.decodeFromString
+import android.content.Context
+import android.provider.CalendarContract
 
 enum class CalendarViewMode {
     MONTH, WEEK
@@ -342,6 +344,77 @@ class CalendarViewModel(private val repository: CalendarRepository) : ViewModel(
                     repository.insertEvent(event)
                 }
                 onSuccess(list.size)
+            } catch (e: Exception) {
+                onError(e)
+            }
+        }
+    }
+
+    fun importEventsFromDevice(
+        context: Context,
+        targetCalendarId: Int,
+        onSuccess: (Int) -> Unit,
+        onError: (Throwable) -> Unit
+    ) {
+        viewModelScope.launch {
+            try {
+                var importedCount = 0
+                val contentResolver = context.contentResolver
+                val uri = CalendarContract.Events.CONTENT_URI
+                val projection = arrayOf(
+                    CalendarContract.Events._ID,
+                    CalendarContract.Events.TITLE,
+                    CalendarContract.Events.DTSTART,
+                    CalendarContract.Events.DTEND,
+                    CalendarContract.Events.ALL_DAY,
+                    CalendarContract.Events.EVENT_LOCATION,
+                    CalendarContract.Events.DESCRIPTION
+                )
+                val selection = "(${CalendarContract.Events.DELETED} = 0 OR ${CalendarContract.Events.DELETED} IS NULL)"
+                
+                val cursor = contentResolver.query(uri, projection, selection, null, null)
+                cursor?.use { c ->
+                    val idIndex = c.getColumnIndex(CalendarContract.Events._ID)
+                    val titleIndex = c.getColumnIndex(CalendarContract.Events.TITLE)
+                    val dtStartIndex = c.getColumnIndex(CalendarContract.Events.DTSTART)
+                    val dtEndIndex = c.getColumnIndex(CalendarContract.Events.DTEND)
+                    val allDayIndex = c.getColumnIndex(CalendarContract.Events.ALL_DAY)
+                    val locationIndex = c.getColumnIndex(CalendarContract.Events.EVENT_LOCATION)
+                    val descriptionIndex = c.getColumnIndex(CalendarContract.Events.DESCRIPTION)
+
+                    while (c.moveToNext()) {
+                        val id = if (idIndex >= 0) c.getLong(idIndex) else continue
+                        val title = if (titleIndex >= 0) c.getString(titleIndex) ?: "(제목 없음)" else "(제목 없음)"
+                        val start = if (dtStartIndex >= 0 && !c.isNull(dtStartIndex)) c.getLong(dtStartIndex) else continue
+                        val allDayVal = if (allDayIndex >= 0) c.getInt(allDayIndex) else 0
+                        val isAllDay = allDayVal == 1
+                        val end = if (dtEndIndex >= 0 && !c.isNull(dtEndIndex)) {
+                            c.getLong(dtEndIndex)
+                        } else {
+                            if (isAllDay) start + 24 * 60 * 60 * 1000 else start + 60 * 60 * 1000
+                        }
+                        val location = if (locationIndex >= 0) c.getString(locationIndex) ?: "" else ""
+                        val notes = if (descriptionIndex >= 0) c.getString(descriptionIndex) ?: "" else ""
+
+                        val syncId = "device_calendar_event_$id"
+                        val existing = repository.eventDao.getEventBySyncId(syncId)
+                        if (existing == null) {
+                            val event = Event(
+                                title = title,
+                                startMillis = start,
+                                endMillis = end,
+                                isAllDay = isAllDay,
+                                location = location,
+                                notes = notes,
+                                calendarId = targetCalendarId,
+                                syncId = syncId
+                            )
+                            repository.insertEvent(event)
+                            importedCount++
+                        }
+                    }
+                }
+                onSuccess(importedCount)
             } catch (e: Exception) {
                 onError(e)
             }

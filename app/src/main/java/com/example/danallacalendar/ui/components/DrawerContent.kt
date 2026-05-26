@@ -29,6 +29,7 @@ fun DrawerContent(
     onToggleCategory: (CalendarCategory) -> Unit,
     onNavigateToSync: () -> Unit,
     onImportClick: () -> Unit,
+    onImportDeviceClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val grouped = categories
@@ -115,6 +116,33 @@ fun DrawerContent(
                 fontSize = 15.sp,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.secondary
+            )
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        // Import Device Calendar Button
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(MaterialTheme.shapes.medium)
+                .clickable { onImportDeviceClick() }
+                .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f))
+                .padding(vertical = 12.dp, horizontal = 12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = Icons.Default.CloudSync,
+                contentDescription = "기기 캘린더 가져오기",
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(24.dp)
+            )
+            Spacer(modifier = Modifier.width(16.dp))
+            Text(
+                text = "일정 가져오기 (기기 캘린더)",
+                fontSize = 15.sp,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.primary
             )
         }
 
