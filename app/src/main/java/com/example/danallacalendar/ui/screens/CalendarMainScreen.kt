@@ -644,7 +644,7 @@ fun CalendarGridSection(
                                 Row(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .height(72.dp)
+                                        .height(60.dp)
                                 ) {
                                     for (c in 0 until 7) {
                                         val dayIndex = r * 7 + c
@@ -677,7 +677,7 @@ fun CalendarGridSection(
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .height(64.dp)
+                                    .height(52.dp)
                             ) {
                                 for (c in 0 until 7) {
                                     val day = pageDays[c]
