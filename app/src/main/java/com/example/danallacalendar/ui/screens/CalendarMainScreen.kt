@@ -779,7 +779,7 @@ fun CalendarGridSection(
                     text = day,
                     modifier = Modifier.weight(1f),
                     textAlign = TextAlign.Center,
-                    fontSize = 13.sp,
+                    fontSize = 11.sp,
                     fontWeight = FontWeight.Bold,
                     color = textColor
                 )
@@ -818,7 +818,7 @@ fun CalendarGridSection(
                                 Row(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .height(60.dp)
+                                        .height(52.dp)
                                 ) {
                                     for (c in 0 until 7) {
                                         val dayIndex = r * 7 + c
@@ -928,7 +928,7 @@ fun CalendarDayCell(
         ) {
             // Date circle highlight wrapper Box for SonEopNeunMark alignment
             Box(
-                modifier = Modifier.size(32.dp),
+                modifier = Modifier.size(28.dp),
                 contentAlignment = Alignment.Center
             ) {
                 Box(
@@ -947,7 +947,7 @@ fun CalendarDayCell(
                     Text(
                         text = day.dayOfMonth.toString(),
                         color = if (isSelected) MaterialTheme.colorScheme.onPrimary else dayTextColor,
-                        fontSize = 15.sp,
+                        fontSize = 13.sp,
                         fontWeight = if (day.isToday || isSelected) FontWeight.Bold else FontWeight.Medium
                     )
                 }
