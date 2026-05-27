@@ -82,6 +82,7 @@ fun AddEditEventScreen(
     var startMillis by remember { mutableStateOf(selectedDate) }
     var endMillis by remember { mutableStateOf(selectedDate + 60 * 60 * 1000L) } // Default +1 hour
     var location by remember { mutableStateOf("") }
+    var location2 by remember { mutableStateOf("") }
     var notes by remember { mutableStateOf("") }
     var selectedCategory by remember { mutableStateOf<CalendarCategory?>(null) }
     var selectedColorHex by remember { mutableStateOf<String?>(null) }
@@ -140,7 +141,9 @@ fun AddEditEventScreen(
                 isAllDay = event.isAllDay
                 startMillis = event.startMillis
                 endMillis = event.endMillis
-                location = event.location
+                val locationParts = event.location.split("|||")
+                location = locationParts.getOrNull(0) ?: ""
+                location2 = locationParts.getOrNull(1) ?: ""
                 notes = event.notes
                 repeatType = event.repeatType
                 reminderMinutes = event.reminderMinutes
@@ -170,7 +173,7 @@ fun AddEditEventScreen(
                                     startMillis = startMillis,
                                     endMillis = endMillis,
                                     isAllDay = isAllDay,
-                                    location = location,
+                                    location = if (location2.isNotBlank()) "$location|||$location2" else location,
                                     notes = notes,
                                     repeatType = repeatType,
                                     reminderMinutes = reminderMinutes,
@@ -332,24 +335,30 @@ fun AddEditEventScreen(
                         Icon(imageVector = Icons.Default.Place, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
                         Spacer(modifier = Modifier.width(12.dp))
                         Box(
-                            modifier = Modifier
-                                .weight(1f)
-                                .height(40.dp),
+                            modifier = Modifier.weight(1f),
                             contentAlignment = Alignment.CenterStart
                         ) {
                             if (location.isEmpty()) {
-                                Text("위치", fontSize = 15.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text(
+                                    text = "위치 1",
+                                    fontSize = 15.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.padding(vertical = 8.dp)
+                                )
                             }
                             BasicTextField(
                                 value = location,
                                 onValueChange = { location = it },
-                                singleLine = true,
+                                singleLine = false,
                                 enabled = !isReadOnly,
                                 textStyle = androidx.compose.ui.text.TextStyle(
                                     fontSize = 15.sp,
                                     color = if (isReadOnly) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface
                                 ),
-                                modifier = Modifier.fillMaxWidth()
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .defaultMinSize(minHeight = 40.dp)
+                                    .padding(vertical = 8.dp)
                             )
                         }
                         Spacer(modifier = Modifier.width(8.dp))
@@ -365,6 +374,69 @@ fun AddEditEventScreen(
                                     }
                                 } else {
                                     Toast.makeText(context, "위치를 입력해주세요.", Toast.LENGTH_SHORT).show()
+                                }
+                            },
+                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
+                            shape = RoundedCornerShape(8.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.primaryContainer,
+                                contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                            ),
+                            modifier = Modifier.height(32.dp)
+                        ) {
+                            Text("지도", fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
+
+                    HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
+
+                    // Location 2 Input
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(imageVector = Icons.Default.Place, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Box(
+                            modifier = Modifier.weight(1f),
+                            contentAlignment = Alignment.CenterStart
+                        ) {
+                            if (location2.isEmpty()) {
+                                Text(
+                                    text = "위치 2",
+                                    fontSize = 15.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.padding(vertical = 8.dp)
+                                )
+                            }
+                            BasicTextField(
+                                value = location2,
+                                onValueChange = { location2 = it },
+                                singleLine = false,
+                                enabled = !isReadOnly,
+                                textStyle = androidx.compose.ui.text.TextStyle(
+                                    fontSize = 15.sp,
+                                    color = if (isReadOnly) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface
+                                ),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .defaultMinSize(minHeight = 40.dp)
+                                    .padding(vertical = 8.dp)
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Button(
+                            onClick = {
+                                if (location2.isNotBlank()) {
+                                    try {
+                                        val intent = Intent(Intent.ACTION_VIEW, Uri.parse("nmap://search?query=${Uri.encode(location2)}&appname=com.example.danallacalendar"))
+                                        context.startActivity(intent)
+                                    } catch (e: Exception) {
+                                        val webIntent = Intent(Intent.ACTION_VIEW, Uri.parse("https://m.map.naver.com/search2/search.naver?query=${Uri.encode(location2)}"))
+                                        context.startActivity(webIntent)
+                                    }
+                                } else {
+                                    Toast.makeText(context, "위치2를 입력해주세요.", Toast.LENGTH_SHORT).show()
                                 }
                             },
                             contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
