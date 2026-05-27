@@ -100,6 +100,7 @@ fun AddEditEventScreen(
     var showStartTimePicker by remember { mutableStateOf(false) }
     var showEndTimePicker by remember { mutableStateOf(false) }
     var showRecentCallsDialog by remember { mutableStateOf(false) }
+    var showTitleDatePicker by remember { mutableStateOf(false) }
 
     // Dropdown control states
     var showCategoryDropdown by remember { mutableStateOf(false) }
@@ -129,6 +130,10 @@ fun AddEditEventScreen(
             
             startMillis = calStart.timeInMillis
             endMillis = calStart.timeInMillis + 60 * 60 * 1000L
+            
+            val formatter = SimpleDateFormat("yyyy-MM-dd", Locale.KOREAN)
+            title = formatter.format(Date(selectedDate))
+            
             isTimeInitialized = true
         }
     }
@@ -252,21 +257,20 @@ fun AddEditEventScreen(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    TextField(
-                        value = title,
-                        onValueChange = { title = it },
-                        placeholder = { Text("제목", fontSize = 18.sp) },
-                        singleLine = true,
-                        enabled = !isReadOnly,
-                        colors = TextFieldDefaults.colors(
-                            focusedContainerColor = Color.Transparent,
-                            unfocusedContainerColor = Color.Transparent,
-                            disabledContainerColor = Color.Transparent,
-                            focusedIndicatorColor = Color.Transparent,
-                            unfocusedIndicatorColor = Color.Transparent
-                        ),
-                        modifier = Modifier.weight(1f)
-                    )
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .clickable(enabled = !isReadOnly) { showTitleDatePicker = true }
+                            .padding(horizontal = 16.dp, vertical = 16.dp),
+                        contentAlignment = Alignment.CenterStart
+                    ) {
+                        Text(
+                            text = if (title.isBlank()) "날짜 선택" else title,
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = if (title.isBlank()) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface
+                        )
+                    }
                     
                     selectedCategory?.let { category ->
                         val displayColorHex = selectedColorHex ?: category.colorHex
@@ -1014,6 +1018,52 @@ fun AddEditEventScreen(
     }
 
     // --- DIALOGS ---
+    
+    // Title Date Picker Dialog
+    if (showTitleDatePicker) {
+        val initialDialogMillis = remember(title) {
+            try {
+                val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.KOREAN)
+                sdf.parse(title)?.time ?: startMillis
+            } catch (e: Exception) {
+                startMillis
+            }
+        }
+        MyDatePickerDialog(
+            initialMillis = initialDialogMillis,
+            onDismiss = { showTitleDatePicker = false },
+            onDateSelected = { selectedDateMillis ->
+                val formatter = SimpleDateFormat("yyyy-MM-dd", Locale.KOREAN)
+                title = formatter.format(Date(selectedDateMillis))
+
+                // Automatically update start and end dates to match selected title date
+                val currentStartCal = Calendar.getInstance().apply { timeInMillis = startMillis }
+                val newStartCal = Calendar.getInstance().apply {
+                    timeInMillis = selectedDateMillis
+                    set(Calendar.HOUR_OF_DAY, currentStartCal.get(Calendar.HOUR_OF_DAY))
+                    set(Calendar.MINUTE, currentStartCal.get(Calendar.MINUTE))
+                    set(Calendar.SECOND, 0)
+                    set(Calendar.MILLISECOND, 0)
+                }
+                startMillis = newStartCal.timeInMillis
+
+                val currentEndCal = Calendar.getInstance().apply { timeInMillis = endMillis }
+                val newEndCal = Calendar.getInstance().apply {
+                    timeInMillis = selectedDateMillis
+                    set(Calendar.HOUR_OF_DAY, currentEndCal.get(Calendar.HOUR_OF_DAY))
+                    set(Calendar.MINUTE, currentEndCal.get(Calendar.MINUTE))
+                    set(Calendar.SECOND, 0)
+                    set(Calendar.MILLISECOND, 0)
+                }
+                endMillis = newEndCal.timeInMillis
+                if (endMillis <= startMillis) {
+                    endMillis = startMillis + 60 * 60 * 1000L
+                }
+
+                showTitleDatePicker = false
+            }
+        )
+    }
 
     // Start Date Picker Dialog
     if (showStartDatePicker) {
