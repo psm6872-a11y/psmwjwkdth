@@ -964,11 +964,11 @@ fun CalendarDayCell(
             Image(
                 painter = painterResource(id = R.drawable.ic_moving_day),
                 contentDescription = "이삿날",
-                colorFilter = androidx.compose.ui.graphics.ColorFilter.tint(Color(0xFFFF4A4A)),
+                colorFilter = androidx.compose.ui.graphics.ColorFilter.tint(Color(0xFF9C27B0)),
                 modifier = Modifier
                     .size(25.dp)
                     .align(Alignment.TopEnd)
-                    .offset(x = (-2).dp, y = (-1).dp)
+                    .offset(x = 2.dp, y = (-3).dp)
                     .alpha(alpha)
             )
         }
