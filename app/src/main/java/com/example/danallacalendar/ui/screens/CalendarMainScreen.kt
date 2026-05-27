@@ -1197,7 +1197,7 @@ fun EventItemCard(
                     ) {
                         Text(
                             text = startStr,
-                            fontSize = 12.sp,
+                            fontSize = 13.sp,
                             fontWeight = FontWeight.Bold,
                             color = contentColor,
                             maxLines = 1,
@@ -1230,35 +1230,6 @@ fun EventItemCard(
                             textDecoration = if (event.isCompleted) androidx.compose.ui.text.style.TextDecoration.LineThrough else androidx.compose.ui.text.style.TextDecoration.None
                         )
                     )
-                    
-                    if (event.isAllDay) {
-                        Spacer(modifier = Modifier.height(2.dp))
-                        Text(
-                            text = "하루 종일",
-                            fontSize = 11.sp,
-                            color = subContentColor
-                        )
-                    }
-
-                    if (event.location.isNotBlank()) {
-                        Spacer(modifier = Modifier.height(2.dp))
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(
-                                imageVector = Icons.Default.Place,
-                                contentDescription = null,
-                                tint = subContentColor,
-                                modifier = Modifier.size(11.dp)
-                            )
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text(
-                                text = event.location,
-                                fontSize = 11.sp,
-                                color = subContentColor,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                        }
-                    }
                 }
 
                 // 완료 토글 버튼
