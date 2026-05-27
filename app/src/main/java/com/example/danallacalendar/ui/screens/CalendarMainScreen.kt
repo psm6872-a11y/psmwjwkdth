@@ -282,8 +282,6 @@ fun CalendarMainScreen(
                     onCollapseToggle = { viewModel.toggleViewMode() }
                 )
 
-                Spacer(modifier = Modifier.height(8.dp))
-
                 // Bottom Panel: Selected Date Header and Event List
                 EventListSection(
                     selectedDate = selectedDate,
@@ -1052,7 +1050,7 @@ fun EventListSection(
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .background(MaterialTheme.colorScheme.background)
+            .background(MaterialTheme.colorScheme.surface)
             .nestedScroll(nestedScrollConnection)
     ) {
         // Date Header Row with Deadline button
