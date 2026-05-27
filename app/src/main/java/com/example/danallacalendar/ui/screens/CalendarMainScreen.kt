@@ -1009,7 +1009,7 @@ fun EventListSection(
     onSwipeUp: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
-    val dateFormat = SimpleDateFormat("M월 d일 EEEE", Locale.KOREAN)
+    val dateFormat = SimpleDateFormat("d일 EEEE", Locale.KOREAN)
     val lunarStr = getKoreanLunarDateString(selectedDate)
     val dateHeaderStr = "${dateFormat.format(Date(selectedDate))} ($lunarStr)"
 
