@@ -419,6 +419,9 @@ private fun startApkDownload(
             // 4단계: 설치 인텐트 실행
             withContext(Dispatchers.Main) {
                 try {
+                    val sharedPrefs = context.getSharedPreferences("app_prefs", android.content.Context.MODE_PRIVATE)
+                    sharedPrefs.edit().putBoolean("user_initiated_update", true).commit()
+
                     val apkUri = androidx.core.content.FileProvider.getUriForFile(
                         context,
                         "com.example.danallacalendar.fileprovider",
