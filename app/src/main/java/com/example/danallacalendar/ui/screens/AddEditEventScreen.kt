@@ -275,7 +275,7 @@ fun AddEditEventScreen(
                         modifier = Modifier.padding(end = 4.dp)
                     ) {
                         Icon(
-                            imageVector = Icons.Default.CalendarToday,
+                            imageVector = Icons.Default.CalendarMonth,
                             contentDescription = "날짜 선택",
                             tint = MaterialTheme.colorScheme.primary
                         )
@@ -1035,14 +1035,23 @@ fun AddEditEventScreen(
                 val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.KOREAN)
                 sdf.parse(title)?.time ?: startMillis
             } catch (e: Exception) {
-                startMillis
+                try {
+                    val sdf2 = SimpleDateFormat("MM-dd", Locale.KOREAN)
+                    val calParsed = Calendar.getInstance().apply {
+                        time = sdf2.parse(title) ?: Date(startMillis)
+                        set(Calendar.YEAR, Calendar.getInstance().get(Calendar.YEAR))
+                    }
+                    calParsed.timeInMillis
+                } catch (e2: Exception) {
+                    startMillis
+                }
             }
         }
         MyDatePickerDialog(
             initialMillis = initialDialogMillis,
             onDismiss = { showTitleDatePicker = false },
             onDateSelected = { selectedDateMillis ->
-                val formatter = SimpleDateFormat("yyyy-MM-dd", Locale.KOREAN)
+                val formatter = SimpleDateFormat("MM-dd", Locale.KOREAN)
                 title = formatter.format(Date(selectedDateMillis))
 
                 // Automatically update start and end dates to match selected title date
