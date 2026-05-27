@@ -1186,13 +1186,13 @@ fun EventItemCard(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                    .padding(start = 10.dp, end = 16.dp, top = 8.dp, bottom = 8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 if (!event.isAllDay) {
                     // 시간 설정 일정의 경우: 제일 좌측에 24시간제 시작 시간만 표시
                     Box(
-                        modifier = Modifier.width(60.dp),
+                        modifier = Modifier.width(48.dp),
                         contentAlignment = Alignment.CenterStart
                     ) {
                         Text(
@@ -1215,7 +1215,7 @@ fun EventItemCard(
                             .background(catColor.copy(alpha = if (event.isCompleted) 0.5f else 1f))
                     )
                     
-                    Spacer(modifier = Modifier.width(16.dp))
+                    Spacer(modifier = Modifier.width(10.dp))
                 }
 
                 Column(modifier = Modifier.weight(1f)) {
