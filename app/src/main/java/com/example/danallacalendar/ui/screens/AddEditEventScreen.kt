@@ -130,10 +130,6 @@ fun AddEditEventScreen(
             
             startMillis = calStart.timeInMillis
             endMillis = calStart.timeInMillis + 60 * 60 * 1000L
-            
-            val formatter = SimpleDateFormat("yyyy-MM-dd", Locale.KOREAN)
-            title = formatter.format(Date(selectedDate))
-            
             isTimeInitialized = true
         }
     }
@@ -257,18 +253,31 @@ fun AddEditEventScreen(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .weight(1f)
-                            .clickable(enabled = !isReadOnly) { showTitleDatePicker = true }
-                            .padding(horizontal = 16.dp, vertical = 16.dp),
-                        contentAlignment = Alignment.CenterStart
+                    TextField(
+                        value = title,
+                        onValueChange = { title = it },
+                        placeholder = { Text("제목", fontSize = 18.sp) },
+                        singleLine = true,
+                        enabled = !isReadOnly,
+                        colors = TextFieldDefaults.colors(
+                            focusedContainerColor = Color.Transparent,
+                            unfocusedContainerColor = Color.Transparent,
+                            disabledContainerColor = Color.Transparent,
+                            focusedIndicatorColor = Color.Transparent,
+                            unfocusedIndicatorColor = Color.Transparent
+                        ),
+                        modifier = Modifier.weight(1f)
+                    )
+
+                    IconButton(
+                        onClick = { if (!isReadOnly) showTitleDatePicker = true },
+                        enabled = !isReadOnly,
+                        modifier = Modifier.padding(end = 4.dp)
                     ) {
-                        Text(
-                            text = if (title.isBlank()) "날짜 선택" else title,
-                            fontSize = 18.sp,
-                            fontWeight = FontWeight.Medium,
-                            color = if (title.isBlank()) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface
+                        Icon(
+                            imageVector = Icons.Default.CalendarToday,
+                            contentDescription = "날짜 선택",
+                            tint = MaterialTheme.colorScheme.primary
                         )
                     }
                     
