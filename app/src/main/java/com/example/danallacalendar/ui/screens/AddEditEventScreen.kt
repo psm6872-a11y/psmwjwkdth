@@ -332,6 +332,32 @@ fun AddEditEventScreen(
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
+                    // ── 위치 1 그룹 헤더 ──
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(
+                                color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f),
+                                shape = RoundedCornerShape(8.dp)
+                            )
+                            .padding(horizontal = 8.dp, vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Place,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = "위치 1",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+
                     // ── 위치 1 상단 ──
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -345,7 +371,7 @@ fun AddEditEventScreen(
                         ) {
                             if (location.isEmpty()) {
                                 Text(
-                                    text = "위치 1 (상)",
+                                    text = "상단 주소",
                                     fontSize = 15.sp,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     modifier = Modifier.padding(vertical = 8.dp)
@@ -408,7 +434,7 @@ fun AddEditEventScreen(
                         ) {
                             if (location1b.isEmpty()) {
                                 Text(
-                                    text = "위치 1 (하)",
+                                    text = "하단 주소",
                                     fontSize = 15.sp,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     modifier = Modifier.padding(vertical = 8.dp)
@@ -456,7 +482,38 @@ fun AddEditEventScreen(
                         }
                     }
 
-                    HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
+                    // ── 위치 2 그룹 구분선 + 헤더 ──
+                    Spacer(modifier = Modifier.height(4.dp))
+                    HorizontalDivider(
+                        color = MaterialTheme.colorScheme.outlineVariant,
+                        thickness = 1.5.dp
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(
+                                color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.45f),
+                                shape = RoundedCornerShape(8.dp)
+                            )
+                            .padding(horizontal = 8.dp, vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Place,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.secondary,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = "위치 2",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.secondary
+                        )
+                    }
 
                     // ── 위치 2 상단 ──
                     Row(
@@ -471,7 +528,7 @@ fun AddEditEventScreen(
                         ) {
                             if (location2.isEmpty()) {
                                 Text(
-                                    text = "위치 2 (상)",
+                                    text = "상단 주소",
                                     fontSize = 15.sp,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     modifier = Modifier.padding(vertical = 8.dp)
@@ -522,6 +579,7 @@ fun AddEditEventScreen(
                     HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
 
                     // ── 위치 2 하단 ──
+
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically
@@ -534,7 +592,7 @@ fun AddEditEventScreen(
                         ) {
                             if (location2b.isEmpty()) {
                                 Text(
-                                    text = "위치 2 (하)",
+                                    text = "하단 주소",
                                     fontSize = 15.sp,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     modifier = Modifier.padding(vertical = 8.dp)
