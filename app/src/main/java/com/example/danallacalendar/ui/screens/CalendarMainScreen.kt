@@ -150,6 +150,7 @@ fun CalendarMainScreen(
 
     ModalNavigationDrawer(
         drawerState = drawerState,
+        gesturesEnabled = false,
         drawerContent = {
             ModalDrawerSheet {
                 DrawerContent(
