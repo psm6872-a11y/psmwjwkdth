@@ -9,6 +9,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -34,6 +35,7 @@ fun DrawerContent(
     onImportDeviceClick: () -> Unit,
     onShareAppClick: () -> Unit,
     onUpdateClick: () -> Unit,
+    onCloseClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val grouped = categories
@@ -62,10 +64,10 @@ fun DrawerContent(
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onBackground
             )
-            IconButton(onClick = {}) {
+            IconButton(onClick = onCloseClick) {
                 Icon(
-                    imageVector = Icons.Default.Settings,
-                    contentDescription = "설정",
+                    imageVector = Icons.Default.Close,
+                    contentDescription = "닫기",
                     tint = MaterialTheme.colorScheme.onBackground
                 )
             }

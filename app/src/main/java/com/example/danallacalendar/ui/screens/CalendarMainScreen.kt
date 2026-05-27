@@ -150,7 +150,7 @@ fun CalendarMainScreen(
 
     ModalNavigationDrawer(
         drawerState = drawerState,
-        gesturesEnabled = false,
+        gesturesEnabled = !drawerState.isClosed,
         drawerContent = {
             ModalDrawerSheet {
                 DrawerContent(
@@ -229,6 +229,9 @@ fun CalendarMainScreen(
                         } catch (e: Exception) {
                             Toast.makeText(context, "업데이트 오류: ${e.localizedMessage}", Toast.LENGTH_LONG).show()
                         }
+                    },
+                    onCloseClick = {
+                        scope.launch { drawerState.close() }
                     }
                 )
             }
