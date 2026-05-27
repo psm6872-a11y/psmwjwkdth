@@ -1186,18 +1186,18 @@ fun EventItemCard(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(16.dp),
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 if (!event.isAllDay) {
                     // 시간 설정 일정의 경우: 제일 좌측에 24시간제 시작 시간만 표시
                     Box(
-                        modifier = Modifier.width(70.dp),
+                        modifier = Modifier.width(60.dp),
                         contentAlignment = Alignment.CenterStart
                     ) {
                         Text(
                             text = startStr,
-                            fontSize = 14.sp,
+                            fontSize = 12.sp,
                             fontWeight = FontWeight.Bold,
                             color = contentColor,
                             maxLines = 1,
@@ -1210,7 +1210,7 @@ fun EventItemCard(
                     Box(
                         modifier = Modifier
                             .width(4.dp)
-                            .height(36.dp)
+                            .height(28.dp)
                             .clip(RoundedCornerShape(2.dp))
                             .background(catColor.copy(alpha = if (event.isCompleted) 0.5f else 1f))
                     )
@@ -1221,7 +1221,7 @@ fun EventItemCard(
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = event.title,
-                        fontSize = 16.sp,
+                        fontSize = 14.sp,
                         fontWeight = FontWeight.Bold,
                         color = contentColor,
                         maxLines = 1,
@@ -1232,27 +1232,27 @@ fun EventItemCard(
                     )
                     
                     if (event.isAllDay) {
-                        Spacer(modifier = Modifier.height(4.dp))
+                        Spacer(modifier = Modifier.height(2.dp))
                         Text(
                             text = "하루 종일",
-                            fontSize = 13.sp,
+                            fontSize = 11.sp,
                             color = subContentColor
                         )
                     }
 
                     if (event.location.isNotBlank()) {
-                        Spacer(modifier = Modifier.height(4.dp))
+                        Spacer(modifier = Modifier.height(2.dp))
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(
                                 imageVector = Icons.Default.Place,
                                 contentDescription = null,
                                 tint = subContentColor,
-                                modifier = Modifier.size(14.dp)
+                                modifier = Modifier.size(11.dp)
                             )
                             Spacer(modifier = Modifier.width(4.dp))
                             Text(
                                 text = event.location,
-                                fontSize = 12.sp,
+                                fontSize = 11.sp,
                                 color = subContentColor,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
