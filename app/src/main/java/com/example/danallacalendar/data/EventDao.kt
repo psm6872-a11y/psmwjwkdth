@@ -81,5 +81,15 @@ interface EventDao {
 
     @Query("UPDATE events SET calendarId = :newCalendarId WHERE calendarId IN (:oldCalendarIds)")
     suspend fun updateEventsCalendarId(oldCalendarIds: List<Int>, newCalendarId: Int)
+
+    // DeadlineDates
+    @Query("SELECT * FROM deadline_dates")
+    fun getAllDeadlineDates(): Flow<List<DeadlineDate>>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertDeadlineDate(deadlineDate: DeadlineDate)
+
+    @Query("DELETE FROM deadline_dates WHERE dateMillis = :dateMillis")
+    suspend fun deleteDeadlineDate(dateMillis: Long)
 }
 

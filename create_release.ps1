@@ -1,6 +1,6 @@
 $token = "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"
 $repo = "psm6872-a11y/psmwjwkdth"
-$tag = "v1.0.20"
+$tag = "v1.0.21"
 $apkPath = "c:\Users\me\Documents\danalla\psm\app\build\outputs\apk\debug\app-debug.apk"
 
 $headers = @{
@@ -9,24 +9,24 @@ $headers = @{
     "User-Agent"    = "PowerShell"
 }
 
-# Get existing release
-Write-Output "Fetching release $tag ..."
-$release = Invoke-RestMethod -Uri "https://api.github.com/repos/$repo/releases/tags/$tag" -Method Get -Headers $headers
+# Create new release
+Write-Output "Creating release $tag ..."
+$body = @{
+    tag_name = $tag
+    name     = $tag
+    body     = "v1.0.21: 마감 도장 영구 저장, 위치 아이콘/지도 버튼 제거, 위치 행 높이 축소"
+    draft    = $false
+    prerelease = $false
+} | ConvertTo-Json
+
+$release = Invoke-RestMethod -Uri "https://api.github.com/repos/$repo/releases" -Method Post -Headers $headers -Body $body -ContentType "application/json"
 Write-Output "Release ID: $($release.id)"
 
-# Delete old APK asset if exists
-$oldAsset = $release.assets | Where-Object { $_.name -eq "app-debug.apk" }
-if ($oldAsset) {
-    Write-Output "Deleting old asset ID $($oldAsset.id) ..."
-    Invoke-RestMethod -Uri "https://api.github.com/repos/$repo/releases/assets/$($oldAsset.id)" -Method Delete -Headers $headers
-    Write-Output "Old asset deleted."
-}
-
-# Upload new APK
+# Upload APK
 $uploadUrl = $release.upload_url -replace '\{.*\}', ''
 $uploadUrl = "${uploadUrl}?name=app-debug.apk"
 
-Write-Output "Uploading new APK..."
+Write-Output "Uploading APK..."
 $uploadHeaders = @{
     "Authorization" = "token $token"
     "Accept"        = "application/vnd.github.v3+json"
