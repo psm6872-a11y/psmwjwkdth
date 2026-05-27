@@ -1192,8 +1192,8 @@ fun EventItemCard(
                 if (!event.isAllDay) {
                     // 시간 설정 일정의 경우: 제일 좌측에 24시간제 시작 시간만 표시
                     Box(
-                        modifier = Modifier.width(75.dp),
-                        contentAlignment = Alignment.Center
+                        modifier = Modifier.width(50.dp),
+                        contentAlignment = Alignment.CenterStart
                     ) {
                         Text(
                             text = startStr,
@@ -1202,7 +1202,7 @@ fun EventItemCard(
                             color = contentColor
                         )
                     }
-                    Spacer(modifier = Modifier.width(12.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
                     
                     // Category Color Bar indicator (시간 일정만 노출)
                     Box(
