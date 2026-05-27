@@ -306,6 +306,7 @@ fun CalendarMainScreen(
                     },
                     viewMode = viewMode,
                     onSwipeDownAtTop = { viewModel.setViewMode(CalendarViewMode.MONTH) },
+                    onSwipeUp = { viewModel.setViewMode(CalendarViewMode.WEEK) },
                     modifier = Modifier.weight(1f)
                 )
             }
@@ -1018,6 +1019,7 @@ fun EventListSection(
     onDeadlineToggle: (Long) -> Unit = {},
     viewMode: CalendarViewMode = CalendarViewMode.MONTH,
     onSwipeDownAtTop: () -> Unit = {},
+    onSwipeUp: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val dateFormat = SimpleDateFormat("M월 d일 EEEE", Locale.KOREAN)
@@ -1034,6 +1036,10 @@ fun EventListSection(
                         onSwipeDownAtTop()
                         return Offset(0f, available.y)
                     }
+                }
+                if (available.y < -0.5f && viewMode == CalendarViewMode.MONTH) {
+                    onSwipeUp()
+                    return Offset(0f, available.y)
                 }
                 return Offset.Zero
             }
@@ -1103,6 +1109,9 @@ fun EventListSection(
                             if (dragAmount > 0.5f && viewMode == CalendarViewMode.WEEK) {
                                 change.consume()
                                 onSwipeDownAtTop()
+                            } else if (dragAmount < -0.5f && viewMode == CalendarViewMode.MONTH) {
+                                change.consume()
+                                onSwipeUp()
                             }
                         }
                     },
