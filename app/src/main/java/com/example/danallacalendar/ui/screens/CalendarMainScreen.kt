@@ -848,23 +848,6 @@ fun CalendarGridSection(
                 }
             }
         }
-
-        // Drag handle bar at bottom
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(16.dp)
-                .clickable { onCollapseToggle() },
-            contentAlignment = Alignment.Center
-        ) {
-            Box(
-                modifier = Modifier
-                    .width(40.dp)
-                    .height(4.dp)
-                    .clip(RoundedCornerShape(2.dp))
-                    .background(MaterialTheme.colorScheme.surfaceVariant)
-            )
-        }
     }
 }
 
