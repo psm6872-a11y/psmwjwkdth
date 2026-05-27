@@ -20,4 +20,11 @@ class CalendarRepository(val eventDao: EventDao) {
     suspend fun updateEvent(event: Event) = eventDao.updateEvent(event)
     
     suspend fun deleteEvent(event: Event) = eventDao.deleteEvent(event)
+
+    // DeadlineDates
+    fun getAllDeadlineDates(): Flow<List<DeadlineDate>> = eventDao.getAllDeadlineDates()
+
+    suspend fun insertDeadlineDate(deadlineDate: DeadlineDate) = eventDao.insertDeadlineDate(deadlineDate)
+
+    suspend fun deleteDeadlineDate(dateMillis: Long) = eventDao.deleteDeadlineDate(dateMillis)
 }

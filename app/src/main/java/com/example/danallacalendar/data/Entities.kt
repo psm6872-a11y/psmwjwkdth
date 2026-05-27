@@ -32,3 +32,8 @@ data class Event(
     val colorHex: String? = null,
     val isCompleted: Boolean = false
 )
+
+@Entity(tableName = "deadline_dates")
+data class DeadlineDate(
+    @PrimaryKey val dateMillis: Long  // 자정 기준으로 정규화된 날짜 millis
+)

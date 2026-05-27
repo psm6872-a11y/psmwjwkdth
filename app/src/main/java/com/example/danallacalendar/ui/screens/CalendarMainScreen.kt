@@ -99,8 +99,8 @@ fun CalendarMainScreen(
     val viewMode by viewModel.viewMode.collectAsStateWithLifecycle()
     val eventFilter by viewModel.eventFilter.collectAsStateWithLifecycle()
 
-    // 마감 날짜 Set (날짜 millis를 자정 기준으로 저장)
-    val deadlineDates = remember { mutableStateOf(setOf<Long>()) }
+    // 마감 날짜 Set - DB에서 영구 저장
+    val deadlineDates by viewModel.deadlineDates.collectAsStateWithLifecycle()
 
     val filePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
@@ -275,7 +275,7 @@ fun CalendarMainScreen(
                     viewMode = viewMode,
                     monthlyEvents = monthlyEvents,
                     categories = categories,
-                    deadlineDates = deadlineDates.value,
+                    deadlineDates = deadlineDates,
                     onDaySelected = { viewModel.selectDate(it) },
                     onMonthChanged = { viewModel.selectDate(it.timeInMillis) },
                     onWeekSelected = { viewModel.selectDate(it) },
@@ -290,20 +290,9 @@ fun CalendarMainScreen(
                     onEventClick = { onNavigate(AddEditEvent(it.id)) },
                     onDeleteEvent = { viewModel.deleteEvent(it) },
                     onToggleComplete = { viewModel.updateEvent(it.copy(isCompleted = !it.isCompleted)) },
-                    isDeadlineSet = deadlineDates.value.any { isSameDay(it, selectedDate) },
+                    isDeadlineSet = deadlineDates.any { isSameDay(it, selectedDate) },
                     onDeadlineToggle = { dateMillis ->
-                        // 자정 기준으로 날짜 정규화
-                        val cal = Calendar.getInstance().apply {
-                            timeInMillis = dateMillis
-                            clearTimeToZero()
-                        }
-                        val normalized = cal.timeInMillis
-                        val current = deadlineDates.value
-                        deadlineDates.value = if (current.any { isSameDay(it, dateMillis) }) {
-                            current.filter { !isSameDay(it, dateMillis) }.toSet()
-                        } else {
-                            current + normalized
-                        }
+                        viewModel.toggleDeadlineDate(dateMillis)
                     },
                     viewMode = viewMode,
                     onSwipeDownAtTop = { viewModel.setViewMode(CalendarViewMode.MONTH) },

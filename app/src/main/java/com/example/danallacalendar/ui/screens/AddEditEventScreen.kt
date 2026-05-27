@@ -356,13 +356,6 @@ fun AddEditEventScreen(
                             .padding(horizontal = 8.dp, vertical = 4.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.Place,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(16.dp)
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
                         Text(
                             text = "위치 1",
                             fontSize = 12.sp,
@@ -376,8 +369,6 @@ fun AddEditEventScreen(
                         modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(imageVector = Icons.Default.Place, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                        Spacer(modifier = Modifier.width(12.dp))
                         Box(
                             modifier = Modifier.weight(1f),
                             contentAlignment = Alignment.CenterStart
@@ -387,7 +378,7 @@ fun AddEditEventScreen(
                                     text = "상단 주소",
                                     fontSize = 15.sp,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.padding(vertical = 8.dp)
+                                    modifier = Modifier.padding(vertical = 4.dp)
                                 )
                             }
                             BasicTextField(
@@ -401,8 +392,8 @@ fun AddEditEventScreen(
                                 ),
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .defaultMinSize(minHeight = 40.dp)
-                                    .padding(vertical = 8.dp)
+                                    .defaultMinSize(minHeight = 28.dp)
+                                    .padding(vertical = 4.dp)
                             )
                         }
                         Spacer(modifier = Modifier.width(8.dp))
@@ -439,8 +430,6 @@ fun AddEditEventScreen(
                         modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(imageVector = Icons.Default.Place, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                        Spacer(modifier = Modifier.width(12.dp))
                         Box(
                             modifier = Modifier.weight(1f),
                             contentAlignment = Alignment.CenterStart
@@ -450,7 +439,7 @@ fun AddEditEventScreen(
                                     text = "하단 주소",
                                     fontSize = 15.sp,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.padding(vertical = 8.dp)
+                                    modifier = Modifier.padding(vertical = 4.dp)
                                 )
                             }
                             BasicTextField(
@@ -464,34 +453,9 @@ fun AddEditEventScreen(
                                 ),
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .defaultMinSize(minHeight = 40.dp)
-                                    .padding(vertical = 8.dp)
+                                    .defaultMinSize(minHeight = 28.dp)
+                                    .padding(vertical = 4.dp)
                             )
-                        }
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Button(
-                            onClick = {
-                                if (location1b.isNotBlank()) {
-                                    try {
-                                        val intent = Intent(Intent.ACTION_VIEW, Uri.parse("nmap://search?query=${Uri.encode(location1b)}&appname=com.example.danallacalendar"))
-                                        context.startActivity(intent)
-                                    } catch (e: Exception) {
-                                        val webIntent = Intent(Intent.ACTION_VIEW, Uri.parse("https://m.map.naver.com/search2/search.naver?query=${Uri.encode(location1b)}"))
-                                        context.startActivity(webIntent)
-                                    }
-                                } else {
-                                    Toast.makeText(context, "위치 1 (하)를 입력해주세요.", Toast.LENGTH_SHORT).show()
-                                }
-                            },
-                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
-                            shape = RoundedCornerShape(8.dp),
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = MaterialTheme.colorScheme.primaryContainer,
-                                contentColor = MaterialTheme.colorScheme.onPrimaryContainer
-                            ),
-                            modifier = Modifier.height(32.dp)
-                        ) {
-                            Text("지도", fontSize = 13.sp, fontWeight = FontWeight.Bold)
                         }
                     }
 
@@ -513,13 +477,6 @@ fun AddEditEventScreen(
                             .padding(horizontal = 8.dp, vertical = 4.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.Place,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.secondary,
-                            modifier = Modifier.size(16.dp)
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
                         Text(
                             text = "위치 2",
                             fontSize = 12.sp,
@@ -533,8 +490,6 @@ fun AddEditEventScreen(
                         modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(imageVector = Icons.Default.Place, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                        Spacer(modifier = Modifier.width(12.dp))
                         Box(
                             modifier = Modifier.weight(1f),
                             contentAlignment = Alignment.CenterStart
@@ -544,7 +499,7 @@ fun AddEditEventScreen(
                                     text = "상단 주소",
                                     fontSize = 15.sp,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.padding(vertical = 8.dp)
+                                    modifier = Modifier.padding(vertical = 4.dp)
                                 )
                             }
                             BasicTextField(
@@ -558,8 +513,8 @@ fun AddEditEventScreen(
                                 ),
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .defaultMinSize(minHeight = 40.dp)
-                                    .padding(vertical = 8.dp)
+                                    .defaultMinSize(minHeight = 28.dp)
+                                    .padding(vertical = 4.dp)
                             )
                         }
                         Spacer(modifier = Modifier.width(8.dp))
@@ -597,8 +552,6 @@ fun AddEditEventScreen(
                         modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(imageVector = Icons.Default.Place, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                        Spacer(modifier = Modifier.width(12.dp))
                         Box(
                             modifier = Modifier.weight(1f),
                             contentAlignment = Alignment.CenterStart
@@ -608,7 +561,7 @@ fun AddEditEventScreen(
                                     text = "하단 주소",
                                     fontSize = 15.sp,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.padding(vertical = 8.dp)
+                                    modifier = Modifier.padding(vertical = 4.dp)
                                 )
                             }
                             BasicTextField(
@@ -622,34 +575,9 @@ fun AddEditEventScreen(
                                 ),
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .defaultMinSize(minHeight = 40.dp)
-                                    .padding(vertical = 8.dp)
+                                    .defaultMinSize(minHeight = 28.dp)
+                                    .padding(vertical = 4.dp)
                             )
-                        }
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Button(
-                            onClick = {
-                                if (location2b.isNotBlank()) {
-                                    try {
-                                        val intent = Intent(Intent.ACTION_VIEW, Uri.parse("nmap://search?query=${Uri.encode(location2b)}&appname=com.example.danallacalendar"))
-                                        context.startActivity(intent)
-                                    } catch (e: Exception) {
-                                        val webIntent = Intent(Intent.ACTION_VIEW, Uri.parse("https://m.map.naver.com/search2/search.naver?query=${Uri.encode(location2b)}"))
-                                        context.startActivity(webIntent)
-                                    }
-                                } else {
-                                    Toast.makeText(context, "위치 2 (하)를 입력해주세요.", Toast.LENGTH_SHORT).show()
-                                }
-                            },
-                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
-                            shape = RoundedCornerShape(8.dp),
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = MaterialTheme.colorScheme.primaryContainer,
-                                contentColor = MaterialTheme.colorScheme.onPrimaryContainer
-                            ),
-                            modifier = Modifier.height(32.dp)
-                        ) {
-                            Text("지도", fontSize = 13.sp, fontWeight = FontWeight.Bold)
                         }
                     }
 

@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.danallacalendar.data.CalendarCategory
 import com.example.danallacalendar.data.CalendarRepository
+import com.example.danallacalendar.data.DeadlineDate
 import com.example.danallacalendar.data.Event
 import com.example.danallacalendar.ui.sync.SyncManager
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -127,6 +128,10 @@ class CalendarViewModel(private val repository: CalendarRepository) : ViewModel(
     // Database Flows
     val categories: StateFlow<List<CalendarCategory>> = repository.getAllCategories()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val deadlineDates: StateFlow<Set<Long>> = repository.getAllDeadlineDates()
+        .map { list -> list.map { it.dateMillis }.toSet() }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptySet())
 
     @OptIn(ExperimentalCoroutinesApi::class)
     val monthlyEvents: StateFlow<List<Event>> = combine(
@@ -267,6 +272,32 @@ class CalendarViewModel(private val repository: CalendarRepository) : ViewModel(
 
     fun setEventFilter(filter: EventFilter) {
         _eventFilter.value = filter
+    }
+
+    fun toggleDeadlineDate(dateMillis: Long) {
+        viewModelScope.launch {
+            // 자정 기준으로 날짜 정규화
+            val cal = java.util.Calendar.getInstance().apply {
+                timeInMillis = dateMillis
+                set(java.util.Calendar.HOUR_OF_DAY, 0)
+                set(java.util.Calendar.MINUTE, 0)
+                set(java.util.Calendar.SECOND, 0)
+                set(java.util.Calendar.MILLISECOND, 0)
+            }
+            val normalized = cal.timeInMillis
+            if (deadlineDates.value.any { isSameDay(it, dateMillis) }) {
+                repository.deleteDeadlineDate(normalized)
+            } else {
+                repository.insertDeadlineDate(DeadlineDate(normalized))
+            }
+        }
+    }
+
+    private fun isSameDay(a: Long, b: Long): Boolean {
+        val calA = java.util.Calendar.getInstance().apply { timeInMillis = a }
+        val calB = java.util.Calendar.getInstance().apply { timeInMillis = b }
+        return calA.get(java.util.Calendar.YEAR) == calB.get(java.util.Calendar.YEAR) &&
+               calA.get(java.util.Calendar.DAY_OF_YEAR) == calB.get(java.util.Calendar.DAY_OF_YEAR)
     }
 
     fun toggleCategoryVisibility(category: CalendarCategory) {
