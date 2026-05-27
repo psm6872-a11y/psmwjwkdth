@@ -15,22 +15,33 @@ class UpdateReceiver : BroadcastReceiver() {
         if (intent.action == Intent.ACTION_MY_PACKAGE_REPLACED) {
             Log.d("UpdateReceiver", "App updated! ACTION_MY_PACKAGE_REPLACED received.")
 
-            // 1. Try to start MainActivity directly (works on some devices/older Android versions)
-            try {
-                val startIntent = Intent(context, MainActivity::class.java).apply {
-                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                }
-                context.startActivity(startIntent)
-                Log.d("UpdateReceiver", "Direct activity start succeeded.")
-            } catch (e: Exception) {
-                Log.e("UpdateReceiver", "Failed to start activity directly: ${e.localizedMessage}")
-            }
+            val sharedPrefs = context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
+            val isUserInitiated = sharedPrefs.getBoolean("user_initiated_update", false)
+            Log.d("UpdateReceiver", "isUserInitiated: $isUserInitiated")
 
-            // 2. Post a notification as a fallback so the user can easily launch the app if direct launch was blocked
-            try {
-                showUpdateNotification(context)
-            } catch (e: Exception) {
-                Log.e("UpdateReceiver", "Failed to show notification: ${e.localizedMessage}")
+            if (isUserInitiated) {
+                // Clear the flag
+                sharedPrefs.edit().putBoolean("user_initiated_update", false).apply()
+
+                // 1. Try to start MainActivity directly (works on some devices/older Android versions)
+                try {
+                    val startIntent = Intent(context, MainActivity::class.java).apply {
+                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    }
+                    context.startActivity(startIntent)
+                    Log.d("UpdateReceiver", "Direct activity start succeeded.")
+                } catch (e: Exception) {
+                    Log.e("UpdateReceiver", "Failed to start activity directly: ${e.localizedMessage}")
+                }
+
+                // 2. Post a notification as a fallback so the user can easily launch the app if direct launch was blocked
+                try {
+                    showUpdateNotification(context)
+                } catch (e: Exception) {
+                    Log.e("UpdateReceiver", "Failed to show notification: ${e.localizedMessage}")
+                }
+            } else {
+                Log.d("UpdateReceiver", "Update was not initiated by the user via the app menu. Skipping auto-relaunch.")
             }
         }
     }
