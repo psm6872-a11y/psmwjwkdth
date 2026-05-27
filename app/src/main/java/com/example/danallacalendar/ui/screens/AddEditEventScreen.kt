@@ -1053,31 +1053,6 @@ fun AddEditEventScreen(
             onDateSelected = { selectedDateMillis ->
                 val formatter = SimpleDateFormat("MM-dd", Locale.KOREAN)
                 title = formatter.format(Date(selectedDateMillis))
-
-                // Automatically update start and end dates to match selected title date
-                val currentStartCal = Calendar.getInstance().apply { timeInMillis = startMillis }
-                val newStartCal = Calendar.getInstance().apply {
-                    timeInMillis = selectedDateMillis
-                    set(Calendar.HOUR_OF_DAY, currentStartCal.get(Calendar.HOUR_OF_DAY))
-                    set(Calendar.MINUTE, currentStartCal.get(Calendar.MINUTE))
-                    set(Calendar.SECOND, 0)
-                    set(Calendar.MILLISECOND, 0)
-                }
-                startMillis = newStartCal.timeInMillis
-
-                val currentEndCal = Calendar.getInstance().apply { timeInMillis = endMillis }
-                val newEndCal = Calendar.getInstance().apply {
-                    timeInMillis = selectedDateMillis
-                    set(Calendar.HOUR_OF_DAY, currentEndCal.get(Calendar.HOUR_OF_DAY))
-                    set(Calendar.MINUTE, currentEndCal.get(Calendar.MINUTE))
-                    set(Calendar.SECOND, 0)
-                    set(Calendar.MILLISECOND, 0)
-                }
-                endMillis = newEndCal.timeInMillis
-                if (endMillis <= startMillis) {
-                    endMillis = startMillis + 60 * 60 * 1000L
-                }
-
                 showTitleDatePicker = false
             }
         )
