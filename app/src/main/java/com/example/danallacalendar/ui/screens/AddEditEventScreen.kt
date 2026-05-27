@@ -1031,19 +1031,20 @@ fun AddEditEventScreen(
     // Title Date Picker Dialog
     if (showTitleDatePicker) {
         val initialDialogMillis = remember(title) {
+            val fallbackMillis = System.currentTimeMillis()
             try {
                 val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.KOREAN)
-                sdf.parse(title)?.time ?: startMillis
+                sdf.parse(title)?.time ?: fallbackMillis
             } catch (e: Exception) {
                 try {
                     val sdf2 = SimpleDateFormat("MM-dd", Locale.KOREAN)
                     val calParsed = Calendar.getInstance().apply {
-                        time = sdf2.parse(title) ?: Date(startMillis)
+                        time = sdf2.parse(title) ?: Date(fallbackMillis)
                         set(Calendar.YEAR, Calendar.getInstance().get(Calendar.YEAR))
                     }
                     calParsed.timeInMillis
                 } catch (e2: Exception) {
-                    startMillis
+                    fallbackMillis
                 }
             }
         }
