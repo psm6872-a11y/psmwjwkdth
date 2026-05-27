@@ -1,6 +1,6 @@
 $token = "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"
 $repo = "psm6872-a11y/psmwjwkdth"
-$tag = "v1.0.19"
+$tag = "v1.0.20"
 $apkPath = "c:\Users\me\Documents\danalla\psm\app\build\outputs\apk\debug\app-debug.apk"
 
 $headers = @{
