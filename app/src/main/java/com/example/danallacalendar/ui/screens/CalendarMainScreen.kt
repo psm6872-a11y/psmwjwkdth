@@ -720,7 +720,7 @@ fun CalendarGridSection(
         modifier = Modifier
             .fillMaxWidth()
             .background(MaterialTheme.colorScheme.surface)
-            .padding(start = 6.dp, end = 6.dp, bottom = 8.dp)
+            .padding(start = 10.dp, end = 10.dp, bottom = 8.dp)
             .pointerInput(viewMode) {
                 detectVerticalDragGestures(
                     onDragStart = { totalDragY = 0f },
@@ -794,7 +794,7 @@ fun CalendarGridSection(
                                 Row(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .height(48.dp)
+                                        .height(44.dp)
                                 ) {
                                     for (c in 0 until 7) {
                                         val dayIndex = r * 7 + c
@@ -827,7 +827,7 @@ fun CalendarGridSection(
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .height(48.dp)
+                                    .height(44.dp)
                             ) {
                                 for (c in 0 until 7) {
                                     val day = pageDays[c]
