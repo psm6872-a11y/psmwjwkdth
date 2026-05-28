@@ -62,7 +62,7 @@ suspend fun loadRecentCalls(context: Context): List<RecentCall> = withContext(Di
                 projection,
                 null,
                 null,
-                "${CallLog.Calls.DATE} DESC LIMIT 5"
+                "${CallLog.Calls.DATE} DESC"
             )
 
             cursor?.use {
@@ -72,28 +72,20 @@ suspend fun loadRecentCalls(context: Context): List<RecentCall> = withContext(Di
                 val dateIdx = it.getColumnIndex(CallLog.Calls.DATE)
                 val typeIdx = it.getColumnIndex(CallLog.Calls.TYPE)
 
-                while (it.moveToNext()) {
+                var count = 0
+                while (it.moveToNext() && count < 5) {
                     val id = it.getString(idIdx) ?: ""
                     val number = it.getString(numberIdx) ?: ""
                     val name = it.getString(nameIdx)
                     val date = it.getLong(dateIdx)
                     val type = it.getInt(typeIdx)
                     calls.add(RecentCall(id, name, number, date, type))
+                    count++
                 }
             }
         }
     } catch (e: Exception) {
         e.printStackTrace()
-    }
-
-    // Fallback simulated call logs if empty
-    if (calls.isEmpty()) {
-        val now = System.currentTimeMillis()
-        calls.add(RecentCall("m1", "홍길동", "010-1234-5678", now - 10 * 60 * 1000L, CallLog.Calls.INCOMING_TYPE))
-        calls.add(RecentCall("m2", "이순신", "010-9876-5432", now - 2 * 60 * 60 * 1000L, CallLog.Calls.OUTGOING_TYPE))
-        calls.add(RecentCall("m3", "김유신", "010-5555-5555", now - 5 * 60 * 60 * 1000L, CallLog.Calls.MISSED_TYPE))
-        calls.add(RecentCall("m4", "유관순", "010-2222-3333", now - 24 * 60 * 60 * 1000L, CallLog.Calls.INCOMING_TYPE))
-        calls.add(RecentCall("m5", "안중근", "010-7777-8888", now - 48 * 60 * 60 * 1000L, CallLog.Calls.OUTGOING_TYPE))
     }
 
     calls
