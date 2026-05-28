@@ -1,6 +1,6 @@
 $token = ""
 $repo = "psm6872-a11y/psmwjwkdth"
-$tag = "v1.0.21"
+$tag = "v1.0.23"
 $apkPath = "c:\Users\me\Documents\danalla\psm\app\build\outputs\apk\debug\app-debug.apk"
 
 $headers = @{
@@ -14,7 +14,7 @@ Write-Output "Creating release $tag ..."
 $body = @{
     tag_name = $tag
     name     = $tag
-    body     = "v1.0.21: 마감 도장 영구 저장, 위치 아이콘/지도 버튼 제거, 위치 행 높이 축소"
+    body     = "v1.0.23: 위치 1, 위치 2 동/호수 입력창 클릭 시 숫자 키보드 바로 노출되도록 수정"
     draft    = $false
     prerelease = $false
 } | ConvertTo-Json
