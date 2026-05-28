@@ -467,8 +467,12 @@ fun AddEditEventScreen(
                             BasicTextField(
                                 value = location1b,
                                 onValueChange = { location1b = it },
-                                singleLine = false,
+                                singleLine = true,
                                 enabled = !isReadOnly,
+                                keyboardOptions = KeyboardOptions(
+                                    keyboardType = KeyboardType.Phone,
+                                    imeAction = ImeAction.Next
+                                ),
                                 textStyle = androidx.compose.ui.text.TextStyle(
                                     fontSize = 15.sp,
                                     color = if (isReadOnly) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface
@@ -573,8 +577,12 @@ fun AddEditEventScreen(
                             BasicTextField(
                                 value = location2b,
                                 onValueChange = { location2b = it },
-                                singleLine = false,
+                                singleLine = true,
                                 enabled = !isReadOnly,
+                                keyboardOptions = KeyboardOptions(
+                                    keyboardType = KeyboardType.Phone,
+                                    imeAction = ImeAction.Next
+                                ),
                                 textStyle = androidx.compose.ui.text.TextStyle(
                                     fontSize = 15.sp,
                                     color = if (isReadOnly) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface
