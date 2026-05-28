@@ -43,6 +43,31 @@ data class RecentCall(
     val type: Int
 )
 
+fun formatPhoneNumber(number: String): String {
+    val clean = number.replace(Regex("[^0-9+]"), "")
+    var formatted = clean
+    if (formatted.startsWith("+82")) {
+        formatted = "0" + formatted.substring(3)
+    } else if (formatted.startsWith("82")) {
+        formatted = "0" + formatted.substring(2)
+    }
+    
+    val cleanDigits = formatted.replace(Regex("[^0-9]"), "")
+    return when (cleanDigits.length) {
+        8 -> "${cleanDigits.substring(0, 4)}-${cleanDigits.substring(4)}"
+        9 -> "${cleanDigits.substring(0, 2)}-${cleanDigits.substring(2, 5)}-${cleanDigits.substring(5)}"
+        10 -> {
+            if (cleanDigits.startsWith("02")) {
+                "${cleanDigits.substring(0, 2)}-${cleanDigits.substring(2, 6)}-${cleanDigits.substring(6)}"
+            } else {
+                "${cleanDigits.substring(0, 3)}-${cleanDigits.substring(3, 6)}-${cleanDigits.substring(6)}"
+            }
+        }
+        11 -> "${cleanDigits.substring(0, 3)}-${cleanDigits.substring(3, 7)}-${cleanDigits.substring(7)}"
+        else -> number
+    }
+}
+
 suspend fun loadRecentCalls(context: Context): List<RecentCall> = withContext(Dispatchers.IO) {
     val calls = mutableListOf<RecentCall>()
     val contentResolver = context.contentResolver
@@ -65,6 +90,8 @@ suspend fun loadRecentCalls(context: Context): List<RecentCall> = withContext(Di
                 "${CallLog.Calls.DATE} DESC"
             )
 
+            val seenNumbers = mutableSetOf<String>()
+
             cursor?.use {
                 val idIdx = it.getColumnIndex(CallLog.Calls._ID)
                 val numberIdx = it.getColumnIndex(CallLog.Calls.NUMBER)
@@ -72,15 +99,30 @@ suspend fun loadRecentCalls(context: Context): List<RecentCall> = withContext(Di
                 val dateIdx = it.getColumnIndex(CallLog.Calls.DATE)
                 val typeIdx = it.getColumnIndex(CallLog.Calls.TYPE)
 
-                var count = 0
-                while (it.moveToNext() && count < 5) {
+                while (it.moveToNext() && calls.size < 5) {
                     val id = it.getString(idIdx) ?: ""
-                    val number = it.getString(numberIdx) ?: ""
+                    val rawNumber = it.getString(numberIdx) ?: ""
+                    
+                    // 중복 방지용 정규화 번호
+                    val cleanDigits = rawNumber.replace(Regex("[^0-9]"), "")
+                    val normalized = if (cleanDigits.startsWith("82")) {
+                        "0" + cleanDigits.substring(2)
+                    } else {
+                        cleanDigits
+                    }
+
+                    if (normalized.isNotEmpty()) {
+                        if (seenNumbers.contains(normalized)) {
+                            continue
+                        }
+                        seenNumbers.add(normalized)
+                    }
+
+                    val number = formatPhoneNumber(rawNumber)
                     val name = it.getString(nameIdx)
                     val date = it.getLong(dateIdx)
                     val type = it.getInt(typeIdx)
                     calls.add(RecentCall(id, name, number, date, type))
-                    count++
                 }
             }
         }
@@ -267,17 +309,19 @@ private fun RecentCallItem(
         // Caller name/number and date info
         Column(modifier = Modifier.weight(1f)) {
             Text(
-                text = call.name ?: "알 수 없는 번호",
+                text = call.name ?: call.number,
                 fontSize = 15.sp,
                 fontWeight = FontWeight.SemiBold,
                 color = MaterialTheme.colorScheme.onSurface
             )
-            Spacer(modifier = Modifier.height(2.dp))
-            Text(
-                text = call.number,
-                fontSize = 13.sp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+            if (call.name != null) {
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = call.number,
+                    fontSize = 13.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
         }
 
         Text(
