@@ -62,7 +62,7 @@ suspend fun loadRecentCalls(context: Context): List<RecentCall> = withContext(Di
                 projection,
                 null,
                 null,
-                "${CallLog.Calls.DATE} DESC LIMIT 50"
+                "${CallLog.Calls.DATE} DESC LIMIT 5"
             )
 
             cursor?.use {

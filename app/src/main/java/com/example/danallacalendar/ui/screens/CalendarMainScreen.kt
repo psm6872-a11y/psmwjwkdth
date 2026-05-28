@@ -1208,8 +1208,14 @@ fun EventItemCard(
                 }
 
                 Column(modifier = Modifier.weight(1f)) {
+                    val startLocation = event.location.split("|||").getOrNull(0)?.trim() ?: ""
+                    val displayText = if (startLocation.isNotEmpty()) {
+                        "${event.title} ($startLocation)"
+                    } else {
+                        event.title
+                    }
                     Text(
-                        text = event.title,
+                        text = displayText,
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Bold,
                         color = contentColor,

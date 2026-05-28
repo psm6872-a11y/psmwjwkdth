@@ -60,7 +60,7 @@ val calendarColors = listOf(
     "#1abc9c"  // Turquoise
 )
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
 fun AddEditEventScreen(
     eventId: Int?,
@@ -159,6 +159,34 @@ fun AddEditEventScreen(
         }
     }
 
+    val onSaveClick = {
+        if (title.isNotBlank() && selectedCategory != null) {
+            val event = Event(
+                id = eventId ?: 0,
+                title = title,
+                startMillis = startMillis,
+                endMillis = endMillis,
+                isAllDay = isAllDay,
+                location = listOf(location, location1b, location2, location2b)
+                    .joinToString("|||"),
+                notes = notes,
+                repeatType = repeatType,
+                reminderMinutes = reminderMinutes,
+                calendarId = selectedCategory!!.id,
+                colorHex = selectedColorHex
+            )
+            if (eventId == null) {
+                viewModel.addEvent(event)
+            } else {
+                viewModel.updateEvent(event)
+            }
+            prefs.edit().putInt("last_used_category_id", selectedCategory!!.id).apply()
+            onNavigateBack()
+        }
+    }
+
+    val isImeVisible = WindowInsets.isImeVisible
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -169,33 +197,12 @@ fun AddEditEventScreen(
                     }
                 },
                 actions = {
-                    TextButton(
-                        onClick = {
-                            if (title.isNotBlank() && selectedCategory != null) {
-                                val event = Event(
-                                    id = eventId ?: 0,
-                                    title = title,
-                                    startMillis = startMillis,
-                                    endMillis = endMillis,
-                                    isAllDay = isAllDay,
-                                    location = listOf(location, location1b, location2, location2b)
-                                        .joinToString("|||"),
-                                    notes = notes,
-                                    repeatType = repeatType,
-                                    reminderMinutes = reminderMinutes,
-                                    calendarId = selectedCategory!!.id,
-                                    colorHex = selectedColorHex
-                                )
-                                if (eventId == null) {
-                                    viewModel.addEvent(event)
-                                } else {
-                                    viewModel.updateEvent(event)
-                                }
-                                prefs.edit().putInt("last_used_category_id", selectedCategory!!.id).apply()
-                                onNavigateBack()
-                            }
-                        },
-                        enabled = title.isNotBlank() && !isReadOnly
+                    Button(
+                        onClick = onSaveClick,
+                        enabled = title.isNotBlank() && !isReadOnly,
+                        contentPadding = PaddingValues(horizontal = 20.dp, vertical = 8.dp),
+                        shape = RoundedCornerShape(10.dp),
+                        modifier = Modifier.padding(end = 8.dp).height(40.dp)
                     ) {
                         Text("저장", fontSize = 16.sp, fontWeight = FontWeight.Bold)
                     }
@@ -204,6 +211,38 @@ fun AddEditEventScreen(
                     containerColor = MaterialTheme.colorScheme.surface
                 )
             )
+        },
+        bottomBar = {
+            if (isImeVisible && !isReadOnly) {
+                Surface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .navigationBarsPadding()
+                        .imePadding(),
+                    tonalElevation = 8.dp,
+                    shadowElevation = 8.dp,
+                    color = MaterialTheme.colorScheme.surface
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 8.dp),
+                        horizontalArrangement = Arrangement.End,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Button(
+                            onClick = onSaveClick,
+                            enabled = title.isNotBlank(),
+                            shape = RoundedCornerShape(10.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(48.dp)
+                        ) {
+                            Text("저장", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
+            }
         },
         modifier = modifier
     ) { paddingValues ->
@@ -345,24 +384,7 @@ fun AddEditEventScreen(
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    // ── 위치 1 그룹 헤더 ──
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .background(
-                                color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f),
-                                shape = RoundedCornerShape(8.dp)
-                            )
-                            .padding(horizontal = 8.dp, vertical = 4.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = "위치 1",
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                    }
+
 
                     // ── 위치 1 상단 ──
                     Row(
@@ -375,7 +397,7 @@ fun AddEditEventScreen(
                         ) {
                             if (location.isEmpty()) {
                                 Text(
-                                    text = "상단 주소",
+                                    text = "출발지 주소",
                                     fontSize = 15.sp,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     modifier = Modifier.padding(vertical = 4.dp)
@@ -436,7 +458,7 @@ fun AddEditEventScreen(
                         ) {
                             if (location1b.isEmpty()) {
                                 Text(
-                                    text = "하단 주소",
+                                    text = "동/호수",
                                     fontSize = 15.sp,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     modifier = Modifier.padding(vertical = 4.dp)
@@ -467,23 +489,7 @@ fun AddEditEventScreen(
                     )
                     Spacer(modifier = Modifier.height(4.dp))
 
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .background(
-                                color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.45f),
-                                shape = RoundedCornerShape(8.dp)
-                            )
-                            .padding(horizontal = 8.dp, vertical = 4.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = "위치 2",
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.secondary
-                        )
-                    }
+
 
                     // ── 위치 2 상단 ──
                     Row(
@@ -496,7 +502,7 @@ fun AddEditEventScreen(
                         ) {
                             if (location2.isEmpty()) {
                                 Text(
-                                    text = "상단 주소",
+                                    text = "도착지 주소",
                                     fontSize = 15.sp,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     modifier = Modifier.padding(vertical = 4.dp)
@@ -558,7 +564,7 @@ fun AddEditEventScreen(
                         ) {
                             if (location2b.isEmpty()) {
                                 Text(
-                                    text = "하단 주소",
+                                    text = "동/호수",
                                     fontSize = 15.sp,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     modifier = Modifier.padding(vertical = 4.dp)
@@ -1058,12 +1064,14 @@ fun DateButton(millis: Long, modifier: Modifier = Modifier, onClick: () -> Unit)
             .clip(RoundedCornerShape(8.dp))
             .background(MaterialTheme.colorScheme.surfaceVariant)
             .clickable { onClick() }
-            .padding(horizontal = 12.dp, vertical = 6.dp),
+            .padding(horizontal = 4.dp, vertical = 6.dp),
         contentAlignment = Alignment.Center
     ) {
         Text(
             text = label, 
-            fontSize = 14.sp,
+            fontSize = 12.sp,
+            maxLines = 1,
+            softWrap = false,
             textAlign = androidx.compose.ui.text.style.TextAlign.Center
         )
     }
@@ -1078,12 +1086,14 @@ fun TimeButton(millis: Long, modifier: Modifier = Modifier, onClick: () -> Unit)
             .clip(RoundedCornerShape(8.dp))
             .background(MaterialTheme.colorScheme.surfaceVariant)
             .clickable { onClick() }
-            .padding(horizontal = 12.dp, vertical = 6.dp),
+            .padding(horizontal = 4.dp, vertical = 6.dp),
         contentAlignment = Alignment.Center
     ) {
         Text(
             text = label, 
-            fontSize = 14.sp,
+            fontSize = 12.sp,
+            maxLines = 1,
+            softWrap = false,
             textAlign = androidx.compose.ui.text.style.TextAlign.Center
         )
     }
