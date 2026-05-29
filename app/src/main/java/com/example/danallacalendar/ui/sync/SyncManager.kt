@@ -414,7 +414,8 @@ class SyncManager(
                 val raw = reader.readLine()?.trim() ?: ""
                 reader.close()
                 // The service might return value surrounded by quotes
-                raw.replace("\"", "")
+                val clean = raw.replace("\"", "")
+                java.net.URLDecoder.decode(clean, "UTF-8")
             } else {
                 ""
             }
