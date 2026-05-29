@@ -11,15 +11,10 @@ $headers = @{
 
 # Create new release
 Write-Output "Creating release $tag ..."
-$body = @{
-    tag_name = $tag
-    name     = $tag
-    body     = "v1.0.27: 일정 추가 화면 기본 캘린더 공유캘린더로 변경 및 캘린더 변경 시 설정 유지 개선"
-    draft    = $false
-    prerelease = $false
-} | ConvertTo-Json
+$body = '{"tag_name":"' + $tag + '","name":"' + $tag + '","body":"v1.0.27: 일정 추가 화면 기본 캘린더 공유캘린더로 변경 및 캘린더 변경 시 설정 유지 개선","draft":false,"prerelease":false}'
+$bodyBytes = [System.Text.Encoding]::UTF8.GetBytes($body)
 
-$release = Invoke-RestMethod -Uri "https://api.github.com/repos/$repo/releases" -Method Post -Headers $headers -Body $body -ContentType "application/json"
+$release = Invoke-RestMethod -Uri "https://api.github.com/repos/$repo/releases" -Method Post -Headers $headers -Body $bodyBytes -ContentType "application/json; charset=utf-8"
 Write-Output "Release ID: $($release.id)"
 
 # Upload APK
