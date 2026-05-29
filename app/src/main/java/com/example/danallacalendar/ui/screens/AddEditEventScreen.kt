@@ -108,13 +108,14 @@ fun AddEditEventScreen(
     var showRepeatDropdown by remember { mutableStateOf(false) }
     var showReminderDropdown by remember { mutableStateOf(false) }
 
-    // Set default category when categories load
+    // Set default category and color when categories load
     LaunchedEffect(categories) {
         if (selectedCategory == null && categories.isNotEmpty()) {
             val lastUsedId = prefs.getInt("last_used_category_id", -1)
-            selectedCategory = categories.find { it.id == lastUsedId }
+            val defaultCat = categories.find { it.id == lastUsedId }
                 ?: categories.find { it.name == "내 캘린더" }
                 ?: categories.first()
+            selectedCategory = defaultCat
         }
     }
 
@@ -152,7 +153,8 @@ fun AddEditEventScreen(
                 notes = event.notes
                 repeatType = event.repeatType
                 reminderMinutes = event.reminderMinutes
-                selectedCategory = categories.find { cat -> cat.id == event.calendarId } ?: categories.firstOrNull()
+                val cat = categories.find { cat -> cat.id == event.calendarId } ?: categories.firstOrNull()
+                selectedCategory = cat
                 selectedColorHex = event.colorHex
                 isLoaded = true
             }
@@ -348,8 +350,8 @@ fun AddEditEventScreen(
                                             verticalAlignment = Alignment.CenterVertically
                                         ) {
                                             chunk.forEach { colorOption ->
-                                                val isSelected = (selectedColorHex == colorOption) ||
-                                                        (selectedColorHex == null && category.colorHex == colorOption)
+                                                val currentEffectiveColor = selectedColorHex ?: category.colorHex
+                                                val isSelected = currentEffectiveColor.equals(colorOption, ignoreCase = true)
                                                 Box(
                                                     modifier = Modifier
                                                         .size(32.dp)
@@ -602,12 +604,29 @@ fun AddEditEventScreen(
                         modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.Phone,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        Spacer(modifier = Modifier.width(12.dp))
+                        IconButton(
+                            onClick = {
+                                if (notes.isNotBlank()) {
+                                    try {
+                                        val intent = Intent(Intent.ACTION_DIAL, Uri.parse("tel:${notes.trim()}"))
+                                        context.startActivity(intent)
+                                    } catch (e: Exception) {
+                                        Toast.makeText(context, "전화 기능을 실행할 수 없습니다.", Toast.LENGTH_SHORT).show()
+                                    }
+                                } else {
+                                    Toast.makeText(context, "전화번호를 입력해주세요.", Toast.LENGTH_SHORT).show()
+                                }
+                            },
+                            modifier = Modifier.size(36.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Phone,
+                                contentDescription = "전화 걸기",
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(6.dp))
                         Box(
                             modifier = Modifier
                                 .weight(1f)

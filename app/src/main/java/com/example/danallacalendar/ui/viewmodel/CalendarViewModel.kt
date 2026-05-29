@@ -351,6 +351,12 @@ class CalendarViewModel(private val repository: CalendarRepository) : ViewModel(
         }
     }
 
+    fun clearAllEvents() {
+        viewModelScope.launch {
+            repository.deleteAllEvents()
+        }
+    }
+
     fun importEventsFromJson(
         jsonString: String,
         targetCalendarId: Int,

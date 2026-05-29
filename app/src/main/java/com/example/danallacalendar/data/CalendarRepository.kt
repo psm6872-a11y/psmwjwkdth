@@ -27,4 +27,6 @@ class CalendarRepository(val eventDao: EventDao) {
     suspend fun insertDeadlineDate(deadlineDate: DeadlineDate) = eventDao.insertDeadlineDate(deadlineDate)
 
     suspend fun deleteDeadlineDate(dateMillis: Long) = eventDao.deleteDeadlineDate(dateMillis)
+
+    suspend fun deleteAllEvents() = eventDao.deleteAllEvents()
 }

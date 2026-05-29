@@ -87,6 +87,7 @@ fun CalendarMainScreen(
     val context = LocalContext.current
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val scope = rememberCoroutineScope()
+    var showClearSchedulesDialog by remember { mutableStateOf(false) }
 
 
 
@@ -144,8 +145,32 @@ fun CalendarMainScreen(
                 }
             )
         } else {
-            Toast.makeText(context, "일정을 가져오려면 캘린더 읽기 권한이 필요합니다.", Toast.LENGTH_LONG).show()
+            Toast.makeText(context, "일정을 가져오려면 캘린더 읽기 권한이 필요합니다.", Toast.LENGTH_SHORT).show()
         }
+    }
+
+    if (showClearSchedulesDialog) {
+        AlertDialog(
+            onDismissRequest = { showClearSchedulesDialog = false },
+            title = { Text(text = "일정 초기화") },
+            text = { Text(text = "저장된 모든 일정이 영구적으로 삭제됩니다. 계속하시겠습니까?") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showClearSchedulesDialog = false
+                        viewModel.clearAllEvents()
+                        Toast.makeText(context, "모든 일정이 초기화되었습니다.", Toast.LENGTH_SHORT).show()
+                    }
+                ) {
+                    Text(text = "확인", color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showClearSchedulesDialog = false }) {
+                    Text(text = "취소")
+                }
+            }
+        )
     }
 
     ModalNavigationDrawer(
@@ -229,6 +254,10 @@ fun CalendarMainScreen(
                         } catch (e: Exception) {
                             Toast.makeText(context, "업데이트 오류: ${e.localizedMessage}", Toast.LENGTH_LONG).show()
                         }
+                    },
+                    onClearSchedulesClick = {
+                        scope.launch { drawerState.close() }
+                        showClearSchedulesDialog = true
                     },
                     onCloseClick = {
                         scope.launch { drawerState.close() }
