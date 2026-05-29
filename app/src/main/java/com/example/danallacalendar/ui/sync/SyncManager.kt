@@ -391,9 +391,11 @@ class SyncManager(
 
     private fun updateRoomValue(roomId: String, value: String): Boolean {
         return try {
-            val url = URL("https://keyvalue.immanuel.co/api/KeyVal/UpdateValue/$APP_KEY/$roomId/$value")
+            val encodedValue = java.net.URLEncoder.encode(value, "UTF-8")
+            val url = URL("https://keyvalue.immanuel.co/api/KeyVal/UpdateValue/$APP_KEY/$roomId/$encodedValue")
             val conn = url.openConnection() as HttpURLConnection
             conn.requestMethod = "POST"
+            conn.setRequestProperty("Content-Length", "0")
             conn.responseCode == HttpURLConnection.HTTP_OK
         } catch (e: Exception) {
             Log.e(tag, "keyvalue update failed", e)
