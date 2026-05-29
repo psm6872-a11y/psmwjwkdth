@@ -10,6 +10,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
@@ -37,6 +38,7 @@ fun DrawerContent(
     onImportDeviceClick: () -> Unit,
     onShareAppClick: () -> Unit,
     onUpdateClick: () -> Unit,
+    onClearSchedulesClick: () -> Unit,
     onCloseClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -222,6 +224,33 @@ fun DrawerContent(
                 fontSize = 13.sp,
                 color = MaterialTheme.colorScheme.primary.copy(alpha = 0.8f),
                 fontWeight = FontWeight.Medium
+            )
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        // Clear Schedules Button
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(MaterialTheme.shapes.medium)
+                .clickable { onClearSchedulesClick() }
+                .background(MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.4f))
+                .padding(vertical = 12.dp, horizontal = 12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = Icons.Default.Delete,
+                contentDescription = "일정 초기화",
+                tint = MaterialTheme.colorScheme.error,
+                modifier = Modifier.size(24.dp)
+            )
+            Spacer(modifier = Modifier.width(16.dp))
+            Text(
+                text = "일정 초기화",
+                fontSize = 15.sp,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.error
             )
         }
 

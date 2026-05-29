@@ -91,5 +91,8 @@ interface EventDao {
 
     @Query("DELETE FROM deadline_dates WHERE dateMillis = :dateMillis")
     suspend fun deleteDeadlineDate(dateMillis: Long)
+
+    @Query("DELETE FROM events")
+    suspend fun deleteAllEvents()
 }
 
