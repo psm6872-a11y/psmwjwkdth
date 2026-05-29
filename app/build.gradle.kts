@@ -12,8 +12,8 @@ android {
         applicationId = "com.example.danallacalendar"
         minSdk = 24
         targetSdk = 36
-        versionCode = 24
-        versionName = "1.0.24"
+        versionCode = 26
+        versionName = "1.0.26"
     }
 
     buildTypes {
