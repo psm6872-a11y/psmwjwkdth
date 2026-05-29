@@ -10,7 +10,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import java.util.Calendar
 
-@Database(entities = [CalendarCategory::class, Event::class, DeadlineDate::class], version = 5, exportSchema = false)
+@Database(entities = [CalendarCategory::class, Event::class, DeadlineDate::class], version = 6, exportSchema = false)
 abstract class CalendarDatabase : RoomDatabase() {
     abstract fun eventDao(): EventDao
 
@@ -58,8 +58,6 @@ abstract class CalendarDatabase : RoomDatabase() {
         private suspend fun populateDatabase(dao: EventDao) {
             // Default categories in Korean
             val myCalId = dao.insertCategory(CalendarCategory(name = "내 캘린더", colorHex = "#1c62f2", accountName = "내 전화기", isVisible = true)).toInt()
-            val workId = dao.insertCategory(CalendarCategory(name = "업무", colorHex = "#af52de", accountName = "구글 계정", isVisible = true)).toInt()
-            val familyId = dao.insertCategory(CalendarCategory(name = "가족", colorHex = "#34c759", accountName = "삼성 계정", isVisible = true)).toInt()
             val holidayId = dao.insertCategory(CalendarCategory(name = "공휴일", colorHex = "#ff3b30", accountName = "기타", isVisible = true)).toInt()
 
             val calendar = Calendar.getInstance()
@@ -100,84 +98,6 @@ abstract class CalendarDatabase : RoomDatabase() {
                     location = "고객 사무실",
                     notes = "신규 인테리어 견적 문의 대응.",
                     calendarId = myCalId
-                )
-            )
-
-            calendar.setTimeInMillis(System.currentTimeMillis())
-            calendar.set(Calendar.HOUR_OF_DAY, 16)
-            calendar.set(Calendar.MINUTE, 0)
-            calendar.set(Calendar.SECOND, 0)
-            val contractStart = calendar.timeInMillis
-            calendar.set(Calendar.HOUR_OF_DAY, 17)
-            val contractEnd = calendar.timeInMillis
-            dao.insertEvent(
-                Event(
-                    title = "인테리어 계약 완료",
-                    startMillis = contractStart,
-                    endMillis = contractEnd,
-                    isAllDay = false,
-                    location = "본사 회의실",
-                    notes = "최종 계약서 서명 완료.",
-                    calendarId = workId
-                )
-            )
-
-            calendar.set(Calendar.HOUR_OF_DAY, 18)
-            calendar.set(Calendar.MINUTE, 30)
-            val todayStart2 = calendar.timeInMillis
-            calendar.set(Calendar.HOUR_OF_DAY, 20)
-            val todayEnd2 = calendar.timeInMillis
-            dao.insertEvent(
-                Event(
-                    title = "공원 산책",
-                    startMillis = todayStart2,
-                    endMillis = todayEnd2,
-                    isAllDay = false,
-                    location = "한강시민공원",
-                    notes = "생수 꼭 챙겨가기.",
-                    calendarId = familyId
-                )
-            )
-
-            // 2. Tomorrow's events
-            calendar.setTimeInMillis(System.currentTimeMillis())
-            calendar.add(Calendar.DAY_OF_YEAR, 1)
-            calendar.set(Calendar.HOUR_OF_DAY, 10)
-            calendar.set(Calendar.MINUTE, 0)
-            val tomorrowStart = calendar.timeInMillis
-            calendar.set(Calendar.HOUR_OF_DAY, 11)
-            calendar.set(Calendar.MINUTE, 30)
-            val tomorrowEnd = calendar.timeInMillis
-            dao.insertEvent(
-                Event(
-                    title = "스프린트 계획 회의",
-                    startMillis = tomorrowStart,
-                    endMillis = tomorrowEnd,
-                    isAllDay = false,
-                    location = "회의실 402호 / Zoom",
-                    notes = "지난 스프린트 업무 진행 속도 검토.",
-                    calendarId = workId
-                )
-            )
-
-            // 3. All day event next week
-            calendar.setTimeInMillis(System.currentTimeMillis())
-            calendar.add(Calendar.DAY_OF_YEAR, 5)
-            calendar.set(Calendar.HOUR_OF_DAY, 0)
-            calendar.set(Calendar.MINUTE, 0)
-            val birthdayStart = calendar.timeInMillis
-            calendar.set(Calendar.HOUR_OF_DAY, 23)
-            calendar.set(Calendar.MINUTE, 59)
-            val birthdayEnd = calendar.timeInMillis
-            dao.insertEvent(
-                Event(
-                    title = "엄마 생신 🎉",
-                    startMillis = birthdayStart,
-                    endMillis = birthdayEnd,
-                    isAllDay = true,
-                    location = "본가",
-                    notes = "케이크와 생신 선물 구매하기.",
-                    calendarId = familyId
                 )
             )
 

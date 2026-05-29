@@ -105,7 +105,7 @@ fun DrawerContent(
             )
             Spacer(modifier = Modifier.width(16.dp))
             Text(
-                text = "캘린더 공유 및 동기화",
+                text = "캘린더 공유",
                 fontSize = 15.sp,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.primary
@@ -114,32 +114,7 @@ fun DrawerContent(
 
         Spacer(modifier = Modifier.height(8.dp))
 
-        // Import Button
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(MaterialTheme.shapes.medium)
-                .clickable { onImportClick() }
-                .background(MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.4f))
-                .padding(vertical = 12.dp, horizontal = 12.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(
-                imageVector = Icons.Default.FileDownload,
-                contentDescription = "일정 가져오기",
-                tint = MaterialTheme.colorScheme.secondary,
-                modifier = Modifier.size(24.dp)
-            )
-            Spacer(modifier = Modifier.width(16.dp))
-            Text(
-                text = "일정 가져오기 (JSON)",
-                fontSize = 15.sp,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.secondary
-            )
-        }
 
-        Spacer(modifier = Modifier.height(8.dp))
 
         // Import Device Calendar Button
         Row(

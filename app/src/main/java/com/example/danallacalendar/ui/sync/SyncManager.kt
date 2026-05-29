@@ -1,18 +1,18 @@
 package com.example.danallacalendar.ui.sync
 
 import android.util.Log
-import kotlin.coroutines.coroutineContext
 import com.example.danallacalendar.data.Event
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import java.io.BufferedReader
 import java.io.InputStreamReader
-import java.io.PrintWriter
-import java.net.ServerSocket
-import java.net.Socket
+import java.io.OutputStreamWriter
+import java.net.HttpURLConnection
+import java.net.URL
 import java.util.UUID
-import java.util.concurrent.ConcurrentHashMap
 
 enum class SyncRole {
     NONE, HOST, CLIENT, SIMULATION
@@ -35,6 +35,9 @@ class SyncManager(
 ) {
     private val tag = "SyncManager"
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+    private val APP_KEY = "danallacalendar2026"
+    private val syncMutex = Mutex()
+    private var pollJob: Job? = null
     
     // States
     private val _role = MutableStateFlow(SyncRole.NONE)
@@ -43,7 +46,7 @@ class SyncManager(
     private val _permission = MutableStateFlow(SyncPermission.NONE)
     val permission = _permission.asStateFlow()
 
-    private val _inviteCode = MutableStateFlow("")
+    private val _inviteCode = MutableStateFlow("") // Used as Room ID
     val inviteCode = _inviteCode.asStateFlow()
 
     private val _isConnected = MutableStateFlow(false)
@@ -55,25 +58,18 @@ class SyncManager(
     private val _syncLogs = MutableStateFlow<List<String>>(emptyList())
     val syncLogs = _syncLogs.asStateFlow()
 
-    // Real Networking
-    private var serverSocket: ServerSocket? = null
-    private var clientSocket: Socket? = null
-    private var serverJob: Job? = null
-    private var clientJob: Job? = null
-    private val clientHandlers = ConcurrentHashMap<String, SocketHandler>()
-
-    // Simulation States
+    // Temporary/simulation support (to prevent compile errors)
     private val _simGuestConnected = MutableStateFlow(false)
     val simGuestConnected = _simGuestConnected.asStateFlow()
-
     private val _simGuestEvents = MutableStateFlow<List<Event>>(emptyList())
     val simGuestEvents = _simGuestEvents.asStateFlow()
-
     private val _simGuestPermission = MutableStateFlow(SyncPermission.NONE)
     val simGuestPermission = _simGuestPermission.asStateFlow()
-
     private val _simGuestInviteCode = MutableStateFlow("")
     val simGuestInviteCode = _simGuestInviteCode.asStateFlow()
+
+    private var lastSyncedPasteId = ""
+    private var isSyncingDb = false
 
     fun log(message: String) {
         Log.d(tag, message)
@@ -81,407 +77,392 @@ class SyncManager(
         _syncLogs.value = listOf("[$timestamp] $message") + _syncLogs.value.take(49)
     }
 
-    // --- Invite Code Helpers ---
-    fun generateInviteCode(permission: SyncPermission): String {
-        val uuidPart = UUID.randomUUID().toString().substring(0, 4).uppercase()
-        val permPart = if (permission == SyncPermission.READ_ONLY) "READ" else "WRITE"
-        val code = "ROOM-$uuidPart-$permPart"
-        if (_role.value == SyncRole.HOST) {
-            _inviteCode.value = code
-        } else if (_role.value == SyncRole.SIMULATION) {
-            _simGuestInviteCode.value = code
-        }
-        return code
-    }
+    // --- Remote Sync Actions ---
 
-    // --- P2P Network Sync (Host Server) ---
+    // Create Room (Host)
     fun startHosting(perm: SyncPermission) {
         stopAll()
         _role.value = SyncRole.HOST
-        _permission.value = SyncPermission.FULL_ACCESS // Host always has full access
-        val code = generateInviteCode(perm)
-        log("Started Sync Host. Invite Code: $code")
+        _permission.value = SyncPermission.FULL_ACCESS // Creator always has full access
         
-        serverJob = scope.launch(Dispatchers.IO) {
+        // Generate random 6-digit Room ID
+        val generatedRoomId = (100000..999999).random().toString()
+        _inviteCode.value = generatedRoomId
+        
+        log("원격 공유방 생성 완료. 방 번호: $generatedRoomId")
+        _isConnected.value = true
+
+        scope.launch(Dispatchers.IO) {
+            // Save selected guest permission in ROOM_{roomId}_PERM
+            updateRoomValue("PERM_$generatedRoomId", perm.name)
+
+            // Register host member in MEMBERS_{roomId}
+            registerMember(generatedRoomId, "방장", SyncPermission.FULL_ACCESS)
+
             try {
-                serverSocket = ServerSocket(9090)
-                log("Server started on port 9090. Waiting for connections...")
-                _isConnected.value = true
-                
-                while (isActive) {
-                    val socket = serverSocket?.accept() ?: break
-                    log("New connection request from ${socket.remoteSocketAddress}")
-                    launch(Dispatchers.IO) {
-                        handleClientConnection(socket)
+                val currentEvents = getCurrentEventsProvider()
+                val serialized = serializeEvents(currentEvents)
+                val pasteId = uploadToPasteRs(serialized)
+                if (pasteId.isNotEmpty()) {
+                    val ok = updateRoomValue(generatedRoomId, pasteId)
+                    if (ok) {
+                        lastSyncedPasteId = pasteId
+                        log("캘린더 데이터를 서버에 업로드했습니다. 동기화 대기 중...")
                     }
                 }
             } catch (e: Exception) {
-                log("Host server error: ${e.localizedMessage}")
+                log("초기 업로드 실패: ${e.localizedMessage}")
             }
+            
+            // Start Polling
+            startPolling(generatedRoomId)
         }
     }
 
-    private suspend fun handleClientConnection(socket: Socket) {
-        val reader = BufferedReader(InputStreamReader(socket.getInputStream(), "UTF-8"))
-        val writer = PrintWriter(socket.getOutputStream().writer(), true)
-        
-        try {
-            // Read Handshake
-            val handshake = reader.readLine() ?: return
-            val parts = handshake.split("|")
-            if (parts.size < 3 || parts[0] != "CONNECT") {
-                writer.println("ERROR|Invalid Handshake")
-                socket.close()
-                return
-            }
-
-            val clientCode = parts[1]
-            val clientName = parts[2]
-            
-            // Validate code
-            if (clientCode != _inviteCode.value) {
-                writer.println("ERROR|Invite code mismatch")
-                socket.close()
-                return
-            }
-
-            // Determine guest permission from code
-            val clientPermission = if (clientCode.endsWith("READ")) {
-                SyncPermission.READ_ONLY
-            } else {
-                SyncPermission.FULL_ACCESS
-            }
-
-            val peerId = UUID.randomUUID().toString()
-            val peer = SyncPeer(peerId, clientName, clientPermission)
-            
-            // Accept connection
-            writer.println("CONNECT_ACK|${clientPermission.name}|Shared Calendar")
-            log("Accepted Guest '$clientName' with permission: ${clientPermission.name}")
-            
-            // Add peer
-            _connectedPeers.value = _connectedPeers.value + peer
-            
-            // Send existing events
-            val currentEvents = getCurrentEventsProvider()
-            val syncedEvents = currentEvents.filter { it.isSynced }
-            for (event in syncedEvents) {
-                writer.println("ADD_EVENT|${serializeEvent(event)}")
-            }
-            log("Synced ${syncedEvents.size} existing events to '$clientName'")
-
-            val handler = SocketHandler(socket, reader, writer)
-            clientHandlers[peerId] = handler
-
-            // Start reading client updates
-            while (coroutineContext.isActive) {
-                val msg = reader.readLine() ?: break
-                handleIncomingMessage(msg, clientPermission, peerId)
-            }
-        } catch (e: Exception) {
-            log("Error with client connection: ${e.localizedMessage}")
-        } finally {
-            socket.close()
-            // Cleanup peer
-            val peer = _connectedPeers.value.find { clientHandlers[it.id]?.socket == socket }
-            if (peer != null) {
-                _connectedPeers.value = _connectedPeers.value - peer
-                clientHandlers.remove(peer.id)
-                log("Guest '${peer.name}' disconnected.")
-            }
-        }
-    }
-
-    // --- P2P Network Sync (Client Join) ---
+    // Join Room (Client)
     fun joinHost(ip: String, code: String, deviceName: String) {
         stopAll()
         _role.value = SyncRole.CLIENT
         _inviteCode.value = code
-        log("Connecting to Host at $ip with code $code...")
+        log("원격 공유방 연결 중... 방 번호: $code")
 
-        clientJob = scope.launch(Dispatchers.IO) {
-            try {
-                val socket = Socket(ip, 9090)
-                clientSocket = socket
-                val writer = PrintWriter(socket.getOutputStream().writer(), true)
-                val reader = BufferedReader(InputStreamReader(socket.getInputStream(), "UTF-8"))
-                
-                // Handshake
-                writer.println("CONNECT|$code|$deviceName")
-                val response = reader.readLine()
-                if (response == null) {
-                    log("Host closed connection during handshake.")
-                    socket.close()
-                    return@launch
-                }
+        scope.launch(Dispatchers.IO) {
+            val pasteId = getRoomValue(code)
+            if (pasteId.isEmpty() || pasteId == "null") {
+                log("오류: 공유방 번호($code)를 찾을 수 없습니다.")
+                _role.value = SyncRole.NONE
+                _isConnected.value = false
+                return@launch
+            }
 
-                val parts = response.split("|")
-                if (parts[0] == "CONNECT_ACK") {
-                    val perm = SyncPermission.valueOf(parts[1])
-                    _permission.value = perm
-                    _isConnected.value = true
-                    log("Connected to Shared Calendar! Permission: ${perm.name}")
+            // Fetch room guest permission
+            val permName = getRoomValue("PERM_$code")
+            val assignedPerm = try {
+                SyncPermission.valueOf(permName)
+            } catch (e: Exception) {
+                SyncPermission.READ_ONLY
+            }
+            _permission.value = assignedPerm
 
-                    // Listen for server broadcast updates
-                    while (isActive) {
-                        val msg = reader.readLine() ?: break
-                        handleIncomingMessage(msg, SyncPermission.FULL_ACCESS, "HOST")
-                    }
+            val cleanDeviceName = if (deviceName.isBlank()) "참여자" else deviceName
+            log("공유방 확인됨 (권한: ${if (assignedPerm == SyncPermission.READ_ONLY) "읽기 전용" else "모든 권한"}). 연결 중...")
+            
+            // Register client member
+            registerMember(code, cleanDeviceName, assignedPerm)
+
+            _isConnected.value = true
+
+            // Initial Sync
+            syncWithPasteId(pasteId)
+            
+            // Start Polling
+            startPolling(code)
+        }
+    }
+
+    fun stopAll() {
+        val currentRoom = _inviteCode.value
+        val currentRole = _role.value
+        
+        pollJob?.cancel()
+        pollJob = null
+        _role.value = SyncRole.NONE
+        _permission.value = SyncPermission.NONE
+        _inviteCode.value = ""
+        _isConnected.value = false
+        _connectedPeers.value = emptyList()
+        lastSyncedPasteId = ""
+        log("원격 동기화가 중단되었습니다.")
+
+        if (currentRoom.isNotEmpty()) {
+            scope.launch(Dispatchers.IO) {
+                if (currentRole == SyncRole.HOST) {
+                    // Host clears the room keys
+                    updateRoomValue(currentRoom, "null")
+                    updateRoomValue("PERM_$currentRoom", "null")
+                    updateRoomValue("MEMBERS_$currentRoom", "null")
                 } else {
-                    log("Connection Rejected: ${response.substringAfter('|')}")
-                    socket.close()
+                    // Client removes themselves from the member list
+                    unregisterMember(currentRoom, "참여자")
+                }
+            }
+        }
+    }
+
+    // --- Member List Coordination Helpers ---
+    private fun registerMember(roomId: String, name: String, perm: SyncPermission) {
+        val current = getRoomValue("MEMBERS_$roomId")
+        // Strip everything except Korean, English letters, and numbers to be safe in URL paths
+        val cleanName = name.replace(Regex("[^a-zA-Z0-9가-힣]"), "")
+        val newItem = "${cleanName}_${perm.name}"
+        val updated = if (current.isEmpty() || current == "null") {
+            newItem
+        } else {
+            val list = current.split(",")
+            if (list.any { it.startsWith("${cleanName}_") }) {
+                current
+            } else {
+                "$current,$newItem"
+            }
+        }
+        updateRoomValue("MEMBERS_$roomId", updated)
+    }
+
+    private fun unregisterMember(roomId: String, name: String) {
+        val current = getRoomValue("MEMBERS_$roomId")
+        if (current.isNotEmpty() && current != "null") {
+            val cleanName = name.replace(Regex("[^a-zA-Z0-9가-힣]"), "")
+            val list = current.split(",")
+            val filtered = list.filter { !it.startsWith("${cleanName}_") }
+            updateRoomValue("MEMBERS_$roomId", filtered.joinToString(","))
+        }
+    }
+
+    private fun pollMembers(roomId: String) {
+        val raw = getRoomValue("MEMBERS_$roomId")
+        if (raw.isNotEmpty() && raw != "null") {
+            val list = ArrayList<SyncPeer>()
+            val items = raw.split(",")
+            for (item in items) {
+                val parts = item.split("_")
+                if (parts.size == 2) {
+                    val name = parts[0]
+                    val perm = try {
+                        SyncPermission.valueOf(parts[1])
+                    } catch (e: Exception) {
+                        SyncPermission.READ_ONLY
+                    }
+                    // Format display names cleanly
+                    val displayName = if (name == "방장") "방장 (나)" else name
+                    list.add(SyncPeer(displayName, displayName, perm))
+                }
+            }
+            _connectedPeers.value = list
+        }
+    }
+
+    // --- Background Polling ---
+    private fun startPolling(roomCode: String) {
+        pollJob?.cancel()
+        pollJob = scope.launch(Dispatchers.IO) {
+            while (isActive) {
+                // Poll Member List and Calendar Data
+                try {
+                    pollMembers(roomCode)
+                    
+                    val pasteId = getRoomValue(roomCode)
+                    if (pasteId.isNotEmpty() && pasteId != "null" && pasteId != lastSyncedPasteId) {
+                        log("서버에서 새 일정을 확인했습니다. 동기화 중...")
+                        syncWithPasteId(pasteId)
+                    }
+                } catch (e: Exception) {
+                    Log.e(tag, "Polling error", e)
+                }
+                delay(5000) // Poll every 5 seconds
+            }
+        }
+    }
+
+    private suspend fun syncWithPasteId(pasteId: String) {
+        syncMutex.withLock {
+            try {
+                isSyncingDb = true
+                val content = downloadFromPasteRs(pasteId)
+                if (content.isNotEmpty()) {
+                    val remoteEvents = deserializeEvents(content)
+                    val localEvents = getCurrentEventsProvider()
+
+                    // 1. Delete local events that aren't present in remote list
+                    for (local in localEvents) {
+                        if (local.syncId != null && remoteEvents.none { it.syncId == local.syncId }) {
+                            onEventDeleted(local.syncId)
+                        }
+                    }
+
+                    // 2. Insert or update remote events locally
+                    for (remote in remoteEvents) {
+                        onEventReceived(remote)
+                    }
+
+                    lastSyncedPasteId = pasteId
+                    log("동기화 완료. ${remoteEvents.size}개의 일정을 로드했습니다.")
                 }
             } catch (e: Exception) {
-                log("Connection error: ${e.localizedMessage}")
-                _isConnected.value = false
-                _role.value = SyncRole.NONE
-            }
-        }
-    }
-
-    private suspend fun handleIncomingMessage(msg: String, senderPermission: SyncPermission, peerId: String) {
-        try {
-            val parts = msg.split("|")
-            if (parts.size < 2) return
-            
-            val cmd = parts[0]
-            val payload = parts.subList(1, parts.size).joinToString("|")
-            
-            when (cmd) {
-                "ADD_EVENT" -> {
-                    // Check write permission of sender
-                    if (senderPermission == SyncPermission.READ_ONLY) {
-                        log("Warning: Rejected insert request from Read-Only Peer $peerId")
-                        return
-                    }
-                    val event = deserializeEvent(payload)
-                    onEventReceived(event)
-                    log("Synced Event Added/Updated: '${event.title}'")
-                    
-                    // Host rebroadcasts to all other clients
-                    if (_role.value == SyncRole.HOST) {
-                        broadcastToClients(msg, peerId)
-                    }
-                }
-                "DELETE_EVENT" -> {
-                    if (senderPermission == SyncPermission.READ_ONLY) {
-                        log("Warning: Rejected delete request from Read-Only Peer $peerId")
-                        return
-                    }
-                    val syncId = payload
-                    onEventDeleted(syncId)
-                    log("Synced Event Deleted (SyncId: $syncId)")
-
-                    if (_role.value == SyncRole.HOST) {
-                        broadcastToClients(msg, peerId)
-                    }
-                }
-            }
-        } catch (e: Exception) {
-            log("Error handling incoming message: ${e.localizedMessage}")
-        }
-    }
-
-    private fun broadcastToClients(msg: String, excludePeerId: String) {
-        for ((id, handler) in clientHandlers) {
-            if (id != excludePeerId) {
-                try {
-                    handler.writer.println(msg)
-                } catch (e: Exception) {
-                    // Ignore, handler cleanup will occur on connection failure
-                }
+                log("동기화 실패: ${e.localizedMessage}")
+            } finally {
+                isSyncingDb = false
             }
         }
     }
 
     // --- Outward Updates Broadcast ---
     fun broadcastLocalUpdate(event: Event) {
+        if (isSyncingDb) return // Ignore if triggered by sync downloader
         if (!event.isSynced) return
-        val serialized = serializeEvent(event)
-        val msg = "ADD_EVENT|$serialized"
-
-        if (_role.value == SyncRole.HOST) {
-            broadcastToClients(msg, "")
-            log("Broadcasted event update to all clients: '${event.title}'")
-        } else if (_role.value == SyncRole.CLIENT) {
-            scope.launch(Dispatchers.IO) {
-                try {
-                    val writer = clientSocket?.getOutputStream()?.writer()
-                    if (writer != null) {
-                        PrintWriter(writer, true).println(msg)
-                        log("Sent update to Host: '${event.title}'")
-                    }
-                } catch (e: Exception) {
-                    log("Failed to send update to Host: ${e.localizedMessage}")
-                }
-            }
-        } else if (_role.value == SyncRole.SIMULATION) {
-            // Mirror database state in simulated client
-            if (_simGuestConnected.value) {
-                val list = _simGuestEvents.value.filter { it.syncId != event.syncId } + event
-                _simGuestEvents.value = list
-                log("[SIM] Host updated event: '${event.title}', synced to Guest.")
-            }
+        if (_permission.value == SyncPermission.READ_ONLY) {
+            log("동기화 거부: 읽기 전용 권한이므로 로컬 변경 사항이 업로드되지 않습니다.")
+            return
         }
+        triggerUploadAndSync()
     }
 
     fun broadcastLocalDelete(syncId: String) {
-        val msg = "DELETE_EVENT|$syncId"
-        if (_role.value == SyncRole.HOST) {
-            broadcastToClients(msg, "")
-            log("Broadcasted deletion of Event (SyncId: $syncId) to clients.")
-        } else if (_role.value == SyncRole.CLIENT) {
-            scope.launch(Dispatchers.IO) {
+        if (isSyncingDb) return // Ignore if triggered by sync downloader
+        if (_permission.value == SyncPermission.READ_ONLY) {
+            log("동기화 거부: 읽기 전용 권한이므로 로컬 삭제가 업로드되지 않습니다.")
+            return
+        }
+        triggerUploadAndSync()
+    }
+
+    private fun triggerUploadAndSync() {
+        val roomCode = _inviteCode.value
+        if (roomCode.isEmpty()) return
+
+        scope.launch(Dispatchers.IO) {
+            syncMutex.withLock {
                 try {
-                    val writer = clientSocket?.getOutputStream()?.writer()
-                    if (writer != null) {
-                        PrintWriter(writer, true).println(msg)
-                        log("Sent delete request to Host for SyncId: $syncId")
+                    val currentEvents = getCurrentEventsProvider()
+                    val serialized = serializeEvents(currentEvents)
+                    val pasteId = uploadToPasteRs(serialized)
+                    if (pasteId.isNotEmpty()) {
+                        val ok = updateRoomValue(roomCode, pasteId)
+                        if (ok) {
+                            lastSyncedPasteId = pasteId
+                            log("로컬 변경 사항을 서버에 동기화했습니다.")
+                        }
                     }
                 } catch (e: Exception) {
-                    log("Failed to send deletion request: ${e.localizedMessage}")
+                    Log.e(tag, "Local upload failed", e)
                 }
             }
-        } else if (_role.value == SyncRole.SIMULATION) {
-            if (_simGuestConnected.value) {
-                _simGuestEvents.value = _simGuestEvents.value.filter { it.syncId != syncId }
-                log("[SIM] Host deleted event: SyncId $syncId, synced to Guest.")
+        }
+    }
+
+    // --- HTTP Helper Functions ---
+
+    private fun uploadToPasteRs(content: String): String {
+        return try {
+            val url = URL("https://paste.rs")
+            val conn = url.openConnection() as HttpURLConnection
+            conn.requestMethod = "POST"
+            conn.doOutput = true
+            conn.setRequestProperty("Content-Type", "text/plain; charset=UTF-8")
+            
+            val writer = OutputStreamWriter(conn.outputStream, "UTF-8")
+            writer.write(content)
+            writer.flush()
+            writer.close()
+            
+            if (conn.responseCode == HttpURLConnection.HTTP_OK) {
+                val reader = BufferedReader(InputStreamReader(conn.inputStream, "UTF-8"))
+                val responseUrl = reader.readLine()?.trim() ?: ""
+                reader.close()
+                // Extacts the paste ID from "https://paste.rs/XXXXX"
+                responseUrl.substringAfterLast("/")
+            } else {
+                ""
             }
+        } catch (e: Exception) {
+            Log.e(tag, "paste.rs upload failed", e)
+            ""
         }
     }
 
-    // --- In-Memory Split-Screen Simulation Control ---
-    fun startSimulation(permission: SyncPermission) {
-        stopAll()
-        _role.value = SyncRole.SIMULATION
-        _permission.value = SyncPermission.FULL_ACCESS
-        
-        _simGuestPermission.value = permission
-        val code = generateInviteCode(permission)
-        log("Started Local Sync Simulation. Room Code: $code")
-    }
-
-    fun simulateGuestConnect(code: String, deviceName: String): Boolean {
-        if (_role.value != SyncRole.SIMULATION) return false
-        if (code != _simGuestInviteCode.value) {
-            log("[SIM] Guest connection failed: Invite Code mismatch.")
-            return false
-        }
-        
-        _simGuestConnected.value = true
-        log("[SIM] Guest '$deviceName' joined with permission: ${_simGuestPermission.value.name}")
-        
-        // Initial sync of host events to simulated guest
-        scope.launch {
-            val currentEvents = getCurrentEventsProvider().filter { it.isSynced }
-            _simGuestEvents.value = currentEvents
-            log("[SIM] Initial sync complete. synced ${currentEvents.size} events to Guest.")
-        }
-        return true
-    }
-
-    fun simulateGuestDisconnect() {
-        _simGuestConnected.value = false
-        _simGuestEvents.value = emptyList()
-        log("[SIM] Guest disconnected.")
-    }
-
-    fun addSimulatedEventFromGuest(title: String, startMillis: Long, endMillis: Long, isAllDay: Boolean, calendarId: Int) {
-        if (_simGuestPermission.value == SyncPermission.READ_ONLY) {
-            log("[SIM] Blocked simulated Guest write: Read-Only permission.")
-            return
-        }
-
-        val event = Event(
-            title = title,
-            startMillis = startMillis,
-            endMillis = endMillis,
-            isAllDay = isAllDay,
-            calendarId = calendarId,
-            syncId = UUID.randomUUID().toString(),
-            isSynced = true
-        )
-
-        // Insert into host database so they sync
-        scope.launch {
-            onEventReceived(event)
-            // Mirror in guest list
-            _simGuestEvents.value = _simGuestEvents.value + event
-            log("[SIM] Guest created event: '$title'. Synced to Host in real-time!")
+    private fun downloadFromPasteRs(pasteId: String): String {
+        return try {
+            val url = URL("https://paste.rs/$pasteId")
+            val conn = url.openConnection() as HttpURLConnection
+            conn.requestMethod = "GET"
+            
+            if (conn.responseCode == HttpURLConnection.HTTP_OK) {
+                val reader = BufferedReader(InputStreamReader(conn.inputStream, "UTF-8"))
+                val content = reader.readText()
+                reader.close()
+                content
+            } else {
+                ""
+            }
+        } catch (e: Exception) {
+            Log.e(tag, "paste.rs download failed", e)
+            ""
         }
     }
 
-    fun deleteSimulatedEventFromGuest(syncId: String) {
-        if (_simGuestPermission.value == SyncPermission.READ_ONLY) {
-            log("[SIM] Blocked simulated Guest delete: Read-Only permission.")
-            return
+    private fun updateRoomValue(roomId: String, value: String): Boolean {
+        return try {
+            val url = URL("https://keyvalue.immanuel.co/api/KeyVal/UpdateValue/$APP_KEY/$roomId/$value")
+            val conn = url.openConnection() as HttpURLConnection
+            conn.requestMethod = "POST"
+            conn.responseCode == HttpURLConnection.HTTP_OK
+        } catch (e: Exception) {
+            Log.e(tag, "keyvalue update failed", e)
+            false
         }
+    }
 
-        scope.launch {
-            onEventDeleted(syncId)
-            _simGuestEvents.value = _simGuestEvents.value.filter { it.syncId != syncId }
-            log("[SIM] Guest deleted event (SyncId: $syncId). Synced to Host!")
+    private fun getRoomValue(roomId: String): String {
+        return try {
+            val url = URL("https://keyvalue.immanuel.co/api/KeyVal/GetValue/$APP_KEY/$roomId")
+            val conn = url.openConnection() as HttpURLConnection
+            conn.requestMethod = "GET"
+            
+            if (conn.responseCode == HttpURLConnection.HTTP_OK) {
+                val reader = BufferedReader(InputStreamReader(conn.inputStream, "UTF-8"))
+                val raw = reader.readLine()?.trim() ?: ""
+                reader.close()
+                // The service might return value surrounded by quotes
+                raw.replace("\"", "")
+            } else {
+                ""
+            }
+        } catch (e: Exception) {
+            Log.e(tag, "keyvalue get failed", e)
+            ""
         }
     }
 
-    // --- Cleanup & Reset ---
-    fun stopAll() {
-        serverJob?.cancel()
-        clientJob?.cancel()
-        
-        try {
-            serverSocket?.close()
-            clientSocket?.close()
-        } catch (e: Exception) {}
-        
-        for (handler in clientHandlers.values) {
-            try {
-                handler.socket.close()
-            } catch (e: Exception) {}
+    // --- Event Serializer Helpers ---
+
+    private fun serializeEvents(events: List<Event>): String {
+        val sb = java.lang.StringBuilder()
+        for (e in events) {
+            sb.append("${e.title}\t${e.startMillis}\t${e.endMillis}\t${e.isAllDay}\t${e.location}\t${e.notes}\t${e.repeatType}\t${e.reminderMinutes}\t${e.calendarId}\t${e.syncId}\t${e.isSynced}\n")
         }
-        
-        clientHandlers.clear()
-        
-        _role.value = SyncRole.NONE
-        _permission.value = SyncPermission.NONE
-        _inviteCode.value = ""
-        _isConnected.value = false
-        _connectedPeers.value = emptyList()
-        
-        // Simulation reset
-        _simGuestConnected.value = false
-        _simGuestEvents.value = emptyList()
-        _simGuestPermission.value = SyncPermission.NONE
-        _simGuestInviteCode.value = ""
-        
-        log("Synchronization engine stopped/reset.")
+        return sb.toString()
     }
 
-    // --- Simple Serializer Helpers ---
-    private fun serializeEvent(e: Event): String {
-        return "${e.title}\t${e.startMillis}\t${e.endMillis}\t${e.isAllDay}\t${e.location}\t${e.notes}\t${e.repeatType}\t${e.reminderMinutes}\t${e.calendarId}\t${e.syncId}\t${e.isSynced}"
+    private fun deserializeEvents(str: String): List<Event> {
+        val list = ArrayList<Event>()
+        if (str.isBlank()) return list
+        val lines = str.split("\n")
+        for (line in lines) {
+            if (line.isBlank()) continue
+            val token = line.split("\t")
+            if (token.size < 11) continue
+            list.add(
+                Event(
+                    title = token[0],
+                    startMillis = token[1].toLong(),
+                    endMillis = token[2].toLong(),
+                    isAllDay = token[3].toBoolean(),
+                    location = token[4],
+                    notes = token[5],
+                    repeatType = token[6],
+                    reminderMinutes = token[7].toInt(),
+                    calendarId = token[8].toInt(),
+                    syncId = token[9],
+                    isSynced = token[10].toBoolean()
+                )
+            )
+        }
+        return list
     }
 
-    private fun deserializeEvent(str: String): Event {
-        val token = str.split("\t")
-        return Event(
-            title = token[0],
-            startMillis = token[1].toLong(),
-            endMillis = token[2].toLong(),
-            isAllDay = token[3].toBoolean(),
-            location = token[4],
-            notes = token[5],
-            repeatType = token[6],
-            reminderMinutes = token[7].toInt(),
-            calendarId = token[8].toInt(),
-            syncId = token[9],
-            isSynced = token[10].toBoolean()
-        )
-    }
-
-    private class SocketHandler(
-        val socket: Socket,
-        val reader: BufferedReader,
-        val writer: PrintWriter
-    )
+    // Stub/Simulation simulation methods to avoid compilation issues in case they're called
+    fun startSimulation(permission: SyncPermission) {}
+    fun simulateGuestConnect(code: String, name: String): Boolean = false
+    fun simulateGuestDisconnect() {}
+    fun addSimulatedEventFromGuest(title: String, startMillis: Long, endMillis: Long, isAllDay: Boolean, calendarId: Int) {}
+    fun deleteSimulatedEventFromGuest(syncId: String) {}
 }

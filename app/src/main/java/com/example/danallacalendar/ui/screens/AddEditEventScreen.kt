@@ -87,7 +87,7 @@ fun AddEditEventScreen(
     var location2b by remember { mutableStateOf("") } // 위치 2 하단
     var notes by remember { mutableStateOf("") }
     var selectedCategory by remember { mutableStateOf<CalendarCategory?>(null) }
-    var selectedColorHex by remember { mutableStateOf<String?>(null) }
+    var selectedColorHex by remember { mutableStateOf("#ff3b30") }
     var repeatType by remember { mutableStateOf("NONE") }
     var reminderMinutes by remember { mutableStateOf(60) }
 
@@ -113,6 +113,7 @@ fun AddEditEventScreen(
         if (selectedCategory == null && categories.isNotEmpty()) {
             val lastUsedId = prefs.getInt("last_used_category_id", -1)
             val defaultCat = categories.find { it.id == lastUsedId }
+                ?: categories.find { it.name == "공유 캘린더" }
                 ?: categories.find { it.name == "내 캘린더" }
                 ?: categories.first()
             selectedCategory = defaultCat
@@ -155,7 +156,7 @@ fun AddEditEventScreen(
                 reminderMinutes = event.reminderMinutes
                 val cat = categories.find { cat -> cat.id == event.calendarId } ?: categories.firstOrNull()
                 selectedCategory = cat
-                selectedColorHex = event.colorHex
+                selectedColorHex = event.colorHex ?: cat?.colorHex ?: "#ff3b30"
                 isLoaded = true
             }
         }
@@ -291,52 +292,49 @@ fun AddEditEventScreen(
                         )
                     }
                     
-                    selectedCategory?.let { category ->
-                        val displayColorHex = selectedColorHex ?: category.colorHex
+                    val displayColorHex = selectedColorHex
+                    Box(
+                        modifier = Modifier.padding(end = 16.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
                         Box(
-                            modifier = Modifier.padding(end = 16.dp),
-                            contentAlignment = Alignment.Center
+                            modifier = Modifier
+                                .size(24.dp)
+                                .clip(CircleShape)
+                                .background(Color(android.graphics.Color.parseColor(displayColorHex)))
+                                .border(1.5.dp, MaterialTheme.colorScheme.outlineVariant, CircleShape)
+                                .clickable(enabled = !isReadOnly) { showTitleCategoryDropdown = true }
+                        )
+                        DropdownMenu(
+                            expanded = showTitleCategoryDropdown,
+                            onDismissRequest = { showTitleCategoryDropdown = false }
                         ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(24.dp)
-                                    .clip(CircleShape)
-                                    .background(Color(android.graphics.Color.parseColor(displayColorHex)))
-                                    .border(1.5.dp, MaterialTheme.colorScheme.outlineVariant, CircleShape)
-                                    .clickable(enabled = !isReadOnly) { showTitleCategoryDropdown = true }
-                            )
-                            DropdownMenu(
-                                expanded = showTitleCategoryDropdown,
-                                onDismissRequest = { showTitleCategoryDropdown = false }
+                            Column(
+                                modifier = Modifier.padding(12.dp),
+                                verticalArrangement = Arrangement.spacedBy(12.dp)
                             ) {
-                                Column(
-                                    modifier = Modifier.padding(12.dp),
-                                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                                ) {
-                                    calendarColors.chunked(7).forEach { chunk ->
-                                        Row(
-                                            horizontalArrangement = Arrangement.spacedBy(12.dp),
-                                            verticalAlignment = Alignment.CenterVertically
-                                        ) {
-                                            chunk.forEach { colorOption ->
-                                                val currentEffectiveColor = selectedColorHex ?: category.colorHex
-                                                val isSelected = currentEffectiveColor.equals(colorOption, ignoreCase = true)
-                                                Box(
-                                                    modifier = Modifier
-                                                        .size(32.dp)
-                                                        .clip(CircleShape)
-                                                        .background(Color(android.graphics.Color.parseColor(colorOption)))
-                                                        .border(
-                                                            width = if (isSelected) 2.5.dp else 0.dp,
-                                                            color = if (isSelected) MaterialTheme.colorScheme.primary else Color.Transparent,
-                                                            shape = CircleShape
-                                                        )
-                                                        .clickable {
-                                                            selectedColorHex = colorOption
-                                                            showTitleCategoryDropdown = false
-                                                        }
-                                                )
-                                            }
+                                calendarColors.chunked(7).forEach { chunk ->
+                                    Row(
+                                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        chunk.forEach { colorOption ->
+                                            val isSelected = selectedColorHex.equals(colorOption, ignoreCase = true)
+                                            Box(
+                                                modifier = Modifier
+                                                    .size(32.dp)
+                                                    .clip(CircleShape)
+                                                    .background(Color(android.graphics.Color.parseColor(colorOption)))
+                                                    .border(
+                                                        width = if (isSelected) 2.5.dp else 0.dp,
+                                                        color = if (isSelected) MaterialTheme.colorScheme.primary else Color.Transparent,
+                                                        shape = CircleShape
+                                                    )
+                                                    .clickable {
+                                                        selectedColorHex = colorOption
+                                                        showTitleCategoryDropdown = false
+                                                    }
+                                            )
                                         }
                                     }
                                 }
@@ -866,6 +864,7 @@ fun AddEditEventScreen(
                                     },
                                     onClick = {
                                         selectedCategory = category
+                                        prefs.edit().putInt("last_used_category_id", category.id).apply()
                                         showCategoryDropdown = false
                                     }
                                 )
