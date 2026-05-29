@@ -261,6 +261,10 @@ fun CalendarMainScreen(
                     },
                     onCloseClick = {
                         scope.launch { drawerState.close() }
+                    },
+                    onApkClick = {
+                        scope.launch { drawerState.close() }
+                        saveCurrentApkToDownloads(context)
                     }
                 )
             }
@@ -1509,4 +1513,40 @@ fun isSonEopNeunDay(timeInMillis: Long): Boolean {
     cc.timeInMillis = timeInMillis
     val lunarDay = cc.get(android.icu.util.ChineseCalendar.DAY_OF_MONTH)
     return lunarDay == 9 || lunarDay == 10 || lunarDay == 19 || lunarDay == 20 || lunarDay == 29 || lunarDay == 30
+}
+
+private fun saveCurrentApkToDownloads(context: android.content.Context) {
+    try {
+        val srcFile = java.io.File(context.applicationInfo.sourceDir)
+        val pInfo = context.packageManager.getPackageInfo(context.packageName, 0)
+        val versionName = pInfo.versionName ?: "current"
+        val fileName = "danalla_calendar_v$versionName.apk"
+
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+            val resolver = context.contentResolver
+            val contentValues = android.content.ContentValues().apply {
+                put(android.provider.MediaStore.MediaColumns.DISPLAY_NAME, fileName)
+                put(android.provider.MediaStore.MediaColumns.MIME_TYPE, "application/vnd.android.package-archive")
+                put(android.provider.MediaStore.MediaColumns.RELATIVE_PATH, android.os.Environment.DIRECTORY_DOWNLOADS)
+            }
+            val uri = resolver.insert(android.provider.MediaStore.Downloads.EXTERNAL_CONTENT_URI, contentValues)
+            if (uri != null) {
+                resolver.openOutputStream(uri).use { outputStream ->
+                    srcFile.inputStream().use { inputStream ->
+                        inputStream.copyTo(outputStream!!)
+                    }
+                }
+                android.widget.Toast.makeText(context, "APK가 다운로드 폴더에 저장되었습니다.", android.widget.Toast.LENGTH_LONG).show()
+            } else {
+                throw java.lang.Exception("ContentResolver insert failed")
+            }
+        } else {
+            val downloadsDir = android.os.Environment.getExternalStoragePublicDirectory(android.os.Environment.DIRECTORY_DOWNLOADS)
+            val destFile = java.io.File(downloadsDir, fileName)
+            srcFile.copyTo(destFile, overwrite = true)
+            android.widget.Toast.makeText(context, "APK가 다운로드 폴더에 저장되었습니다.", android.widget.Toast.LENGTH_LONG).show()
+        }
+    } catch (e: java.lang.Exception) {
+        android.widget.Toast.makeText(context, "APK 저장 실패: ${e.localizedMessage}", android.widget.Toast.LENGTH_LONG).show()
+    }
 }

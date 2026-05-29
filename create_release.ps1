@@ -1,6 +1,6 @@
 $token = "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"
 $repo = "psm6872-a11y/psmwjwkdth"
-$tag = "v1.0.27"
+$tag = "v1.0.28"
 $apkPath = "c:\Users\me\Documents\danalla\psm\app\build\outputs\apk\debug\app-debug.apk"
 
 $headers = @{
@@ -11,7 +11,7 @@ $headers = @{
 
 # Create new release
 Write-Output "Creating release $tag ..."
-$body = '{"tag_name":"' + $tag + '","name":"' + $tag + '","body":"v1.0.27: 일정 추가 화면 기본 캘린더 공유캘린더로 변경 및 캘린더 변경 시 설정 유지 개선","draft":false,"prerelease":false}'
+$body = '{"tag_name":"' + $tag + '","name":"' + $tag + '","body":"v1.0.28: 사이드 바 메뉴 하단에 apk 메뉴 추가 및 현재 버전 APK 다운로드 저장 기능 구현","draft":false,"prerelease":false}'
 $bodyBytes = [System.Text.Encoding]::UTF8.GetBytes($body)
 
 $release = Invoke-RestMethod -Uri "https://api.github.com/repos/$repo/releases" -Method Post -Headers $headers -Body $bodyBytes -ContentType "application/json; charset=utf-8"
