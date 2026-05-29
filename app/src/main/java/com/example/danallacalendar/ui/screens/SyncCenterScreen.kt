@@ -68,7 +68,7 @@ fun SyncCenterScreen(
         val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
         val clip = ClipData.newPlainText("Room Code", text)
         clipboard.setPrimaryClip(clip)
-        Toast.makeText(context, "방 번호가 복사되었습니다: $text", Toast.LENGTH_SHORT).show()
+        Toast.makeText(context, "공유 코드가 복사되었습니다: $text", Toast.LENGTH_SHORT).show()
     }
 
     // SMS send helper
@@ -155,7 +155,7 @@ fun SyncCenterScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("캘린더 공유 및 동기화", fontWeight = FontWeight.Bold) },
+                title = { Text("친구와 공유", fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(imageVector = Icons.Default.ArrowBack, contentDescription = "뒤로가기")
@@ -178,13 +178,13 @@ fun SyncCenterScreen(
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             Text(
-                text = "원격 캘린더 공유 설정", 
+                text = "친구와 공유 설정", 
                 fontWeight = FontWeight.Bold, 
                 fontSize = 18.sp,
                 color = MaterialTheme.colorScheme.onBackground
             )
             Text(
-                text = "공유방을 만들어 멀리 있는 사용자와 일정을 실시간으로 연동하고 확인하세요. 인터넷에 연결되어 있으면 전 세계 어디서든 연동됩니다.",
+                text = "친구를 초대하여 일정을 함께 관리하고 실시간으로 공유할 수 있습니다. 공유 코드를 이용해 간편하게 연결하세요.",
                 fontSize = 13.sp, 
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -199,9 +199,9 @@ fun SyncCenterScreen(
                         modifier = Modifier.padding(16.dp),
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        Text("방법 1: 새 공유방 만들기", fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                        Text("공유 캘린더 만들기", fontWeight = FontWeight.Bold, fontSize = 15.sp)
                         Text(
-                            "방장이 되어 새 공유방을 생성하고, 공유방 번호를 친구에게 알려주어 일정을 동기화합니다.",
+                            "새로운 공유 캘린더 그룹을 개설하고 친구를 멤버로 초대하여 일정을 공유합니다.",
                             fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
 
@@ -211,7 +211,7 @@ fun SyncCenterScreen(
                             horizontalArrangement = Arrangement.spacedBy(16.dp),
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            Text("친구에게 줄 권한:", fontSize = 14.sp, fontWeight = FontWeight.Medium)
+                            Text("참여 멤버 권한:", fontSize = 14.sp, fontWeight = FontWeight.Medium)
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 RadioButton(
                                     selected = selectedPermission == SyncPermission.READ_ONLY,
@@ -233,7 +233,7 @@ fun SyncCenterScreen(
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(14.dp)
                         ) {
-                            Text("공유방 생성하기", fontWeight = FontWeight.Bold)
+                            Text("공유 캘린더 그룹 개설", fontWeight = FontWeight.Bold)
                         }
                     }
                 }
@@ -247,9 +247,9 @@ fun SyncCenterScreen(
                         modifier = Modifier.padding(16.dp),
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        Text("방법 2: 기존 공유방 참여하기", fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                        Text("초대받은 캘린더에 참여하기", fontWeight = FontWeight.Bold, fontSize = 15.sp)
                         Text(
-                            "친구가 만든 공유방의 6자리 번호를 입력하여 일정을 실시간 연동합니다.",
+                            "친구에게 전달받은 6자리 공유 코드를 입력하여 일정을 실시간 연동합니다.",
                             fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
 
@@ -257,7 +257,7 @@ fun SyncCenterScreen(
                             value = joinDeviceName,
                             onValueChange = { joinDeviceName = it },
                             label = { Text("내 기기 이름") },
-                            placeholder = { Text("예: 친구 휴대폰, 태블릿 등") },
+                            placeholder = { Text("예: 내 휴대폰, 패드 등") },
                             singleLine = true,
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(14.dp)
@@ -266,7 +266,7 @@ fun SyncCenterScreen(
                         OutlinedTextField(
                             value = inputRoomCode,
                             onValueChange = { inputRoomCode = it.take(6) },
-                            label = { Text("공유방 번호 (6자리)") },
+                            label = { Text("공유 코드 (6자리)") },
                             placeholder = { Text("예: 123456") },
                             singleLine = true,
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
@@ -283,7 +283,7 @@ fun SyncCenterScreen(
                         ) {
                             Icon(Icons.Default.Link, contentDescription = null, modifier = Modifier.size(18.dp))
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text("공유방에 참여하기", fontWeight = FontWeight.Bold)
+                            Text("공유 캘린더 참여", fontWeight = FontWeight.Bold)
                         }
                     }
                 }
@@ -307,7 +307,7 @@ fun SyncCenterScreen(
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
-                                text = if (syncRole == SyncRole.HOST) "공유방 생성됨 (방장)" else "공유방 연결됨 (참여자)",
+                                text = if (syncRole == SyncRole.HOST) "공유 캘린더 생성됨 (방장)" else "공유 캘린더 연결됨 (참여자)",
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 16.sp,
                                 color = MaterialTheme.colorScheme.primary
@@ -322,13 +322,13 @@ fun SyncCenterScreen(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Column {
-                                Text("공유방 번호", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text("공유 코드", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                 SelectionContainer {
                                     Text(roomCode, fontSize = 24.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
                                 }
                             }
                             IconButton(onClick = { copyToClipboard(roomCode) }) {
-                                Icon(Icons.Default.ContentCopy, contentDescription = "방 번호 복사")
+                                Icon(Icons.Default.ContentCopy, contentDescription = "공유 코드 복사")
                             }
                         }
 
