@@ -1,6 +1,6 @@
 $token = "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"
 $repo = "psm6872-a11y/psmwjwkdth"
-$tag = "v1.0.24"
+$tag = "v1.0.27"
 $apkPath = "c:\Users\me\Documents\danalla\psm\app\build\outputs\apk\debug\app-debug.apk"
 
 $headers = @{
@@ -14,7 +14,7 @@ Write-Output "Creating release $tag ..."
 $body = @{
     tag_name = $tag
     name     = $tag
-    body     = "v1.0.24: 최근 통화 목록 중복 제거, 전화번호 포맷팅(하이픈 추가), 이름 미지정 번호 레이아웃 개선"
+    body     = "v1.0.27: 일정 추가 화면 기본 캘린더 공유캘린더로 변경 및 캘린더 변경 시 설정 유지 개선"
     draft    = $false
     prerelease = $false
 } | ConvertTo-Json
