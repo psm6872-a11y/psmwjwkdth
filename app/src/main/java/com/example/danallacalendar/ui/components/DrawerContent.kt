@@ -106,7 +106,7 @@ fun DrawerContent(
             )
             Spacer(modifier = Modifier.width(16.dp))
             Text(
-                text = "캘린더 공유",
+                text = "친구와 공유",
                 fontSize = 15.sp,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.primary
