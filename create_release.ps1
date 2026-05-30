@@ -1,6 +1,6 @@
 $token = ""
 $repo = "psm6872-a11y/psmwjwkdth"
-$tag = "v1.0.44"
+$tag = "v1.0.45"
 $apkPath = "c:\Users\me\Documents\danalla\psm\app\build\outputs\apk\debug\app-debug.apk"
 
 $headers = @{
@@ -11,7 +11,7 @@ $headers = @{
 
 # Create new release
 Write-Output "Creating release $tag ..."
-$body = '{"tag_name":"' + $tag + '","name":"' + $tag + '","body":"v1.0.44: Fix infinite loading issue on room creation/join by wrapping Firestore operations in coroutines with try-catch-finally blocks.","draft":false,"prerelease":false}'
+$body = '{"tag_name":"' + $tag + '","name":"' + $tag + '","body":"v1.0.45: Resolve Firestore task hangs on offline/slow networks by saving room data locally first and implementing a 3-second task timeout fallback.","draft":false,"prerelease":false}'
 $bodyBytes = [System.Text.Encoding]::UTF8.GetBytes($body)
 
 $release = Invoke-RestMethod -Uri "https://api.github.com/repos/$repo/releases" -Method Post -Headers $headers -Body $bodyBytes -ContentType "application/json; charset=utf-8"

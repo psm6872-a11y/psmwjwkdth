@@ -18,30 +18,48 @@ class CalendarRepository @Inject constructor(
     private val firestore: FirebaseFirestore,
     private val userPreferences: UserPreferences
 ) {
-    // Suspending wrapper for createRoom
-    suspend fun createRoomSuspended(): String = suspendCancellableCoroutine { continuation ->
-        createRoom(
-            onSuccess = { code ->
-                if (continuation.isActive) continuation.resume(code)
-            },
-            onFailure = { exception ->
-                if (continuation.isActive) continuation.resumeWithException(exception)
+    // Suspending wrapper for createRoom with offline fallback
+    suspend fun createRoomSuspended(): String {
+        return try {
+            kotlinx.coroutines.withTimeout(3000) {
+                suspendCancellableCoroutine<String> { continuation ->
+                    createRoom(
+                        onSuccess = { code ->
+                            if (continuation.isActive) continuation.resume(code)
+                        },
+                        onFailure = { exception ->
+                            if (continuation.isActive) continuation.resumeWithException(exception)
+                        }
+                    )
+                }
             }
-        )
+        } catch (e: kotlinx.coroutines.TimeoutCancellationException) {
+            val code = userPreferences.getLastRoomCode()
+            if (code.isNotEmpty()) code else throw Exception("방 생성 시간 초과")
+        }
     }
 
-    // Suspending wrapper for joinRoom
-    suspend fun joinRoomSuspended(roomCode: String): Unit = suspendCancellableCoroutine { continuation ->
-        joinRoom(
-            roomCode = roomCode,
-            onSuccess = {
-                if (continuation.isActive) continuation.resume(Unit)
-            },
-            onFailure = { errorMessage ->
-                if (continuation.isActive) continuation.resumeWithException(Exception(errorMessage))
+    // Suspending wrapper for joinRoom with timeout
+    suspend fun joinRoomSuspended(roomCode: String): Unit {
+        try {
+            kotlinx.coroutines.withTimeout(3000) {
+                suspendCancellableCoroutine<Unit> { continuation ->
+                    joinRoom(
+                        roomCode = roomCode,
+                        onSuccess = {
+                            if (continuation.isActive) continuation.resume(Unit)
+                        },
+                        onFailure = { errorMessage ->
+                            if (continuation.isActive) continuation.resumeWithException(Exception(errorMessage))
+                        }
+                    )
+                }
             }
-        )
+        } catch (e: kotlinx.coroutines.TimeoutCancellationException) {
+            throw Exception("서버 연결 시간 초과. 네트워크 상태를 확인해 주세요.")
+        }
     }
+
     // Generate Room Code: "###-###"
     fun generateRoomCode(): String {
         val code = (100000..999999).random().toString()
@@ -54,6 +72,8 @@ class CalendarRepository @Inject constructor(
         onFailure: (Exception) -> Unit
     ) {
         val roomCode = generateRoomCode()
+        userPreferences.setLastRoomCode(roomCode) // Save locally first for offline support!
+        
         val roomData = Room(
             createdAt = Timestamp.now(),
             createdBy = userPreferences.getDeviceUUID()
@@ -65,7 +85,6 @@ class CalendarRepository @Inject constructor(
             .document("details")
             .set(roomData)
             .addOnSuccessListener {
-                userPreferences.setLastRoomCode(roomCode)
                 onSuccess(roomCode)
             }
             .addOnFailureListener { e ->
