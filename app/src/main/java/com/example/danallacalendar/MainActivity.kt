@@ -14,10 +14,15 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
+import androidx.navigation.NavType
+import androidx.compose.ui.platform.LocalContext
 import com.example.danallacalendar.data.local.UserPreferences
 import com.example.danallacalendar.theme.DanallaCalendarTheme
-import com.example.danallacalendar.ui.calendar.CalendarScreen
-import com.example.danallacalendar.ui.calendar.CalendarViewModel
+import com.example.danallacalendar.ui.screens.CalendarMainScreen
+import com.example.danallacalendar.ui.screens.AddEditEventScreen
+import com.example.danallacalendar.ui.screens.SearchScreen
+import com.example.danallacalendar.ui.viewmodel.CalendarViewModel
 import com.example.danallacalendar.ui.nickname.NicknameScreen
 import com.example.danallacalendar.ui.nickname.NicknameViewModel
 import com.example.danallacalendar.ui.room.RoomScreen
@@ -124,15 +129,57 @@ fun AppNavigation(userPreferences: UserPreferences) {
         }
 
         composable("calendar") {
-            val viewModel: CalendarViewModel = hiltViewModel()
-            CalendarScreen(
+            val activity = LocalContext.current as ComponentActivity
+            val viewModel: CalendarViewModel = hiltViewModel(activity)
+            CalendarMainScreen(
                 viewModel = viewModel,
+                onNavigateToAddEditEvent = { id ->
+                    val route = if (id != null) "add_edit_event?id=$id" else "add_edit_event"
+                    navController.navigate(route)
+                },
+                onNavigateToSearch = {
+                    navController.navigate("search")
+                },
                 onExitRoom = {
                     userPreferences.setLastRoomCode("")
                     navController.navigate("room") {
                         popUpTo("calendar") { inclusive = true }
                     }
                 }
+            )
+        }
+
+        composable(
+            route = "add_edit_event?id={id}",
+            arguments = listOf(
+                navArgument("id") {
+                    type = NavType.StringType
+                    nullable = true
+                    defaultValue = null
+                }
+            )
+        ) { backStackEntry ->
+            val activity = LocalContext.current as ComponentActivity
+            val viewModel: CalendarViewModel = hiltViewModel(activity)
+            val eventIdStr = backStackEntry.arguments?.getString("id")
+            val eventId = eventIdStr?.toIntOrNull()
+            AddEditEventScreen(
+                eventId = eventId,
+                onNavigateBack = {
+                    navController.popBackStack()
+                },
+                viewModel = viewModel
+            )
+        }
+
+        composable("search") {
+            val activity = LocalContext.current as ComponentActivity
+            val viewModel: CalendarViewModel = hiltViewModel(activity)
+            SearchScreen(
+                onNavigateBack = {
+                    navController.popBackStack()
+                },
+                viewModel = viewModel
             )
         }
     }

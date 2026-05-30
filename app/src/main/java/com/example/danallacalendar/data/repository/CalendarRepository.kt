@@ -1,7 +1,10 @@
 package com.example.danallacalendar.data.repository
 
+import com.example.danallacalendar.data.CalendarCategory
+import com.example.danallacalendar.data.Event
+import com.example.danallacalendar.data.DeadlineDate
+import com.example.danallacalendar.data.EventDao
 import com.example.danallacalendar.data.local.UserPreferences
-import com.example.danallacalendar.data.model.CalendarEvent
 import com.example.danallacalendar.data.model.Room
 import com.google.firebase.Timestamp
 import com.google.firebase.firestore.FirebaseFirestore
@@ -9,6 +12,7 @@ import com.google.firebase.firestore.Query
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
@@ -16,7 +20,8 @@ import javax.inject.Inject
 
 class CalendarRepository @Inject constructor(
     private val firestore: FirebaseFirestore,
-    private val userPreferences: UserPreferences
+    private val userPreferences: UserPreferences,
+    val eventDao: EventDao
 ) {
     // Suspending wrapper for createRoom with offline fallback
     suspend fun createRoomSuspended(): String {
@@ -116,105 +121,168 @@ class CalendarRepository @Inject constructor(
             }
     }
 
-    // Fetch room events flow with real-time updates
-    fun getEventsFlow(roomCode: String): Flow<List<CalendarEvent>> = callbackFlow {
+    // Room Database Wrapper functions
+    fun getAllCategories(): Flow<List<CalendarCategory>> = eventDao.getAllCategories()
+    
+    suspend fun insertCategory(category: CalendarCategory) = eventDao.insertCategory(category)
+    
+    suspend fun updateCategory(category: CalendarCategory) = eventDao.updateCategory(category)
+    
+    fun getEventsInRange(start: Long, end: Long): Flow<List<Event>> = eventDao.getEventsInRange(start, end)
+    
+    fun searchEvents(query: String): Flow<List<Event>> = eventDao.searchEvents("%$query%")
+    
+    suspend fun getEventById(id: Int): Event? = eventDao.getEventById(id)
+    
+    suspend fun insertEvent(event: Event) {
+        val id = eventDao.insertEvent(event)
+        if (event.isSynced) {
+            uploadEventToFirestore(event.copy(id = id.toInt()))
+        }
+    }
+    
+    suspend fun updateEvent(event: Event) {
+        eventDao.updateEvent(event)
+        if (event.isSynced) {
+            uploadEventToFirestore(event)
+        }
+    }
+    
+    suspend fun deleteEvent(event: Event) {
+        eventDao.deleteEvent(event)
+        if (event.isSynced && event.syncId != null) {
+            deleteEventFromFirestore(event.syncId)
+        }
+    }
+
+    // DeadlineDates
+    fun getAllDeadlineDates(): Flow<List<DeadlineDate>> = eventDao.getAllDeadlineDates()
+
+    suspend fun insertDeadlineDate(deadlineDate: DeadlineDate) = eventDao.insertDeadlineDate(deadlineDate)
+
+    suspend fun deleteDeadlineDate(dateMillis: Long) = eventDao.deleteDeadlineDate(dateMillis)
+
+    suspend fun deleteAllEvents() = eventDao.deleteAllEvents()
+
+    // Firestore Bidirectional Sync
+    fun startRealtimeSync(roomCode: String, sharedCategoryId: Int) = callbackFlow<Unit> {
+        if (roomCode.isEmpty()) {
+            close()
+            return@callbackFlow
+        }
         val listener = firestore.collection("rooms")
             .document(roomCode)
             .collection("events")
-            .orderBy("date", Query.Direction.ASCENDING)
-            .orderBy("time", Query.Direction.ASCENDING)
             .addSnapshotListener { snapshot, error ->
                 if (error != null) {
                     close(error)
                     return@addSnapshotListener
                 }
-
                 if (snapshot != null) {
-                    val events = snapshot.documents.mapNotNull { doc ->
-                        val id = doc.getString("id") ?: ""
-                        val title = doc.getString("title") ?: ""
-                        val date = doc.getString("date") ?: ""
-                        val time = doc.getString("time") ?: ""
-                        val description = doc.getString("description") ?: ""
-                        val createdBy = doc.getString("createdBy") ?: ""
-                        val createdByName = doc.getString("createdByName") ?: ""
-                        val updatedAt = doc.getTimestamp("updatedAt")
-                        CalendarEvent(id, title, date, time, description, createdBy, createdByName, updatedAt)
+                    kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+                        try {
+                            val remoteEvents = snapshot.documents.mapNotNull { doc ->
+                                val title = doc.getString("title") ?: ""
+                                val startMillis = doc.getLong("startMillis") ?: 0L
+                                val endMillis = doc.getLong("endMillis") ?: 0L
+                                val isAllDay = doc.getBoolean("isAllDay") ?: false
+                                val location = doc.getString("location") ?: ""
+                                val notes = doc.getString("notes") ?: ""
+                                val repeatType = doc.getString("repeatType") ?: "NONE"
+                                val reminderMinutes = doc.getLong("reminderMinutes")?.toInt() ?: -1
+                                val syncId = doc.getString("syncId") ?: doc.id
+                                val colorHex = doc.getString("colorHex")
+                                val isCompleted = doc.getBoolean("isCompleted") ?: false
+                                
+                                Event(
+                                    title = title,
+                                    startMillis = startMillis,
+                                    endMillis = endMillis,
+                                    isAllDay = isAllDay,
+                                    location = location,
+                                    notes = notes,
+                                    repeatType = repeatType,
+                                    reminderMinutes = reminderMinutes,
+                                    calendarId = sharedCategoryId,
+                                    syncId = syncId,
+                                    isSynced = true,
+                                    colorHex = colorHex,
+                                    isCompleted = isCompleted
+                                )
+                            }
+                            
+                            // 1. Update/insert remote events to local DB
+                            remoteEvents.forEach { remote ->
+                                val existing = eventDao.getEventBySyncId(remote.syncId ?: "")
+                                if (existing != null) {
+                                    val updated = remote.copy(id = existing.id)
+                                    if (existing.title != remote.title ||
+                                        existing.startMillis != remote.startMillis ||
+                                        existing.endMillis != remote.endMillis ||
+                                        existing.isAllDay != remote.isAllDay ||
+                                        existing.location != remote.location ||
+                                        existing.notes != remote.notes ||
+                                        existing.colorHex != remote.colorHex ||
+                                        existing.isCompleted != remote.isCompleted
+                                    ) {
+                                        eventDao.updateEvent(updated)
+                                    }
+                                } else {
+                                    eventDao.insertEvent(remote)
+                                }
+                            }
+                            
+                            // 2. Delete local synced events that are NOT in remote collection
+                            val localSynced = eventDao.getSyncedEvents()
+                            val remoteSyncIds = remoteEvents.map { it.syncId }.toSet()
+                            localSynced.forEach { local ->
+                                if (local.syncId !in remoteSyncIds) {
+                                    eventDao.deleteEvent(local)
+                                }
+                            }
+                        } catch (e: Exception) {
+                            android.util.Log.e("SyncError", "Failed to sync remote events", e)
+                        }
                     }
-                    trySend(events)
+                    trySend(Unit)
                 }
             }
         awaitClose { listener.remove() }
     }
 
-    // Add a new event
-    fun addEvent(
-        roomCode: String,
-        title: String,
-        date: String,
-        time: String,
-        description: String,
-        onSuccess: () -> Unit,
-        onFailure: (Exception) -> Unit
-    ) {
-        val eventRef = firestore.collection("rooms")
-            .document(roomCode)
-            .collection("events")
-            .document() // Auto-generate event ID
-
-        val event = CalendarEvent(
-            id = eventRef.id,
-            title = title,
-            date = date,
-            time = time,
-            description = description,
-            createdBy = userPreferences.getDeviceUUID(),
-            createdByName = userPreferences.getNickname(),
-            updatedAt = Timestamp.now()
+    private fun uploadEventToFirestore(event: Event) {
+        val roomCode = userPreferences.getLastRoomCode()
+        if (roomCode.isEmpty() || event.syncId == null) return
+        
+        val docData = hashMapOf(
+            "title" to event.title,
+            "startMillis" to event.startMillis,
+            "endMillis" to event.endMillis,
+            "isAllDay" to event.isAllDay,
+            "location" to event.location,
+            "notes" to event.notes,
+            "repeatType" to event.repeatType,
+            "reminderMinutes" to event.reminderMinutes,
+            "syncId" to event.syncId,
+            "colorHex" to event.colorHex,
+            "isCompleted" to event.isCompleted
         )
-
-        eventRef.set(event)
-            .addOnSuccessListener { onSuccess() }
-            .addOnFailureListener { e -> onFailure(e) }
-    }
-
-    // Update an event
-    fun updateEvent(
-        roomCode: String,
-        event: CalendarEvent,
-        onSuccess: () -> Unit,
-        onFailure: (Exception) -> Unit
-    ) {
-        val updatedEvent = event.copy(updatedAt = Timestamp.now())
+        
         firestore.collection("rooms")
             .document(roomCode)
             .collection("events")
-            .document(event.id)
-            .set(updatedEvent)
-            .addOnSuccessListener { onSuccess() }
-            .addOnFailureListener { e -> onFailure(e) }
+            .document(event.syncId)
+            .set(docData)
     }
 
-    // Delete an event
-    fun deleteEvent(
-        roomCode: String,
-        eventId: String,
-        createdBy: String,
-        onSuccess: () -> Unit,
-        onFailure: (String) -> Unit
-    ) {
-        val currentDeviceUUID = userPreferences.getDeviceUUID()
-        if (createdBy != currentDeviceUUID) {
-            onFailure("본인이 작성한 일정만 삭제할 수 있습니다.")
-            return
-        }
-
+    private fun deleteEventFromFirestore(syncId: String) {
+        val roomCode = userPreferences.getLastRoomCode()
+        if (roomCode.isEmpty()) return
+        
         firestore.collection("rooms")
             .document(roomCode)
             .collection("events")
-            .document(eventId)
+            .document(syncId)
             .delete()
-            .addOnSuccessListener { onSuccess() }
-            .addOnFailureListener { e -> onFailure(e.localizedMessage ?: "삭제 실패") }
     }
 }

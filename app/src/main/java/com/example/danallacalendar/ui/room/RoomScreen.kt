@@ -4,6 +4,8 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.widget.Toast
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -22,6 +24,13 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+
+fun isNetworkAvailable(context: Context): Boolean {
+    val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+    val network = cm.activeNetwork ?: return false
+    val caps = cm.getNetworkCapabilities(network) ?: return false
+    return caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+}
 
 @Composable
 fun RoomScreen(
@@ -196,8 +205,12 @@ fun RoomScreen(
 
                     Button(
                         onClick = {
-                            viewModel.joinRoom(inputCode) {
-                                onNavigateToCalendar()
+                            if (!isNetworkAvailable(context)) {
+                                Toast.makeText(context, "인터넷 연결을 확인해주세요", Toast.LENGTH_SHORT).show()
+                            } else {
+                                viewModel.joinRoom(inputCode) {
+                                    onNavigateToCalendar()
+                                }
                             }
                         },
                         modifier = Modifier
