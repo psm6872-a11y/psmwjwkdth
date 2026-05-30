@@ -228,12 +228,16 @@ fun CalendarMainScreen(
                     // Naver Login Button
                     Button(
                         onClick = {
-                            if (inputName.isBlank()) {
-                                inputNameError = true
-                            } else {
-                                viewModel.login("NAVER", inputName)
-                                showLoginDialog = false
-                            }
+                            viewModel.loginWithNaver(
+                                activityContext = context,
+                                onSuccess = {
+                                    showLoginDialog = false
+                                    Toast.makeText(context, "네이버 로그인 성공!", Toast.LENGTH_SHORT).show()
+                                },
+                                onError = { msg ->
+                                    Toast.makeText(context, "네이버 로그인 실패: $msg", Toast.LENGTH_LONG).show()
+                                }
+                            )
                         },
                         modifier = Modifier.fillMaxWidth(),
                         colors = ButtonDefaults.buttonColors(
@@ -249,12 +253,16 @@ fun CalendarMainScreen(
                     // Google Login Button
                     Button(
                         onClick = {
-                            if (inputName.isBlank()) {
-                                inputNameError = true
-                            } else {
-                                viewModel.login("GOOGLE", inputName)
-                                showLoginDialog = false
-                            }
+                            viewModel.loginWithGoogle(
+                                activityContext = context,
+                                onSuccess = {
+                                    showLoginDialog = false
+                                    Toast.makeText(context, "구글 로그인 성공!", Toast.LENGTH_SHORT).show()
+                                },
+                                onError = { msg ->
+                                    Toast.makeText(context, "구글 로그인 실패: $msg", Toast.LENGTH_LONG).show()
+                                }
+                            )
                         },
                         modifier = Modifier.fillMaxWidth(),
                         colors = ButtonDefaults.buttonColors(
@@ -273,8 +281,9 @@ fun CalendarMainScreen(
                             if (inputName.isBlank()) {
                                 inputNameError = true
                             } else {
-                                viewModel.login("SAMSUNG", inputName)
+                                viewModel.loginWithSamsung(inputName)
                                 showLoginDialog = false
+                                Toast.makeText(context, "삼성 로그인 성공! (시뮬레이션)", Toast.LENGTH_SHORT).show()
                             }
                         },
                         modifier = Modifier.fillMaxWidth(),

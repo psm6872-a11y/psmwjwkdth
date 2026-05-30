@@ -12,8 +12,8 @@ android {
         applicationId = "com.example.danallacalendar"
         minSdk = 24
         targetSdk = 34
-        versionCode = 39
-        versionName = "1.0.39"
+        versionCode = 40
+        versionName = "1.0.40"
     }
 
     buildTypes {
@@ -93,6 +93,14 @@ dependencies {
 
   // Kotlin Serialization
   implementation(libs.kotlinx.serialization.json)
+
+  // Google Sign-In & Credential Manager
+  implementation("androidx.credentials:credentials:1.2.2")
+  implementation("androidx.credentials:credentials-play-services-auth:1.2.2")
+  implementation("com.google.android.libraries.identity.googleid:googleid:1.1.1")
+
+  // Naver Login SDK
+  implementation("com.navercorp.nid:oauth:5.9.0")
 }
 
 tasks.withType<org.jetbrains.kotlin.gradle.internal.KaptWithoutKotlincTask>().configureEach {
