@@ -440,7 +440,10 @@ class SyncManager(
 
     private fun updateRoomValue(roomId: String, value: String): Boolean {
         return try {
-            val base64Value = android.util.Base64.encodeToString(value.toByteArray(Charsets.UTF_8), android.util.Base64.NO_WRAP)
+            val base64Value = android.util.Base64.encodeToString(
+                value.toByteArray(Charsets.UTF_8),
+                android.util.Base64.URL_SAFE or android.util.Base64.NO_WRAP or android.util.Base64.NO_PADDING
+            )
             val encodedValue = java.net.URLEncoder.encode(base64Value, "UTF-8")
             val url = URL("https://keyvalue.immanuel.co/api/KeyVal/UpdateValue/$APP_KEY/$roomId/$encodedValue")
             val conn = url.openConnection() as HttpURLConnection
@@ -473,7 +476,11 @@ class SyncManager(
                     ""
                 } else {
                     try {
-                        val decodedBytes = android.util.Base64.decode(clean, android.util.Base64.DEFAULT)
+                        val decodedBytes = try {
+                            android.util.Base64.decode(clean, android.util.Base64.URL_SAFE)
+                        } catch (ex: Exception) {
+                            android.util.Base64.decode(clean, android.util.Base64.DEFAULT)
+                        }
                         String(decodedBytes, Charsets.UTF_8)
                     } catch (ex: Exception) {
                         java.net.URLDecoder.decode(clean, "UTF-8")
