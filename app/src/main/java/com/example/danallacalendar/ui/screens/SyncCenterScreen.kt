@@ -87,7 +87,7 @@ fun SyncCenterScreen(
     }
 
     fun sendKakaoInvite(code: String) {
-        val inviteLink = "danallacalendar://join?code=$code&perm=${selectedPermission.name}"
+        val inviteLink = "intent://join?code=$code&perm=${selectedPermission.name}#Intent;scheme=danallacalendar;package=com.example.danallacalendar;end"
         val body = "[다날라 캘린더] 친구와 공유 초대장\n\n친구로부터 캘린더 공유 그룹에 초대받았습니다.\n아래 링크를 누르면 공유 캘린더에 자동으로 참여합니다:\n\n$inviteLink\n\n(링크 클릭이 되지 않는 경우, 앱의 [친구와 공유] 메뉴에서 공유 코드 '$code'를 직접 입력하여 참여해 주세요.)"
         val intent = Intent(Intent.ACTION_SEND).apply {
             type = "text/plain"
