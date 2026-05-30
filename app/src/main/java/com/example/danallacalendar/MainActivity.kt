@@ -15,6 +15,8 @@ class MainActivity : ComponentActivity() {
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
 
+    handleIntent(intent)
+
     // Request notification permission on Android 13+
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
       if (androidx.core.content.ContextCompat.checkSelfPermission(
@@ -33,6 +35,24 @@ class MainActivity : ComponentActivity() {
     enableEdgeToEdge()
     setContent {
       DanallaCalendarTheme { Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) { MainNavigation() } }
+    }
+  }
+
+  override fun onNewIntent(intent: android.content.Intent) {
+    super.onNewIntent(intent)
+    handleIntent(intent)
+  }
+
+  private fun handleIntent(intent: android.content.Intent?) {
+    intent?.data?.let { uri ->
+      if (uri.scheme == "danallacalendar" && uri.host == "join") {
+        val code = uri.getQueryParameter("code")
+        val perm = uri.getQueryParameter("perm") ?: "READ_ONLY"
+        if (!code.isNullOrBlank()) {
+          DeepLinkManager.pendingInviteCode = code
+          DeepLinkManager.pendingInvitePerm = perm
+        }
+      }
     }
   }
 }
