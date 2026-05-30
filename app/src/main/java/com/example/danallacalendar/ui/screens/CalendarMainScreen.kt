@@ -88,6 +88,10 @@ fun CalendarMainScreen(
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val scope = rememberCoroutineScope()
     var showClearSchedulesDialog by remember { mutableStateOf(false) }
+    val isLoggedIn by viewModel.isLoggedIn.collectAsStateWithLifecycle()
+    val userName by viewModel.userName.collectAsStateWithLifecycle()
+    val loginType by viewModel.loginType.collectAsStateWithLifecycle()
+    var showLoginDialog by remember { mutableStateOf(false) }
 
 
 
@@ -173,6 +177,128 @@ fun CalendarMainScreen(
         )
     }
 
+    if (showLoginDialog) {
+        var inputName by remember { mutableStateOf("") }
+        var inputNameError by remember { mutableStateOf(false) }
+
+        AlertDialog(
+            onDismissRequest = { showLoginDialog = false },
+            title = {
+                Text(
+                    text = "간편 로그인",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 18.sp,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+            },
+            text = {
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(
+                        text = "이름을 입력하고 로그인 방식을 선택해 주세요.",
+                        fontSize = 13.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+
+                    OutlinedTextField(
+                        value = inputName,
+                        onValueChange = {
+                            inputName = it
+                            inputNameError = false
+                        },
+                        label = { Text("이름") },
+                        placeholder = { Text("이름을 입력해 주세요") },
+                        singleLine = true,
+                        isError = inputNameError,
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp)
+                    )
+                    if (inputNameError) {
+                        Text(
+                            text = "로그인을 위해 이름을 입력해 주세요.",
+                            color = MaterialTheme.colorScheme.error,
+                            fontSize = 11.sp
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    // Naver Login Button
+                    Button(
+                        onClick = {
+                            if (inputName.isBlank()) {
+                                inputNameError = true
+                            } else {
+                                viewModel.login("NAVER", inputName)
+                                showLoginDialog = false
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color(0xFF03C75A),
+                            contentColor = Color.White
+                        ),
+                        shape = RoundedCornerShape(12.dp),
+                        contentPadding = PaddingValues(vertical = 12.dp)
+                    ) {
+                        Text("네이버로 로그인", fontWeight = FontWeight.Bold)
+                    }
+
+                    // Google Login Button
+                    Button(
+                        onClick = {
+                            if (inputName.isBlank()) {
+                                inputNameError = true
+                            } else {
+                                viewModel.login("GOOGLE", inputName)
+                                showLoginDialog = false
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color(0xFF4285F4),
+                            contentColor = Color.White
+                        ),
+                        shape = RoundedCornerShape(12.dp),
+                        contentPadding = PaddingValues(vertical = 12.dp)
+                    ) {
+                        Text("Google 계정으로 로그인", fontWeight = FontWeight.Bold)
+                    }
+
+                    // Samsung Login Button
+                    Button(
+                        onClick = {
+                            if (inputName.isBlank()) {
+                                inputNameError = true
+                            } else {
+                                viewModel.login("SAMSUNG", inputName)
+                                showLoginDialog = false
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color(0xFF0C4DA2),
+                            contentColor = Color.White
+                        ),
+                        shape = RoundedCornerShape(12.dp),
+                        contentPadding = PaddingValues(vertical = 12.dp)
+                    ) {
+                        Text("Samsung account로 로그인", fontWeight = FontWeight.Bold)
+                    }
+                }
+            },
+            confirmButton = {},
+            dismissButton = {
+                TextButton(onClick = { showLoginDialog = false }) {
+                    Text("취소")
+                }
+            },
+            shape = RoundedCornerShape(20.dp)
+        )
+    }
+
     ModalNavigationDrawer(
         drawerState = drawerState,
         gesturesEnabled = !drawerState.isClosed,
@@ -180,6 +306,11 @@ fun CalendarMainScreen(
             ModalDrawerSheet {
                 DrawerContent(
                     categories = categories,
+                    isLoggedIn = isLoggedIn,
+                    userName = userName,
+                    loginType = loginType,
+                    onLoginClick = { showLoginDialog = true },
+                    onLogoutClick = { viewModel.logout() },
                     onToggleCategory = { viewModel.toggleCategoryVisibility(it) },
                     onNavigateToSync = {
                         scope.launch { drawerState.close() }

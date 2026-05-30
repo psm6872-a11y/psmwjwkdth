@@ -36,7 +36,7 @@ fun MainNavigation() {
             CoroutineScope(SupervisorJob() + Dispatchers.IO)
         )
         val repository = CalendarRepository(database.eventDao())
-        CalendarViewModel(repository)
+        CalendarViewModel(repository, context)
     }
 
     val backStack = rememberNavBackStack(Main)
