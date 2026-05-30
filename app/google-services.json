@@ -1,13 +1,13 @@
 {
   "project_info": {
-    "project_number": "1234567890",
+    "project_number": "365182373353",
     "project_id": "danalla-calendar",
-    "storage_bucket": "danalla-calendar.appspot.com"
+    "storage_bucket": "danalla-calendar.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:1234567890:android:1234567890abcdef",
+        "mobilesdk_app_id": "1:365182373353:android:92097799a70abb89780f78",
         "android_client_info": {
           "package_name": "com.example.danallacalendar"
         }
@@ -15,7 +15,7 @@
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyDummyApiKey"
+          "current_key": "AIzaSyBB6Yayj2i1Xd-G1qa9ppDTgzE5eZXhYS0"
         }
       ],
       "services": {
