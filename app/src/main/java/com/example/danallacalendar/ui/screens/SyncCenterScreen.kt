@@ -86,6 +86,16 @@ fun SyncCenterScreen(
         }
     }
 
+    fun sendKakaoInvite(code: String) {
+        val inviteLink = "danallacalendar://join?code=$code&perm=${selectedPermission.name}"
+        val body = "[다날라 캘린더] 친구와 공유 초대장\n\n친구로부터 캘린더 공유 그룹에 초대받았습니다.\n아래 링크를 누르면 공유 캘린더에 자동으로 참여합니다:\n\n$inviteLink\n\n(링크 클릭이 되지 않는 경우, 앱의 [친구와 공유] 메뉴에서 공유 코드 '$code'를 직접 입력하여 참여해 주세요.)"
+        val intent = Intent(Intent.ACTION_SEND).apply {
+            type = "text/plain"
+            putExtra(Intent.EXTRA_TEXT, body)
+        }
+        context.startActivity(Intent.createChooser(intent, "카카오톡 / 친구 초대하기"))
+    }
+
     if (showContactPicker) {
         ContactPickerDialog(
             onContactSelected = { contact ->
@@ -466,6 +476,24 @@ fun SyncCenterScreen(
                                 Icon(Icons.Default.Send, contentDescription = null, modifier = Modifier.size(18.dp))
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Text("초대 문자(SMS) 보내기", fontWeight = FontWeight.Bold)
+                            }
+
+                            Spacer(modifier = Modifier.height(4.dp))
+
+                            Button(
+                                onClick = {
+                                    sendKakaoInvite(roomCode)
+                                },
+                                modifier = Modifier.fillMaxWidth(),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = Color(0xFFFEE500),
+                                    contentColor = Color(0xFF3C1E1E)
+                                ),
+                                shape = RoundedCornerShape(14.dp)
+                            ) {
+                                Icon(Icons.Default.Chat, contentDescription = null, modifier = Modifier.size(18.dp))
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("카카오톡으로 초대 보내기", fontWeight = FontWeight.Bold)
                             }
                         }
 
