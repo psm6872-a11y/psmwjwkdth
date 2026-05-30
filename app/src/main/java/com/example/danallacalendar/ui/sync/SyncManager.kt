@@ -100,19 +100,29 @@ class SyncManager(
             // Register host member in MEMBERS_{roomId}
             registerMember(generatedRoomId, "방장", SyncPermission.FULL_ACCESS)
 
+            log("초기 일정 업로드 시작...")
             try {
                 val currentEvents = getCurrentEventsProvider()
+                log("로컬 일정 개수: ${currentEvents.size}")
                 val serialized = serializeEvents(currentEvents)
+                log("직렬화 데이터 크기: ${serialized.length} 자")
                 val pasteId = uploadToPasteRs(serialized)
+                log("업로드 결과 pasteId: '$pasteId'")
                 if (pasteId.isNotEmpty()) {
                     val ok = updateRoomValue(generatedRoomId, pasteId)
+                    log("공유방 등록 결과: $ok")
                     if (ok) {
                         lastSyncedPasteId = pasteId
                         log("캘린더 데이터를 서버에 업로드했습니다. 동기화 대기 중...")
+                    } else {
+                        log("오류: 공유방 방 번호 등록 실패")
                     }
+                } else {
+                    log("오류: paste.rs 업로드 실패 (결과가 비어있음)")
                 }
             } catch (e: Exception) {
-                log("초기 업로드 실패: ${e.localizedMessage}")
+                log("초기 업로드 실패 예외 발생: ${e.localizedMessage}")
+                Log.e(tag, "Upload error", e)
             }
             
             // Start Polling
@@ -128,7 +138,9 @@ class SyncManager(
         log("원격 공유방 연결 중... 방 번호: $code")
 
         scope.launch(Dispatchers.IO) {
+            log("공유방 정보 조회 중... (방 번호: $code)")
             val pasteId = getRoomValue(code)
+            log("공유방 조회 완료. pasteId 결과: '$pasteId'")
             if (pasteId.isEmpty() || pasteId == "null") {
                 log("오류: 공유방 번호($code)를 찾을 수 없습니다.")
                 _role.value = SyncRole.NONE
@@ -138,6 +150,7 @@ class SyncManager(
 
             val cleanDeviceName = if (deviceName.isBlank()) "참여자" else deviceName
             myCleanName = cleanDeviceName.replace(Regex("[^a-zA-Z0-9가-힣]"), "")
+            log("내 기기 정규화 이름: '$myCleanName'")
 
             // Fetch room guest permission, fallback if initialPerm is not specified
             val assignedPerm = if (!initialPerm.isNullOrEmpty()) {
@@ -147,7 +160,9 @@ class SyncManager(
                     SyncPermission.READ_ONLY
                 }
             } else {
+                log("서버로부터 기본 권한 조회 중...")
                 val permName = getRoomValue("PERM_$code")
+                log("기본 권한 조회 완료: '$permName'")
                 try {
                     SyncPermission.valueOf(permName)
                 } catch (e: Exception) {
@@ -156,15 +171,23 @@ class SyncManager(
             }
             _permission.value = assignedPerm
 
-            log("공유방 확인됨 (권한: ${if (assignedPerm == SyncPermission.READ_ONLY) "읽기 전용" else "모든 권한"}). 연결 중...")
+            log("공유방 확인됨 (권한: ${if (assignedPerm == SyncPermission.READ_ONLY) "읽기 전용" else "모든 권한"}). 멤버 등록 중...")
             
             // Register client member
             registerMember(code, cleanDeviceName, assignedPerm)
+            log("멤버 등록 완료. 연결 상태 활성화 중...")
 
             _isConnected.value = true
 
             // Initial Sync
-            syncWithPasteId(pasteId)
+            try {
+                log("초기 일정 동기화 다운로드 중 (pasteId: $pasteId)...")
+                syncWithPasteId(pasteId)
+                log("초기 동기화 성공")
+            } catch (e: Exception) {
+                log("초기 동기화 실패: ${e.localizedMessage}")
+                Log.e(tag, "Initial sync failed", e)
+            }
             
             // Start Polling
             startPolling(code)
