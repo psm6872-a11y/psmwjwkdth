@@ -375,12 +375,61 @@ fun SyncCenterScreen(
                                             }
                                             Text(peer.name, fontSize = 14.sp, fontWeight = FontWeight.Medium)
                                         }
-                                        Text(
-                                            text = if (peer.permission == SyncPermission.READ_ONLY) "읽기 전용" else "모든 권한 (편집 가능)",
-                                            fontSize = 12.sp,
-                                            color = if (peer.permission == SyncPermission.READ_ONLY) Color.Gray else MaterialTheme.colorScheme.primary,
-                                            fontWeight = FontWeight.SemiBold
-                                        )
+                                        if (syncRole == SyncRole.HOST && peer.name != "방장 (나)") {
+                                            var showMenu by remember { mutableStateOf(false) }
+                                            Box {
+                                                Surface(
+                                                    shape = RoundedCornerShape(8.dp),
+                                                    color = if (peer.permission == SyncPermission.READ_ONLY) MaterialTheme.colorScheme.surfaceVariant else MaterialTheme.colorScheme.primaryContainer,
+                                                    modifier = Modifier.clickable { showMenu = true }
+                                                ) {
+                                                    Row(
+                                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                                        verticalAlignment = Alignment.CenterVertically
+                                                    ) {
+                                                        Text(
+                                                            text = if (peer.permission == SyncPermission.READ_ONLY) "읽기 전용" else "모든 권한",
+                                                            fontSize = 12.sp,
+                                                            color = if (peer.permission == SyncPermission.READ_ONLY) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onPrimaryContainer,
+                                                            fontWeight = FontWeight.SemiBold
+                                                        )
+                                                        Spacer(modifier = Modifier.width(2.dp))
+                                                        Icon(
+                                                            imageVector = Icons.Default.ArrowDropDown,
+                                                            contentDescription = "권한 변경",
+                                                            tint = if (peer.permission == SyncPermission.READ_ONLY) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onPrimaryContainer,
+                                                            modifier = Modifier.size(16.dp)
+                                                        )
+                                                    }
+                                                }
+                                                DropdownMenu(
+                                                    expanded = showMenu,
+                                                    onDismissRequest = { showMenu = false }
+                                                ) {
+                                                    DropdownMenuItem(
+                                                        text = { Text("읽기 전용") },
+                                                        onClick = {
+                                                            viewModel.syncManager.updateMemberPermission(peer.name, SyncPermission.READ_ONLY)
+                                                            showMenu = false
+                                                        }
+                                                    )
+                                                    DropdownMenuItem(
+                                                        text = { Text("모든 권한") },
+                                                        onClick = {
+                                                            viewModel.syncManager.updateMemberPermission(peer.name, SyncPermission.FULL_ACCESS)
+                                                            showMenu = false
+                                                        }
+                                                    )
+                                                }
+                                            }
+                                        } else {
+                                            Text(
+                                                text = if (peer.permission == SyncPermission.READ_ONLY) "읽기 전용" else if (peer.name.startsWith("방장")) "모든 권한 (방장)" else "모든 권한 (편집 가능)",
+                                                fontSize = 12.sp,
+                                                color = if (peer.permission == SyncPermission.READ_ONLY) Color.Gray else MaterialTheme.colorScheme.primary,
+                                                fontWeight = FontWeight.SemiBold
+                                            )
+                                        }
                                     }
                                 }
                             }
