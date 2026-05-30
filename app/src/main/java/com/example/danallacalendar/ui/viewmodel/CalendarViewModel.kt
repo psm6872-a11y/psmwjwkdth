@@ -62,6 +62,48 @@ class CalendarViewModel(private val repository: CalendarRepository, private val 
         _userName.value = ""
     }
 
+    fun loginWithGoogle(
+        activityContext: Context,
+        onSuccess: () -> Unit,
+        onError: (String) -> Unit
+    ) {
+        viewModelScope.launch {
+            com.example.danallacalendar.auth.AuthManager.loginWithGoogle(
+                context = activityContext,
+                onSuccess = { name, email ->
+                    login("GOOGLE", name)
+                    onSuccess()
+                },
+                onError = { err ->
+                    onError(err)
+                }
+            )
+        }
+    }
+
+    fun loginWithNaver(
+        activityContext: Context,
+        onSuccess: () -> Unit,
+        onError: (String) -> Unit
+    ) {
+        com.example.danallacalendar.auth.AuthManager.loginWithNaver(
+            context = activityContext,
+            onSuccess = { name, email ->
+                login("NAVER", name)
+                onSuccess()
+            },
+            onError = { err ->
+                onError(err)
+            }
+        )
+    }
+
+    fun loginWithSamsung(
+        name: String
+    ) {
+        login("SAMSUNG", name)
+    }
+
     // Sync Manager initialization
     val syncManager = SyncManager(
         onEventReceived = { event ->

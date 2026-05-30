@@ -16,6 +16,7 @@ class MainActivity : ComponentActivity() {
     super.onCreate(savedInstanceState)
 
     handleIntent(intent)
+    com.example.danallacalendar.auth.AuthManager.initialize(this)
 
     // Request notification permission on Android 13+
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
