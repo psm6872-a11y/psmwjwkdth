@@ -1,8 +1,11 @@
 plugins {
   alias(libs.plugins.android.application)
+  alias(libs.plugins.kotlin.android)
+  alias(libs.plugins.kotlin.kapt)
   alias(libs.plugins.compose.compiler)
   alias(libs.plugins.kotlin.serialization)
-  alias(libs.plugins.android.legacy.kapt)
+  alias(libs.plugins.hilt)
+  alias(libs.plugins.google.services)
 }
 
 android {
@@ -78,29 +81,24 @@ dependencies {
   androidTestImplementation(libs.androidx.test.runner)
   androidTestImplementation(libs.androidx.test.espresso.core)
 
-  // Navigation
-  implementation(libs.androidx.navigation3.ui)
-  implementation(libs.androidx.navigation3.runtime)
-  implementation(libs.androidx.lifecycle.viewmodel.navigation3)
+  // Firebase
+  implementation(platform(libs.firebase.bom))
+  implementation(libs.firebase.firestore.ktx)
 
-  // Room
-  implementation(libs.room.runtime)
-  implementation(libs.room.ktx)
-  kapt(libs.room.compiler)
+  // Hilt
+  implementation(libs.hilt.android)
+  kapt(libs.hilt.compiler)
+
+  // Navigation & DataStore
+  implementation(libs.androidx.navigation.compose)
+  implementation(libs.androidx.hilt.navigation.compose)
+  implementation(libs.androidx.datastore.preferences)
 
   // Material Icons Extended
   implementation(libs.androidx.compose.material.icons.extended)
 
   // Kotlin Serialization
   implementation(libs.kotlinx.serialization.json)
-
-  // Google Sign-In & Credential Manager
-  implementation("androidx.credentials:credentials:1.2.2")
-  implementation("androidx.credentials:credentials-play-services-auth:1.2.2")
-  implementation("com.google.android.libraries.identity.googleid:googleid:1.1.1")
-
-  // Naver Login SDK
-  implementation("com.navercorp.nid:oauth:5.9.0")
 }
 
 tasks.withType<org.jetbrains.kotlin.gradle.internal.KaptWithoutKotlincTask>().configureEach {
