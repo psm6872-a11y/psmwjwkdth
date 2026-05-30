@@ -1,6 +1,8 @@
 package com.example.danallacalendar.di
 
 import android.content.Context
+import com.example.danallacalendar.data.CalendarDatabase
+import com.example.danallacalendar.data.EventDao
 import com.example.danallacalendar.data.local.UserPreferences
 import com.example.danallacalendar.data.repository.CalendarRepository
 import com.google.firebase.firestore.FirebaseFirestore
@@ -13,6 +15,8 @@ import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.SupervisorJob
 import javax.inject.Singleton
 
 @Module
@@ -38,10 +42,23 @@ object AppModule {
 
     @Provides
     @Singleton
+    fun provideCalendarDatabase(@ApplicationContext context: Context): CalendarDatabase {
+        return CalendarDatabase.getDatabase(context, CoroutineScope(SupervisorJob()))
+    }
+
+    @Provides
+    @Singleton
+    fun provideEventDao(database: CalendarDatabase): EventDao {
+        return database.eventDao()
+    }
+
+    @Provides
+    @Singleton
     fun provideCalendarRepository(
         firestore: FirebaseFirestore,
-        userPreferences: UserPreferences
+        userPreferences: UserPreferences,
+        eventDao: EventDao
     ): CalendarRepository {
-        return CalendarRepository(firestore, userPreferences)
+        return CalendarRepository(firestore, userPreferences, eventDao)
     }
 }
