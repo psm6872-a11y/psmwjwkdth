@@ -1,6 +1,6 @@
 $token = ""
 $repo = "psm6872-a11y/psmwjwkdth"
-$tag = "v1.0.41"
+$tag = "v1.0.42"
 $apkPath = "c:\Users\me\Documents\danalla\psm\app\build\outputs\apk\debug\app-debug.apk"
 
 $headers = @{
@@ -11,7 +11,7 @@ $headers = @{
 
 # Create new release
 Write-Output "Creating release $tag ..."
-$body = '{"tag_name":"' + $tag + '","name":"' + $tag + '","body":"v1.0.41: Fallback to virtual login when real Developer Client IDs are not configured or real login fails.","draft":false,"prerelease":false}'
+$body = '{"tag_name":"' + $tag + '","name":"' + $tag + '","body":"v1.0.42: Remove easy login buttons from side menu drawer.","draft":false,"prerelease":false}'
 $bodyBytes = [System.Text.Encoding]::UTF8.GetBytes($body)
 
 $release = Invoke-RestMethod -Uri "https://api.github.com/repos/$repo/releases" -Method Post -Headers $headers -Body $bodyBytes -ContentType "application/json; charset=utf-8"

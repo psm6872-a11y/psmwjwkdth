@@ -157,21 +157,6 @@ fun DrawerContent(
                     }
                 }
             }
-        } else {
-            Button(
-                onClick = onLoginClick,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 16.dp),
-                shape = RoundedCornerShape(12.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer,
-                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer
-                ),
-                contentPadding = PaddingValues(vertical = 10.dp)
-            ) {
-                Text("간편 로그인하기", fontWeight = FontWeight.Bold, fontSize = 13.sp)
-            }
         }
 
         // Sync & Share Button
