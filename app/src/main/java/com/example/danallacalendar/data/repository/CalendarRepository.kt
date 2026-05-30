@@ -9,12 +9,39 @@ import com.google.firebase.firestore.Query
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlin.coroutines.resume
+import kotlin.coroutines.resumeWithException
 import javax.inject.Inject
 
 class CalendarRepository @Inject constructor(
     private val firestore: FirebaseFirestore,
     private val userPreferences: UserPreferences
 ) {
+    // Suspending wrapper for createRoom
+    suspend fun createRoomSuspended(): String = suspendCancellableCoroutine { continuation ->
+        createRoom(
+            onSuccess = { code ->
+                if (continuation.isActive) continuation.resume(code)
+            },
+            onFailure = { exception ->
+                if (continuation.isActive) continuation.resumeWithException(exception)
+            }
+        )
+    }
+
+    // Suspending wrapper for joinRoom
+    suspend fun joinRoomSuspended(roomCode: String): Unit = suspendCancellableCoroutine { continuation ->
+        joinRoom(
+            roomCode = roomCode,
+            onSuccess = {
+                if (continuation.isActive) continuation.resume(Unit)
+            },
+            onFailure = { errorMessage ->
+                if (continuation.isActive) continuation.resumeWithException(Exception(errorMessage))
+            }
+        )
+    }
     // Generate Room Code: "###-###"
     fun generateRoomCode(): String {
         val code = (100000..999999).random().toString()

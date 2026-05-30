@@ -1,11 +1,13 @@
 package com.example.danallacalendar.ui.room
 
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import com.example.danallacalendar.data.local.UserPreferences
 import com.example.danallacalendar.data.repository.CalendarRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @HiltViewModel
@@ -29,17 +31,17 @@ class RoomViewModel @Inject constructor(
     fun createRoom(onSuccess: (String) -> Unit) {
         _loading.value = true
         _error.value = ""
-        repository.createRoom(
-            onSuccess = { code ->
-                _loading.value = false
+        viewModelScope.launch {
+            try {
+                val code = repository.createRoomSuspended()
                 _roomCode.value = code
                 onSuccess(code)
-            },
-            onFailure = { e ->
-                _loading.value = false
+            } catch (e: Exception) {
                 _error.value = e.localizedMessage ?: "방 생성 실패"
+            } finally {
+                _loading.value = false
             }
-        )
+        }
     }
 
     fun joinRoom(code: String, onSuccess: () -> Unit) {
@@ -52,18 +54,17 @@ class RoomViewModel @Inject constructor(
 
         _loading.value = true
         _error.value = ""
-        repository.joinRoom(
-            roomCode = formattedCode,
-            onSuccess = {
-                _loading.value = false
+        viewModelScope.launch {
+            try {
+                repository.joinRoomSuspended(formattedCode)
                 _roomCode.value = formattedCode
                 onSuccess()
-            },
-            onFailure = { err ->
+            } catch (e: Exception) {
+                _error.value = e.localizedMessage ?: "방 확인 실패"
+            } finally {
                 _loading.value = false
-                _error.value = err
             }
-        )
+        }
     }
 
     fun resetPreferences() {
