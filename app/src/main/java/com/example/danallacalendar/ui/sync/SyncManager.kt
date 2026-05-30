@@ -450,7 +450,11 @@ class SyncManager(
             conn.connectTimeout = 5000
             conn.readTimeout = 5000
             conn.requestMethod = "POST"
-            conn.setRequestProperty("Content-Length", "0")
+            conn.doOutput = true
+            conn.setFixedLengthStreamingMode(0)
+            conn.outputStream.use { os ->
+                os.write(ByteArray(0))
+            }
             conn.responseCode == HttpURLConnection.HTTP_OK
         } catch (e: Exception) {
             Log.e(tag, "keyvalue update failed", e)
