@@ -225,55 +225,63 @@ fun CalendarMainScreen(
 
                     Spacer(modifier = Modifier.height(8.dp))
 
-                    // Naver Login Button
-                    Button(
-                        onClick = {
-                            viewModel.loginWithNaver(
-                                activityContext = context,
-                                onSuccess = {
-                                    showLoginDialog = false
-                                    Toast.makeText(context, "네이버 로그인 성공!", Toast.LENGTH_SHORT).show()
-                                },
-                                onError = { msg ->
-                                    Toast.makeText(context, "네이버 로그인 실패: $msg", Toast.LENGTH_LONG).show()
-                                }
-                            )
-                        },
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFF03C75A),
-                            contentColor = Color.White
-                        ),
-                        shape = RoundedCornerShape(12.dp),
-                        contentPadding = PaddingValues(vertical = 12.dp)
-                    ) {
-                        Text("네이버로 로그인", fontWeight = FontWeight.Bold)
-                    }
-
-                    // Google Login Button
-                    Button(
-                        onClick = {
-                            viewModel.loginWithGoogle(
-                                activityContext = context,
-                                onSuccess = {
-                                    showLoginDialog = false
-                                    Toast.makeText(context, "구글 로그인 성공!", Toast.LENGTH_SHORT).show()
-                                },
-                                onError = { msg ->
-                                    Toast.makeText(context, "구글 로그인 실패: $msg", Toast.LENGTH_LONG).show()
-                                }
-                            )
-                        },
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFF4285F4),
-                            contentColor = Color.White
-                        ),
-                        shape = RoundedCornerShape(12.dp),
-                        contentPadding = PaddingValues(vertical = 12.dp)
-                    ) {
-                        Text("Google 계정으로 로그인", fontWeight = FontWeight.Bold)
-                    }
+                     // Naver Login Button
+                     Button(
+                         onClick = {
+                             viewModel.loginWithNaver(
+                                 activityContext = context,
+                                 onSuccess = { isFallback ->
+                                     showLoginDialog = false
+                                     if (isFallback) {
+                                         Toast.makeText(context, "API 미설정으로 가상 계정으로 로그인되었습니다.", Toast.LENGTH_LONG).show()
+                                     } else {
+                                         Toast.makeText(context, "네이버 로그인 성공!", Toast.LENGTH_SHORT).show()
+                                     }
+                                 },
+                                 onError = { msg ->
+                                     Toast.makeText(context, "네이버 로그인 실패: $msg", Toast.LENGTH_LONG).show()
+                                 }
+                             )
+                         },
+                         modifier = Modifier.fillMaxWidth(),
+                         colors = ButtonDefaults.buttonColors(
+                             containerColor = Color(0xFF03C75A),
+                             contentColor = Color.White
+                         ),
+                         shape = RoundedCornerShape(12.dp),
+                         contentPadding = PaddingValues(vertical = 12.dp)
+                     ) {
+                         Text("네이버로 로그인", fontWeight = FontWeight.Bold)
+                     }
+ 
+                     // Google Login Button
+                     Button(
+                         onClick = {
+                             viewModel.loginWithGoogle(
+                                 activityContext = context,
+                                 onSuccess = { isFallback ->
+                                     showLoginDialog = false
+                                     if (isFallback) {
+                                         Toast.makeText(context, "API 미설정으로 가상 계정으로 로그인되었습니다.", Toast.LENGTH_LONG).show()
+                                     } else {
+                                         Toast.makeText(context, "구글 로그인 성공!", Toast.LENGTH_SHORT).show()
+                                     }
+                                 },
+                                 onError = { msg ->
+                                     Toast.makeText(context, "구글 로그인 실패: $msg", Toast.LENGTH_LONG).show()
+                                 }
+                             )
+                         },
+                         modifier = Modifier.fillMaxWidth(),
+                         colors = ButtonDefaults.buttonColors(
+                             containerColor = Color(0xFF4285F4),
+                             contentColor = Color.White
+                         ),
+                         shape = RoundedCornerShape(12.dp),
+                         contentPadding = PaddingValues(vertical = 12.dp)
+                     ) {
+                         Text("Google 계정으로 로그인", fontWeight = FontWeight.Bold)
+                     }
 
                     // Samsung Login Button
                     Button(

@@ -27,8 +27,16 @@ object AuthManager {
     private const val NAVER_CLIENT_SECRET = "NAVER_CLIENT_SECRET"
     private const val NAVER_CLIENT_NAME = "다날라 캘린더"
 
+    fun isNaverConfigured(): Boolean {
+        return NAVER_CLIENT_ID != "O5_bL4j0_NAVER_CLIENT_ID" && NAVER_CLIENT_SECRET != "NAVER_CLIENT_SECRET"
+    }
+
     fun initialize(context: Context) {
         try {
+            if (!isNaverConfigured()) {
+                Log.w(TAG, "Naver Client ID is placeholder, skipping initialization.")
+                return
+            }
             // Initialize Naver Login SDK
             NaverIdLoginSDK.initialize(
                 context.applicationContext,
