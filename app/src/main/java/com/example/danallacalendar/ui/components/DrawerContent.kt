@@ -5,6 +5,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
@@ -32,6 +33,11 @@ import androidx.compose.material.icons.filled.SystemUpdate
 @Composable
 fun DrawerContent(
     categories: List<CalendarCategory>,
+    isLoggedIn: Boolean,
+    userName: String,
+    loginType: String,
+    onLoginClick: () -> Unit,
+    onLogoutClick: () -> Unit,
     onToggleCategory: (CalendarCategory) -> Unit,
     onNavigateToSync: () -> Unit,
     onImportClick: () -> Unit,
@@ -85,6 +91,86 @@ fun DrawerContent(
                     contentDescription = "닫기",
                     tint = MaterialTheme.colorScheme.onBackground
                 )
+            }
+        }
+
+        // Login / Profile Section
+        if (isLoggedIn) {
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 16.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                ),
+                shape = RoundedCornerShape(16.dp)
+            ) {
+                Row(
+                    modifier = Modifier.padding(12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(36.dp)
+                            .clip(CircleShape)
+                            .background(
+                                when (loginType) {
+                                    "NAVER" -> Color(0xFF03C75A)
+                                    "GOOGLE" -> Color(0xFF4285F4)
+                                    "SAMSUNG" -> Color(0xFF0C4DA2)
+                                    else -> MaterialTheme.colorScheme.primary
+                                }
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = if (userName.isNotEmpty()) userName.first().toString() else "?",
+                            color = Color.White,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 15.sp
+                        )
+                    }
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "${userName}님",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 14.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Text(
+                            text = when (loginType) {
+                                "NAVER" -> "네이버 로그인됨"
+                                "GOOGLE" -> "구글 로그인됨"
+                                "SAMSUNG" -> "삼성 로그인됨"
+                                else -> "로그인됨"
+                            },
+                            fontSize = 11.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                        )
+                    }
+                    TextButton(
+                        onClick = onLogoutClick,
+                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
+                    ) {
+                        Text("로그아웃", fontSize = 11.sp, color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+        } else {
+            Button(
+                onClick = onLoginClick,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 16.dp),
+                shape = RoundedCornerShape(12.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.primaryContainer,
+                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                ),
+                contentPadding = PaddingValues(vertical = 10.dp)
+            ) {
+                Text("간편 로그인하기", fontWeight = FontWeight.Bold, fontSize = 13.sp)
             }
         }
 

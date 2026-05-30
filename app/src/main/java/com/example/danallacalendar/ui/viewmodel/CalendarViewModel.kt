@@ -25,7 +25,42 @@ enum class EventFilter {
     ALL, ESTIMATE, CONTRACT
 }
 
-class CalendarViewModel(private val repository: CalendarRepository) : ViewModel() {
+class CalendarViewModel(private val repository: CalendarRepository, private val context: Context) : ViewModel() {
+
+    private val prefs = context.getSharedPreferences("danalla_prefs", Context.MODE_PRIVATE)
+
+    private val _isLoggedIn = MutableStateFlow(prefs.getBoolean("is_logged_in", false))
+    val isLoggedIn = _isLoggedIn.asStateFlow()
+
+    private val _loginType = MutableStateFlow(prefs.getString("login_type", "") ?: "")
+    val loginType = _loginType.asStateFlow()
+
+    private val _userName = MutableStateFlow(prefs.getString("user_name", "") ?: "")
+    val userName = _userName.asStateFlow()
+
+    fun login(type: String, name: String) {
+        prefs.edit().apply {
+            putBoolean("is_logged_in", true)
+            putString("login_type", type)
+            putString("user_name", name)
+            apply()
+        }
+        _isLoggedIn.value = true
+        _loginType.value = type
+        _userName.value = name
+    }
+
+    fun logout() {
+        prefs.edit().apply {
+            putBoolean("is_logged_in", false)
+            putString("login_type", "")
+            putString("user_name", "")
+            apply()
+        }
+        _isLoggedIn.value = false
+        _loginType.value = ""
+        _userName.value = ""
+    }
 
     // Sync Manager initialization
     val syncManager = SyncManager(
