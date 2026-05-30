@@ -38,6 +38,7 @@ class SyncManager(
     private val APP_KEY = "danallacalendar2026"
     private val syncMutex = Mutex()
     private var pollJob: Job? = null
+    private var myCleanName: String = ""
     
     // States
     private val _role = MutableStateFlow(SyncRole.NONE)
@@ -120,7 +121,7 @@ class SyncManager(
     }
 
     // Join Room (Client)
-    fun joinHost(ip: String, code: String, deviceName: String) {
+    fun joinHost(ip: String, code: String, deviceName: String, initialPerm: String? = null) {
         stopAll()
         _role.value = SyncRole.CLIENT
         _inviteCode.value = code
@@ -135,16 +136,26 @@ class SyncManager(
                 return@launch
             }
 
-            // Fetch room guest permission
-            val permName = getRoomValue("PERM_$code")
-            val assignedPerm = try {
-                SyncPermission.valueOf(permName)
-            } catch (e: Exception) {
-                SyncPermission.READ_ONLY
+            val cleanDeviceName = if (deviceName.isBlank()) "참여자" else deviceName
+            myCleanName = cleanDeviceName.replace(Regex("[^a-zA-Z0-9가-힣]"), "")
+
+            // Fetch room guest permission, fallback if initialPerm is not specified
+            val assignedPerm = if (!initialPerm.isNullOrEmpty()) {
+                try {
+                    SyncPermission.valueOf(initialPerm)
+                } catch (e: Exception) {
+                    SyncPermission.READ_ONLY
+                }
+            } else {
+                val permName = getRoomValue("PERM_$code")
+                try {
+                    SyncPermission.valueOf(permName)
+                } catch (e: Exception) {
+                    SyncPermission.READ_ONLY
+                }
             }
             _permission.value = assignedPerm
 
-            val cleanDeviceName = if (deviceName.isBlank()) "참여자" else deviceName
             log("공유방 확인됨 (권한: ${if (assignedPerm == SyncPermission.READ_ONLY) "읽기 전용" else "모든 권한"}). 연결 중...")
             
             // Register client member
@@ -235,9 +246,43 @@ class SyncManager(
                     // Format display names cleanly
                     val displayName = if (name == "방장") "방장 (나)" else name
                     list.add(SyncPeer(displayName, displayName, perm))
+
+                    // If this is the current client's entry, update client's local permission!
+                    if (_role.value == SyncRole.CLIENT && name == myCleanName) {
+                        if (_permission.value != perm) {
+                            _permission.value = perm
+                            log("방장에 의해 권한이 변경되었습니다: ${if (perm == SyncPermission.READ_ONLY) "읽기 전용" else "모든 권한"}")
+                        }
+                    }
                 }
             }
             _connectedPeers.value = list
+        }
+    }
+
+    fun updateMemberPermission(name: String, newPerm: SyncPermission) {
+        val roomId = _inviteCode.value
+        if (roomId.isEmpty() || _role.value != SyncRole.HOST) return
+
+        scope.launch(Dispatchers.IO) {
+            val current = getRoomValue("MEMBERS_$roomId")
+            if (current.isNotEmpty() && current != "null") {
+                val cleanName = name.replace(" (나)", "").replace(Regex("[^a-zA-Z0-9가-힣]"), "")
+                val list = current.split(",")
+                val updatedList = list.map { item ->
+                    val parts = item.split("_")
+                    if (parts.size == 2 && parts[0] == cleanName) {
+                        "${cleanName}_${newPerm.name}"
+                    } else {
+                        item
+                    }
+                }
+                val updatedString = updatedList.joinToString(",")
+                updateRoomValue("MEMBERS_$roomId", updatedString)
+                log("멤버 '$name'의 권한을 ${if (newPerm == SyncPermission.READ_ONLY) "읽기 전용" else "모든 권한"}으로 변경했습니다.")
+                // Refresh local peer list
+                pollMembers(roomId)
+            }
         }
     }
 
@@ -345,6 +390,8 @@ class SyncManager(
         return try {
             val url = URL("https://paste.rs")
             val conn = url.openConnection() as HttpURLConnection
+            conn.connectTimeout = 5000
+            conn.readTimeout = 5000
             conn.requestMethod = "POST"
             conn.doOutput = true
             conn.setRequestProperty("Content-Type", "text/plain; charset=UTF-8")
@@ -373,6 +420,8 @@ class SyncManager(
         return try {
             val url = URL("https://paste.rs/$pasteId")
             val conn = url.openConnection() as HttpURLConnection
+            conn.connectTimeout = 5000
+            conn.readTimeout = 5000
             conn.requestMethod = "GET"
             
             if (conn.responseCode == HttpURLConnection.HTTP_OK) {
@@ -391,9 +440,12 @@ class SyncManager(
 
     private fun updateRoomValue(roomId: String, value: String): Boolean {
         return try {
-            val encodedValue = java.net.URLEncoder.encode(value, "UTF-8")
+            val base64Value = android.util.Base64.encodeToString(value.toByteArray(Charsets.UTF_8), android.util.Base64.NO_WRAP)
+            val encodedValue = java.net.URLEncoder.encode(base64Value, "UTF-8")
             val url = URL("https://keyvalue.immanuel.co/api/KeyVal/UpdateValue/$APP_KEY/$roomId/$encodedValue")
             val conn = url.openConnection() as HttpURLConnection
+            conn.connectTimeout = 5000
+            conn.readTimeout = 5000
             conn.requestMethod = "POST"
             conn.setRequestProperty("Content-Length", "0")
             conn.responseCode == HttpURLConnection.HTTP_OK
@@ -407,6 +459,8 @@ class SyncManager(
         return try {
             val url = URL("https://keyvalue.immanuel.co/api/KeyVal/GetValue/$APP_KEY/$roomId")
             val conn = url.openConnection() as HttpURLConnection
+            conn.connectTimeout = 5000
+            conn.readTimeout = 5000
             conn.requestMethod = "GET"
             
             if (conn.responseCode == HttpURLConnection.HTTP_OK) {
@@ -415,7 +469,16 @@ class SyncManager(
                 reader.close()
                 // The service might return value surrounded by quotes
                 val clean = raw.replace("\"", "")
-                java.net.URLDecoder.decode(clean, "UTF-8")
+                if (clean.isEmpty() || clean == "null" || clean == "Value not found") {
+                    ""
+                } else {
+                    try {
+                        val decodedBytes = android.util.Base64.decode(clean, android.util.Base64.DEFAULT)
+                        String(decodedBytes, Charsets.UTF_8)
+                    } catch (ex: Exception) {
+                        java.net.URLDecoder.decode(clean, "UTF-8")
+                    }
+                }
             } else {
                 ""
             }

@@ -57,7 +57,7 @@ fun MainNavigation() {
             confirmButton = {
                 androidx.compose.material3.Button(
                     onClick = {
-                        viewModel.syncManager.joinHost("", pendingCode, "친구 기기")
+                        viewModel.syncManager.joinHost("", pendingCode, "친구 기기", pendingPerm)
                         backStack.add(SyncCenter)
                         DeepLinkManager.pendingInviteCode = null
                         DeepLinkManager.pendingInvitePerm = null
