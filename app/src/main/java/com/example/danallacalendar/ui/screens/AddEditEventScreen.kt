@@ -93,6 +93,7 @@ fun AddEditEventScreen(
     var isCompleted by remember { mutableStateOf(false) }
     var createdAt by remember { mutableStateOf(System.currentTimeMillis()) }
     var updatedAt by remember { mutableStateOf(System.currentTimeMillis()) }
+    var isDestinationExpanded by remember { mutableStateOf(false) }
 
     val isReadOnly = false
 
@@ -153,6 +154,7 @@ fun AddEditEventScreen(
                 location1b = locationParts.getOrNull(1) ?: ""
                 location2  = locationParts.getOrNull(2) ?: ""
                 location2b = locationParts.getOrNull(3) ?: ""
+                isDestinationExpanded = location2.isNotBlank() || location2b.isNotBlank()
                 notes = event.notes
                 repeatType = event.repeatType
                 reminderMinutes = event.reminderMinutes
@@ -470,7 +472,7 @@ fun AddEditEventScreen(
                         }
                     }
 
-                    // ── 위치 2 그룹 구분선 + 헤더 ──
+                    // ── 위치 2 접기/펼치기 토글 ──
                     Spacer(modifier = Modifier.height(4.dp))
                     HorizontalDivider(
                         color = MaterialTheme.colorScheme.outlineVariant,
@@ -478,109 +480,144 @@ fun AddEditEventScreen(
                     )
                     Spacer(modifier = Modifier.height(4.dp))
 
-
-
-                    // ── 위치 2 상단 ──
                     Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable(enabled = !isReadOnly) { isDestinationExpanded = !isDestinationExpanded }
+                            .padding(vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Box(
-                            modifier = Modifier.weight(1f),
-                            contentAlignment = Alignment.CenterStart
-                        ) {
-                            if (location2.isEmpty()) {
-                                Text(
-                                    text = "도착지 주소",
-                                    fontSize = 15.sp,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.padding(vertical = 4.dp)
-                                )
-                            }
-                            BasicTextField(
-                                value = location2,
-                                onValueChange = { location2 = it },
-                                singleLine = false,
-                                enabled = !isReadOnly,
-                                textStyle = androidx.compose.ui.text.TextStyle(
-                                    fontSize = 15.sp,
-                                    color = if (isReadOnly) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface
-                                ),
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .defaultMinSize(minHeight = 28.dp)
-                                    .padding(vertical = 4.dp)
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Default.Place,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "도착지 주소 입력",
+                                fontSize = 15.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.primary
                             )
                         }
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Button(
-                            onClick = {
-                                if (location2.isNotBlank()) {
-                                    try {
-                                        val intent = Intent(Intent.ACTION_VIEW, Uri.parse("nmap://search?query=${Uri.encode(location2)}&appname=com.example.danallacalendar"))
-                                        context.startActivity(intent)
-                                    } catch (e: Exception) {
-                                        val webIntent = Intent(Intent.ACTION_VIEW, Uri.parse("https://m.map.naver.com/search2/search.naver?query=${Uri.encode(location2)}"))
-                                        context.startActivity(webIntent)
-                                    }
-                                } else {
-                                    Toast.makeText(context, "위치 2 (상)을 입력해주세요.", Toast.LENGTH_SHORT).show()
+                        Icon(
+                            imageVector = if (isDestinationExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                            contentDescription = "토글",
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+
+                    if (isDestinationExpanded) {
+                        HorizontalDivider(
+                            color = MaterialTheme.colorScheme.surfaceVariant,
+                            thickness = 1.dp
+                        )
+
+                        // ── 위치 2 상단 ──
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Box(
+                                modifier = Modifier.weight(1f),
+                                contentAlignment = Alignment.CenterStart
+                            ) {
+                                if (location2.isEmpty()) {
+                                    Text(
+                                        text = "도착지 주소",
+                                        fontSize = 15.sp,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        modifier = Modifier.padding(vertical = 4.dp)
+                                    )
                                 }
-                            },
-                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
-                            shape = RoundedCornerShape(8.dp),
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = MaterialTheme.colorScheme.primaryContainer,
-                                contentColor = MaterialTheme.colorScheme.onPrimaryContainer
-                            ),
-                            modifier = Modifier.height(32.dp)
-                        ) {
-                            Text("지도", fontSize = 13.sp, fontWeight = FontWeight.Bold)
-                        }
-                    }
-
-                    HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
-
-                    // ── 위치 2 하단 ──
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Box(
-                            modifier = Modifier.weight(1f),
-                            contentAlignment = Alignment.CenterStart
-                        ) {
-                            if (location2b.isEmpty()) {
-                                Text(
-                                    text = "동/호수",
-                                    fontSize = 15.sp,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.padding(vertical = 4.dp)
+                                BasicTextField(
+                                    value = location2,
+                                    onValueChange = { location2 = it },
+                                    singleLine = false,
+                                    enabled = !isReadOnly,
+                                    textStyle = androidx.compose.ui.text.TextStyle(
+                                        fontSize = 15.sp,
+                                        color = if (isReadOnly) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface
+                                    ),
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .defaultMinSize(minHeight = 28.dp)
+                                        .padding(vertical = 4.dp)
                                 )
                             }
-                            BasicTextField(
-                                value = location2b,
-                                onValueChange = { location2b = it },
-                                singleLine = true,
-                                enabled = !isReadOnly,
-                                keyboardOptions = KeyboardOptions(
-                                    keyboardType = KeyboardType.Phone,
-                                    imeAction = ImeAction.Next
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Button(
+                                onClick = {
+                                    if (location2.isNotBlank()) {
+                                        try {
+                                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse("nmap://search?query=${Uri.encode(location2)}&appname=com.example.danallacalendar"))
+                                            context.startActivity(intent)
+                                        } catch (e: Exception) {
+                                            val webIntent = Intent(Intent.ACTION_VIEW, Uri.parse("https://m.map.naver.com/search2/search.naver?query=${Uri.encode(location2)}"))
+                                            context.startActivity(webIntent)
+                                        }
+                                    } else {
+                                        Toast.makeText(context, "위치 2 (상)을 입력해주세요.", Toast.LENGTH_SHORT).show()
+                                    }
+                                },
+                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
+                                shape = RoundedCornerShape(8.dp),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = MaterialTheme.colorScheme.primaryContainer,
+                                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer
                                 ),
-                                textStyle = androidx.compose.ui.text.TextStyle(
-                                    fontSize = 15.sp,
-                                    color = if (isReadOnly) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface
-                                ),
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .defaultMinSize(minHeight = 28.dp)
-                                    .padding(vertical = 4.dp)
-                            )
+                                modifier = Modifier.height(32.dp)
+                            ) {
+                                Text("지도", fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                            }
                         }
-                    }
 
-                    HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
+                        HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
+
+                        // ── 위치 2 하단 ──
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Box(
+                                modifier = Modifier.weight(1f),
+                                contentAlignment = Alignment.CenterStart
+                            ) {
+                                if (location2b.isEmpty()) {
+                                    Text(
+                                        text = "동/호수",
+                                        fontSize = 15.sp,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        modifier = Modifier.padding(vertical = 4.dp)
+                                    )
+                                }
+                                BasicTextField(
+                                    value = location2b,
+                                    onValueChange = { location2b = it },
+                                    singleLine = true,
+                                    enabled = !isReadOnly,
+                                    keyboardOptions = KeyboardOptions(
+                                        keyboardType = KeyboardType.Phone,
+                                        imeAction = ImeAction.Next
+                                    ),
+                                    textStyle = androidx.compose.ui.text.TextStyle(
+                                        fontSize = 15.sp,
+                                        color = if (isReadOnly) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface
+                                    ),
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .defaultMinSize(minHeight = 28.dp)
+                                        .padding(vertical = 4.dp)
+                                )
+                            }
+                        }
+
+                        HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
+                    }
 
                     // Phone Number Input
                     Row(
