@@ -93,7 +93,6 @@ fun CalendarMainScreen(
     val context = LocalContext.current
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val scope = rememberCoroutineScope()
-    var showClearSchedulesDialog by remember { mutableStateOf(false) }
     val isLoggedIn by viewModel.isLoggedIn.collectAsStateWithLifecycle()
     val userName by viewModel.userName.collectAsStateWithLifecycle()
     var showLoginDialog by remember { mutableStateOf(false) }
@@ -174,49 +173,7 @@ fun CalendarMainScreen(
         }
     }
 
-    val deviceCalendarImportLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.RequestPermission()
-    ) { isGranted: Boolean ->
-        if (isGranted) {
-            val defaultCatId = categories.firstOrNull()?.id ?: 1
-            viewModel.importEventsFromDevice(
-                context = context,
-                targetCalendarId = defaultCatId,
-                onSuccess = { count ->
-                    Toast.makeText(context, "${count}개의 일정을 성공적으로 가져왔습니다.", Toast.LENGTH_SHORT).show()
-                },
-                onError = { error ->
-                    Toast.makeText(context, "가져오기 실패: ${error.localizedMessage}", Toast.LENGTH_LONG).show()
-                }
-            )
-        } else {
-            Toast.makeText(context, "일정을 가져오려면 캘린더 읽기 권한이 필요합니다.", Toast.LENGTH_SHORT).show()
-        }
-    }
 
-    if (showClearSchedulesDialog) {
-        AlertDialog(
-            onDismissRequest = { showClearSchedulesDialog = false },
-            title = { Text(text = "일정 초기화") },
-            text = { Text(text = "저장된 모든 일정이 영구적으로 삭제됩니다. 계속하시겠습니까?") },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        showClearSchedulesDialog = false
-                        viewModel.clearAllEvents()
-                        Toast.makeText(context, "모든 일정이 초기화되었습니다.", Toast.LENGTH_SHORT).show()
-                    }
-                ) {
-                    Text(text = "확인", color = MaterialTheme.colorScheme.error)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showClearSchedulesDialog = false }) {
-                    Text(text = "취소")
-                }
-            }
-        )
-    }
 
     if (showPermissionGuideDialog) {
         AlertDialog(
@@ -405,29 +362,6 @@ fun CalendarMainScreen(
                         scope.launch { drawerState.close() }
                         filePickerLauncher.launch("*/*")
                     },
-                    onImportDeviceClick = {
-                        scope.launch { drawerState.close() }
-                        val hasPermission = androidx.core.content.ContextCompat.checkSelfPermission(
-                            context,
-                            android.Manifest.permission.READ_CALENDAR
-                        ) == android.content.pm.PackageManager.PERMISSION_GRANTED
-                        
-                        if (hasPermission) {
-                            val defaultCatId = categories.firstOrNull()?.id ?: 1
-                            viewModel.importEventsFromDevice(
-                                context = context,
-                                targetCalendarId = defaultCatId,
-                                onSuccess = { count ->
-                                    Toast.makeText(context, "${count}개의 일정을 성공적으로 가져왔습니다.", Toast.LENGTH_SHORT).show()
-                                },
-                                onError = { error ->
-                                    Toast.makeText(context, "가져오기 실패: ${error.localizedMessage}", Toast.LENGTH_LONG).show()
-                                }
-                            )
-                        } else {
-                            deviceCalendarImportLauncher.launch(android.Manifest.permission.READ_CALENDAR)
-                        }
-                    },
                     onShareAppClick = {
                         scope.launch { drawerState.close() }
                         try {
@@ -461,10 +395,6 @@ fun CalendarMainScreen(
                                 Toast.makeText(context, "최신 버전을 사용 중입니다.", Toast.LENGTH_SHORT).show()
                             }
                         }
-                    },
-                    onClearSchedulesClick = {
-                        scope.launch { drawerState.close() }
-                        showClearSchedulesDialog = true
                     },
                     onCloseClick = {
                         scope.launch { drawerState.close() }
