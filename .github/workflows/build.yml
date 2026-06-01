@@ -1,9 +1,9 @@
-name: Android Release Build
+name: Android CI/CD Build and Release
 
 on:
   push:
-    tags:
-      - 'v*'
+    branches:
+      - main
 
 jobs:
   build:
@@ -22,6 +22,13 @@ jobs:
           java-version: '17'
           cache: 'gradle'
 
+      - name: Parse Version Name
+        id: version_parse
+        run: |
+          VERSION_NAME=$(grep "versionName =" app/build.gradle.kts | awk -F '"' '{print $2}')
+          echo "VERSION_NAME=$VERSION_NAME" >> $GITHUB_ENV
+          echo "Parsed version: v$VERSION_NAME"
+
       - name: Decode Keystore
         run: |
           echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > app/keystore.jks
@@ -35,8 +42,11 @@ jobs:
 
       - name: Create GitHub Release and Upload APK
         uses: softprops/action-gh-release@v2
-        if: startsWith(github.ref, 'refs/tags/')
         with:
+          tag_name: v${{ env.VERSION_NAME }}
           files: app/build/outputs/apk/release/app-release.apk
+          name: Release v${{ env.VERSION_NAME }}
+          draft: false
+          prerelease: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
