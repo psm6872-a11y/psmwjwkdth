@@ -35,6 +35,7 @@ import androidx.compose.material.icons.filled.FileDownload
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.SystemUpdate
 import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.CloudUpload
 
 private fun getAvatarColor(nickname: String): Color {
     val colors = listOf(
@@ -69,6 +70,7 @@ fun DrawerContent(
     onUpdateClick: () -> Unit,
     onCloseClick: () -> Unit,
     onApkClick: () -> Unit,
+    onBackupClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -367,6 +369,33 @@ fun DrawerContent(
             HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
             Spacer(modifier = Modifier.height(16.dp))
         }
+
+        // 📦 백업 관리 버튼
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(MaterialTheme.shapes.medium)
+                .clickable { onBackupClick() }
+                .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f))
+                .padding(vertical = 12.dp, horizontal = 12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = Icons.Default.CloudUpload,
+                contentDescription = "백업 관리",
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(24.dp)
+            )
+            Spacer(modifier = Modifier.width(16.dp))
+            Text(
+                text = "백업 관리",
+                fontSize = 15.sp,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.primary
+            )
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
 
         Row(
             modifier = Modifier

@@ -86,6 +86,7 @@ data class CalendarDay(
 fun CalendarMainScreen(
     onNavigateToAddEditEvent: (Int?) -> Unit,
     onNavigateToSearch: () -> Unit,
+    onNavigateToBackup: () -> Unit,
     onExitRoom: () -> Unit,
     viewModel: CalendarViewModel,
     modifier: Modifier = Modifier
@@ -398,6 +399,10 @@ fun CalendarMainScreen(
                     },
                     onCloseClick = {
                         scope.launch { drawerState.close() }
+                    },
+                    onBackupClick = {
+                        scope.launch { drawerState.close() }
+                        onNavigateToBackup()
                     },
                     onApkClick = {
                         scope.launch { drawerState.close() }
