@@ -1303,7 +1303,7 @@ fun EventListSection(
                     .fillMaxWidth()
                     .weight(1f),
                 contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+                verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 items(events) { event ->
                     val category = categories.find { it.id == event.calendarId }
@@ -1363,7 +1363,7 @@ fun EventItemCard(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(start = 10.dp, end = 16.dp, top = 8.dp, bottom = 8.dp),
+                    .padding(start = 10.dp, end = 16.dp, top = 10.dp, bottom = 10.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 if (!event.isAllDay) {
