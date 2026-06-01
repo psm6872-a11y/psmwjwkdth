@@ -88,6 +88,9 @@ fun AddEditEventScreen(
     var selectedColorHex by remember { mutableStateOf("#ff3b30") }
     var repeatType by remember { mutableStateOf("NONE") }
     var reminderMinutes by remember { mutableStateOf(60) }
+    var syncId by remember { mutableStateOf<String?>(null) }
+    var isSynced by remember { mutableStateOf(false) }
+    var isCompleted by remember { mutableStateOf(false) }
 
     val isReadOnly = false
 
@@ -154,6 +157,9 @@ fun AddEditEventScreen(
                 val cat = categories.find { cat -> cat.id == event.calendarId } ?: categories.firstOrNull()
                 selectedCategory = cat
                 selectedColorHex = event.colorHex ?: cat?.colorHex ?: "#ff3b30"
+                syncId = event.syncId
+                isSynced = event.isSynced
+                isCompleted = event.isCompleted
                 isLoaded = true
             }
         }
@@ -173,7 +179,10 @@ fun AddEditEventScreen(
                 repeatType = repeatType,
                 reminderMinutes = reminderMinutes,
                 calendarId = selectedCategory!!.id,
-                colorHex = selectedColorHex
+                syncId = syncId,
+                isSynced = isSynced,
+                colorHex = selectedColorHex,
+                isCompleted = isCompleted
             )
             if (eventId == null) {
                 viewModel.addEvent(event)
