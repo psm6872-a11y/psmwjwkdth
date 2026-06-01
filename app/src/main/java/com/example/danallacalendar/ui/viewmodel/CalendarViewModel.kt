@@ -138,6 +138,7 @@ class CalendarViewModel @Inject constructor(
             // Start real-time Firestore sync
             val sharedCatId = getOrCreateSharedCategory()
             if (roomCode.isNotEmpty()) {
+                repository.registerMemberInFirestore(roomCode)
                 repository.startRealtimeSync(roomCode, sharedCatId)
                     .catch { e -> android.util.Log.e("SyncError", "Sync failure", e) }
                     .collect()

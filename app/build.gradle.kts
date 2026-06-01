@@ -15,8 +15,8 @@ android {
         applicationId = "com.example.danallacalendar"
         minSdk = 24
         targetSdk = 34
-        versionCode = 47
-        versionName = "1.0.47"
+        versionCode = 48
+        versionName = "1.0.48"
     }
 
     buildTypes {
@@ -84,6 +84,7 @@ dependencies {
   // Firebase
   implementation(platform(libs.firebase.bom))
   implementation(libs.firebase.firestore.ktx)
+  implementation(libs.firebase.messaging.ktx)
 
   // Hilt
   implementation(libs.hilt.android)

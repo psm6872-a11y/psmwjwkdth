@@ -89,10 +89,23 @@ fun CalendarMainScreen(
     val isLoggedIn by viewModel.isLoggedIn.collectAsStateWithLifecycle()
     val userName by viewModel.userName.collectAsStateWithLifecycle()
     var showLoginDialog by remember { mutableStateOf(false) }
+    var showPermissionGuideDialog by remember { mutableStateOf(false) }
 
     LaunchedEffect(isLoggedIn) {
         if (!isLoggedIn) {
             onExitRoom()
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+            val isGranted = androidx.core.content.ContextCompat.checkSelfPermission(
+                context,
+                android.Manifest.permission.POST_NOTIFICATIONS
+            ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+            if (!isGranted) {
+                showPermissionGuideDialog = true
+            }
         }
     }
 
@@ -175,6 +188,35 @@ fun CalendarMainScreen(
             dismissButton = {
                 TextButton(onClick = { showClearSchedulesDialog = false }) {
                     Text(text = "취소")
+                }
+            }
+        )
+    }
+
+    if (showPermissionGuideDialog) {
+        AlertDialog(
+            onDismissRequest = { showPermissionGuideDialog = false },
+            title = { Text(text = "알림 권한 안내") },
+            text = { Text(text = "공유 멤버가 일정을 추가, 수정, 삭제할 때 알림을 받으려면 알림 권한이 필요합니다. 설정 화면에서 알림을 허용해 주세요.") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showPermissionGuideDialog = false
+                        val intent = android.content.Intent(
+                            android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                            android.net.Uri.parse("package:${context.packageName}")
+                        ).apply {
+                            addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                        }
+                        context.startActivity(intent)
+                    }
+                ) {
+                    Text(text = "설정으로 이동", color = MaterialTheme.colorScheme.primary)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showPermissionGuideDialog = false }) {
+                    Text(text = "닫기")
                 }
             }
         )

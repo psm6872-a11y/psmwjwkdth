@@ -90,6 +90,7 @@ class CalendarRepository @Inject constructor(
             .document("details")
             .set(roomData)
             .addOnSuccessListener {
+                registerMemberInFirestore(roomCode)
                 onSuccess(roomCode)
             }
             .addOnFailureListener { e ->
@@ -111,6 +112,7 @@ class CalendarRepository @Inject constructor(
             .addOnSuccessListener { document ->
                 if (document.exists()) {
                     userPreferences.setLastRoomCode(roomCode)
+                    registerMemberInFirestore(roomCode)
                     onSuccess()
                 } else {
                     onFailure("존재하지 않는 방 코드입니다.")
@@ -118,6 +120,27 @@ class CalendarRepository @Inject constructor(
             }
             .addOnFailureListener { e ->
                 onFailure(e.localizedMessage ?: "방 확인 실패")
+            }
+    }
+
+    fun registerMemberInFirestore(roomCode: String) {
+        val deviceUUID = userPreferences.getDeviceUUID()
+        val nickname = userPreferences.getNickname()
+        if (roomCode.isEmpty() || deviceUUID.isEmpty()) return
+
+        com.google.firebase.messaging.FirebaseMessaging.getInstance().token
+            .addOnCompleteListener { task ->
+                val fcmToken = if (task.isSuccessful) task.result else ""
+                val memberData = hashMapOf(
+                    "nickname" to nickname,
+                    "fcmToken" to fcmToken,
+                    "updatedAt" to Timestamp.now()
+                )
+                firestore.collection("rooms")
+                    .document(roomCode)
+                    .collection("members")
+                    .document(deviceUUID)
+                    .set(memberData, com.google.firebase.firestore.SetOptions.merge())
             }
     }
 
@@ -265,14 +288,16 @@ class CalendarRepository @Inject constructor(
             "reminderMinutes" to event.reminderMinutes,
             "syncId" to event.syncId,
             "colorHex" to event.colorHex,
-            "isCompleted" to event.isCompleted
+            "isCompleted" to event.isCompleted,
+            "lastUpdatedBy" to userPreferences.getDeviceUUID(),
+            "createdBy" to userPreferences.getDeviceUUID()
         )
         
         firestore.collection("rooms")
             .document(roomCode)
             .collection("events")
             .document(event.syncId)
-            .set(docData)
+            .set(docData, com.google.firebase.firestore.SetOptions.merge())
     }
 
     private fun deleteEventFromFirestore(syncId: String) {
