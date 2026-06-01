@@ -720,13 +720,13 @@ fun AddEditEventScreen(
                             // Start Date Button
                             DateButton(
                                 millis = startMillis,
-                                modifier = Modifier.weight(1f)
+                                modifier = Modifier.weight(1.3f)
                             ) { if (!isReadOnly) showStartDatePicker = true }
                             // Start Time Button
                             if (!isAllDay) {
                                 TimeButton(
                                     millis = startMillis,
-                                    modifier = Modifier.weight(2.2f)
+                                    modifier = Modifier.weight(2f)
                                 ) {
                                     if (!isReadOnly) {
                                         showStartTimePicker = !showStartTimePicker
@@ -790,13 +790,13 @@ fun AddEditEventScreen(
                             // End Date Button
                             DateButton(
                                 millis = endMillis,
-                                modifier = Modifier.weight(1f)
+                                modifier = Modifier.weight(1.3f)
                             ) { if (!isReadOnly) showEndDatePicker = true }
                             // End Time Button
                             if (!isAllDay) {
                                 TimeButton(
                                     millis = endMillis,
-                                    modifier = Modifier.weight(2.2f)
+                                    modifier = Modifier.weight(2f)
                                 ) {
                                     if (!isReadOnly) {
                                         showEndTimePicker = !showEndTimePicker
