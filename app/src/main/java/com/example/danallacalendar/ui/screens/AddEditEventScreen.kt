@@ -682,15 +682,17 @@ fun AddEditEventScreen(
                                     }
                                 },
                                 enabled = !isReadOnly,
-                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
+                                contentPadding = PaddingValues(horizontal = 6.dp, vertical = 1.dp),
                                 shape = RoundedCornerShape(8.dp),
                                 colors = ButtonDefaults.buttonColors(
                                     containerColor = MaterialTheme.colorScheme.primaryContainer,
                                     contentColor = MaterialTheme.colorScheme.onPrimaryContainer
                                 ),
-                                modifier = Modifier.height(32.dp)
+                                modifier = Modifier
+                                    .defaultMinSize(minWidth = 1.dp, minHeight = 1.dp)
+                                    .height(26.dp)
                             ) {
-                                Text("추가", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                Text("추가", fontSize = 11.sp, fontWeight = FontWeight.Bold)
                             }
                             Spacer(modifier = Modifier.width(4.dp))
                             IconButton(
@@ -709,27 +711,6 @@ fun AddEditEventScreen(
                                     tint = MaterialTheme.colorScheme.primary,
                                     modifier = Modifier.size(20.dp)
                                 )
-                            }
-                            if (notesList.size > 1) {
-                                Spacer(modifier = Modifier.width(4.dp))
-                                IconButton(
-                                    onClick = {
-                                        if (!isReadOnly) {
-                                            notesList = notesList.toMutableList().apply {
-                                                removeAt(index)
-                                            }
-                                        }
-                                    },
-                                    enabled = !isReadOnly,
-                                    modifier = Modifier.size(36.dp)
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Delete,
-                                        contentDescription = "삭제",
-                                        tint = MaterialTheme.colorScheme.error,
-                                        modifier = Modifier.size(20.dp)
-                                    )
-                                }
                             }
                         }
                     }
