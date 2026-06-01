@@ -124,7 +124,10 @@ dependencies {
 }
 
 tasks.withType<org.jetbrains.kotlin.gradle.internal.KaptWithoutKotlincTask>().configureEach {
-    kaptProcessJvmArgs.add("-Djava.io.tmpdir=C:\\Users\\me\\AppData\\Local\\Temp")
-    kaptProcessJvmArgs.add("-Dorg.sqlite.tmpdir=C:\\Users\\me\\AppData\\Local\\Temp")
+    val isWindows = System.getProperty("os.name").contains("Windows", ignoreCase = true)
+    if (isWindows) {
+        kaptProcessJvmArgs.add("-Djava.io.tmpdir=C:\\Users\\me\\AppData\\Local\\Temp")
+        kaptProcessJvmArgs.add("-Dorg.sqlite.tmpdir=C:\\Users\\me\\AppData\\Local\\Temp")
+    }
 }
 
