@@ -5,6 +5,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.viewModels
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -35,6 +36,8 @@ class MainActivity : ComponentActivity() {
 
     @Inject
     lateinit var userPreferences: UserPreferences
+
+    private val calendarViewModel: CalendarViewModel by viewModels()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -76,11 +79,18 @@ class MainActivity : ComponentActivity() {
 
     private fun handleIntent(intent: android.content.Intent?) {
         intent?.data?.let { uri ->
-            if (uri.scheme == "danallacalendar" && uri.host == "join") {
-                val code = uri.getQueryParameter("code")
-                if (!code.isNullOrBlank()) {
-                    userPreferences.setLastRoomCode(code)
-                    // If nickname is already set, it will auto-route to calendar on next navigation/restart
+            if (uri.scheme == "danallacalendar") {
+                if (uri.host == "join") {
+                    val code = uri.getQueryParameter("code")
+                    if (!code.isNullOrBlank()) {
+                        userPreferences.setLastRoomCode(code)
+                    }
+                } else if (uri.host == "view") {
+                    val dateMillisStr = uri.getQueryParameter("dateMillis")
+                    val dateMillis = dateMillisStr?.toLongOrNull()
+                    if (dateMillis != null) {
+                        calendarViewModel.selectDate(dateMillis)
+                    }
                 }
             }
         }
