@@ -30,7 +30,9 @@ data class Event(
     val syncId: String? = null,
     val isSynced: Boolean = false,
     val colorHex: String? = null,
-    val isCompleted: Boolean = false
+    val isCompleted: Boolean = false,
+    val createdAt: Long = System.currentTimeMillis(),
+    val updatedAt: Long = System.currentTimeMillis()
 )
 
 @Entity(tableName = "deadline_dates")
