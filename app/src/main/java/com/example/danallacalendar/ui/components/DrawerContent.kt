@@ -65,10 +65,8 @@ fun DrawerContent(
     onLogoutClick: () -> Unit,
     onToggleCategory: (CalendarCategory) -> Unit,
     onImportClick: () -> Unit,
-    onImportDeviceClick: () -> Unit,
     onShareAppClick: () -> Unit,
     onUpdateClick: () -> Unit,
-    onClearSchedulesClick: () -> Unit,
     onCloseClick: () -> Unit,
     onApkClick: () -> Unit,
     modifier: Modifier = Modifier
@@ -120,62 +118,6 @@ fun DrawerContent(
 
         Spacer(modifier = Modifier.height(8.dp))
 
-
-
-        // Import Device Calendar Button
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(MaterialTheme.shapes.medium)
-                .clickable { onImportDeviceClick() }
-                .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f))
-                .padding(vertical = 12.dp, horizontal = 12.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(
-                imageVector = Icons.Default.CloudSync,
-                contentDescription = "기기 캘린더 가져오기",
-                tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(24.dp)
-            )
-            Spacer(modifier = Modifier.width(16.dp))
-            Text(
-                text = "일정 가져오기 (기기 캘린더)",
-                fontSize = 15.sp,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.primary
-            )
-        }
-
-        Spacer(modifier = Modifier.height(8.dp))
-
-        // Share App Button
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(MaterialTheme.shapes.medium)
-                .clickable { onShareAppClick() }
-                .background(MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.4f))
-                .padding(vertical = 12.dp, horizontal = 12.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(
-                imageVector = Icons.Default.Share,
-                contentDescription = "앱 공유하기",
-                tint = MaterialTheme.colorScheme.tertiary,
-                modifier = Modifier.size(24.dp)
-            )
-            Spacer(modifier = Modifier.width(16.dp))
-            Text(
-                text = "앱 공유하기 (APK)",
-                fontSize = 15.sp,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.tertiary
-            )
-        }
-
-        Spacer(modifier = Modifier.height(8.dp))
-
         // Update App Button
         Row(
             modifier = Modifier
@@ -205,33 +147,6 @@ fun DrawerContent(
                 fontSize = 13.sp,
                 color = MaterialTheme.colorScheme.primary.copy(alpha = 0.8f),
                 fontWeight = FontWeight.Medium
-            )
-        }
-
-        Spacer(modifier = Modifier.height(8.dp))
-
-        // Clear Schedules Button
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(MaterialTheme.shapes.medium)
-                .clickable { onClearSchedulesClick() }
-                .background(MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.4f))
-                .padding(vertical = 12.dp, horizontal = 12.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(
-                imageVector = Icons.Default.Delete,
-                contentDescription = "일정 초기화",
-                tint = MaterialTheme.colorScheme.error,
-                modifier = Modifier.size(24.dp)
-            )
-            Spacer(modifier = Modifier.width(16.dp))
-            Text(
-                text = "일정 초기화",
-                fontSize = 15.sp,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.error
             )
         }
 
@@ -452,6 +367,32 @@ fun DrawerContent(
             HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
             Spacer(modifier = Modifier.height(16.dp))
         }
+
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(MaterialTheme.shapes.medium)
+                .clickable { onShareAppClick() }
+                .background(MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.4f))
+                .padding(vertical = 12.dp, horizontal = 12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = Icons.Default.Share,
+                contentDescription = "앱 공유하기",
+                tint = MaterialTheme.colorScheme.tertiary,
+                modifier = Modifier.size(24.dp)
+            )
+            Spacer(modifier = Modifier.width(16.dp))
+            Text(
+                text = "앱 공유하기 (APK)",
+                fontSize = 15.sp,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.tertiary
+            )
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
 
         Row(
             modifier = Modifier
