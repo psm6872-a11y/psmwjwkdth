@@ -10,6 +10,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.Modifier
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.compose.NavHost
@@ -28,6 +30,7 @@ import com.example.danallacalendar.ui.nickname.NicknameScreen
 import com.example.danallacalendar.ui.nickname.NicknameViewModel
 import com.example.danallacalendar.ui.room.RoomScreen
 import com.example.danallacalendar.ui.room.RoomViewModel
+import com.example.danallacalendar.backup.BackupScreen
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
 
@@ -150,6 +153,9 @@ fun AppNavigation(userPreferences: UserPreferences) {
                 onNavigateToSearch = {
                     navController.navigate("search")
                 },
+                onNavigateToBackup = {
+                    navController.navigate("backup")
+                },
                 onExitRoom = {
                     userPreferences.setLastRoomCode("")
                     navController.navigate("room") {
@@ -190,6 +196,17 @@ fun AppNavigation(userPreferences: UserPreferences) {
                     navController.popBackStack()
                 },
                 viewModel = viewModel
+            )
+        }
+
+        composable("backup") {
+            val activity = LocalContext.current as ComponentActivity
+            val viewModel: CalendarViewModel = hiltViewModel(activity)
+            val categories by viewModel.categories.collectAsStateWithLifecycle()
+            val defaultCalendarId = categories.firstOrNull()?.id ?: 1
+            BackupScreen(
+                onNavigateBack = { navController.popBackStack() },
+                defaultCalendarId = defaultCalendarId
             )
         }
     }

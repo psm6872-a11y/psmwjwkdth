@@ -61,4 +61,12 @@ object AppModule {
     ): CalendarRepository {
         return CalendarRepository(firestore, userPreferences, eventDao)
     }
+
+    @Provides
+    @Singleton
+    fun provideBackupRepository(
+        firestore: FirebaseFirestore
+    ): com.example.danallacalendar.backup.BackupRepository {
+        return com.example.danallacalendar.backup.BackupRepository(firestore)
+    }
 }

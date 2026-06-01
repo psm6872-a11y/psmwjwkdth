@@ -64,6 +64,9 @@ interface EventDao {
     @Query("SELECT * FROM events WHERE isSynced = 1")
     suspend fun getSyncedEvents(): List<Event>
 
+    @Query("SELECT * FROM events")
+    suspend fun getAllEventsList(): List<Event>
+
     @Query("DELETE FROM events WHERE syncId = :syncId")
     suspend fun deleteEventBySyncId(syncId: String)
 

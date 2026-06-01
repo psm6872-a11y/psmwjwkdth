@@ -15,8 +15,8 @@ android {
         applicationId = "com.example.danallacalendar"
         minSdk = 24
         targetSdk = 34
-        versionCode = 72
-        versionName = "1.0.72"
+        versionCode = 73
+        versionName = "1.0.73"
     }
 
     signingConfigs {
@@ -125,6 +125,11 @@ dependencies {
   // HTTP & JSON for Updater
   implementation(libs.okhttp)
   implementation(libs.gson)
+
+  // WorkManager + Hilt-Work (for backup scheduler)
+  implementation("androidx.work:work-runtime-ktx:2.9.0")
+  implementation("androidx.hilt:hilt-work:1.2.0")
+  kapt("androidx.hilt:hilt-compiler:1.2.0")
 }
 
 tasks.withType<org.jetbrains.kotlin.gradle.internal.KaptWithoutKotlincTask>().configureEach {
