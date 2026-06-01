@@ -10,7 +10,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import java.util.Calendar
 
-@Database(entities = [CalendarCategory::class, Event::class, DeadlineDate::class], version = 6, exportSchema = false)
+@Database(entities = [CalendarCategory::class, Event::class, DeadlineDate::class], version = 7, exportSchema = false)
 abstract class CalendarDatabase : RoomDatabase() {
     abstract fun eventDao(): EventDao
 

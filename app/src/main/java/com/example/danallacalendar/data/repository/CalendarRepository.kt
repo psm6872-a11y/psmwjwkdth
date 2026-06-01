@@ -216,6 +216,8 @@ class CalendarRepository @Inject constructor(
                                 val syncId = doc.getString("syncId") ?: doc.id
                                 val colorHex = doc.getString("colorHex")
                                 val isCompleted = doc.getBoolean("isCompleted") ?: false
+                                val createdAt = doc.getLong("createdAt") ?: System.currentTimeMillis()
+                                val updatedAt = doc.getLong("updatedAt") ?: System.currentTimeMillis()
                                 
                                 Event(
                                     title = title,
@@ -230,7 +232,9 @@ class CalendarRepository @Inject constructor(
                                     syncId = syncId,
                                     isSynced = true,
                                     colorHex = colorHex,
-                                    isCompleted = isCompleted
+                                    isCompleted = isCompleted,
+                                    createdAt = createdAt,
+                                    updatedAt = updatedAt
                                 )
                             }
                             
@@ -246,7 +250,9 @@ class CalendarRepository @Inject constructor(
                                         existing.location != remote.location ||
                                         existing.notes != remote.notes ||
                                         existing.colorHex != remote.colorHex ||
-                                        existing.isCompleted != remote.isCompleted
+                                        existing.isCompleted != remote.isCompleted ||
+                                        existing.createdAt != remote.createdAt ||
+                                        existing.updatedAt != remote.updatedAt
                                     ) {
                                         eventDao.updateEvent(updated)
                                     }
@@ -290,7 +296,9 @@ class CalendarRepository @Inject constructor(
             "colorHex" to event.colorHex,
             "isCompleted" to event.isCompleted,
             "lastUpdatedBy" to userPreferences.getDeviceUUID(),
-            "createdBy" to userPreferences.getDeviceUUID()
+            "createdBy" to userPreferences.getDeviceUUID(),
+            "createdAt" to event.createdAt,
+            "updatedAt" to event.updatedAt
         )
         
         firestore.collection("rooms")

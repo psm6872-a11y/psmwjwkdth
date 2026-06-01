@@ -91,6 +91,8 @@ fun AddEditEventScreen(
     var syncId by remember { mutableStateOf<String?>(null) }
     var isSynced by remember { mutableStateOf(false) }
     var isCompleted by remember { mutableStateOf(false) }
+    var createdAt by remember { mutableStateOf(System.currentTimeMillis()) }
+    var updatedAt by remember { mutableStateOf(System.currentTimeMillis()) }
 
     val isReadOnly = false
 
@@ -160,6 +162,8 @@ fun AddEditEventScreen(
                 syncId = event.syncId
                 isSynced = event.isSynced
                 isCompleted = event.isCompleted
+                createdAt = if (event.createdAt <= 0L) System.currentTimeMillis() else event.createdAt
+                updatedAt = if (event.updatedAt <= 0L) System.currentTimeMillis() else event.updatedAt
                 isLoaded = true
             }
         }
@@ -182,7 +186,9 @@ fun AddEditEventScreen(
                 syncId = syncId,
                 isSynced = isSynced,
                 colorHex = selectedColorHex,
-                isCompleted = isCompleted
+                isCompleted = isCompleted,
+                createdAt = if (eventId == null) System.currentTimeMillis() else createdAt,
+                updatedAt = System.currentTimeMillis()
             )
             if (eventId == null) {
                 viewModel.addEvent(event)
@@ -955,6 +961,31 @@ fun AddEditEventScreen(
                             }
                         }
                     }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 16.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                val sdf = remember { SimpleDateFormat("yyyy년 M월 d일 HH:mm:ss", Locale.KOREAN) }
+                
+                Text(
+                    text = "생성: ${sdf.format(Date(createdAt))}",
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                )
+                
+                if (eventId != null) {
+                    Text(
+                        text = "수정: ${sdf.format(Date(updatedAt))}",
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                    )
                 }
             }
 
