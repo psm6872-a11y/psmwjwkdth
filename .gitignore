@@ -13,3 +13,7 @@
 .externalNativeBuild
 .cxx
 local.properties
+
+# Firebase Cloud Functions
+functions/node_modules/
+functions/package-lock.json
