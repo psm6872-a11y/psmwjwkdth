@@ -710,9 +710,9 @@ fun AddEditEventScreen(
                     ) {
                         Text(
                             text = "시작", 
-                            fontSize = 16.sp, 
+                            fontSize = 13.sp, 
                             fontWeight = FontWeight.Medium,
-                            modifier = Modifier.width(60.dp)
+                            modifier = Modifier.width(42.dp)
                         )
                         Row(
                             modifier = Modifier.weight(1f),
@@ -728,7 +728,7 @@ fun AddEditEventScreen(
                             if (!isAllDay) {
                                 TimeButton(
                                     millis = startMillis,
-                                    modifier = Modifier.weight(1f)
+                                    modifier = Modifier.weight(2.2f)
                                 ) {
                                     if (!isReadOnly) {
                                         showStartTimePicker = !showStartTimePicker
@@ -780,9 +780,9 @@ fun AddEditEventScreen(
                     ) {
                         Text(
                             text = "종료", 
-                            fontSize = 16.sp, 
+                            fontSize = 13.sp, 
                             fontWeight = FontWeight.Medium,
-                            modifier = Modifier.width(60.dp)
+                            modifier = Modifier.width(42.dp)
                         )
                         Row(
                             modifier = Modifier.weight(1f),
@@ -798,7 +798,7 @@ fun AddEditEventScreen(
                             if (!isAllDay) {
                                 TimeButton(
                                     millis = endMillis,
-                                    modifier = Modifier.weight(1f)
+                                    modifier = Modifier.weight(2.2f)
                                 ) {
                                     if (!isReadOnly) {
                                         showEndTimePicker = !showEndTimePicker
@@ -1144,12 +1144,13 @@ fun TimeButton(millis: Long, modifier: Modifier = Modifier, onClick: () -> Unit)
             .clip(RoundedCornerShape(8.dp))
             .background(MaterialTheme.colorScheme.surfaceVariant)
             .clickable { onClick() }
-            .padding(horizontal = 4.dp, vertical = 6.dp),
+            .padding(horizontal = 6.dp, vertical = 8.dp),
         contentAlignment = Alignment.Center
     ) {
         Text(
             text = label, 
-            fontSize = 12.sp,
+            fontSize = 16.sp,
+            fontWeight = FontWeight.Bold,
             maxLines = 1,
             softWrap = false,
             textAlign = androidx.compose.ui.text.style.TextAlign.Center
@@ -1403,7 +1404,7 @@ fun WheelPicker(
     onIndexSelected: (Int) -> Unit,
     modifier: Modifier = Modifier,
     visibleItemsCount: Int = 5,
-    itemHeight: androidx.compose.ui.unit.Dp = 42.dp
+    itemHeight: androidx.compose.ui.unit.Dp = 48.dp
 ) {
     val lazyListState = rememberLazyListState(initialFirstVisibleItemIndex = initialIndex)
     val snapFlingBehavior = rememberSnapFlingBehavior(lazyListState)
@@ -1467,7 +1468,7 @@ fun WheelPicker(
                 ) {
                     Text(
                         text = items[index],
-                        fontSize = 16.sp,
+                        fontSize = 20.sp,
                         fontWeight = if (indexDiff == 0) FontWeight.Bold else FontWeight.Medium,
                         color = if (indexDiff == 0) {
                             MaterialTheme.colorScheme.primary
