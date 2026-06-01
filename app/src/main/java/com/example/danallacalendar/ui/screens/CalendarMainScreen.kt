@@ -64,6 +64,10 @@ import androidx.activity.result.contract.ActivityResultContracts
 import android.net.Uri
 import android.widget.Toast
 import androidx.compose.ui.platform.LocalContext
+import com.example.danallacalendar.update.UpdateChecker
+import com.example.danallacalendar.update.UpdateDownloader
+import com.example.danallacalendar.update.UpdateDialog
+import com.example.danallacalendar.update.UpdateInfo
 
 data class CalendarDay(
     val dateInMillis: Long,
@@ -91,9 +95,19 @@ fun CalendarMainScreen(
     var showLoginDialog by remember { mutableStateOf(false) }
     var showPermissionGuideDialog by remember { mutableStateOf(false) }
 
+    var updateInfo by remember { mutableStateOf<UpdateInfo?>(null) }
+    var isUpdateDownloading by remember { mutableStateOf(false) }
+    var updateProgress by remember { mutableStateOf(0f) }
+
     LaunchedEffect(isLoggedIn) {
         if (!isLoggedIn) {
             onExitRoom()
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        UpdateChecker.checkForUpdate(context) { info ->
+            updateInfo = info
         }
     }
 
@@ -425,22 +439,13 @@ fun CalendarMainScreen(
                     },
                     onUpdateClick = {
                         scope.launch { drawerState.close() }
-                        try {
-                            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-                                if (!context.packageManager.canRequestPackageInstalls()) {
-                                    Toast.makeText(context, "앱 업데이트를 설치하려면 출처를 알 수 없는 앱 설치 권한이 필요합니다.", Toast.LENGTH_LONG).show()
-                                    val intent = android.content.Intent(android.provider.Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES).apply {
-                                        data = Uri.parse("package:${context.packageName}")
-                                    }
-                                    context.startActivity(intent)
-                                } else {
-                                    startApkDownload(context, scope)
-                                }
+                        Toast.makeText(context, "업데이트 확인 중...", Toast.LENGTH_SHORT).show()
+                        UpdateChecker.checkForUpdate(context) { info ->
+                            if (info != null) {
+                                updateInfo = info
                             } else {
-                                startApkDownload(context, scope)
+                                Toast.makeText(context, "최신 버전을 사용 중입니다.", Toast.LENGTH_SHORT).show()
                             }
-                        } catch (e: Exception) {
-                            Toast.makeText(context, "업데이트 오류: ${e.localizedMessage}", Toast.LENGTH_LONG).show()
                         }
                     },
                     onClearSchedulesClick = {
@@ -522,135 +527,45 @@ fun CalendarMainScreen(
                 )
             }
         }
-    }
-}
 
-private fun startApkDownload(
-    context: android.content.Context,
-    scope: kotlinx.coroutines.CoroutineScope
-) {
-    scope.launch(Dispatchers.IO) {
-        try {
-            withContext(Dispatchers.Main) {
-                Toast.makeText(context, "업데이트 정보를 확인 중입니다...", Toast.LENGTH_SHORT).show()
-            }
-
-            val token = ""
-            val apiUrl = "https://api.github.com/repos/psm6872-a11y/psmwjwkdth/releases/latest"
-
-            // 1단계: 최신 릴리즈 API 조회
-            val connection = URL(apiUrl).openConnection() as HttpURLConnection
-            connection.requestMethod = "GET"
-            connection.setRequestProperty("Authorization", "token $token")
-            connection.setRequestProperty("Accept", "application/vnd.github.v3+json")
-            connection.connectTimeout = 15000
-            connection.readTimeout = 15000
-
-            val responseCode = connection.responseCode
-            if (responseCode != HttpURLConnection.HTTP_OK) {
-                throw Exception("API 호출 실패 ($responseCode)")
-            }
-
-            val responseText = connection.inputStream.bufferedReader().use { it.readText() }
-            connection.disconnect()
-
-            val json = Json.parseToJsonElement(responseText).jsonObject
-            val assets = json["assets"]?.jsonArray ?: throw Exception("에셋 정보를 찾을 수 없습니다.")
-
-            // 2단계: app-debug.apk 에셋 URL 찾기
-            var assetId: Long? = null
-            for (assetElement in assets) {
-                val assetObj = assetElement.jsonObject
-                val name = assetObj["name"]?.jsonPrimitive?.content
-                if (name == "app-debug.apk") {
-                    assetId = assetObj["id"]?.jsonPrimitive?.content?.toLong()
-                    break
-                }
-            }
-
-            if (assetId == null) {
-                throw Exception("업데이트 파일(app-debug.apk)을 찾을 수 없습니다.")
-            }
-
-            withContext(Dispatchers.Main) {
-                Toast.makeText(context, "업데이트 다운로드를 시작합니다...", Toast.LENGTH_SHORT).show()
-            }
-
-            // 3단계: API를 통해 직접 APK 스트리밍 다운로드 (Authorization 헤더 유지)
-            val downloadUrl = "https://api.github.com/repos/psm6872-a11y/psmwjwkdth/releases/assets/$assetId"
-            val apkFile = java.io.File(context.cacheDir, "update.apk")
-            if (apkFile.exists()) apkFile.delete()
-
-            var downloadConn = URL(downloadUrl).openConnection() as HttpURLConnection
-            downloadConn.requestMethod = "GET"
-            downloadConn.setRequestProperty("Authorization", "token $token")
-            downloadConn.setRequestProperty("Accept", "application/octet-stream")
-            downloadConn.instanceFollowRedirects = false
-            downloadConn.connectTimeout = 15000
-            downloadConn.readTimeout = 60000
-
-            // 리다이렉트를 수동으로 따라가며 Authorization 헤더 유지
-            var redirectCount = 0
-            while (redirectCount < 5) {
-                val code = downloadConn.responseCode
-                if (code == HttpURLConnection.HTTP_MOVED_TEMP ||
-                    code == HttpURLConnection.HTTP_MOVED_PERM ||
-                    code == 307 || code == 308) {
-                    val location = downloadConn.getHeaderField("Location")
-                        ?: throw Exception("리다이렉트 주소를 받아오지 못했습니다.")
-                    downloadConn.disconnect()
-                    downloadConn = URL(location).openConnection() as HttpURLConnection
-                    downloadConn.requestMethod = "GET"
-                    downloadConn.setRequestProperty("Authorization", "token $token")
-                    downloadConn.setRequestProperty("Accept", "application/octet-stream")
-                    downloadConn.instanceFollowRedirects = false
-                    downloadConn.connectTimeout = 15000
-                    downloadConn.readTimeout = 60000
-                    redirectCount++
-                } else if (code == HttpURLConnection.HTTP_OK) {
-                    break
-                } else {
-                    throw Exception("다운로드 응답 오류 ($code)")
-                }
-            }
-
-            // 파일로 저장
-            downloadConn.inputStream.use { input ->
-                apkFile.outputStream().use { output ->
-                    input.copyTo(output)
-                }
-            }
-            downloadConn.disconnect()
-
-            if (!apkFile.exists() || apkFile.length() < 1024) {
-                throw Exception("다운로드된 파일이 올바르지 않습니다.")
-            }
-
-            // 4단계: 설치 인텐트 실행
-            withContext(Dispatchers.Main) {
-                try {
-                    val sharedPrefs = context.getSharedPreferences("app_prefs", android.content.Context.MODE_PRIVATE)
-                    sharedPrefs.edit().putBoolean("user_initiated_update", true).commit()
-
-                    val apkUri = androidx.core.content.FileProvider.getUriForFile(
-                        context,
-                        "com.example.danallacalendar.fileprovider",
-                        apkFile
-                    )
-                    val installIntent = android.content.Intent(android.content.Intent.ACTION_VIEW).apply {
-                        setDataAndType(apkUri, "application/vnd.android.package-archive")
-                        addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
-                        addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        updateInfo?.let { info ->
+            UpdateDialog(
+                updateInfo = info,
+                isDownloading = isUpdateDownloading,
+                progress = updateProgress,
+                onDismiss = {
+                    updateInfo = null
+                },
+                onUpdateClick = {
+                    if (!UpdateDownloader.hasInstallPermission(context)) {
+                        Toast.makeText(context, "설치 권한 허용 후 다시 업데이트를 클릭해 주세요.", Toast.LENGTH_LONG).show()
+                        UpdateDownloader.openInstallPermissionSettings(context)
+                    } else {
+                        isUpdateDownloading = true
+                        updateProgress = 0f
+                        UpdateDownloader.downloadApk(
+                            context = context,
+                            assetUrl = info.downloadUrl,
+                            onProgress = { prog ->
+                                updateProgress = prog
+                            },
+                            onComplete = { file ->
+                                isUpdateDownloading = false
+                                updateInfo = null
+                                UpdateDownloader.triggerInstall(context, file)
+                            },
+                            onError = { err ->
+                                isUpdateDownloading = false
+                                Toast.makeText(context, "다운로드 실패: ${err.message}", Toast.LENGTH_LONG).show()
+                            }
+                        )
                     }
-                    context.startActivity(installIntent)
-                } catch (e: Exception) {
-                    Toast.makeText(context, "설치 실행 실패: ${e.localizedMessage}", Toast.LENGTH_LONG).show()
+                },
+                onCancelClick = {
+                    UpdateDownloader.cancelDownload()
+                    isUpdateDownloading = false
                 }
-            }
-        } catch (e: Exception) {
-            withContext(Dispatchers.Main) {
-                Toast.makeText(context, "업데이트 실패: ${e.localizedMessage}", Toast.LENGTH_LONG).show()
-            }
+            )
         }
     }
 }
