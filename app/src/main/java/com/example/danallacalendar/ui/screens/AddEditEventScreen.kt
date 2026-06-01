@@ -811,9 +811,7 @@ fun AddEditEventScreen(
                                             set(Calendar.MILLISECOND, 0)
                                         }
                                         startMillis = cal.timeInMillis
-                                        if (startMillis >= endMillis) {
-                                            endMillis = startMillis + 60 * 60 * 1000L
-                                        }
+                                        endMillis = startMillis + 60 * 60 * 1000L
                                     }
                                 )
                             }
@@ -910,9 +908,6 @@ fun AddEditEventScreen(
                                                 set(Calendar.MILLISECOND, 0)
                                             }
                                             endMillis = cal.timeInMillis
-                                            if (endMillis <= startMillis) {
-                                                endMillis = startMillis + 60 * 60 * 1000L
-                                            }
                                         }
                                     )
                                 }
@@ -1494,6 +1489,12 @@ fun WheelPicker(
     val selectedIndex by remember {
         derivedStateOf {
             lazyListState.firstVisibleItemIndex
+        }
+    }
+
+    LaunchedEffect(initialIndex) {
+        if (initialIndex in items.indices && initialIndex != lazyListState.firstVisibleItemIndex) {
+            lazyListState.scrollToItem(initialIndex)
         }
     }
 
