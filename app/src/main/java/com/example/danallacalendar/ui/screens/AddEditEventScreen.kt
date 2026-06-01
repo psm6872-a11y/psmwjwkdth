@@ -755,11 +755,12 @@ fun AddEditEventScreen(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .padding(vertical = 8.dp),
-                                contentAlignment = Alignment.Center
+                                contentAlignment = Alignment.CenterEnd
                             ) {
                                 WheelTimePicker(
                                     initialHour = calendar.get(Calendar.HOUR_OF_DAY),
                                     initialMinute = calendar.get(Calendar.MINUTE),
+                                    modifier = Modifier.width(160.dp),
                                     onTimeChanged = { hour, minute ->
                                         val cal = Calendar.getInstance().apply {
                                             timeInMillis = startMillis
@@ -825,11 +826,12 @@ fun AddEditEventScreen(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .padding(vertical = 8.dp),
-                                contentAlignment = Alignment.Center
+                                contentAlignment = Alignment.CenterEnd
                             ) {
                                 WheelTimePicker(
                                     initialHour = calendar.get(Calendar.HOUR_OF_DAY),
                                     initialMinute = calendar.get(Calendar.MINUTE),
+                                    modifier = Modifier.width(160.dp),
                                     onTimeChanged = { hour, minute ->
                                         val cal = Calendar.getInstance().apply {
                                             timeInMillis = endMillis
@@ -1353,6 +1355,7 @@ fun MyDatePickerDialog(
 fun WheelTimePicker(
     initialHour: Int,
     initialMinute: Int,
+    modifier: Modifier = Modifier,
     onTimeChanged: (Int, Int) -> Unit
 ) {
     // 24시간제: 0~23
@@ -1375,8 +1378,7 @@ fun WheelTimePicker(
     }
 
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
+        modifier = modifier
             .padding(horizontal = 8.dp),
         horizontalArrangement = Arrangement.Center,
         verticalAlignment = Alignment.CenterVertically
