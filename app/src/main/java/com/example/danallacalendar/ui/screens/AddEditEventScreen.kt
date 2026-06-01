@@ -499,7 +499,7 @@ fun AddEditEventScreen(
                                 imageVector = if (isDestinationExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
                                 contentDescription = "토글",
                                 tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(20.dp)
+                                modifier = Modifier.size(24.dp)
                             )
                         }
                     }
@@ -805,7 +805,7 @@ fun AddEditEventScreen(
                                 imageVector = if (isEndExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
                                 contentDescription = "종료 토글",
                                 tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(20.dp)
+                                modifier = Modifier.size(24.dp)
                             )
                         }
                     }
