@@ -171,6 +171,7 @@ fun AddEditEventScreen(
 
     val onSaveClick = {
         if (title.isNotBlank() && selectedCategory != null) {
+            val now = System.currentTimeMillis()
             val event = Event(
                 id = eventId ?: 0,
                 title = title,
@@ -187,8 +188,8 @@ fun AddEditEventScreen(
                 isSynced = isSynced,
                 colorHex = selectedColorHex,
                 isCompleted = isCompleted,
-                createdAt = if (eventId == null) System.currentTimeMillis() else createdAt,
-                updatedAt = System.currentTimeMillis()
+                createdAt = if (eventId == null) now else createdAt,
+                updatedAt = now
             )
             if (eventId == null) {
                 viewModel.addEvent(event)
@@ -983,7 +984,7 @@ fun AddEditEventScreen(
                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
                 )
                 
-                if (eventId != null) {
+                if (eventId != null && (updatedAt - createdAt >= 1000L)) {
                     Text(
                         text = "수정: ${sdf.format(Date(updatedAt))}",
                         fontSize = 12.sp,
