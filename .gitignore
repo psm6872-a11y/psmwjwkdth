@@ -20,3 +20,4 @@ functions/package-lock.json
 
 # Keystore
 *.jks
+keystore_base64.txt
