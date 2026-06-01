@@ -84,7 +84,8 @@ fun AddEditEventScreen(
     var location1b by remember { mutableStateOf("") } // 위치 1 하단
     var location2 by remember { mutableStateOf("") }  // 위치 2 상단
     var location2b by remember { mutableStateOf("") } // 위치 2 하단
-    var notes by remember { mutableStateOf("") }
+    var notesList by remember { mutableStateOf(listOf("")) }
+    var activeRecentCallsIndex by remember { mutableStateOf(-1) }
     var selectedCategory by remember { mutableStateOf<CalendarCategory?>(null) }
     var selectedColorHex by remember { mutableStateOf(prefs.getString("last_used_color_hex", "#ff3b30") ?: "#ff3b30") }
     var repeatType by remember { mutableStateOf("NONE") }
@@ -161,7 +162,8 @@ fun AddEditEventScreen(
                 val calEnd = Calendar.getInstance().apply { timeInMillis = event.endMillis }
                 isEndExpanded = calStart.get(Calendar.YEAR) != calEnd.get(Calendar.YEAR) ||
                         calStart.get(Calendar.DAY_OF_YEAR) != calEnd.get(Calendar.DAY_OF_YEAR)
-                notes = event.notes
+                val notesParts = event.notes.split("|||")
+                notesList = if (notesParts.isNotEmpty()) notesParts else listOf("")
                 repeatType = event.repeatType
                 reminderMinutes = event.reminderMinutes
                 val cat = categories.find { cat -> cat.id == event.calendarId } ?: categories.firstOrNull()
@@ -188,7 +190,7 @@ fun AddEditEventScreen(
                 isAllDay = isAllDay,
                 location = listOf(location, location1b, location2, location2b)
                     .joinToString("|||"),
-                notes = notes,
+                notes = notesList.filter { it.isNotBlank() }.joinToString("|||"),
                 repeatType = repeatType,
                 reminderMinutes = reminderMinutes,
                 calendarId = selectedCategory!!.id,
@@ -613,70 +615,122 @@ fun AddEditEventScreen(
                         HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
                     }
 
-                    // Phone Number Input
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        IconButton(
-                            onClick = {
-                                if (notes.isNotBlank()) {
-                                    try {
-                                        val intent = Intent(Intent.ACTION_DIAL, Uri.parse("tel:${notes.trim()}"))
-                                        context.startActivity(intent)
-                                    } catch (e: Exception) {
-                                        Toast.makeText(context, "전화 기능을 실행할 수 없습니다.", Toast.LENGTH_SHORT).show()
+                    // Phone Number Inputs
+                    notesList.forEachIndexed { index, phone ->
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            IconButton(
+                                onClick = {
+                                    if (phone.isNotBlank()) {
+                                        try {
+                                            val intent = Intent(Intent.ACTION_DIAL, Uri.parse("tel:${phone.trim()}"))
+                                            context.startActivity(intent)
+                                        } catch (e: Exception) {
+                                            Toast.makeText(context, "전화 기능을 실행할 수 없습니다.", Toast.LENGTH_SHORT).show()
+                                        }
+                                    } else {
+                                        Toast.makeText(context, "전화번호를 입력해주세요.", Toast.LENGTH_SHORT).show()
                                     }
-                                } else {
-                                    Toast.makeText(context, "전화번호를 입력해주세요.", Toast.LENGTH_SHORT).show()
-                                }
-                            },
-                            modifier = Modifier.size(36.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Phone,
-                                contentDescription = "전화 걸기",
-                                tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(20.dp)
-                            )
-                        }
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Box(
-                            modifier = Modifier
-                                .weight(1f)
-                                .height(40.dp),
-                            contentAlignment = Alignment.CenterStart
-                        ) {
-                            if (notes.isEmpty()) {
-                                Text("전화번호", fontSize = 15.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                },
+                                modifier = Modifier.size(36.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Phone,
+                                    contentDescription = "전화 걸기",
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(20.dp)
+                                )
                             }
-                            BasicTextField(
-                                value = notes,
-                                onValueChange = { notes = it },
-                                singleLine = true,
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(40.dp),
+                                contentAlignment = Alignment.CenterStart
+                            ) {
+                                if (phone.isEmpty()) {
+                                    Text("전화번호", fontSize = 15.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                }
+                                BasicTextField(
+                                    value = phone,
+                                    onValueChange = { newValue ->
+                                        notesList = notesList.toMutableList().apply {
+                                            this[index] = newValue
+                                        }
+                                    },
+                                    singleLine = true,
+                                    enabled = !isReadOnly,
+                                    keyboardOptions = KeyboardOptions(
+                                        keyboardType = KeyboardType.Phone,
+                                        imeAction = ImeAction.Done
+                                    ),
+                                    textStyle = androidx.compose.ui.text.TextStyle(
+                                        fontSize = 15.sp,
+                                        color = if (isReadOnly) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface
+                                    ),
+                                    modifier = Modifier.fillMaxWidth()
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(4.dp))
+                            // "추가" Button
+                            Button(
+                                onClick = {
+                                    if (!isReadOnly) {
+                                        notesList = notesList + ""
+                                    }
+                                },
                                 enabled = !isReadOnly,
-                                keyboardOptions = KeyboardOptions(
-                                    keyboardType = KeyboardType.Phone,
-                                    imeAction = ImeAction.Done
+                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
+                                shape = RoundedCornerShape(8.dp),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = MaterialTheme.colorScheme.primaryContainer,
+                                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer
                                 ),
-                                textStyle = androidx.compose.ui.text.TextStyle(
-                                    fontSize = 15.sp,
-                                    color = if (isReadOnly) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface
-                                ),
-                                modifier = Modifier.fillMaxWidth()
-                            )
-                        }
-                        IconButton(
-                            onClick = { if (!isReadOnly) showRecentCallsDialog = true },
-                            enabled = !isReadOnly,
-                            modifier = Modifier.size(36.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.History,
-                                contentDescription = "최근 통화",
-                                tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(20.dp)
-                            )
+                                modifier = Modifier.height(32.dp)
+                            ) {
+                                Text("추가", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                            }
+                            Spacer(modifier = Modifier.width(4.dp))
+                            IconButton(
+                                onClick = {
+                                    if (!isReadOnly) {
+                                        activeRecentCallsIndex = index
+                                        showRecentCallsDialog = true
+                                    }
+                                },
+                                enabled = !isReadOnly,
+                                modifier = Modifier.size(36.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.History,
+                                    contentDescription = "최근 통화",
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                            if (notesList.size > 1) {
+                                Spacer(modifier = Modifier.width(4.dp))
+                                IconButton(
+                                    onClick = {
+                                        if (!isReadOnly) {
+                                            notesList = notesList.toMutableList().apply {
+                                                removeAt(index)
+                                            }
+                                        }
+                                    },
+                                    enabled = !isReadOnly,
+                                    modifier = Modifier.size(36.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Delete,
+                                        contentDescription = "삭제",
+                                        tint = MaterialTheme.colorScheme.error,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
+                            }
                         }
                     }
                 }
@@ -1148,7 +1202,11 @@ fun AddEditEventScreen(
     if (showRecentCallsDialog) {
         RecentCallsPickerDialog(
             onCallSelected = { number ->
-                notes = number
+                notesList = notesList.toMutableList().apply {
+                    if (activeRecentCallsIndex in indices) {
+                        this[activeRecentCallsIndex] = number
+                    }
+                }
                 showRecentCallsDialog = false
             },
             onDismiss = { showRecentCallsDialog = false }
