@@ -15,6 +15,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -473,25 +474,29 @@ fun AddEditEventScreen(
                     }
 
                     // ── 위치 2 접기/펼치기 토글 ──
-                    HorizontalDivider(
-                        color = MaterialTheme.colorScheme.outlineVariant,
-                        thickness = 1.5.dp
-                    )
-
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable(enabled = !isReadOnly) { isDestinationExpanded = !isDestinationExpanded }
-                            .padding(vertical = 2.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.Start
+                    Column(
+                        verticalArrangement = Arrangement.spacedBy(0.dp)
                     ) {
-                        Icon(
-                            imageVector = if (isDestinationExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
-                            contentDescription = "토글",
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(24.dp)
+                        HorizontalDivider(
+                            color = MaterialTheme.colorScheme.outlineVariant,
+                            thickness = 1.5.dp
                         )
+
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable(enabled = !isReadOnly) { isDestinationExpanded = !isDestinationExpanded }
+                                .padding(vertical = 0.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Start
+                        ) {
+                            Icon(
+                                imageVector = if (isDestinationExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                                contentDescription = "토글",
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
                     }
 
                     if (isDestinationExpanded) {
@@ -678,11 +683,13 @@ fun AddEditEventScreen(
             ) {
                 Column(
                     modifier = Modifier.padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     // All Day switch
                     Row(
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(36.dp),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
@@ -694,7 +701,8 @@ fun AddEditEventScreen(
                         Switch(
                             checked = isAllDay,
                             onCheckedChange = { isAllDay = it },
-                            enabled = !isReadOnly
+                            enabled = !isReadOnly,
+                            modifier = Modifier.scale(0.85f)
                         )
                     }
 
