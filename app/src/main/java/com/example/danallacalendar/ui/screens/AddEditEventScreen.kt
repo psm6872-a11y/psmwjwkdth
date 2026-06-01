@@ -497,7 +497,7 @@ fun AddEditEventScreen(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.Start
                         ) {
-                            Spacer(modifier = Modifier.width(12.dp))
+                            Spacer(modifier = Modifier.width(20.dp))
                             Icon(
                                 imageVector = if (isDestinationExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
                                 contentDescription = "토글",
@@ -837,7 +837,7 @@ fun AddEditEventScreen(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.Start
                         ) {
-                            Spacer(modifier = Modifier.width(12.dp))
+                            Spacer(modifier = Modifier.width(20.dp))
                             Icon(
                                 imageVector = if (isEndExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
                                 contentDescription = "종료 토글",
