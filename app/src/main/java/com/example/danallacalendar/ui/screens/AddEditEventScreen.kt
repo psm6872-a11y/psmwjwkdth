@@ -95,6 +95,7 @@ fun AddEditEventScreen(
     var createdAt by remember { mutableStateOf(System.currentTimeMillis()) }
     var updatedAt by remember { mutableStateOf(System.currentTimeMillis()) }
     var isDestinationExpanded by remember { mutableStateOf(false) }
+    var isEndExpanded by remember { mutableStateOf(false) }
 
     val isReadOnly = false
 
@@ -156,6 +157,10 @@ fun AddEditEventScreen(
                 location2  = locationParts.getOrNull(2) ?: ""
                 location2b = locationParts.getOrNull(3) ?: ""
                 isDestinationExpanded = location2.isNotBlank() || location2b.isNotBlank()
+                val calStart = Calendar.getInstance().apply { timeInMillis = event.startMillis }
+                val calEnd = Calendar.getInstance().apply { timeInMillis = event.endMillis }
+                isEndExpanded = calStart.get(Calendar.YEAR) != calEnd.get(Calendar.YEAR) ||
+                        calStart.get(Calendar.DAY_OF_YEAR) != calEnd.get(Calendar.DAY_OF_YEAR)
                 notes = event.notes
                 repeatType = event.repeatType
                 reminderMinutes = event.reminderMinutes
@@ -779,73 +784,101 @@ fun AddEditEventScreen(
                         }
                     }
 
-                    // End Time Row
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
+                    // ── 종료 접기/펼치기 토글 ──
+                    Column(
+                        verticalArrangement = Arrangement.spacedBy(0.dp)
                     ) {
-                        Text(
-                            text = "종료", 
-                            fontSize = 13.sp, 
-                            fontWeight = FontWeight.Medium,
-                            modifier = Modifier.width(42.dp)
+                        HorizontalDivider(
+                            color = MaterialTheme.colorScheme.outlineVariant,
+                            thickness = 1.5.dp
                         )
+
                         Row(
-                            modifier = Modifier.weight(1f),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable(enabled = !isReadOnly) { isEndExpanded = !isEndExpanded }
+                                .padding(vertical = 0.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Start
+                        ) {
+                            Icon(
+                                imageVector = if (isEndExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                                contentDescription = "종료 토글",
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                    }
+
+                    if (isEndExpanded) {
+                        // End Time Row
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            // End Date Button
-                            DateButton(
-                                millis = endMillis,
-                                modifier = Modifier.weight(1.3f)
-                            ) { if (!isReadOnly) showEndDatePicker = true }
-                            // End Time Button
-                            if (!isAllDay) {
-                                TimeButton(
+                            Text(
+                                text = "종료", 
+                                fontSize = 13.sp, 
+                                fontWeight = FontWeight.Medium,
+                                modifier = Modifier.width(42.dp)
+                            )
+                            Row(
+                                modifier = Modifier.weight(1f),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                // End Date Button
+                                DateButton(
                                     millis = endMillis,
-                                    modifier = Modifier.weight(2f)
-                                ) {
-                                    if (!isReadOnly) {
-                                        showEndTimePicker = !showEndTimePicker
-                                        if (showEndTimePicker) showStartTimePicker = false
+                                    modifier = Modifier.weight(1.3f)
+                                ) { if (!isReadOnly) showEndDatePicker = true }
+                                // End Time Button
+                                if (!isAllDay) {
+                                    TimeButton(
+                                        millis = endMillis,
+                                        modifier = Modifier.weight(2f)
+                                    ) {
+                                        if (!isReadOnly) {
+                                            showEndTimePicker = !showEndTimePicker
+                                            if (showEndTimePicker) showStartTimePicker = false
+                                        }
                                     }
                                 }
                             }
                         }
-                    }
 
-                    // End Time Picker Inline
-                    androidx.compose.animation.AnimatedVisibility(
-                        visible = showEndTimePicker && !isAllDay
-                    ) {
-                        if (showEndTimePicker) {
-                            val calendar = remember(endMillis) { Calendar.getInstance().apply { timeInMillis = endMillis } }
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(vertical = 8.dp),
-                                contentAlignment = Alignment.CenterEnd
-                            ) {
-                                WheelTimePicker(
-                                    initialHour = calendar.get(Calendar.HOUR_OF_DAY),
-                                    initialMinute = calendar.get(Calendar.MINUTE),
-                                    modifier = Modifier.width(160.dp),
-                                    onTimeChanged = { hour, minute ->
-                                        val cal = Calendar.getInstance().apply {
-                                            timeInMillis = endMillis
-                                            set(Calendar.HOUR_OF_DAY, hour)
-                                            set(Calendar.MINUTE, minute)
-                                            set(Calendar.SECOND, 0)
-                                            set(Calendar.MILLISECOND, 0)
+                        // End Time Picker Inline
+                        androidx.compose.animation.AnimatedVisibility(
+                            visible = showEndTimePicker && !isAllDay
+                        ) {
+                            if (showEndTimePicker) {
+                                val calendar = remember(endMillis) { Calendar.getInstance().apply { timeInMillis = endMillis } }
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = 8.dp),
+                                    contentAlignment = Alignment.CenterEnd
+                                ) {
+                                    WheelTimePicker(
+                                        initialHour = calendar.get(Calendar.HOUR_OF_DAY),
+                                        initialMinute = calendar.get(Calendar.MINUTE),
+                                        modifier = Modifier.width(160.dp),
+                                        onTimeChanged = { hour, minute ->
+                                            val cal = Calendar.getInstance().apply {
+                                                timeInMillis = endMillis
+                                                set(Calendar.HOUR_OF_DAY, hour)
+                                                set(Calendar.MINUTE, minute)
+                                                set(Calendar.SECOND, 0)
+                                                set(Calendar.MILLISECOND, 0)
+                                            }
+                                            endMillis = cal.timeInMillis
+                                            if (endMillis <= startMillis) {
+                                                endMillis = startMillis + 60 * 60 * 1000L
+                                            }
                                         }
-                                        endMillis = cal.timeInMillis
-                                        if (endMillis <= startMillis) {
-                                            endMillis = startMillis + 60 * 60 * 1000L
-                                        }
-                                    }
-                                )
+                                    )
+                                }
                             }
                         }
                     }
