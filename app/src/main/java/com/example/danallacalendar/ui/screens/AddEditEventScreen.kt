@@ -85,7 +85,7 @@ fun AddEditEventScreen(
     var location2b by remember { mutableStateOf("") } // 위치 2 하단
     var notes by remember { mutableStateOf("") }
     var selectedCategory by remember { mutableStateOf<CalendarCategory?>(null) }
-    var selectedColorHex by remember { mutableStateOf("#ff3b30") }
+    var selectedColorHex by remember { mutableStateOf(prefs.getString("last_used_color_hex", "#ff3b30") ?: "#ff3b30") }
     var repeatType by remember { mutableStateOf("NONE") }
     var reminderMinutes by remember { mutableStateOf(60) }
     var syncId by remember { mutableStateOf<String?>(null) }
@@ -195,7 +195,10 @@ fun AddEditEventScreen(
             } else {
                 viewModel.updateEvent(event)
             }
-            prefs.edit().putInt("last_used_category_id", selectedCategory!!.id).apply()
+            prefs.edit()
+                .putInt("last_used_category_id", selectedCategory!!.id)
+                .putString("last_used_color_hex", selectedColorHex)
+                .apply()
             onNavigateBack()
         }
     }
