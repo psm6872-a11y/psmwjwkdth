@@ -473,20 +473,18 @@ fun AddEditEventScreen(
                     }
 
                     // ── 위치 2 접기/펼치기 토글 ──
-                    Spacer(modifier = Modifier.height(4.dp))
                     HorizontalDivider(
                         color = MaterialTheme.colorScheme.outlineVariant,
                         thickness = 1.5.dp
                     )
-                    Spacer(modifier = Modifier.height(4.dp))
 
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clickable(enabled = !isReadOnly) { isDestinationExpanded = !isDestinationExpanded }
-                            .padding(vertical = 8.dp),
+                            .padding(vertical = 2.dp),
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.Center
+                        horizontalArrangement = Arrangement.Start
                     ) {
                         Icon(
                             imageVector = if (isDestinationExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
