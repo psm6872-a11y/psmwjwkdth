@@ -28,6 +28,7 @@ import android.content.ClipboardManager
 import android.content.Context
 import android.widget.Toast
 import com.example.danallacalendar.data.CalendarCategory
+import com.example.danallacalendar.members.Member
 
 import androidx.compose.material.icons.filled.CloudSync
 import androidx.compose.material.icons.filled.FileDownload
@@ -35,12 +36,32 @@ import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.SystemUpdate
 import androidx.compose.material.icons.filled.ContentCopy
 
+private fun getAvatarColor(nickname: String): Color {
+    val colors = listOf(
+        Color(0xFFEF4444), // Red
+        Color(0xFFF97316), // Orange
+        Color(0xFFF59E0B), // Amber
+        Color(0xFF10B981), // Emerald
+        Color(0xFF06B6D4), // Cyan
+        Color(0xFF3B82F6), // Blue
+        Color(0xFF6366F1), // Indigo
+        Color(0xFF8B5CF6), // Violet
+        Color(0xFFEC4899), // Pink
+        Color(0xFF14B8A6)  // Teal
+    )
+    val hash = nickname.hashCode()
+    val index = kotlin.math.abs(hash) % colors.size
+    return colors[index]
+}
+
 @Composable
 fun DrawerContent(
     categories: List<CalendarCategory>,
     isLoggedIn: Boolean,
     userName: String,
     roomCode: String,
+    members: List<Member>,
+    currentDeviceUUID: String,
     onLogoutClick: () -> Unit,
     onToggleCategory: (CalendarCategory) -> Unit,
     onImportClick: () -> Unit,
@@ -94,94 +115,6 @@ fun DrawerContent(
                     contentDescription = "닫기",
                     tint = MaterialTheme.colorScheme.onBackground
                 )
-            }
-        }
-
-        // Login / Profile Section
-        if (isLoggedIn) {
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 16.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-                ),
-                shape = RoundedCornerShape(16.dp)
-            ) {
-                Column(
-                    modifier = Modifier.padding(12.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(36.dp)
-                                .clip(CircleShape)
-                                .background(MaterialTheme.colorScheme.primary),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = if (userName.isNotEmpty()) userName.first().toString() else "?",
-                                color = Color.White,
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 15.sp
-                            )
-                        }
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = "${userName}님",
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 14.sp,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                            Text(
-                                text = "실시간 공유 참여 중",
-                                fontSize = 11.sp,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
-                            )
-                        }
-                        TextButton(
-                            onClick = onLogoutClick,
-                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
-                        ) {
-                            Text("방 나가기", fontSize = 11.sp, color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold)
-                        }
-                    }
-                    
-                    if (roomCode.isNotEmpty()) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(RoundedCornerShape(8.dp))
-                                .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.5f))
-                                .clickable {
-                                    val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
-                                    val clip = ClipData.newPlainText("Room Code", roomCode)
-                                    clipboard.setPrimaryClip(clip)
-                                    Toast.makeText(context, "공유 코드가 복사되었습니다.", Toast.LENGTH_SHORT).show()
-                                }
-                                .padding(horizontal = 10.dp, vertical = 6.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Text(
-                                text = "코드: $roomCode",
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-                            Icon(
-                                imageVector = Icons.Default.ContentCopy,
-                                contentDescription = "복사",
-                                tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(14.dp)
-                            )
-                        }
-                    }
-                }
             }
         }
 
@@ -361,6 +294,165 @@ fun DrawerContent(
         }
 
         Spacer(modifier = Modifier.height(8.dp))
+
+        if (isLoggedIn) {
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 16.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                ),
+                shape = RoundedCornerShape(16.dp)
+            ) {
+                Column(
+                    modifier = Modifier.padding(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(36.dp)
+                                .clip(CircleShape)
+                                .background(MaterialTheme.colorScheme.primary),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = if (userName.isNotEmpty()) userName.first().toString() else "?",
+                                color = Color.White,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 15.sp
+                            )
+                        }
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "${userName}님",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 14.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Text(
+                                text = "실시간 공유 참여 중",
+                                fontSize = 11.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                            )
+                        }
+                        TextButton(
+                            onClick = onLogoutClick,
+                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
+                        ) {
+                            Text("방 나가기", fontSize = 11.sp, color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                    
+                    if (roomCode.isNotEmpty()) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.5f))
+                                .clickable {
+                                    val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                                    val clip = ClipData.newPlainText("Room Code", roomCode)
+                                    clipboard.setPrimaryClip(clip)
+                                    Toast.makeText(context, "공유 코드가 복사되었습니다.", Toast.LENGTH_SHORT).show()
+                                }
+                                .padding(horizontal = 10.dp, vertical = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text(
+                                text = "코드: $roomCode",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Icon(
+                                imageVector = Icons.Default.ContentCopy,
+                                contentDescription = "복사",
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(14.dp)
+                            )
+                        }
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // 참여 멤버
+            Text(
+                text = "참여 멤버",
+                fontSize = 14.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(vertical = 4.dp)
+            )
+
+            Column(
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 4.dp, vertical = 4.dp)
+            ) {
+                members.forEach { member ->
+                    val isMe = member.deviceUUID == currentDeviceUUID
+                    val displayName = if (isMe) "${member.nickname} (나)" else member.nickname
+                    val firstChar = member.nickname.firstOrNull()?.toString() ?: "?"
+                    val avatarColor = getAvatarColor(member.nickname)
+
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        // Avatar
+                        Box(
+                            contentAlignment = Alignment.Center,
+                            modifier = Modifier
+                                .size(32.dp)
+                                .clip(CircleShape)
+                                .background(avatarColor)
+                        ) {
+                            Text(
+                                text = firstChar,
+                                color = Color.White,
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.width(12.dp))
+
+                        // Info
+                        Column {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    text = displayName,
+                                    fontSize = 14.sp,
+                                    fontWeight = if (isMe) FontWeight.Bold else FontWeight.Medium,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Box(
+                                    modifier = Modifier
+                                        .size(5.dp)
+                                        .clip(CircleShape)
+                                        .background(Color(0xFF34C759)) // Green dot
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+            HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
+            Spacer(modifier = Modifier.height(16.dp))
+        }
+
         Row(
             modifier = Modifier
                 .fillMaxWidth()

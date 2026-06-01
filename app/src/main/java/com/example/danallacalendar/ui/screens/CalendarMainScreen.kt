@@ -105,7 +105,6 @@ fun CalendarMainScreen(
 
     val memberViewModel: MemberViewModel = hiltViewModel()
     val members by memberViewModel.members.collectAsStateWithLifecycle()
-    var showMemberPanel by remember { mutableStateOf(false) }
 
     LaunchedEffect(isLoggedIn) {
         if (!isLoggedIn) {
@@ -398,6 +397,8 @@ fun CalendarMainScreen(
                     isLoggedIn = isLoggedIn,
                     userName = userName,
                     roomCode = viewModel.roomCode,
+                    members = members,
+                    currentDeviceUUID = memberViewModel.deviceUUID,
                     onLogoutClick = { viewModel.logout() },
                     onToggleCategory = { viewModel.toggleCategoryVisibility(it) },
                     onImportClick = {
@@ -486,9 +487,7 @@ fun CalendarMainScreen(
                     onToggleDrawer = { scope.launch { drawerState.open() } },
                     onToggleViewMode = { viewModel.toggleViewMode() },
                     onNavigateToSearch = { onNavigateToSearch() },
-                    onGoToToday = { viewModel.selectDate(System.currentTimeMillis()) },
-                    memberCount = members.size,
-                    onMemberClick = { showMemberPanel = true }
+                    onGoToToday = { viewModel.selectDate(System.currentTimeMillis()) }
                 )
             },
             floatingActionButton = {
@@ -584,12 +583,7 @@ fun CalendarMainScreen(
             )
         }
 
-        MemberPanel(
-            visible = showMemberPanel,
-            members = members,
-            currentDeviceUUID = memberViewModel.deviceUUID,
-            onDismiss = { showMemberPanel = false }
-        )
+
     }
 }
 
@@ -604,9 +598,7 @@ fun MainTopAppBar(
     onToggleDrawer: () -> Unit,
     onToggleViewMode: () -> Unit,
     onNavigateToSearch: () -> Unit,
-    onGoToToday: () -> Unit,
-    memberCount: Int,
-    onMemberClick: () -> Unit
+    onGoToToday: () -> Unit
 ) {
     val monthFormat = SimpleDateFormat("M월", Locale.KOREAN)
     val monthStr = monthFormat.format(currentMonth.time)
@@ -665,33 +657,6 @@ fun MainTopAppBar(
             }
         },
         actions = {
-            Box(
-                modifier = Modifier
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f))
-                    .clickable { onMemberClick() }
-                    .padding(horizontal = 8.dp, vertical = 4.dp)
-                    .align(Alignment.CenterVertically)
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.People,
-                        contentDescription = "참여 멤버",
-                        modifier = Modifier.size(16.dp),
-                        tint = MaterialTheme.colorScheme.primary
-                    )
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text(
-                        text = memberCount.toString(),
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                }
-            }
-            Spacer(modifier = Modifier.width(4.dp))
             IconButton(
                 onClick = onGoToToday,
                 modifier = Modifier.size(36.dp)
