@@ -1,6 +1,6 @@
 $token = "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"
 $repo = "psm6872-a11y/psmwjwkdth"
-$tag = "v1.0.72"
+$tag = "v1.0.73"
 $apkPath = "c:\Users\me\Documents\danalla\psm\app\build\outputs\apk\debug\app-debug.apk"
 
 $headers = @{
@@ -11,7 +11,7 @@ $headers = @{
 
 # Create new release
 Write-Output "Creating release $tag ..."
-$body = '{"tag_name":"' + $tag + '","name":"' + $tag + '","body":"v1.0.72: Auto-adjust end time to exactly +1 hour when selecting start time, and preserve selected end time if manually modified.","draft":false,"prerelease":false}'
+$body = '{"tag_name":"' + $tag + '","name":"' + $tag + '","body":"v1.0.73: Add calendar event auto/manual backup and restore features via WorkManager and Firestore, including pre-restore safety temporary backup.","draft":false,"prerelease":false}'
 $bodyBytes = [System.Text.Encoding]::UTF8.GetBytes($body)
 
 $release = Invoke-RestMethod -Uri "https://api.github.com/repos/$repo/releases" -Method Post -Headers $headers -Body $bodyBytes -ContentType "application/json; charset=utf-8"
