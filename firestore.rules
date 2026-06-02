@@ -8,5 +8,11 @@ service cloud.firestore {
         allow read, write: if true;
       }
     }
+    
+    // 앱 설정 및 GitHub 토큰 - 인증된 사용자만 읽기 허용, 쓰기는 차단
+    match /config/app {
+      allow read: if request.auth != null;
+      allow write: if false;
+    }
   }
 }
