@@ -651,16 +651,7 @@ fun MainTopAppBar(
                     modifier = Modifier.size(20.dp)
                 )
             }
-            IconButton(
-                onClick = onToggleViewMode,
-                modifier = Modifier.size(36.dp)
-            ) {
-                Icon(
-                    imageVector = if (viewMode == CalendarViewMode.MONTH) Icons.Default.ViewWeek else Icons.Default.CalendarViewMonth,
-                    contentDescription = "뷰 모드 전환",
-                    modifier = Modifier.size(20.dp)
-                )
-            }
+
         },
         colors = TopAppBarDefaults.topAppBarColors(
             containerColor = MaterialTheme.colorScheme.background
