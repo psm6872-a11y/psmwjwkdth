@@ -1,7 +1,7 @@
 {
-  "tag_name": "v1.0.89",
-  "name": "v1.0.89",
-  "body": "v1.0.89: Migrate update checker to Firestore-based GitHub token authentication.",
+  "tag_name": "v1.0.90",
+  "name": "v1.0.90",
+  "body": "v1.0.90: Reduce padding size of filter buttons (견적, 계약, 전체).",
   "draft": false,
   "prerelease": false
 }
