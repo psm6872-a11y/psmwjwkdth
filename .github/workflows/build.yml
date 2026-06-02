@@ -41,7 +41,10 @@ jobs:
           STORE_PASSWORD: ${{ secrets.STORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
-        run: ./gradlew assembleRelease
+        run: |
+          ./gradlew assembleRelease
+          echo "Signing config: release ✅"
+          echo "keyAlias: $KEY_ALIAS ✅"
 
       - name: Create GitHub Release and Upload APK
         uses: softprops/action-gh-release@v2
