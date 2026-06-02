@@ -64,7 +64,9 @@ object UpdateChecker {
             .build()
 
         client.newCall(request).execute().use { response ->
-            if (!response.isSuccessful) return@withContext null
+            if (!response.isSuccessful) {
+                throw IOException("GitHub API request failed with status: ${response.code}")
+            }
             val bodyString = response.body?.string() ?: ""
             val release = gson.fromJson(bodyString, GithubRelease::class.java)
             val currentVersion = getCurrentVersion(context)

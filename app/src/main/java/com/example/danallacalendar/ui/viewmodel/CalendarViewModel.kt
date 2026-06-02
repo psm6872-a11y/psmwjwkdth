@@ -23,6 +23,8 @@ import com.example.danallacalendar.update.UpdateChecker
 import com.example.danallacalendar.update.UpdateState
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
 
 enum class CalendarViewMode {
     MONTH, WEEK
@@ -45,8 +47,22 @@ class CalendarViewModel @Inject constructor(
     private val _isChecking = MutableStateFlow(false)
     val isChecking: StateFlow<Boolean> = _isChecking.asStateFlow()
 
+    private fun isNetworkAvailable(context: Context): Boolean {
+        val connectivityManager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
+            ?: return false
+        val network = connectivityManager.activeNetwork ?: return false
+        val capabilities = connectivityManager.getNetworkCapabilities(network) ?: return false
+        return capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+    }
+
     fun checkUpdate(isManual: Boolean = false) {
         if (_isChecking.value) return
+        
+        if (!isNetworkAvailable(context)) {
+            _updateState.value = UpdateState.NoNetwork
+            return
+        }
+
         _isChecking.value = true
         _updateState.value = UpdateState.Checking
         
@@ -67,10 +83,13 @@ class CalendarViewModel @Inject constructor(
                     }
                 }
             } catch (e: java.net.UnknownHostException) {
+                e.printStackTrace()
                 _updateState.value = UpdateState.NoNetwork
             } catch (e: java.io.IOException) {
+                e.printStackTrace()
                 _updateState.value = UpdateState.Error
             } catch (e: Exception) {
+                e.printStackTrace()
                 _updateState.value = UpdateState.Error
             } finally {
                 _isChecking.value = false
