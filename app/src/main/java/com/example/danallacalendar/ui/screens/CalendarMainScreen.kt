@@ -1355,28 +1355,28 @@ fun EventItemCard(
                 if (event.isCompleted) {
                     Button(
                         onClick = onToggleComplete,
-                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
-                        shape = RoundedCornerShape(6.dp),
+                        contentPadding = PaddingValues(horizontal = 6.dp, vertical = 0.dp),
+                        shape = RoundedCornerShape(5.dp),
                         colors = ButtonDefaults.buttonColors(
                             containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.8f),
                             contentColor = MaterialTheme.colorScheme.onPrimary
                         ),
-                        modifier = Modifier.height(26.dp)
+                        modifier = Modifier.height(22.dp)
                     ) {
-                        Text("완료", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                        Text("완료", fontSize = 10.sp, fontWeight = FontWeight.Bold)
                     }
                 } else {
                     OutlinedButton(
                         onClick = onToggleComplete,
-                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
-                        shape = RoundedCornerShape(6.dp),
+                        contentPadding = PaddingValues(horizontal = 6.dp, vertical = 0.dp),
+                        shape = RoundedCornerShape(5.dp),
                         border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)),
                         colors = ButtonDefaults.outlinedButtonColors(
                             contentColor = MaterialTheme.colorScheme.onSurfaceVariant
                         ),
-                        modifier = Modifier.height(26.dp)
+                        modifier = Modifier.height(22.dp)
                     ) {
-                        Text("완료", fontSize = 11.sp, fontWeight = FontWeight.Medium)
+                        Text("완료", fontSize = 10.sp, fontWeight = FontWeight.Medium)
                     }
                 }
             }
