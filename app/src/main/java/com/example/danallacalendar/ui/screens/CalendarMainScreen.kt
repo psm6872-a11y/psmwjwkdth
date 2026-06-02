@@ -622,6 +622,16 @@ fun MainTopAppBar(
         },
         actions = {
             IconButton(
+                onClick = onNavigateToSearch,
+                modifier = Modifier.size(36.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Search,
+                    contentDescription = "검색",
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+            IconButton(
                 onClick = onGoToToday,
                 modifier = Modifier.size(36.dp)
             ) {
@@ -640,16 +650,6 @@ fun MainTopAppBar(
                         color = MaterialTheme.colorScheme.onSurface
                     )
                 }
-            }
-            IconButton(
-                onClick = onNavigateToSearch,
-                modifier = Modifier.size(36.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Search,
-                    contentDescription = "검색",
-                    modifier = Modifier.size(20.dp)
-                )
             }
 
         },
