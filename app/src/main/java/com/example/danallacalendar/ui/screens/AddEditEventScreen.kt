@@ -27,6 +27,8 @@ import android.content.SharedPreferences
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.ui.platform.LocalFocusManager
 import android.content.Intent
 import android.net.Uri
 import android.widget.Toast
@@ -73,6 +75,7 @@ fun AddEditEventScreen(
     val selectedDate by viewModel.selectedDate.collectAsStateWithLifecycle()
 
     val context = LocalContext.current
+    val focusManager = LocalFocusManager.current
     val prefs: SharedPreferences = remember { context.getSharedPreferences("calendar_prefs", Context.MODE_PRIVATE) }
 
     // Form States
@@ -294,7 +297,8 @@ fun AddEditEventScreen(
                         value = title,
                         onValueChange = { title = it },
                         placeholder = { Text("제목", fontSize = 18.sp) },
-                        singleLine = true,
+                        singleLine = false,
+                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Default),
                         enabled = !isReadOnly,
                         colors = TextFieldDefaults.colors(
                             focusedContainerColor = Color.Transparent,
@@ -402,6 +406,7 @@ fun AddEditEventScreen(
                                 value = location,
                                 onValueChange = { location = it },
                                 singleLine = false,
+                                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Default),
                                 enabled = !isReadOnly,
                                 textStyle = androidx.compose.ui.text.TextStyle(
                                     fontSize = 15.sp,
@@ -534,6 +539,7 @@ fun AddEditEventScreen(
                                     value = location2,
                                     onValueChange = { location2 = it },
                                     singleLine = false,
+                                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Default),
                                     enabled = !isReadOnly,
                                     textStyle = androidx.compose.ui.text.TextStyle(
                                         fontSize = 15.sp,
@@ -665,6 +671,9 @@ fun AddEditEventScreen(
                                     keyboardOptions = KeyboardOptions(
                                         keyboardType = KeyboardType.Phone,
                                         imeAction = ImeAction.Done
+                                    ),
+                                    keyboardActions = KeyboardActions(
+                                        onDone = { focusManager.clearFocus() }
                                     ),
                                     textStyle = androidx.compose.ui.text.TextStyle(
                                         fontSize = 15.sp,
