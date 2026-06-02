@@ -1325,11 +1325,12 @@ fun EventItemCard(
                 }
 
                 Column(modifier = Modifier.weight(1f)) {
+                    val titleFirstLine = event.title.lineSequence().firstOrNull()?.trim() ?: ""
                     val startLocation = event.location.split("|||").getOrNull(0)?.trim() ?: ""
                     val displayText = if (startLocation.isNotEmpty()) {
-                        "${event.title} ($startLocation)"
+                        "$titleFirstLine $startLocation"
                     } else {
-                        event.title
+                        titleFirstLine
                     }
                     Text(
                         text = displayText,
