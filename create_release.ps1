@@ -1,6 +1,6 @@
 $token = "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"
 $repo = "psm6872-a11y/psmwjwkdth"
-$tag = "v1.0.74"
+$tag = "v1.0.75"
 $apkPath = "c:\Users\me\Documents\danalla\psm\app\build\outputs\apk\debug\app-debug.apk"
 
 $headers = @{
@@ -11,7 +11,7 @@ $headers = @{
 
 # Create new release
 Write-Output "Creating release $tag ..."
-$body = '{"tag_name":"' + $tag + '","name":"' + $tag + '","body":"v1.0.74: Add clean recent call detail dialog popup upon tapping recent call log list item, with formatted name, number, date details.","draft":false,"prerelease":false}'
+$body = '{"tag_name":"' + $tag + '","name":"' + $tag + '","body":"v1.0.75: Update keyboard IME actions to ImeAction.Done for phone inputs to clear focus, and preserve Default IME action for title/location inputs to support newlines.","draft":false,"prerelease":false}'
 $bodyBytes = [System.Text.Encoding]::UTF8.GetBytes($body)
 
 $release = Invoke-RestMethod -Uri "https://api.github.com/repos/$repo/releases" -Method Post -Headers $headers -Body $bodyBytes -ContentType "application/json; charset=utf-8"
