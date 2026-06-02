@@ -6,6 +6,9 @@ import com.google.gson.annotations.SerializedName
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.io.IOException
+import java.util.concurrent.TimeUnit
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 data class GithubRelease(
     @SerializedName("tag_name") val tagName: String,
@@ -28,13 +31,31 @@ data class UpdateInfo(
     val releaseNotes: String?
 )
 
+sealed class UpdateState {
+    object Idle : UpdateState()
+    object Checking : UpdateState()  // 확인중
+    object NoNetwork : UpdateState() // 인터넷 없음
+    object UpToDate : UpdateState()  // 최신버전
+    object Error : UpdateState()     // 오류
+    data class UpdateAvailable(
+        val version: String,
+        val downloadUrl: String,
+        val updateInfo: UpdateInfo
+    ) : UpdateState()                // 업데이트 있음
+}
+
 object UpdateChecker {
     private const val GITHUB_API_URL = "https://api.github.com/repos/psm6872-a11y/psmwjwkdth/releases/latest"
     private const val TOKEN = ""
-    private val client = OkHttpClient()
+    
+    private val client = OkHttpClient.Builder()
+        .connectTimeout(10, TimeUnit.SECONDS)
+        .readTimeout(10, TimeUnit.SECONDS)
+        .build()
+        
     private val gson = Gson()
 
-    fun checkForUpdate(context: Context, callback: (UpdateInfo?) -> Unit) {
+    suspend fun checkForUpdate(context: Context): UpdateInfo? = withContext(Dispatchers.IO) {
         val request = Request.Builder()
             .url(GITHUB_API_URL)
             .header("Authorization", "token $TOKEN")
@@ -42,52 +63,34 @@ object UpdateChecker {
             .header("User-Agent", "DanallaCalendar-Updater")
             .build()
 
-        client.newCall(request).enqueue(object : okhttp3.Callback {
-            override fun onFailure(call: okhttp3.Call, e: IOException) {
-                e.printStackTrace()
-                callback(null)
-            }
+        client.newCall(request).execute().use { response ->
+            if (!response.isSuccessful) return@withContext null
+            val bodyString = response.body?.string() ?: ""
+            val release = gson.fromJson(bodyString, GithubRelease::class.java)
+            val currentVersion = getCurrentVersion(context)
+            val latestVersion = release.tagName.removePrefix("v").removePrefix("V")
 
-            override fun onResponse(call: okhttp3.Call, response: okhttp3.Response) {
-                response.use {
-                    if (!response.isSuccessful) {
-                        callback(null)
-                        return
-                    }
-                    val bodyString = response.body?.string() ?: ""
-                    try {
-                        val release = gson.fromJson(bodyString, GithubRelease::class.java)
-                        val currentVersion = getCurrentVersion(context)
-                        val latestVersion = release.tagName.removePrefix("v").removePrefix("V")
+            if (isNewerVersion(currentVersion, latestVersion)) {
+                // Find app-release.apk, fallback to app-debug.apk, then any .apk
+                val asset = release.assets.find { it.name == "app-release.apk" }
+                    ?: release.assets.find { it.name == "app-debug.apk" }
+                    ?: release.assets.find { it.name.endsWith(".apk") }
 
-                        if (isNewerVersion(currentVersion, latestVersion)) {
-                            // Find app-release.apk, fallback to app-debug.apk, then any .apk
-                            val asset = release.assets.find { it.name == "app-release.apk" }
-                                ?: release.assets.find { it.name == "app-debug.apk" }
-                                ?: release.assets.find { it.name.endsWith(".apk") }
-
-                            if (asset != null) {
-                                val info = UpdateInfo(
-                                    latestVersion = latestVersion,
-                                    currentVersion = currentVersion,
-                                    downloadUrl = asset.url, // api asset url
-                                    assetId = asset.id,
-                                    releaseNotes = release.body
-                                )
-                                callback(info)
-                            } else {
-                                callback(null)
-                            }
-                        } else {
-                            callback(null)
-                        }
-                    } catch (e: Exception) {
-                        e.printStackTrace()
-                        callback(null)
-                    }
+                if (asset != null) {
+                    UpdateInfo(
+                        latestVersion = latestVersion,
+                        currentVersion = currentVersion,
+                        downloadUrl = asset.url, // api asset url
+                        assetId = asset.id,
+                        releaseNotes = release.body
+                    )
+                } else {
+                    null
                 }
+            } else {
+                null
             }
-        })
+        }
     }
 
     private fun getCurrentVersion(context: Context): String {
