@@ -66,7 +66,7 @@ class CalendarViewModel @Inject constructor(
         _isChecking.value = true
         _updateState.value = UpdateState.Checking
         
-        viewModelScope.launch {
+        viewModelScope.launch(Dispatchers.IO) {
             try {
                 val info = UpdateChecker.checkForUpdate(context)
                 if (info != null) {
@@ -83,14 +83,11 @@ class CalendarViewModel @Inject constructor(
                     }
                 }
             } catch (e: java.net.UnknownHostException) {
-                e.printStackTrace()
+                android.util.Log.e("UpdateChecker", "오류 발생: ${e.message}", e)
                 _updateState.value = UpdateState.NoNetwork
-            } catch (e: java.io.IOException) {
-                e.printStackTrace()
-                _updateState.value = if (isManual) UpdateState.Error else UpdateState.Idle
             } catch (e: Exception) {
-                e.printStackTrace()
-                _updateState.value = if (isManual) UpdateState.Error else UpdateState.Idle
+                android.util.Log.e("UpdateChecker", "오류 발생: ${e.message}", e)
+                _updateState.value = UpdateState.Error
             } finally {
                 _isChecking.value = false
             }

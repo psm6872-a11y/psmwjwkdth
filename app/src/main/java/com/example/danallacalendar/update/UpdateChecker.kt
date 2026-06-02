@@ -117,7 +117,7 @@ object UpdateChecker {
                 UpdateInfo(
                     latestVersion = latestVersion,
                     currentVersion = currentVersion,
-                    downloadUrl = asset.url, // api asset url
+                    downloadUrl = asset.browserDownloadUrl, // browser_download_url
                     assetId = asset.id,
                     releaseNotes = release.body
                 )
