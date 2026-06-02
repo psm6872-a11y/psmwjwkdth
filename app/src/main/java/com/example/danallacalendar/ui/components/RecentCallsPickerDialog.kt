@@ -68,6 +68,135 @@ fun formatPhoneNumber(number: String): String {
     }
 }
 
+fun formatPhoneNumberForDetail(number: String): String {
+    return when {
+        number.length == 11 ->
+            "${number.substring(0, 3)}-" +
+            "${number.substring(3, 7)}-" +
+            "${number.substring(7)}"
+        number.length == 10 ->
+            "${number.substring(0, 3)}-" +
+            "${number.substring(3, 6)}-" +
+            "${number.substring(6)}"
+        else -> number
+    }
+}
+
+fun formatDateTime(timestamp: Long): String {
+    val sdf = SimpleDateFormat(
+        "yyyy-MM-dd HH:mm",
+        Locale.getDefault()
+    )
+    return sdf.format(Date(timestamp))
+}
+
+@Composable
+fun RecentCallDetailDialog(
+    call: RecentCall,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    val formattedNumber = remember(call.number) {
+        val cleanNumber = call.number.replace(Regex("[^0-9]"), "")
+        formatPhoneNumberForDetail(cleanNumber)
+    }
+    val formattedDate = remember(call.date) {
+        formatDateTime(call.date)
+    }
+
+    Dialog(onDismissRequest = onDismiss) {
+        Card(
+            modifier = Modifier
+                .fillMaxWidth(0.85f)
+                .wrapContentHeight(),
+            shape = RoundedCornerShape(20.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                // 1행: 이름
+                if (!call.name.isNullOrBlank()) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Person,
+                            contentDescription = "이름",
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Text(
+                            text = call.name,
+                            fontSize = 16.sp,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+                }
+
+                // 2행: 전화번호
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Call,
+                        contentDescription = "전화번호",
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Text(
+                        text = formattedNumber,
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                }
+
+                // 3행: 날짜 및 시간
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.AccessTime,
+                        contentDescription = "통화일시",
+                        tint = Color.Gray,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Text(
+                        text = formattedDate,
+                        fontSize = 14.sp,
+                        color = Color.Gray
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                // [닫기] 버튼
+                Button(
+                    onClick = onConfirm,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primary
+                    )
+                ) {
+                    Text("닫기", fontSize = 15.sp, fontWeight = FontWeight.Bold)
+                }
+            }
+        }
+    }
+}
+
 suspend fun loadRecentCalls(context: Context): List<RecentCall> = withContext(Dispatchers.IO) {
     val calls = mutableListOf<RecentCall>()
     val contentResolver = context.contentResolver
@@ -149,6 +278,7 @@ fun RecentCallsPickerDialog(
                     == PackageManager.PERMISSION_GRANTED
         )
     }
+    var selectedCallForDetail by remember { mutableStateOf<RecentCall?>(null) }
 
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
@@ -256,13 +386,26 @@ fun RecentCallsPickerDialog(
                         items(recentCalls, key = { it.id }) { call ->
                             RecentCallItem(
                                 call = call,
-                                onClick = { onCallSelected(call.number) }
+                                onClick = { selectedCallForDetail = call }
                             )
                         }
                     }
                 }
             }
         }
+    }
+
+    if (selectedCallForDetail != null) {
+        RecentCallDetailDialog(
+            call = selectedCallForDetail!!,
+            onConfirm = {
+                onCallSelected(selectedCallForDetail!!.number)
+                selectedCallForDetail = null
+            },
+            onDismiss = {
+                selectedCallForDetail = null
+            }
+        )
     }
 }
 
