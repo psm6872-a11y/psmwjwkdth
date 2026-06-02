@@ -4,25 +4,28 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.Build
+import android.os.Environment
 import android.os.Handler
 import android.os.Looper
 import androidx.core.content.FileProvider
-import okhttp3.Call
-import okhttp3.Callback
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.Response
 import java.io.File
 import java.io.IOException
+import java.util.concurrent.TimeUnit
 
 object UpdateDownloader {
-    private const val TOKEN = ""
+    // browser_download_url은 공개 CDN 주소이므로 토큰 불필요
     private val client = OkHttpClient.Builder()
-        .followRedirects(false)
-        .followSslRedirects(false)
+        .followRedirects(true)       // OkHttp가 리다이렉트를 자동 처리
+        .followSslRedirects(true)
+        .connectTimeout(30, TimeUnit.SECONDS)
+        .readTimeout(60, TimeUnit.SECONDS)
         .build()
 
-    private var activeCall: Call? = null
+    @Volatile
+    private var isCancelled = false
     private val mainHandler = Handler(Looper.getMainLooper())
 
     fun hasInstallPermission(context: Context): Boolean {
@@ -50,58 +53,34 @@ object UpdateDownloader {
         onComplete: (file: File) -> Unit,
         onError: (e: Exception) -> Unit
     ) {
-        cancelDownload() // Cancel any ongoing download first
+        cancelDownload()
+        isCancelled = false
 
         val thread = Thread {
             try {
-                var currentUrl = assetUrl
-                var response: Response? = null
-                var redirectCount = 0
-                val maxRedirects = 5
+                val request = Request.Builder()
+                    .url(assetUrl)
+                    .header("User-Agent", "DanallaCalendar-Updater")
+                    .build()
 
-                while (redirectCount < maxRedirects) {
-                    val requestBuilder = Request.Builder()
-                        .url(currentUrl)
-                        .header("User-Agent", "DanallaCalendar-Updater")
+                val response: Response = client.newCall(request).execute()
 
-                    if (currentUrl.contains("api.github.com")) {
-                        requestBuilder.header("Authorization", "token $TOKEN")
-                        requestBuilder.header("Accept", "application/octet-stream")
-                    }
-
-                    val request = requestBuilder.build()
-                    val call = client.newCall(request)
-                    activeCall = call
-
-                    val resp = call.execute()
-                    response = resp
-
-                    val code = resp.code
-                    if (code == 301 || code == 302 || code == 303 || code == 307 || code == 308) {
-                        val location = resp.header("Location")
-                        resp.close()
-                        if (location == null) {
-                            throw IOException("Redirect location is null")
-                        }
-                        currentUrl = location
-                        redirectCount++
-                    } else {
-                        break
-                    }
+                if (!response.isSuccessful) {
+                    response.close()
+                    throw IOException("Server returned code ${response.code}")
                 }
 
-                val finalResponse = response ?: throw IOException("Failed to get response")
-                if (finalResponse.code != 200) {
-                    finalResponse.close()
-                    throw IOException("Server returned code ${finalResponse.code}")
-                }
-
-                val body = finalResponse.body ?: throw IOException("Empty response body")
+                val body = response.body ?: throw IOException("Empty response body")
                 val totalBytes = body.contentLength()
-                val apkFile = File(context.cacheDir, "update.apk")
-                if (apkFile.exists()) {
-                    apkFile.delete()
-                }
+
+                // 실제 기기에서 접근 가능한 외부 저장소 우선 사용, 없으면 cache 디렉토리
+                val apkDir: File = context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS)
+                    ?: context.cacheDir.also { it.mkdirs() }
+
+                if (!apkDir.exists()) apkDir.mkdirs()
+
+                val apkFile = File(apkDir, "update.apk")
+                if (apkFile.exists()) apkFile.delete()
 
                 body.byteStream().use { input ->
                     apkFile.outputStream().use { output ->
@@ -109,9 +88,7 @@ object UpdateDownloader {
                         var bytesRead: Long = 0
                         var read: Int
                         while (input.read(buffer).also { read = it } != -1) {
-                            if (activeCall?.isCanceled() == true) {
-                                throw IOException("Download cancelled")
-                            }
+                            if (isCancelled) throw IOException("Download cancelled")
                             output.write(buffer, 0, read)
                             bytesRead += read
                             if (totalBytes > 0) {
@@ -121,41 +98,31 @@ object UpdateDownloader {
                         }
                     }
                 }
-                finalResponse.close()
+                response.close()
 
-                if (activeCall?.isCanceled() == true) {
+                if (isCancelled) {
                     apkFile.delete()
-                    throw IOException("Download cancelled")
+                    return@Thread
                 }
 
                 mainHandler.post { onComplete(apkFile) }
             } catch (e: Exception) {
-                if (activeCall?.isCanceled() == true) {
-                    // Ignore error if it was cancelled
-                    return@Thread
-                }
+                if (isCancelled) return@Thread
                 mainHandler.post { onError(e) }
-            } finally {
-                activeCall = null
             }
         }
         thread.start()
     }
 
     fun cancelDownload() {
-        try {
-            activeCall?.cancel()
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
-        activeCall = null
+        isCancelled = true
     }
 
     fun triggerInstall(context: Context, apkFile: File) {
         try {
             val apkUri = FileProvider.getUriForFile(
                 context,
-                "com.example.danallacalendar.fileprovider",
+                "${context.packageName}.fileprovider",
                 apkFile
             )
             val installIntent = Intent(Intent.ACTION_VIEW).apply {
@@ -165,7 +132,7 @@ object UpdateDownloader {
             }
             context.startActivity(installIntent)
         } catch (e: Exception) {
-            e.printStackTrace()
+            android.util.Log.e("UpdateDownloader", "triggerInstall failed: ${e.message}", e)
         }
     }
 }
