@@ -450,27 +450,32 @@ private fun RecentCallItem(
         }
 
         // Caller name/number and date info
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = call.name ?: call.number,
-                fontSize = 15.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-            if (call.name != null) {
-                Spacer(modifier = Modifier.height(2.dp))
+        Column(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(2.dp)
+        ) {
+            // 1행: 저장된 이름/메모
+            if (!call.name.isNullOrBlank()) {
                 Text(
-                    text = call.number,
-                    fontSize = 13.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    text = call.name,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurface
                 )
             }
+            // 2행: 전화번호
+            Text(
+                text = call.number,
+                fontSize = 14.sp,
+                fontWeight = if (call.name.isNullOrBlank()) FontWeight.SemiBold else FontWeight.Normal,
+                color = if (call.name.isNullOrBlank()) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            // 3행: 날짜, 시간
+            Text(
+                text = dateStr,
+                fontSize = 12.sp,
+                color = MaterialTheme.colorScheme.outline
+            )
         }
-
-        Text(
-            text = dateStr,
-            fontSize = 12.sp,
-            color = MaterialTheme.colorScheme.outline
-        )
     }
 }
