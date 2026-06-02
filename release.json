@@ -1,7 +1,7 @@
 {
-  "tag_name": "v1.0.87",
-  "name": "v1.0.87",
-  "body": "v1.0.87: Fix update checker Rate Limit issue by switching to raw metadata JSON.",
+  "tag_name": "v1.0.88",
+  "name": "v1.0.88",
+  "body": "v1.0.88: Reduce completion button width to 40dp.",
   "draft": false,
   "prerelease": false
 }
