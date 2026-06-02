@@ -29,6 +29,9 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.focus.onFocusChanged
+import com.example.danallacalendar.keyboard.*
+import com.example.danallacalendar.ui.components.formatPhoneNumber
 import android.content.Intent
 import android.net.Uri
 import android.widget.Toast
@@ -77,6 +80,14 @@ fun AddEditEventScreen(
     val context = LocalContext.current
     val focusManager = LocalFocusManager.current
     val prefs: SharedPreferences = remember { context.getSharedPreferences("calendar_prefs", Context.MODE_PRIVATE) }
+
+    val customKeypadState = rememberCustomKeypadState()
+    val imePadding = WindowInsets.ime.asPaddingValues().calculateBottomPadding()
+    LaunchedEffect(imePadding) {
+        if (imePadding > 0.dp) {
+            customKeypadState.updateKeyboardHeight(imePadding)
+        }
+    }
 
     // Form States
     var title by remember { mutableStateOf("") }
@@ -247,15 +258,20 @@ fun AddEditEventScreen(
 
         modifier = modifier
     ) { paddingValues ->
-        Column(
+        Box(
             modifier = Modifier
                 .fillMaxSize()
                 .background(MaterialTheme.colorScheme.background)
                 .padding(paddingValues)
-                .verticalScroll(rememberScrollState())
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
+            Column(modifier = Modifier.fillMaxSize()) {
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .verticalScroll(rememberScrollState())
+                        .padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
             if (isReadOnly) {
                 Card(
                     shape = RoundedCornerShape(12.dp),
@@ -466,11 +482,16 @@ fun AddEditEventScreen(
                             }
                             BasicTextField(
                                 value = location1b,
-                                onValueChange = { location1b = it },
+                                onValueChange = { 
+                                    location1b = it 
+                                    if (customKeypadState.activeField == KeypadActiveField.LOCATION_1B) {
+                                        customKeypadState.currentValue = it
+                                    }
+                                },
                                 singleLine = true,
                                 enabled = !isReadOnly,
                                 keyboardOptions = KeyboardOptions(
-                                    keyboardType = KeyboardType.Phone,
+                                    keyboardType = if (customKeypadState.forceSystemKeyboard && customKeypadState.activeField == KeypadActiveField.LOCATION_1B) KeyboardType.Text else KeyboardType.Number,
                                     imeAction = ImeAction.Next
                                 ),
                                 textStyle = androidx.compose.ui.text.TextStyle(
@@ -481,6 +502,18 @@ fun AddEditEventScreen(
                                     .fillMaxWidth()
                                     .defaultMinSize(minHeight = 28.dp)
                                     .padding(vertical = 4.dp)
+                                    .onFocusChanged { focusState ->
+                                        if (focusState.isFocused) {
+                                            customKeypadState.focusField(
+                                                field = KeypadActiveField.LOCATION_1B,
+                                                value = location1b,
+                                                onValueChange = { location1b = it }
+                                            )
+                                            if (!customKeypadState.forceSystemKeyboard) {
+                                                hideSystemKeyboard(context)
+                                            }
+                                        }
+                                    }
                             )
                         }
                     }
@@ -599,11 +632,16 @@ fun AddEditEventScreen(
                                 }
                                 BasicTextField(
                                     value = location2b,
-                                    onValueChange = { location2b = it },
+                                    onValueChange = { 
+                                        location2b = it 
+                                        if (customKeypadState.activeField == KeypadActiveField.LOCATION_2B) {
+                                            customKeypadState.currentValue = it
+                                        }
+                                    },
                                     singleLine = true,
                                     enabled = !isReadOnly,
                                     keyboardOptions = KeyboardOptions(
-                                        keyboardType = KeyboardType.Phone,
+                                        keyboardType = if (customKeypadState.forceSystemKeyboard && customKeypadState.activeField == KeypadActiveField.LOCATION_2B) KeyboardType.Text else KeyboardType.Number,
                                         imeAction = ImeAction.Next
                                     ),
                                     textStyle = androidx.compose.ui.text.TextStyle(
@@ -614,6 +652,18 @@ fun AddEditEventScreen(
                                         .fillMaxWidth()
                                         .defaultMinSize(minHeight = 28.dp)
                                         .padding(vertical = 4.dp)
+                                        .onFocusChanged { focusState ->
+                                            if (focusState.isFocused) {
+                                                customKeypadState.focusField(
+                                                    field = KeypadActiveField.LOCATION_2B,
+                                                    value = location2b,
+                                                    onValueChange = { location2b = it }
+                                                )
+                                                if (!customKeypadState.forceSystemKeyboard) {
+                                                    hideSystemKeyboard(context)
+                                                }
+                                            }
+                                        }
                                 )
                             }
                         }
@@ -662,24 +712,50 @@ fun AddEditEventScreen(
                                 BasicTextField(
                                     value = phone,
                                     onValueChange = { newValue ->
+                                        val formatted = formatPhoneNumber(newValue)
                                         notesList = notesList.toMutableList().apply {
-                                            this[index] = newValue
+                                            this[index] = formatted
+                                        }
+                                        if (customKeypadState.activeField == KeypadActiveField.PHONE && customKeypadState.activePhoneIndex == index) {
+                                            customKeypadState.currentValue = formatted
                                         }
                                     },
                                     singleLine = true,
                                     enabled = !isReadOnly,
                                     keyboardOptions = KeyboardOptions(
-                                        keyboardType = KeyboardType.Phone,
+                                        keyboardType = if (customKeypadState.forceSystemKeyboard && customKeypadState.activeField == KeypadActiveField.PHONE && customKeypadState.activePhoneIndex == index) KeyboardType.Text else KeyboardType.Number,
                                         imeAction = ImeAction.Done
                                     ),
                                     keyboardActions = KeyboardActions(
-                                        onDone = { focusManager.clearFocus() }
+                                        onDone = { 
+                                            customKeypadState.hideKeypad()
+                                            focusManager.clearFocus() 
+                                        }
                                     ),
                                     textStyle = androidx.compose.ui.text.TextStyle(
                                         fontSize = 15.sp,
                                         color = if (isReadOnly) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface
                                     ),
-                                    modifier = Modifier.fillMaxWidth()
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .onFocusChanged { focusState ->
+                                            if (focusState.isFocused) {
+                                                customKeypadState.focusField(
+                                                    field = KeypadActiveField.PHONE,
+                                                    phoneIndex = index,
+                                                    value = phone,
+                                                    onValueChange = { newValue ->
+                                                        val formatted = formatPhoneNumber(newValue)
+                                                        notesList = notesList.toMutableList().apply {
+                                                            this[index] = formatted
+                                                        }
+                                                    }
+                                                )
+                                                if (!customKeypadState.forceSystemKeyboard) {
+                                                    hideSystemKeyboard(context)
+                                                }
+                                            }
+                                        }
                                 )
                             }
                             Spacer(modifier = Modifier.width(4.dp))
@@ -1095,8 +1171,16 @@ fun AddEditEventScreen(
                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
                     )
                 }
-            }
+                }
+                }
 
+                if (customKeypadState.isCustomKeypadVisible()) {
+                    CustomKeypad(
+                        state = customKeypadState,
+                        keyboardHeight = customKeypadState.savedKeyboardHeightDp
+                    )
+                }
+            }
         }
     }
 
