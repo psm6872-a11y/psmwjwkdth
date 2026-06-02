@@ -68,6 +68,8 @@ import com.example.danallacalendar.update.UpdateChecker
 import com.example.danallacalendar.update.UpdateDownloader
 import com.example.danallacalendar.update.UpdateDialog
 import com.example.danallacalendar.update.UpdateInfo
+import com.example.danallacalendar.update.UpdateState
+import androidx.compose.ui.window.Dialog
 import com.example.danallacalendar.members.MemberViewModel
 import com.example.danallacalendar.members.MemberPanel
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -99,7 +101,8 @@ fun CalendarMainScreen(
     var showLoginDialog by remember { mutableStateOf(false) }
     var showPermissionGuideDialog by remember { mutableStateOf(false) }
 
-    var updateInfo by remember { mutableStateOf<UpdateInfo?>(null) }
+    val updateState by viewModel.updateState.collectAsStateWithLifecycle()
+    val isCheckingUpdate by viewModel.isChecking.collectAsStateWithLifecycle()
     var isUpdateDownloading by remember { mutableStateOf(false) }
     var updateProgress by remember { mutableStateOf(0f) }
 
@@ -117,8 +120,24 @@ fun CalendarMainScreen(
     }
 
     LaunchedEffect(Unit) {
-        UpdateChecker.checkForUpdate(context) { info ->
-            updateInfo = info
+        viewModel.checkUpdate(isManual = false)
+    }
+
+    LaunchedEffect(updateState) {
+        when (updateState) {
+            is UpdateState.NoNetwork -> {
+                Toast.makeText(context, "인터넷 연결을 확인해주세요", Toast.LENGTH_SHORT).show()
+                viewModel.resetUpdateState()
+            }
+            is UpdateState.Error -> {
+                Toast.makeText(context, "잠시 후 다시 시도해주세요", Toast.LENGTH_SHORT).show()
+                viewModel.resetUpdateState()
+            }
+            is UpdateState.UpToDate -> {
+                Toast.makeText(context, "최신 버전입니다", Toast.LENGTH_SHORT).show()
+                viewModel.resetUpdateState()
+            }
+            else -> {}
         }
     }
 
@@ -388,14 +407,7 @@ fun CalendarMainScreen(
                     },
                     onUpdateClick = {
                         scope.launch { drawerState.close() }
-                        Toast.makeText(context, "업데이트 확인 중...", Toast.LENGTH_SHORT).show()
-                        UpdateChecker.checkForUpdate(context) { info ->
-                            if (info != null) {
-                                updateInfo = info
-                            } else {
-                                Toast.makeText(context, "최신 버전을 사용 중입니다.", Toast.LENGTH_SHORT).show()
-                            }
-                        }
+                        viewModel.checkUpdate(isManual = true)
                     },
                     onCloseClick = {
                         scope.launch { drawerState.close() }
@@ -478,13 +490,30 @@ fun CalendarMainScreen(
         }
     }
 
-        updateInfo?.let { info ->
+        if (isCheckingUpdate) {
+            Dialog(onDismissRequest = {}) {
+                Box(
+                    contentAlignment = Alignment.Center,
+                    modifier = Modifier
+                        .size(100.dp)
+                        .background(
+                            color = MaterialTheme.colorScheme.surface.copy(alpha = 0.9f),
+                            shape = RoundedCornerShape(12.dp)
+                        )
+                ) {
+                    CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
+                }
+            }
+        }
+
+        (updateState as? UpdateState.UpdateAvailable)?.let { state ->
+            val info = state.updateInfo
             UpdateDialog(
                 updateInfo = info,
                 isDownloading = isUpdateDownloading,
                 progress = updateProgress,
                 onDismiss = {
-                    updateInfo = null
+                    viewModel.resetUpdateState()
                 },
                 onUpdateClick = {
                     if (!UpdateDownloader.hasInstallPermission(context)) {
@@ -501,7 +530,7 @@ fun CalendarMainScreen(
                             },
                             onComplete = { file ->
                                 isUpdateDownloading = false
-                                updateInfo = null
+                                viewModel.resetUpdateState()
                                 UpdateDownloader.triggerInstall(context, file)
                             },
                             onError = { err ->

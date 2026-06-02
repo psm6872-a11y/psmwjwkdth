@@ -19,6 +19,10 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.decodeFromString
 import android.provider.CalendarContract
 import javax.inject.Inject
+import com.example.danallacalendar.update.UpdateChecker
+import com.example.danallacalendar.update.UpdateState
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 enum class CalendarViewMode {
     MONTH, WEEK
@@ -34,6 +38,49 @@ class CalendarViewModel @Inject constructor(
     private val userPreferences: UserPreferences,
     @ApplicationContext private val context: Context
 ) : ViewModel() {
+
+    private val _updateState = MutableStateFlow<UpdateState>(UpdateState.Idle)
+    val updateState: StateFlow<UpdateState> = _updateState.asStateFlow()
+
+    private val _isChecking = MutableStateFlow(false)
+    val isChecking: StateFlow<Boolean> = _isChecking.asStateFlow()
+
+    fun checkUpdate(isManual: Boolean = false) {
+        if (_isChecking.value) return
+        _isChecking.value = true
+        _updateState.value = UpdateState.Checking
+        
+        viewModelScope.launch {
+            try {
+                val info = UpdateChecker.checkForUpdate(context)
+                if (info != null) {
+                    _updateState.value = UpdateState.UpdateAvailable(
+                        version = info.latestVersion,
+                        downloadUrl = info.downloadUrl,
+                        updateInfo = info
+                    )
+                } else {
+                    if (isManual) {
+                        _updateState.value = UpdateState.UpToDate
+                    } else {
+                        _updateState.value = UpdateState.Idle
+                    }
+                }
+            } catch (e: java.net.UnknownHostException) {
+                _updateState.value = UpdateState.NoNetwork
+            } catch (e: java.io.IOException) {
+                _updateState.value = UpdateState.Error
+            } catch (e: Exception) {
+                _updateState.value = UpdateState.Error
+            } finally {
+                _isChecking.value = false
+            }
+        }
+    }
+
+    fun resetUpdateState() {
+        _updateState.value = UpdateState.Idle
+    }
 
     val deviceUUID = userPreferences.getDeviceUUID()
     val roomCode = userPreferences.getLastRoomCode()
