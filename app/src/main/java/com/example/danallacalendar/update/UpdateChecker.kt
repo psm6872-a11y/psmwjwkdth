@@ -9,10 +9,21 @@ import java.io.IOException
 import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import com.google.firebase.firestore.FirebaseFirestore
+import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlin.coroutines.resume
 
-data class GithubReleaseMetadata(
+data class GithubRelease(
     @SerializedName("tag_name") val tagName: String,
-    @SerializedName("body") val body: String?
+    @SerializedName("body") val body: String?,
+    @SerializedName("assets") val assets: List<GithubAsset>
+)
+
+data class GithubAsset(
+    @SerializedName("name") val name: String,
+    @SerializedName("id") val id: Long,
+    @SerializedName("url") val url: String,
+    @SerializedName("browser_download_url") val browserDownloadUrl: String
 )
 
 data class UpdateInfo(
@@ -20,7 +31,8 @@ data class UpdateInfo(
     val currentVersion: String,
     val downloadUrl: String,
     val assetId: Long,
-    val releaseNotes: String?
+    val releaseNotes: String?,
+    val token: String? = null
 )
 
 sealed class UpdateState {
@@ -37,18 +49,45 @@ sealed class UpdateState {
 }
 
 object UpdateChecker {
-    private const val RELEASE_METADATA_URL = "https://raw.githubusercontent.com/psm6872-a11y/psmwjwkdth/main/release.json"
+    private const val GITHUB_API_URL = "https://api.github.com/repos/psm6872-a11y/psmwjwkdth/releases/latest"
     
     private val client = OkHttpClient.Builder()
-        .connectTimeout(10, TimeUnit.SECONDS)
-        .readTimeout(10, TimeUnit.SECONDS)
+        .connectTimeout(15, TimeUnit.SECONDS)
+        .readTimeout(15, TimeUnit.SECONDS)
         .build()
         
     private val gson = Gson()
 
+    private suspend fun getGithubToken(): String? = suspendCancellableCoroutine { continuation ->
+        try {
+            FirebaseFirestore.getInstance()
+                .collection("config")
+                .document("app")
+                .get()
+                .addOnSuccessListener { document ->
+                    val token = document.getString("github_token")
+                    continuation.resume(token)
+                }
+                .addOnFailureListener { exception ->
+                    android.util.Log.e("UpdateChecker", "Firestore token fetch failed", exception)
+                    continuation.resume(null)
+                }
+        } catch (e: Exception) {
+            android.util.Log.e("UpdateChecker", "Firestore exception", e)
+            continuation.resume(null)
+        }
+    }
+
     suspend fun checkForUpdate(context: Context): UpdateInfo? = withContext(Dispatchers.IO) {
+        val token = getGithubToken()
+        if (token.isNullOrEmpty()) {
+            throw IOException("GitHub Access Token not found in Firestore. Please register token under config/app.")
+        }
+
         val request = Request.Builder()
-            .url(RELEASE_METADATA_URL)
+            .url(GITHUB_API_URL)
+            .header("Authorization", "token $token")
+            .header("Accept", "application/vnd.github.v3+json")
             .header("User-Agent", "DanallaCalendar-Updater")
             .build()
 
@@ -62,7 +101,7 @@ object UpdateChecker {
                     responseBody = response.body?.string()
                 } else {
                     val errBody = response.body?.string() ?: ""
-                    android.util.Log.e("UpdateChecker", "Metadata fetch error (status $responseCode): $errBody")
+                    android.util.Log.e("UpdateChecker", "GitHub API fetch error (status $responseCode): $errBody")
                 }
             }
         } catch (e: IOException) {
@@ -70,20 +109,28 @@ object UpdateChecker {
             throw e
         }
 
-        val bodyString = responseBody ?: throw IOException("Metadata request failed with status: $responseCode")
-        val release = gson.fromJson(bodyString, GithubReleaseMetadata::class.java)
+        val bodyString = responseBody ?: throw IOException("GitHub API request failed with status: $responseCode")
+        val release = gson.fromJson(bodyString, GithubRelease::class.java)
         val currentVersion = getCurrentVersion(context)
         val latestVersion = release.tagName.removePrefix("v").removePrefix("V")
 
         if (isNewerVersion(currentVersion, latestVersion)) {
-            val downloadUrl = "https://github.com/psm6872-a11y/psmwjwkdth/releases/download/v$latestVersion/app-release.apk"
-            UpdateInfo(
-                latestVersion = latestVersion,
-                currentVersion = currentVersion,
-                downloadUrl = downloadUrl,
-                assetId = 0L,
-                releaseNotes = release.body
-            )
+            val asset = release.assets.find { it.name == "app-release.apk" }
+                ?: release.assets.find { it.name == "app-debug.apk" }
+                ?: release.assets.find { it.name.endsWith(".apk") }
+
+            if (asset != null) {
+                UpdateInfo(
+                    latestVersion = latestVersion,
+                    currentVersion = currentVersion,
+                    downloadUrl = asset.url, // api asset url (헤더 인증 다운로드용)
+                    assetId = asset.id,
+                    releaseNotes = release.body,
+                    token = token
+                )
+            } else {
+                null
+            }
         } else {
             null
         }

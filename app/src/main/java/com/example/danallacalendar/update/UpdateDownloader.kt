@@ -49,6 +49,7 @@ object UpdateDownloader {
     fun downloadApk(
         context: Context,
         assetUrl: String,
+        token: String? = null,
         onProgress: (progress: Float) -> Unit,
         onComplete: (file: File) -> Unit,
         onError: (e: Exception) -> Unit
@@ -58,11 +59,16 @@ object UpdateDownloader {
 
         val thread = Thread {
             try {
-                val request = Request.Builder()
+                val requestBuilder = Request.Builder()
                     .url(assetUrl)
                     .header("User-Agent", "DanallaCalendar-Updater")
-                    .build()
 
+                if (!token.isNullOrEmpty() && (assetUrl.contains("api.github.com") || assetUrl.contains("github.com"))) {
+                    requestBuilder.header("Authorization", "token $token")
+                    requestBuilder.header("Accept", "application/octet-stream")
+                }
+
+                val request = requestBuilder.build()
                 val response: Response = client.newCall(request).execute()
 
                 if (!response.isSuccessful) {

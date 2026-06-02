@@ -525,6 +525,7 @@ fun CalendarMainScreen(
                         UpdateDownloader.downloadApk(
                             context = context,
                             assetUrl = info.downloadUrl,
+                            token = info.token,
                             onProgress = { prog ->
                                 updateProgress = prog
                             },

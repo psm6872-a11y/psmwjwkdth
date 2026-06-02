@@ -1,7 +1,7 @@
 {
-  "tag_name": "v1.0.88",
-  "name": "v1.0.88",
-  "body": "v1.0.88: Reduce completion button width to 40dp.",
+  "tag_name": "v1.0.89",
+  "name": "v1.0.89",
+  "body": "v1.0.89: Migrate update checker to Firestore-based GitHub token authentication.",
   "draft": false,
   "prerelease": false
 }
