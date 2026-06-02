@@ -10,17 +10,9 @@ import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
-data class GithubRelease(
+data class GithubReleaseMetadata(
     @SerializedName("tag_name") val tagName: String,
-    @SerializedName("body") val body: String?,
-    @SerializedName("assets") val assets: List<GithubAsset>
-)
-
-data class GithubAsset(
-    @SerializedName("name") val name: String,
-    @SerializedName("id") val id: Long,
-    @SerializedName("url") val url: String,
-    @SerializedName("browser_download_url") val browserDownloadUrl: String
+    @SerializedName("body") val body: String?
 )
 
 data class UpdateInfo(
@@ -45,8 +37,7 @@ sealed class UpdateState {
 }
 
 object UpdateChecker {
-    private const val GITHUB_API_URL = "https://api.github.com/repos/psm6872-a11y/psmwjwkdth/releases/latest"
-    private const val TOKEN = "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"
+    private const val RELEASE_METADATA_URL = "https://raw.githubusercontent.com/psm6872-a11y/psmwjwkdth/main/release.json"
     
     private val client = OkHttpClient.Builder()
         .connectTimeout(10, TimeUnit.SECONDS)
@@ -56,74 +47,43 @@ object UpdateChecker {
     private val gson = Gson()
 
     suspend fun checkForUpdate(context: Context): UpdateInfo? = withContext(Dispatchers.IO) {
-        val buildRequest = { useToken: Boolean ->
-            val builder = Request.Builder()
-                .url(GITHUB_API_URL)
-                .header("Accept", "application/vnd.github.v3+json")
-                .header("User-Agent", "DanallaCalendar-Updater")
-            if (useToken) {
-                builder.header("Authorization", "token $TOKEN")
-            }
-            builder.build()
-        }
+        val request = Request.Builder()
+            .url(RELEASE_METADATA_URL)
+            .header("User-Agent", "DanallaCalendar-Updater")
+            .build()
 
         var responseBody: String? = null
         var responseCode = 0
 
-        // 1. Try with Token
         try {
-            client.newCall(buildRequest(true)).execute().use { response ->
+            client.newCall(request).execute().use { response ->
                 responseCode = response.code
                 if (response.isSuccessful) {
                     responseBody = response.body?.string()
                 } else {
                     val errBody = response.body?.string() ?: ""
-                    android.util.Log.e("UpdateChecker", "API error response (with token): $errBody")
+                    android.util.Log.e("UpdateChecker", "Metadata fetch error (status $responseCode): $errBody")
                 }
             }
         } catch (e: IOException) {
             e.printStackTrace()
+            throw e
         }
 
-        // 2. Try without Token (Fallback)
-        if (responseBody == null) {
-            try {
-                client.newCall(buildRequest(false)).execute().use { response ->
-                    responseCode = response.code
-                    if (response.isSuccessful) {
-                        responseBody = response.body?.string()
-                    } else {
-                        val errBody = response.body?.string() ?: ""
-                        android.util.Log.e("UpdateChecker", "API error response (no token fallback): $errBody")
-                    }
-                }
-            } catch (e: IOException) {
-                e.printStackTrace()
-            }
-        }
-
-        val bodyString = responseBody ?: throw IOException("GitHub API request failed with status: $responseCode")
-        val release = gson.fromJson(bodyString, GithubRelease::class.java)
+        val bodyString = responseBody ?: throw IOException("Metadata request failed with status: $responseCode")
+        val release = gson.fromJson(bodyString, GithubReleaseMetadata::class.java)
         val currentVersion = getCurrentVersion(context)
         val latestVersion = release.tagName.removePrefix("v").removePrefix("V")
 
         if (isNewerVersion(currentVersion, latestVersion)) {
-            // Find app-release.apk, fallback to app-debug.apk, then any .apk
-            val asset = release.assets.find { it.name == "app-release.apk" }
-                ?: release.assets.find { it.name == "app-debug.apk" }
-                ?: release.assets.find { it.name.endsWith(".apk") }
-
-            if (asset != null) {
-                UpdateInfo(
-                    latestVersion = latestVersion,
-                    currentVersion = currentVersion,
-                    downloadUrl = asset.browserDownloadUrl, // browser_download_url
-                    assetId = asset.id,
-                    releaseNotes = release.body
-                )
-            } else {
-                null
-            }
+            val downloadUrl = "https://github.com/psm6872-a11y/psmwjwkdth/releases/download/v$latestVersion/app-release.apk"
+            UpdateInfo(
+                latestVersion = latestVersion,
+                currentVersion = currentVersion,
+                downloadUrl = downloadUrl,
+                assetId = 0L,
+                releaseNotes = release.body
+            )
         } else {
             null
         }
