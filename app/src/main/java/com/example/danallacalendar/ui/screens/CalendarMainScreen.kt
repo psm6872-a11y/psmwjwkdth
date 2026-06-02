@@ -1163,24 +1163,25 @@ fun EventListSection(
                 color = MaterialTheme.colorScheme.onBackground,
                 modifier = Modifier.weight(1f)
             )
+            Spacer(modifier = Modifier.width(8.dp))
             if (isDeadlineSet) {
                 Button(
                     onClick = { onDeadlineToggle(selectedDate) },
-                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
-                    shape = RoundedCornerShape(8.dp),
+                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
+                    shape = RoundedCornerShape(6.dp),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = MaterialTheme.colorScheme.error.copy(alpha = 0.85f),
                         contentColor = androidx.compose.ui.graphics.Color.White
                     ),
-                    modifier = Modifier.height(32.dp)
+                    modifier = Modifier.height(26.dp)
                 ) {
-                    Text("마감✓", fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                    Text("마감✓", fontSize = 11.sp, fontWeight = FontWeight.Bold)
                 }
             } else {
                 OutlinedButton(
                     onClick = { onDeadlineToggle(selectedDate) },
-                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
-                    shape = RoundedCornerShape(8.dp),
+                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
+                    shape = RoundedCornerShape(6.dp),
                     border = androidx.compose.foundation.BorderStroke(
                         1.dp,
                         MaterialTheme.colorScheme.error.copy(alpha = 0.7f)
@@ -1188,9 +1189,9 @@ fun EventListSection(
                     colors = ButtonDefaults.outlinedButtonColors(
                         contentColor = MaterialTheme.colorScheme.error
                     ),
-                    modifier = Modifier.height(32.dp)
+                    modifier = Modifier.height(26.dp)
                 ) {
-                    Text("마감", fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                    Text("마감", fontSize = 11.sp, fontWeight = FontWeight.Bold)
                 }
             }
         }
