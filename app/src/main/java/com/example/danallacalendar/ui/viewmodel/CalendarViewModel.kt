@@ -87,10 +87,10 @@ class CalendarViewModel @Inject constructor(
                 _updateState.value = UpdateState.NoNetwork
             } catch (e: java.io.IOException) {
                 e.printStackTrace()
-                _updateState.value = UpdateState.Error
+                _updateState.value = if (isManual) UpdateState.Error else UpdateState.Idle
             } catch (e: Exception) {
                 e.printStackTrace()
-                _updateState.value = UpdateState.Error
+                _updateState.value = if (isManual) UpdateState.Error else UpdateState.Idle
             } finally {
                 _isChecking.value = false
             }

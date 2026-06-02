@@ -56,42 +56,76 @@ object UpdateChecker {
     private val gson = Gson()
 
     suspend fun checkForUpdate(context: Context): UpdateInfo? = withContext(Dispatchers.IO) {
-        val request = Request.Builder()
-            .url(GITHUB_API_URL)
-            .header("Authorization", "token $TOKEN")
-            .header("Accept", "application/vnd.github.v3+json")
-            .header("User-Agent", "DanallaCalendar-Updater")
-            .build()
-
-        client.newCall(request).execute().use { response ->
-            if (!response.isSuccessful) {
-                throw IOException("GitHub API request failed with status: ${response.code}")
+        val buildRequest = { useToken: Boolean ->
+            val builder = Request.Builder()
+                .url(GITHUB_API_URL)
+                .header("Accept", "application/vnd.github.v3+json")
+                .header("User-Agent", "DanallaCalendar-Updater")
+            if (useToken) {
+                builder.header("Authorization", "token $TOKEN")
             }
-            val bodyString = response.body?.string() ?: ""
-            val release = gson.fromJson(bodyString, GithubRelease::class.java)
-            val currentVersion = getCurrentVersion(context)
-            val latestVersion = release.tagName.removePrefix("v").removePrefix("V")
+            builder.build()
+        }
 
-            if (isNewerVersion(currentVersion, latestVersion)) {
-                // Find app-release.apk, fallback to app-debug.apk, then any .apk
-                val asset = release.assets.find { it.name == "app-release.apk" }
-                    ?: release.assets.find { it.name == "app-debug.apk" }
-                    ?: release.assets.find { it.name.endsWith(".apk") }
+        var responseBody: String? = null
+        var responseCode = 0
 
-                if (asset != null) {
-                    UpdateInfo(
-                        latestVersion = latestVersion,
-                        currentVersion = currentVersion,
-                        downloadUrl = asset.url, // api asset url
-                        assetId = asset.id,
-                        releaseNotes = release.body
-                    )
+        // 1. Try with Token
+        try {
+            client.newCall(buildRequest(true)).execute().use { response ->
+                responseCode = response.code
+                if (response.isSuccessful) {
+                    responseBody = response.body?.string()
                 } else {
-                    null
+                    val errBody = response.body?.string() ?: ""
+                    android.util.Log.e("UpdateChecker", "API error response (with token): $errBody")
                 }
+            }
+        } catch (e: IOException) {
+            e.printStackTrace()
+        }
+
+        // 2. Try without Token (Fallback)
+        if (responseBody == null) {
+            try {
+                client.newCall(buildRequest(false)).execute().use { response ->
+                    responseCode = response.code
+                    if (response.isSuccessful) {
+                        responseBody = response.body?.string()
+                    } else {
+                        val errBody = response.body?.string() ?: ""
+                        android.util.Log.e("UpdateChecker", "API error response (no token fallback): $errBody")
+                    }
+                }
+            } catch (e: IOException) {
+                e.printStackTrace()
+            }
+        }
+
+        val bodyString = responseBody ?: throw IOException("GitHub API request failed with status: $responseCode")
+        val release = gson.fromJson(bodyString, GithubRelease::class.java)
+        val currentVersion = getCurrentVersion(context)
+        val latestVersion = release.tagName.removePrefix("v").removePrefix("V")
+
+        if (isNewerVersion(currentVersion, latestVersion)) {
+            // Find app-release.apk, fallback to app-debug.apk, then any .apk
+            val asset = release.assets.find { it.name == "app-release.apk" }
+                ?: release.assets.find { it.name == "app-debug.apk" }
+                ?: release.assets.find { it.name.endsWith(".apk") }
+
+            if (asset != null) {
+                UpdateInfo(
+                    latestVersion = latestVersion,
+                    currentVersion = currentVersion,
+                    downloadUrl = asset.url, // api asset url
+                    assetId = asset.id,
+                    releaseNotes = release.body
+                )
             } else {
                 null
             }
+        } else {
+            null
         }
     }
 
