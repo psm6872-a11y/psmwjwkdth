@@ -1,6 +1,7 @@
 package com.example.danallacalendar.update
 
 import android.content.Context
+import com.google.android.gms.tasks.Tasks
 import com.google.gson.Gson
 import com.google.gson.annotations.SerializedName
 import okhttp3.OkHttpClient
@@ -10,8 +11,6 @@ import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import com.google.firebase.firestore.FirebaseFirestore
-import kotlinx.coroutines.suspendCancellableCoroutine
-import kotlin.coroutines.resume
 
 data class GithubRelease(
     @SerializedName("tag_name") val tagName: String,
@@ -58,27 +57,26 @@ object UpdateChecker {
         
     private val gson = Gson()
 
-    private suspend fun getGithubToken(): String? = suspendCancellableCoroutine { continuation ->
-        try {
-            FirebaseFirestore.getInstance()
+    private fun getGithubToken(): String? {
+        return try {
+            val task = FirebaseFirestore.getInstance()
                 .collection("config")
                 .document("app")
                 .get()
-                .addOnSuccessListener { document ->
-                    val token = document.getString("github_token")
-                    continuation.resume(token)
-                }
-                .addOnFailureListener { exception ->
-                    android.util.Log.e("UpdateChecker", "Firestore token fetch failed", exception)
-                    continuation.resume(null)
-                }
+            val document = Tasks.await(task, 10, TimeUnit.SECONDS)
+            val token = document.getString("github_token")
+            if (token.isNullOrEmpty()) {
+                android.util.Log.e("UpdateChecker", "Firestore: github_token 필드가 비어있음")
+            }
+            token
         } catch (e: Exception) {
-            android.util.Log.e("UpdateChecker", "Firestore exception", e)
-            continuation.resume(null)
+            android.util.Log.e("UpdateChecker", "Firestore token fetch 실패: ${e.message}", e)
+            null
         }
     }
 
     suspend fun checkForUpdate(context: Context): UpdateInfo? = withContext(Dispatchers.IO) {
+        // Tasks.await()를 IO 스레드에서 호출 → Main 스레드 의존 없이 안전하게 동작
         val token = getGithubToken()
         if (token.isNullOrEmpty()) {
             throw IOException("GitHub Access Token not found in Firestore. Please register token under config/app.")

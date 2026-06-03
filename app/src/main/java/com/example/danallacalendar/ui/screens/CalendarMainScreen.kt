@@ -118,7 +118,9 @@ fun CalendarMainScreen(
     LaunchedEffect(viewModel.roomCode) {
         memberViewModel.initializeRoom(viewModel.roomCode)
     }
-
+    LaunchedEffect(Unit) {
+        viewModel.checkUpdateManually()
+    }
 
     LaunchedEffect(updateState) {
         when (updateState) {
