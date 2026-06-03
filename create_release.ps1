@@ -1,6 +1,6 @@
 $token = ""
 $repo = "psm6872-a11y/psmwjwkdth"
-$tag = "v1.0.84"
+$tag = "v1.0.86"
 $apkPath = "c:\Users\me\Documents\danalla\psm\app\build\outputs\apk\debug\app-debug.apk"
 
 $headers = @{
@@ -11,7 +11,7 @@ $headers = @{
 
 # Create new release
 Write-Output "Creating release $tag ..."
-$body = '{"tag_name":"' + $tag + '","name":"' + $tag + '","body":"v1.0.84: Fix update checker bug. Correctly parse browser download URL and remove v prefix when comparing versions.","draft":false,"prerelease":false}'
+$body = '{"tag_name":"' + $tag + '","name":"' + $tag + '","body":"v1.0.86: Make completion button even smaller.","draft":false,"prerelease":false}'
 $bodyBytes = [System.Text.Encoding]::UTF8.GetBytes($body)
 
 $release = Invoke-RestMethod -Uri "https://api.github.com/repos/$repo/releases" -Method Post -Headers $headers -Body $bodyBytes -ContentType "application/json; charset=utf-8"
