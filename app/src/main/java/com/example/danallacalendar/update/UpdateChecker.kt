@@ -36,11 +36,11 @@ object UpdateChecker {
         try {
             val remoteConfig = FirebaseRemoteConfig.getInstance()
             
-            // Set settings (fetch interval of 3600 seconds = 1 hour)
+            // Set settings (fetch interval of 0 seconds to force immediate fetch)
             val configSettings = FirebaseRemoteConfigSettings.Builder()
-                .setMinimumFetchIntervalInSeconds(3600)
+                .setMinimumFetchIntervalInSeconds(0)
                 .build()
-            remoteConfig.setConfigSettingsAsync(configSettings)
+            Tasks.await(remoteConfig.setConfigSettingsAsync(configSettings), 5, TimeUnit.SECONDS)
 
             // Fetch and activate
             val fetchTask = remoteConfig.fetchAndActivate()

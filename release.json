@@ -1,7 +1,7 @@
 {
-  "tag_name": "v1.0.96",
-  "name": "v1.0.96",
-  "body": "v1.0.96: Integrate automatic Firebase Remote Config updates into Actions workflow.",
+  "tag_name": "v1.0.97",
+  "name": "v1.0.97",
+  "body": "v1.0.97: Force immediate Remote Config fetch on update check.",
   "draft": false,
   "prerelease": false
 }
