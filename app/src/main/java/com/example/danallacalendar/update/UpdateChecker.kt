@@ -9,6 +9,9 @@ import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
+import com.google.firebase.remoteconfig.ktx.remoteConfigSettings
+import kotlinx.coroutines.tasks.await
+
 data class UpdateInfo(
     val latestVersion: String,
     val currentVersion: String,
@@ -36,20 +39,14 @@ object UpdateChecker {
         try {
             val remoteConfig = FirebaseRemoteConfig.getInstance()
             
-            // Set settings (fetch interval of 0 seconds to force immediate fetch)
-            val configSettings = FirebaseRemoteConfigSettings.Builder()
-                .setMinimumFetchIntervalInSeconds(0)
-                .build()
-            Tasks.await(remoteConfig.setConfigSettingsAsync(configSettings), 5, TimeUnit.SECONDS)
+            // Set settings to force immediate fetch
+            val configSettings = remoteConfigSettings {
+                minimumFetchIntervalInSeconds = 0
+            }
+            remoteConfig.setConfigSettingsAsync(configSettings).await()
 
             // Fetch and activate
-            val fetchTask = remoteConfig.fetchAndActivate()
-            
-            // Await completion with 10 seconds timeout
-            val success = Tasks.await(fetchTask, 10, TimeUnit.SECONDS)
-            if (!success) {
-                android.util.Log.w("UpdateChecker", "Remote Config fetch completed but activate returned false or failed")
-            }
+            remoteConfig.fetchAndActivate().await()
 
             val latestVersion = remoteConfig.getString("latest_version")
             val apkDownloadUrl = remoteConfig.getString("apk_download_url")
