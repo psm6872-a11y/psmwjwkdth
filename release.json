@@ -1,7 +1,7 @@
 {
-  "tag_name": "v1.0.91",
-  "name": "v1.0.91",
-  "body": "v1.0.91: Reduce filter buttons box height to 18dp and horizontal padding to 2dp.",
+  "tag_name": "v1.0.92",
+  "name": "v1.0.92",
+  "body": "v1.0.92: Fix google-services.json CI/CD build configuration.",
   "draft": false,
   "prerelease": false
 }
