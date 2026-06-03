@@ -62,8 +62,23 @@ jobs:
 
       - name: Update Firebase Remote Config
         run: |
-          CLIENT_EMAIL=$(python3 -c "import json; print(json.loads('''${{ secrets.FIREBASE_SERVICE_ACCOUNT }}''')['client_email'])")
-          PRIVATE_KEY=$(python3 -c "import json; print(json.loads('''${{ secrets.FIREBASE_SERVICE_ACCOUNT }}''')['private_key'])")
+          echo '${{ secrets.FIREBASE_SERVICE_ACCOUNT }}' > sa.json
+
+          CLIENT_EMAIL=$(python3 -c "
+          import json
+          with open('sa.json') as f:
+              sa = json.load(f)
+          print(sa['client_email'])
+          ")
+
+          PRIVATE_KEY=$(python3 -c "
+          import json
+          with open('sa.json') as f:
+              sa = json.load(f)
+          print(sa['private_key'])
+          ")
+
+          rm -f sa.json
           echo "$PRIVATE_KEY" > sa_key.pem
 
           HEADER_JSON='{"alg":"RS256","typ":"JWT"}'
