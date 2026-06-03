@@ -404,7 +404,7 @@ fun CalendarMainScreen(
                     },
                     onUpdateClick = {
                         scope.launch { drawerState.close() }
-                        viewModel.checkUpdate(isManual = true)
+                        viewModel.checkUpdateManually()
                     },
                     onCloseClick = {
                         scope.launch { drawerState.close() }

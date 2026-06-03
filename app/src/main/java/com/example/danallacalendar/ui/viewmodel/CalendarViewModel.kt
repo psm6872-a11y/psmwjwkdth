@@ -55,7 +55,7 @@ class CalendarViewModel @Inject constructor(
         return capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
     }
 
-    fun checkUpdate(isManual: Boolean = false) {
+    fun checkUpdateManually() {
         if (_isChecking.value) return
         
         if (!isNetworkAvailable(context)) {
@@ -76,11 +76,7 @@ class CalendarViewModel @Inject constructor(
                         updateInfo = info
                     )
                 } else {
-                    if (isManual) {
-                        _updateState.value = UpdateState.UpToDate
-                    } else {
-                        _updateState.value = UpdateState.Idle
-                    }
+                    _updateState.value = UpdateState.UpToDate
                 }
             } catch (e: java.net.UnknownHostException) {
                 android.util.Log.e("UpdateChecker", "오류 발생: ${e.message}", e)
