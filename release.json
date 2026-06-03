@@ -1,7 +1,7 @@
 {
-  "tag_name": "v1.0.90",
-  "name": "v1.0.90",
-  "body": "v1.0.90: Reduce padding size of filter buttons (견적, 계약, 전체).",
+  "tag_name": "v1.0.91",
+  "name": "v1.0.91",
+  "body": "v1.0.91: Reduce filter buttons box height to 18dp and horizontal padding to 2dp.",
   "draft": false,
   "prerelease": false
 }
