@@ -1,7 +1,7 @@
 {
-  "tag_name": "v1.0.94",
-  "name": "v1.0.94",
-  "body": "v1.0.94: Fix Firestore background thread connection and token retrieval bug.",
+  "tag_name": "v1.0.95",
+  "name": "v1.0.95",
+  "body": "v1.0.95: Migrate update checking to Firebase Remote Config.",
   "draft": false,
   "prerelease": false
 }

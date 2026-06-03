@@ -15,8 +15,8 @@ android {
         applicationId = "com.example.danallacalendar"
         minSdk = 24
         targetSdk = 34
-        versionCode = 94
-        versionName = "1.0.94"
+        versionCode = 95
+        versionName = "1.0.95"
     }
 
     signingConfigs {
@@ -99,6 +99,7 @@ dependencies {
   implementation(platform(libs.firebase.bom))
   implementation(libs.firebase.firestore.ktx)
   implementation(libs.firebase.messaging.ktx)
+  implementation("com.google.firebase:firebase-config-ktx:21.6.3")
 
   // Hilt
   implementation(libs.hilt.android)

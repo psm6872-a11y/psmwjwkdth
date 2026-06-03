@@ -129,7 +129,7 @@ fun CalendarMainScreen(
                 viewModel.resetUpdateState()
             }
             is UpdateState.Error -> {
-                Toast.makeText(context, "잠시 후 다시 시도해주세요", Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, "업데이트 확인 실패, 나중에 다시 시도해주세요", Toast.LENGTH_SHORT).show()
                 viewModel.resetUpdateState()
             }
             is UpdateState.UpToDate -> {
