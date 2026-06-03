@@ -589,7 +589,9 @@ fun MainTopAppBar(
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(4.dp),
                     verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.padding(end = 8.dp)
+                    modifier = Modifier
+                        .padding(end = 8.dp)
+                        .offset(y = (-2).dp)
                 ) {
                     FilterButton(
                         text = "견적",
@@ -683,11 +685,10 @@ fun FilterButton(
     
     Box(
         modifier = Modifier
-            .height(18.dp)
             .clip(RoundedCornerShape(3.dp))
             .background(containerColor)
             .clickable { onClick() }
-            .padding(horizontal = 2.dp),
+            .padding(horizontal = 4.dp, vertical = 1.dp),
         contentAlignment = Alignment.Center
     ) {
         Text(

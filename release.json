@@ -1,7 +1,7 @@
 {
-  "tag_name": "v1.0.92",
-  "name": "v1.0.92",
-  "body": "v1.0.92: Fix google-services.json CI/CD build configuration.",
+  "tag_name": "v1.0.93",
+  "name": "v1.0.93",
+  "body": "v1.0.93: Fix layout clipping and offset of the filter buttons.",
   "draft": false,
   "prerelease": false
 }
