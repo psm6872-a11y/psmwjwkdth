@@ -45,7 +45,7 @@ jobs:
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: |
-          ./gradlew assembleRelease
+          ./gradlew assembleRelease -q
           echo "Signing config: release ✅"
           echo "keyAlias: $KEY_ALIAS ✅"
 
