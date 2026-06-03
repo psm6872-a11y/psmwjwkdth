@@ -119,17 +119,24 @@ jobs:
               config = json.load(f)
           if 'parameters' not in config:
               config['parameters'] = {}
-          config['parameters']['latest_version'] = {
-              'defaultValue': {'value': '${{ env.VERSION_NAME }}'}
-          }
-          config['parameters']['apk_download_url'] = {
-              'defaultValue': {'value': 'https://github.com/psm6872-a11y/psmwjwkdth/releases/download/v${{ env.VERSION_NAME }}/app-release.apk'}
-          }
+          
+          # Update latest_version parameter preserving/adding valueType
+          if 'latest_version' not in config['parameters']:
+              config['parameters']['latest_version'] = {}
+          config['parameters']['latest_version']['valueType'] = 'STRING'
+          config['parameters']['latest_version']['defaultValue'] = {'value': '${{ env.VERSION_NAME }}'}
+          
+          # Update apk_download_url parameter preserving/adding valueType
+          if 'apk_download_url' not in config['parameters']:
+              config['parameters']['apk_download_url'] = {}
+          config['parameters']['apk_download_url']['valueType'] = 'STRING'
+          config['parameters']['apk_download_url']['defaultValue'] = {'value': 'https://github.com/psm6872-a11y/psmwjwkdth/releases/download/v${{ env.VERSION_NAME }}/app-release.apk'}
+          
           with open('config.json', 'w') as f:
               json.dump(config, f)
           "
 
-          curl -X PUT "https://firebaseremoteconfig.googleapis.com/v1/projects/danalla-calendar/remoteConfig" \
+          curl -f -X PUT "https://firebaseremoteconfig.googleapis.com/v1/projects/danalla-calendar/remoteConfig" \
             -H "Authorization: Bearer $ACCESS_TOKEN" \
             -H "Content-Type: application/json; UTF-8" \
             -H "If-Match: $ETAG" \
