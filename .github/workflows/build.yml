@@ -59,3 +59,79 @@ jobs:
           prerelease: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Update Firebase Remote Config
+        run: |
+          CLIENT_EMAIL=$(python3 -c "import json; print(json.loads('''${{ secrets.FIREBASE_SERVICE_ACCOUNT }}''')['client_email'])")
+          PRIVATE_KEY=$(python3 -c "import json; print(json.loads('''${{ secrets.FIREBASE_SERVICE_ACCOUNT }}''')['private_key'])")
+          echo "$PRIVATE_KEY" > sa_key.pem
+
+          HEADER_JSON='{"alg":"RS256","typ":"JWT"}'
+          NOW=$(date +%s)
+          EXP=$((NOW + 3600))
+          PAYLOAD_JSON=$(cat <<EOF
+          {
+            "iss": "$CLIENT_EMAIL",
+            "scope": "https://www.googleapis.com/auth/firebase.remoteconfig",
+            "aud": "https://oauth2.googleapis.com/token",
+            "exp": $EXP,
+            "iat": $NOW
+          }
+          EOF
+          )
+
+          b64url() {
+            openssl enc -base64 -A | tr -d '=' | tr '/+' '_-'
+          }
+
+          HEADER_B64=$(echo -n "$HEADER_JSON" | b64url)
+          PAYLOAD_B64=$(echo -n "$PAYLOAD_JSON" | b64url)
+          HEADER_PAYLOAD="${HEADER_B64}.${PAYLOAD_B64}"
+          SIGNATURE_B64=$(echo -n "$HEADER_PAYLOAD" | openssl dgst -sha256 -sign sa_key.pem | b64url)
+          rm -f sa_key.pem
+
+          JWT="${HEADER_PAYLOAD}.${SIGNATURE_B64}"
+          ACCESS_TOKEN=$(curl -s -X POST "https://oauth2.googleapis.com/token" \
+            -H "Content-Type: application/json" \
+            -d "{\"grant_type\":\"urn:ietf:params:oauth:grant-type:jwt-bearer\",\"assertion\":\"$JWT\"}" \
+            | python3 -c "import sys, json; print(json.load(sys.stdin).get('access_token', ''))")
+
+          if [ -z "$ACCESS_TOKEN" ]; then
+            echo "Failed to obtain Access Token from Google OAuth."
+            exit 1
+          fi
+
+          ETAG=$(curl -s -D - "https://firebaseremoteconfig.googleapis.com/v1/projects/danalla-calendar/remoteConfig" \
+            -H "Authorization: Bearer $ACCESS_TOKEN" \
+            | grep -i etag | awk '{print $2}' | tr -d '\r\n"')
+
+          if [ -z "$ETAG" ]; then
+            ETAG="*"
+          fi
+
+          curl -s "https://firebaseremoteconfig.googleapis.com/v1/projects/danalla-calendar/remoteConfig" \
+            -H "Authorization: Bearer $ACCESS_TOKEN" \
+            -o config.json
+
+          python3 -c "
+          import json
+          with open('config.json', 'r') as f:
+              config = json.load(f)
+          if 'parameters' not in config:
+              config['parameters'] = {}
+          config['parameters']['latest_version'] = {
+              'defaultValue': {'value': '${{ env.VERSION_NAME }}'}
+          }
+          config['parameters']['apk_download_url'] = {
+              'defaultValue': {'value': 'https://github.com/psm6872-a11y/psmwjwkdth/releases/download/v${{ env.VERSION_NAME }}/app-release.apk'}
+          }
+          with open('config.json', 'w') as f:
+              json.dump(config, f)
+          "
+
+          curl -X PUT "https://firebaseremoteconfig.googleapis.com/v1/projects/danalla-calendar/remoteConfig" \
+            -H "Authorization: Bearer $ACCESS_TOKEN" \
+            -H "Content-Type: application/json; UTF-8" \
+            -H "If-Match: $ETAG" \
+            -d @config.json
+
