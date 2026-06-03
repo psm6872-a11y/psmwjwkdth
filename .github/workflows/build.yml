@@ -103,7 +103,7 @@ jobs:
 
           ETAG=$(curl -s -D - "https://firebaseremoteconfig.googleapis.com/v1/projects/danalla-calendar/remoteConfig" \
             -H "Authorization: Bearer $ACCESS_TOKEN" \
-            | grep -i etag | awk '{print $2}' | tr -d '\r\n"')
+            | grep -i etag | awk '{print $2}' | tr -d '\r\n')
 
           if [ -z "$ETAG" ]; then
             ETAG="*"
