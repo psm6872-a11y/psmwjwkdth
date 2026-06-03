@@ -1,7 +1,7 @@
 {
-  "tag_name": "v1.0.97",
-  "name": "v1.0.97",
-  "body": "v1.0.97: Force immediate Remote Config fetch on update check.",
+  "tag_name": "v1.0.98",
+  "name": "v1.0.98",
+  "body": "v1.0.98: Remove automatic update checking on startup.",
   "draft": false,
   "prerelease": false
 }
