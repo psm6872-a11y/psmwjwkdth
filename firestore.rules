@@ -1,18 +1,17 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // 공유 캘린더 방 - 누구나 읽기/쓰기 가능
-    match /rooms/{roomCode} {
-      allow read, write: if true;
-      match /{subcollection=**} {
-        allow read, write: if true;
-      }
-    }
-    
-    // 앱 설정 및 GitHub 토큰 - 누구나 읽기 허용 (로그인을 사용하지 않으므로), 쓰기는 차단
-    match /config/app {
+
+    // 앱 설정은 누구나 읽기 허용, 쓰기는 차단
+    match /config/{document} {
       allow read: if true;
       allow write: if false;
+    }
+
+    // 유저 데이터는 본인만 접근 가능
+    match /users/{userId}/{document=**} {
+      allow read, write: if request.auth != null
+                         && request.auth.uid == userId;
     }
   }
 }
