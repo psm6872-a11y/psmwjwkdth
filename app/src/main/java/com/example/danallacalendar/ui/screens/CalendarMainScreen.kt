@@ -587,7 +587,7 @@ fun MainTopAppBar(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier
                         .padding(end = 8.dp)
-                        .offset(y = (-2).dp)
+                        .offset(x = (-8).dp, y = 2.dp)
                 ) {
                     FilterButton(
                         text = "견적",
