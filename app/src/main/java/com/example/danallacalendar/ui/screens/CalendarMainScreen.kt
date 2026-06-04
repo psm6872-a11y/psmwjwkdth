@@ -684,7 +684,7 @@ fun FilterButton(
             .clip(RoundedCornerShape(3.dp))
             .background(containerColor)
             .clickable { onClick() }
-            .padding(horizontal = 4.dp, vertical = 1.dp),
+            .padding(horizontal = 4.dp, vertical = 0.dp),
         contentAlignment = Alignment.Center
     ) {
         Text(
