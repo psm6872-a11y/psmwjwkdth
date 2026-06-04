@@ -681,11 +681,11 @@ fun FilterButton(
     
     Box(
         modifier = Modifier
-            .height(16.dp)
+            .height(24.dp)
             .clip(RoundedCornerShape(3.dp))
             .background(containerColor)
             .clickable { onClick() }
-            .padding(horizontal = 4.dp),
+            .padding(horizontal = 8.dp),
         contentAlignment = Alignment.Center
     ) {
         Text(
