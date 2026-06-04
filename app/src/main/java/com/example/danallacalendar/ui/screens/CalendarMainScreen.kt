@@ -681,18 +681,24 @@ fun FilterButton(
     
     Box(
         modifier = Modifier
-            .height(24.dp)
+            .height(18.dp)
             .clip(RoundedCornerShape(3.dp))
             .background(containerColor)
             .clickable { onClick() }
-            .padding(horizontal = 8.dp),
+            .padding(horizontal = 5.dp),
         contentAlignment = Alignment.Center
     ) {
         Text(
             text = text,
             fontSize = 10.sp,
             fontWeight = FontWeight.Bold,
-            color = contentColor
+            color = contentColor,
+            style = androidx.compose.ui.text.TextStyle(
+                platformStyle = androidx.compose.ui.text.PlatformTextStyle(
+                    includeFontPadding = false
+                ),
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+            )
         )
     }
 }
