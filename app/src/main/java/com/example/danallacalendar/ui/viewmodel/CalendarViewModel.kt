@@ -106,35 +106,9 @@ class CalendarViewModel @Inject constructor(
     private val _userName = MutableStateFlow(userPreferences.getNickname())
     val userName = _userName.asStateFlow()
 
-    fun login(type: String, name: String) {
-        // No-op for compatibility
-    }
-
     fun logout() {
         userPreferences.setLastRoomCode("")
         _isLoggedIn.value = false
-    }
-
-    fun loginWithGoogle(
-        activityContext: Context,
-        onSuccess: (isFallback: Boolean) -> Unit,
-        onError: (String) -> Unit
-    ) {
-        onSuccess(true)
-    }
-
-    fun loginWithNaver(
-        activityContext: Context,
-        onSuccess: (isFallback: Boolean) -> Unit,
-        onError: (String) -> Unit
-    ) {
-        onSuccess(true)
-    }
-
-    fun loginWithSamsung(
-        name: String
-    ) {
-        // No-op
     }
 
     suspend fun getOrCreateSharedCategory(): Int {

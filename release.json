@@ -1,7 +1,7 @@
 {
-  "tag_name": "v1.0.103",
-  "name": "v1.0.103",
-  "body": "v1.0.103: Shift top-level filter buttons down and left.",
+  "tag_name": "v1.0.104",
+  "name": "v1.0.104",
+  "body": "v1.0.104: Clean up unused login features and GitHub token parameters.",
   "draft": false,
   "prerelease": false
 }

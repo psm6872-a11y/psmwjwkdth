@@ -17,8 +17,7 @@ data class UpdateInfo(
     val currentVersion: String,
     val downloadUrl: String,
     val assetId: Long = 0L,
-    val releaseNotes: String? = null,
-    val token: String? = null
+    val releaseNotes: String? = null
 )
 
 sealed class UpdateState {
