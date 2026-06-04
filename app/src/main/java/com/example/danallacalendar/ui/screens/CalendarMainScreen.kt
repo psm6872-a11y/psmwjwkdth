@@ -1352,19 +1352,6 @@ fun EventItemCard(
 
                 // 완료 토글 버튼
                 if (event.isCompleted) {
-                    Button(
-                        onClick = onToggleComplete,
-                        contentPadding = PaddingValues(horizontal = 2.dp, vertical = 0.dp),
-                        shape = RoundedCornerShape(5.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.8f),
-                            contentColor = MaterialTheme.colorScheme.onPrimary
-                        ),
-                        modifier = Modifier.height(22.dp).width(40.dp)
-                    ) {
-                        Text("완료", fontSize = 10.sp, fontWeight = FontWeight.Bold)
-                    }
-                } else {
                     OutlinedButton(
                         onClick = onToggleComplete,
                         contentPadding = PaddingValues(horizontal = 2.dp, vertical = 0.dp),
@@ -1376,6 +1363,19 @@ fun EventItemCard(
                         modifier = Modifier.height(22.dp).width(40.dp)
                     ) {
                         Text("완료", fontSize = 10.sp, fontWeight = FontWeight.Medium)
+                    }
+                } else {
+                    Button(
+                        onClick = onToggleComplete,
+                        contentPadding = PaddingValues(horizontal = 2.dp, vertical = 0.dp),
+                        shape = RoundedCornerShape(5.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.8f),
+                            contentColor = MaterialTheme.colorScheme.onPrimary
+                        ),
+                        modifier = Modifier.height(22.dp).width(40.dp)
+                    ) {
+                        Text("완료", fontSize = 10.sp, fontWeight = FontWeight.Bold)
                     }
                 }
             }
