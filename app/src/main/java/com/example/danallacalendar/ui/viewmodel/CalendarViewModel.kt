@@ -90,6 +90,24 @@ class CalendarViewModel @Inject constructor(
         }
     }
 
+    fun checkUpdateAutomatically() {
+        if (!isNetworkAvailable(context)) return
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val info = UpdateChecker.checkForUpdate(context)
+                if (info != null) {
+                    _updateState.value = UpdateState.UpdateAvailable(
+                        version = info.latestVersion,
+                        downloadUrl = info.downloadUrl,
+                        updateInfo = info
+                    )
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("UpdateChecker", "자동 업데이트 확인 실패", e)
+            }
+        }
+    }
+
     fun resetUpdateState() {
         _updateState.value = UpdateState.Idle
     }
@@ -176,6 +194,17 @@ class CalendarViewModel @Inject constructor(
                     .catch { e -> android.util.Log.e("SyncError", "Sync failure", e) }
                     .collect()
             }
+        }
+
+        // 3. 24-hour interval automatic update check
+        val prefs = context.getSharedPreferences("update_prefs", Context.MODE_PRIVATE)
+        val lastCheck = prefs.getLong("last_check_time", 0L)
+        val now = System.currentTimeMillis()
+        val oneDayMillis = 24 * 60 * 60 * 1000L
+
+        if (now - lastCheck >= oneDayMillis) {
+            checkUpdateAutomatically()
+            prefs.edit().putLong("last_check_time", now).apply()
         }
     }
 

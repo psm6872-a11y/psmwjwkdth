@@ -1,7 +1,7 @@
 {
-  "tag_name": "v1.0.104",
-  "name": "v1.0.104",
-  "body": "v1.0.104: Clean up unused login features and GitHub token parameters.",
+  "tag_name": "v1.0.105",
+  "name": "v1.0.105",
+  "body": "v1.0.105: Implement automatic background update checks once every 24 hours.",
   "draft": false,
   "prerelease": false
 }
