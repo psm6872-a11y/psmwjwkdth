@@ -1,7 +1,7 @@
 {
-  "tag_name": "v1.0.100",
-  "name": "v1.0.100",
-  "body": "v1.0.100: Adjust filter buttons height to 24dp and fix event bar vertical alignment alignment.",
+  "tag_name": "v1.0.101",
+  "name": "v1.0.101",
+  "body": "v1.0.101: Center 완료 and 마감도장 button text layout alignments.",
   "draft": false,
   "prerelease": false
 }
