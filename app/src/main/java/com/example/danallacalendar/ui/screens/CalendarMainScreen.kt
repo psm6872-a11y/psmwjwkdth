@@ -1008,8 +1008,8 @@ fun CalendarDayCell(
                         .clip(CircleShape)
                         .background(
                             when {
-                                isSelected -> MaterialTheme.colorScheme.primary
-                                day.isToday -> MaterialTheme.colorScheme.surfaceVariant
+                                isSelected -> MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)
+                                day.isToday -> Color(0xFF2C2C2C)
                                 else -> Color.Transparent
                             }
                         ),
@@ -1017,7 +1017,11 @@ fun CalendarDayCell(
                 ) {
                     Text(
                         text = day.dayOfMonth.toString(),
-                        color = if (isSelected) MaterialTheme.colorScheme.onPrimary else dayTextColor,
+                        color = when {
+                            isSelected -> MaterialTheme.colorScheme.onPrimary
+                            day.isToday -> Color.White
+                            else -> dayTextColor
+                        },
                         fontSize = 13.sp,
                         fontWeight = if (day.isToday || isSelected) FontWeight.Bold else FontWeight.Medium
                     )
