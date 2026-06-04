@@ -1178,7 +1178,17 @@ fun EventListSection(
                     ),
                     modifier = Modifier.defaultMinSize(minWidth = 1.dp).height(22.dp)
                 ) {
-                    Text("마감✓", fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                    Text(
+                        text = "마감✓",
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold,
+                        style = androidx.compose.ui.text.TextStyle(
+                            platformStyle = androidx.compose.ui.text.PlatformTextStyle(
+                                includeFontPadding = false
+                            ),
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                        )
+                    )
                 }
             } else {
                 OutlinedButton(
@@ -1194,7 +1204,17 @@ fun EventListSection(
                     ),
                     modifier = Modifier.defaultMinSize(minWidth = 1.dp).height(22.dp)
                 ) {
-                    Text("마감", fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                    Text(
+                        text = "마감",
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold,
+                        style = androidx.compose.ui.text.TextStyle(
+                            platformStyle = androidx.compose.ui.text.PlatformTextStyle(
+                                includeFontPadding = false
+                            ),
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                        )
+                    )
                 }
             }
         }
@@ -1358,28 +1378,48 @@ fun EventItemCard(
                 if (event.isCompleted) {
                     OutlinedButton(
                         onClick = onToggleComplete,
-                        contentPadding = PaddingValues(horizontal = 2.dp, vertical = 0.dp),
+                        contentPadding = PaddingValues(horizontal = 6.dp, vertical = 0.dp),
                         shape = RoundedCornerShape(5.dp),
                         border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)),
                         colors = ButtonDefaults.outlinedButtonColors(
                             contentColor = MaterialTheme.colorScheme.onSurfaceVariant
                         ),
-                        modifier = Modifier.height(22.dp).width(40.dp)
+                        modifier = Modifier.height(22.dp).defaultMinSize(minWidth = 1.dp)
                     ) {
-                        Text("완료", fontSize = 10.sp, fontWeight = FontWeight.Medium)
+                        Text(
+                            text = "완료",
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Medium,
+                            style = androidx.compose.ui.text.TextStyle(
+                                platformStyle = androidx.compose.ui.text.PlatformTextStyle(
+                                    includeFontPadding = false
+                                ),
+                                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                            )
+                        )
                     }
                 } else {
                     Button(
                         onClick = onToggleComplete,
-                        contentPadding = PaddingValues(horizontal = 2.dp, vertical = 0.dp),
+                        contentPadding = PaddingValues(horizontal = 6.dp, vertical = 0.dp),
                         shape = RoundedCornerShape(5.dp),
                         colors = ButtonDefaults.buttonColors(
                             containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.8f),
                             contentColor = MaterialTheme.colorScheme.onPrimary
                         ),
-                        modifier = Modifier.height(22.dp).width(40.dp)
+                        modifier = Modifier.height(22.dp).defaultMinSize(minWidth = 1.dp)
                     ) {
-                        Text("완료", fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                        Text(
+                            text = "완료",
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold,
+                            style = androidx.compose.ui.text.TextStyle(
+                                platformStyle = androidx.compose.ui.text.PlatformTextStyle(
+                                    includeFontPadding = false
+                                ),
+                                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                            )
+                        )
                     }
                 }
             }
