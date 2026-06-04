@@ -1033,7 +1033,7 @@ fun CalendarDayCell(
             modifier = Modifier
                 .fillMaxWidth()
                 .align(Alignment.BottomCenter)
-                .padding(horizontal = 2.dp, bottom = 2.dp),
+                .padding(start = 2.dp, top = 0.dp, end = 2.dp, bottom = 2.dp),
             verticalArrangement = Arrangement.spacedBy(1.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
