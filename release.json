@@ -1,7 +1,7 @@
 {
-  "tag_name": "v1.0.98",
-  "name": "v1.0.98",
-  "body": "v1.0.98: Remove automatic update checking on startup.",
+  "tag_name": "v1.0.99",
+  "name": "v1.0.99",
+  "body": "v1.0.99: Adjust completion button inversion and shrink deadline and filter button heights.",
   "draft": false,
   "prerelease": false
 }
