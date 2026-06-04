@@ -278,7 +278,6 @@ fun RecentCallsPickerDialog(
                     == PackageManager.PERMISSION_GRANTED
         )
     }
-    var selectedCallForDetail by remember { mutableStateOf<RecentCall?>(null) }
 
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
@@ -377,7 +376,7 @@ fun RecentCallsPickerDialog(
                             )
                         }
                     }
-                } else {
+                 } else {
                     LazyColumn(
                         modifier = Modifier.fillMaxSize(),
                         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
@@ -386,26 +385,13 @@ fun RecentCallsPickerDialog(
                         items(recentCalls, key = { it.id }) { call ->
                             RecentCallItem(
                                 call = call,
-                                onClick = { selectedCallForDetail = call }
+                                onClick = { onCallSelected(call.number) }
                             )
                         }
                     }
                 }
             }
         }
-    }
-
-    if (selectedCallForDetail != null) {
-        RecentCallDetailDialog(
-            call = selectedCallForDetail!!,
-            onConfirm = {
-                onCallSelected(selectedCallForDetail!!.number)
-                selectedCallForDetail = null
-            },
-            onDismiss = {
-                selectedCallForDetail = null
-            }
-        )
     }
 }
 
