@@ -88,6 +88,7 @@ fun CalendarMainScreen(
     onNavigateToAddEditEvent: (Int?) -> Unit,
     onNavigateToSearch: () -> Unit,
     onNavigateToBackup: () -> Unit,
+    onNavigateToEstimate: () -> Unit,
     onExitRoom: () -> Unit,
     viewModel: CalendarViewModel,
     modifier: Modifier = Modifier
@@ -291,6 +292,7 @@ fun CalendarMainScreen(
                     onToggleDrawer = { scope.launch { drawerState.open() } },
                     onToggleViewMode = { viewModel.toggleViewMode() },
                     onNavigateToSearch = { onNavigateToSearch() },
+                    onNavigateToEstimate = onNavigateToEstimate,
                     onGoToToday = { viewModel.selectDate(System.currentTimeMillis()) }
                 )
             },
@@ -419,6 +421,7 @@ fun MainTopAppBar(
     onToggleDrawer: () -> Unit,
     onToggleViewMode: () -> Unit,
     onNavigateToSearch: () -> Unit,
+    onNavigateToEstimate: () -> Unit,
     onGoToToday: () -> Unit
 ) {
     val monthFormat = SimpleDateFormat("M월", Locale.KOREAN)
@@ -450,7 +453,7 @@ fun MainTopAppBar(
                         .offset(x = (-8).dp, y = 2.dp)
                 ) {
                     FilterButton(
-                        text = "견적",
+                        text = "방문",
                         isSelected = selectedFilter == EventFilter.ESTIMATE,
                         onClick = { onFilterSelected(EventFilter.ESTIMATE) }
                     )
@@ -480,6 +483,24 @@ fun MainTopAppBar(
             }
         },
         actions = {
+            Box(
+                modifier = Modifier
+                    .padding(end = 4.dp)
+                    .height(28.dp)
+                    .clip(RoundedCornerShape(6.dp))
+                    .background(Color(0xFFF3E5F5))
+                    .border(1.dp, Color(0xFFAB47BC), RoundedCornerShape(6.dp))
+                    .clickable { onNavigateToEstimate() }
+                    .padding(horizontal = 8.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "견적내기",
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF8E24AA)
+                )
+            }
             IconButton(
                 onClick = onNavigateToSearch,
                 modifier = Modifier.size(36.dp)

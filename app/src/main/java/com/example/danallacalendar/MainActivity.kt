@@ -105,13 +105,19 @@ fun AppNavigation(userPreferences: UserPreferences) {
     val navController = rememberNavController()
 
     // Determine initial route
-    val initialRoute = when {
-        userPreferences.getNickname().isEmpty() -> "nickname"
-        userPreferences.getLastRoomCode().isEmpty() -> "room"
-        else -> "calendar"
-    }
+    val initialRoute = if (userPreferences.getNickname().isNullOrBlank()) "nickname"
+                       else if (userPreferences.getLastRoomCode().isNullOrBlank()) "room"
+                       else "calendar"
 
     NavHost(navController = navController, startDestination = initialRoute) {
+        composable("estimate") {
+            val viewModel: com.example.danallacalendar.estimate.EstimateViewModel = hiltViewModel()
+            com.example.danallacalendar.estimate.EstimateScreen(
+                viewModel = viewModel,
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+
         composable("nickname") {
             val viewModel: NicknameViewModel = hiltViewModel()
             NicknameScreen(
@@ -156,6 +162,9 @@ fun AppNavigation(userPreferences: UserPreferences) {
                 onNavigateToBackup = {
                     navController.navigate("backup")
                 },
+                onNavigateToEstimate = {
+                    navController.navigate("estimate")
+                },
                 onExitRoom = {
                     userPreferences.setLastRoomCode("")
                     navController.navigate("room") {
@@ -183,6 +192,9 @@ fun AppNavigation(userPreferences: UserPreferences) {
                 eventId = eventId,
                 onNavigateBack = {
                     navController.popBackStack()
+                },
+                onNavigateToEstimate = {
+                    navController.navigate("estimate")
                 },
                 viewModel = viewModel
             )

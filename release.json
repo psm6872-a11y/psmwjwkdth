@@ -1,7 +1,7 @@
 {
-  "tag_name": "v1.0.105",
-  "name": "v1.0.105",
-  "body": "v1.0.105: Implement automatic background update checks once every 24 hours.",
+  "tag_name": "v1.0.106",
+  "name": "v1.0.106",
+  "body": "v1.0.106: Adjust layout padding and offset on the estimate screen.",
   "draft": false,
   "prerelease": false
 }

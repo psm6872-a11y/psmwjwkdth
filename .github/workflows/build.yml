@@ -44,6 +44,7 @@ jobs:
           STORE_PASSWORD: ${{ secrets.STORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+          SPREADSHEET_WEB_APP_URL: ${{ secrets.SPREADSHEET_WEB_APP_URL }}
         run: |
           ./gradlew assembleRelease -q
           echo "Signing config: release ✅"

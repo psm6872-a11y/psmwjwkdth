@@ -71,6 +71,7 @@ val calendarColors = listOf(
 fun AddEditEventScreen(
     eventId: Int?,
     onNavigateBack: () -> Unit,
+    onNavigateToEstimate: () -> Unit,
     viewModel: CalendarViewModel,
     modifier: Modifier = Modifier
 ) {
@@ -227,7 +228,31 @@ fun AddEditEventScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(if (eventId == null) "일정 추가" else "일정 편집", fontWeight = FontWeight.Bold) },
+                title = {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Text(if (eventId == null) "일정 추가" else "일정 편집", fontWeight = FontWeight.Bold)
+                        Box(
+                            modifier = Modifier
+                                .height(26.dp)
+                                .clip(RoundedCornerShape(6.dp))
+                                .background(Color(0xFFF3E5F5))
+                                .border(1.dp, Color(0xFFAB47BC), RoundedCornerShape(6.dp))
+                                .clickable { onNavigateToEstimate() }
+                                .padding(horizontal = 8.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = "견적내기",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF8E24AA)
+                            )
+                        }
+                    }
+                },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(imageVector = Icons.Default.Close, contentDescription = "취소")
