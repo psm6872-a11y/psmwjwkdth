@@ -1,7 +1,7 @@
 {
-  "tag_name": "v1.0.99",
-  "name": "v1.0.99",
-  "body": "v1.0.99: Adjust completion button inversion and shrink deadline and filter button heights.",
+  "tag_name": "v1.0.100",
+  "name": "v1.0.100",
+  "body": "v1.0.100: Adjust filter buttons height to 24dp and fix event bar vertical alignment alignment.",
   "draft": false,
   "prerelease": false
 }
