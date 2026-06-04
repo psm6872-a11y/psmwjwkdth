@@ -991,77 +991,75 @@ fun CalendarDayCell(
             .fillMaxSize()
             .clickable { onClick() }
     ) {
-        Column(
+        // Date circle highlight wrapper Box for SonEopNeunMark alignment (centered in day cell)
+        Box(
             modifier = Modifier
-                .fillMaxSize()
-                .padding(top = 2.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+                .size(28.dp)
+                .align(Alignment.Center),
+            contentAlignment = Alignment.Center
         ) {
-            // Date circle highlight wrapper Box for SonEopNeunMark alignment
             Box(
-                modifier = Modifier.size(28.dp),
+                modifier = Modifier
+                    .fillMaxSize()
+                    .clip(CircleShape)
+                    .background(
+                        when {
+                            isSelected -> MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)
+                            day.isToday -> Color(0xFF2C2C2C)
+                            else -> Color.Transparent
+                        }
+                    ),
                 contentAlignment = Alignment.Center
             ) {
+                Text(
+                    text = day.dayOfMonth.toString(),
+                    color = when {
+                        isSelected -> MaterialTheme.colorScheme.onPrimary
+                        day.isToday -> Color.White
+                        else -> dayTextColor
+                    },
+                    fontSize = 13.sp,
+                    fontWeight = if (day.isToday || isSelected) FontWeight.Bold else FontWeight.Medium,
+                    style = androidx.compose.ui.text.TextStyle(
+                        platformStyle = androidx.compose.ui.text.PlatformTextStyle(includeFontPadding = false),
+                        textAlign = TextAlign.Center
+                    )
+                )
+            }
+        }
+
+        // Small indicator lines/dots for events (aligned to bottom)
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .align(Alignment.BottomCenter)
+                .padding(horizontal = 2.dp, bottom = 2.dp),
+            verticalArrangement = Arrangement.spacedBy(1.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            // Display up to 2 items
+            val displayEvents = dayEvents.take(2)
+            displayEvents.forEach { event ->
+                val category = categories.find { it.id == event.calendarId }
+                val colorHex = event.colorHex ?: category?.colorHex ?: "#1c62f2"
+                val catColor = Color(android.graphics.Color.parseColor(colorHex))
+
                 Box(
                     modifier = Modifier
-                        .fillMaxSize()
-                        .clip(CircleShape)
-                        .background(
-                            when {
-                                isSelected -> MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)
-                                day.isToday -> Color(0xFF2C2C2C)
-                                else -> Color.Transparent
-                            }
-                        ),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = day.dayOfMonth.toString(),
-                        color = when {
-                            isSelected -> MaterialTheme.colorScheme.onPrimary
-                            day.isToday -> Color.White
-                            else -> dayTextColor
-                        },
-                        fontSize = 13.sp,
-                        fontWeight = if (day.isToday || isSelected) FontWeight.Bold else FontWeight.Medium
-                    )
-                }
+                        .fillMaxWidth()
+                        .height(3.dp)
+                        .clip(RoundedCornerShape(1.dp))
+                        .background(catColor)
+                )
             }
-
-            Spacer(modifier = Modifier.height(2.dp))
-
-            // Small indicator lines/dots for events
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 2.dp),
-                verticalArrangement = Arrangement.spacedBy(1.dp)
-            ) {
-                // Display up to 2 items
-                val displayEvents = dayEvents.take(2)
-                displayEvents.forEach { event ->
-                    val category = categories.find { it.id == event.calendarId }
-                    val colorHex = event.colorHex ?: category?.colorHex ?: "#1c62f2"
-                    val catColor = Color(android.graphics.Color.parseColor(colorHex))
-
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(5.dp)
-                            .clip(RoundedCornerShape(1.dp))
-                            .background(catColor)
-                    )
-                }
-                if (dayEvents.size > 2) {
-                    // Small indicator dot at the center for overflow
-                    Box(
-                        modifier = Modifier
-                            .size(3.dp)
-                            .clip(CircleShape)
-                            .background(MaterialTheme.colorScheme.onSurfaceVariant)
-                            .align(Alignment.CenterHorizontally)
-                    )
-                }
+            if (dayEvents.size > 2) {
+                // Small indicator dot at the center for overflow
+                Box(
+                    modifier = Modifier
+                        .size(3.dp)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.onSurfaceVariant)
+                )
             }
         }
 
