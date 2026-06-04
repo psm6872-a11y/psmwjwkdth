@@ -1166,20 +1166,20 @@ fun EventListSection(
             if (isDeadlineSet) {
                 Button(
                     onClick = { onDeadlineToggle(selectedDate) },
-                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
+                    contentPadding = PaddingValues(horizontal = 6.dp, vertical = 0.dp),
                     shape = RoundedCornerShape(6.dp),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = MaterialTheme.colorScheme.error.copy(alpha = 0.85f),
                         contentColor = androidx.compose.ui.graphics.Color.White
                     ),
-                    modifier = Modifier.height(26.dp)
+                    modifier = Modifier.height(22.dp)
                 ) {
-                    Text("마감✓", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                    Text("마감✓", fontSize = 10.sp, fontWeight = FontWeight.Bold)
                 }
             } else {
                 OutlinedButton(
                     onClick = { onDeadlineToggle(selectedDate) },
-                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
+                    contentPadding = PaddingValues(horizontal = 6.dp, vertical = 0.dp),
                     shape = RoundedCornerShape(6.dp),
                     border = androidx.compose.foundation.BorderStroke(
                         1.dp,
@@ -1188,9 +1188,9 @@ fun EventListSection(
                     colors = ButtonDefaults.outlinedButtonColors(
                         contentColor = MaterialTheme.colorScheme.error
                     ),
-                    modifier = Modifier.height(26.dp)
+                    modifier = Modifier.height(22.dp)
                 ) {
-                    Text("마감", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                    Text("마감", fontSize = 10.sp, fontWeight = FontWeight.Bold)
                 }
             }
         }
