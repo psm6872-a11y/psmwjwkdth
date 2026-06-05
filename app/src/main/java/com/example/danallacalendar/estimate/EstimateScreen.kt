@@ -109,157 +109,161 @@ fun EstimateScreen(
         }
     }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { 
-                    Text(
-                        text = "이사 견적서 작성 (${currentStep}/4)", 
-                        fontWeight = FontWeight.Bold, 
-                        fontSize = 18.sp
-                    ) 
-                },
-                navigationIcon = {
-                    IconButton(onClick = {
-                        if (currentStep > 1) {
-                            currentStep--
-                        } else {
-                            onNavigateBack()
+    if (currentStep == 1) {
+        Step1StartScreen(
+            onCategorySelected = { type ->
+                viewModel.moveType.value = type
+                viewModel.autoSaveToGoogleSheets()
+                currentStep = 2
+            },
+            onBack = onNavigateBack
+        )
+    } else {
+        Scaffold(
+            topBar = {
+                TopAppBar(
+                    title = { 
+                        Text(
+                            text = "이사 견적서 작성 (${currentStep}/4)", 
+                            fontWeight = FontWeight.Bold, 
+                            fontSize = 18.sp
+                        ) 
+                    },
+                    navigationIcon = {
+                        IconButton(onClick = {
+                            if (currentStep > 1) {
+                                currentStep--
+                            } else {
+                                onNavigateBack()
+                            }
+                        }) {
+                            Icon(Icons.Default.ArrowBack, contentDescription = "Back")
                         }
-                    }) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceVariant
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant
+                    )
                 )
-            )
-        }
-    ) { paddingValues ->
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-                .background(MaterialTheme.colorScheme.background)
-        ) {
-            Column(
+            }
+        ) { paddingValues ->
+            Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(16.dp),
-                verticalArrangement = Arrangement.SpaceBetween
+                    .padding(paddingValues)
+                    .background(MaterialTheme.colorScheme.background)
             ) {
-                // Main Content depending on currentStep
-                Box(modifier = Modifier.weight(1f)) {
-                    when (currentStep) {
-                        1 -> Step1StartScreen(
-                            onCategorySelected = { type ->
-                                viewModel.moveType.value = type
-                                viewModel.autoSaveToGoogleSheets()
-                                currentStep = 2
-                            }
-                        )
-                        2 -> Step2CargoInput(
-                            roomItems = roomItems,
-                            onUpdateCount = { space, item, count ->
-                                viewModel.updateItemCount(space, item, count)
-                            }
-                        )
-                        3 -> Step3CustomerInfo(
-                            customerName = customerName,
-                            onCustomerNameChange = { viewModel.customerName.value = it; viewModel.autoSaveToGoogleSheets() },
-                            phoneNumber = phoneNumber,
-                            onPhoneNumberChange = { viewModel.phoneNumber.value = it; viewModel.autoSaveToGoogleSheets() },
-                            departure = departure,
-                            onDepartureChange = { viewModel.departure.value = it; viewModel.autoSaveToGoogleSheets() },
-                            destination = destination,
-                            onDestinationChange = { viewModel.destination.value = it; viewModel.autoSaveToGoogleSheets() },
-                            moveDate = moveDate,
-                            onSelectMoveDate = { showDatePicker(moveDate) { viewModel.moveDate.value = it } },
-                            startTime = startTime,
-                            onSelectStartTime = { showTimePicker { viewModel.startTime.value = it } },
-                            amount = amount,
-                            onAmountChange = { viewModel.amount.value = it; viewModel.autoSaveToGoogleSheets() },
-                            memo = memo,
-                            onMemoChange = { viewModel.memo.value = it; viewModel.autoSaveToGoogleSheets() },
-                            googleSheetsUrl = googleSheetsUrl,
-                            onSheetsUrlChange = { viewModel.googleSheetsUrl.value = it },
-                            estimateDate = estimateDate,
-                            onSelectEstimateDate = { showDatePicker(estimateDate) { viewModel.estimateDate.value = it } }
-                        )
-                        4 -> Step4PreviewAndActions(
-                            customerName = customerName,
-                            phoneNumber = phoneNumber,
-                            departure = departure,
-                            destination = destination,
-                            moveDate = moveDate,
-                            moveType = moveType,
-                            startTime = startTime,
-                            amount = amount,
-                            memo = memo,
-                            roomItemsSummary = viewModel.formatRoomItemsSummary(),
-                            saveState = saveState,
-                            onPrint = {
-                                printEstimate(context, customerName, phoneNumber, moveDate, startTime, moveType, departure, destination, amount, viewModel.formatRoomItemsSummary(), memo)
-                            },
-                            onSave = {
-                                if (customerName.isBlank()) {
-                                    Toast.makeText(context, "고객명을 입력해주세요.", Toast.LENGTH_SHORT).show()
-                                    currentStep = 3
-                                } else {
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(16.dp),
+                    verticalArrangement = Arrangement.SpaceBetween
+                ) {
+                    // Main Content depending on currentStep
+                    Box(modifier = Modifier.weight(1f)) {
+                        when (currentStep) {
+                            2 -> Step2CargoInput(
+                                roomItems = roomItems,
+                                onUpdateCount = { space, item, count ->
+                                    viewModel.updateItemCount(space, item, count)
+                                }
+                            )
+                            3 -> Step3CustomerInfo(
+                                customerName = customerName,
+                                onCustomerNameChange = { viewModel.customerName.value = it; viewModel.autoSaveToGoogleSheets() },
+                                phoneNumber = phoneNumber,
+                                onPhoneNumberChange = { viewModel.phoneNumber.value = it; viewModel.autoSaveToGoogleSheets() },
+                                departure = departure,
+                                onDepartureChange = { viewModel.departure.value = it; viewModel.autoSaveToGoogleSheets() },
+                                destination = destination,
+                                onDestinationChange = { viewModel.destination.value = it; viewModel.autoSaveToGoogleSheets() },
+                                moveDate = moveDate,
+                                onSelectMoveDate = { showDatePicker(moveDate) { viewModel.moveDate.value = it } },
+                                startTime = startTime,
+                                onSelectStartTime = { showTimePicker { viewModel.startTime.value = it } },
+                                amount = amount,
+                                onAmountChange = { viewModel.amount.value = it; viewModel.autoSaveToGoogleSheets() },
+                                memo = memo,
+                                onMemoChange = { viewModel.memo.value = it; viewModel.autoSaveToGoogleSheets() },
+                                googleSheetsUrl = googleSheetsUrl,
+                                onSheetsUrlChange = { viewModel.googleSheetsUrl.value = it },
+                                estimateDate = estimateDate,
+                                onSelectEstimateDate = { showDatePicker(estimateDate) { viewModel.estimateDate.value = it } }
+                            )
+                            4 -> Step4PreviewAndActions(
+                                customerName = customerName,
+                                phoneNumber = phoneNumber,
+                                departure = departure,
+                                destination = destination,
+                                moveDate = moveDate,
+                                moveType = moveType,
+                                startTime = startTime,
+                                amount = amount,
+                                memo = memo,
+                                roomItemsSummary = viewModel.formatRoomItemsSummary(),
+                                saveState = saveState,
+                                onPrint = {
+                                    printEstimate(context, customerName, phoneNumber, moveDate, startTime, moveType, departure, destination, amount, viewModel.formatRoomItemsSummary(), memo)
+                                },
+                                onSave = {
+                                    if (customerName.isBlank()) {
+                                        Toast.makeText(context, "고객명을 입력해주세요.", Toast.LENGTH_SHORT).show()
+                                        currentStep = 3
+                                    } else {
+                                        viewModel.saveEstimate { smsBody ->
+                                            Toast.makeText(context, "구글 시트 및 DB 저장 완료!", Toast.LENGTH_SHORT).show()
+                                        }
+                                    }
+                                },
+                                onSendSms = {
                                     viewModel.saveEstimate { smsBody ->
-                                        Toast.makeText(context, "구글 시트 및 DB 저장 완료!", Toast.LENGTH_SHORT).show()
+                                        val intent = Intent(Intent.ACTION_SENDTO).apply {
+                                            data = Uri.parse("smsto:${phoneNumber}")
+                                            putExtra("sms_body", smsBody)
+                                        }
+                                        try {
+                                            context.startActivity(intent)
+                                        } catch (e: Exception) {
+                                            Toast.makeText(context, "문자 앱을 실행할 수 없습니다.", Toast.LENGTH_SHORT).show()
+                                        }
                                     }
                                 }
-                            },
-                            onSendSms = {
-                                viewModel.saveEstimate { smsBody ->
-                                    val intent = Intent(Intent.ACTION_SENDTO).apply {
-                                        data = Uri.parse("smsto:${phoneNumber}")
-                                        putExtra("sms_body", smsBody)
-                                    }
-                                    try {
-                                        context.startActivity(intent)
-                                    } catch (e: Exception) {
-                                        Toast.makeText(context, "문자 앱을 실행할 수 없습니다.", Toast.LENGTH_SHORT).show()
-                                    }
-                                }
-                            }
-                        )
-                    }
-                }
-
-                // Bottom Navigation Row for Navigation (Next / Back buttons)
-                if (currentStep > 1) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(top = 16.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        OutlinedButton(
-                            onClick = { currentStep-- },
-                            modifier = Modifier
-                                .weight(1f)
-                                .height(48.dp),
-                            shape = RoundedCornerShape(10.dp)
-                        ) {
-                            Text("이전")
+                            )
                         }
+                    }
 
-                        Spacer(modifier = Modifier.width(16.dp))
-
-                        if (currentStep < 4) {
-                            Button(
-                                onClick = { currentStep++ },
+                    // Bottom Navigation Row for Navigation (Next / Back buttons)
+                    if (currentStep > 1) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(top = 16.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            OutlinedButton(
+                                onClick = { currentStep-- },
                                 modifier = Modifier
                                     .weight(1f)
                                     .height(48.dp),
                                 shape = RoundedCornerShape(10.dp)
                             ) {
-                                Text(if (currentStep == 3) "미리보기" else "다음")
+                                Text("이전")
                             }
-                        } else {
-                            Spacer(modifier = Modifier.weight(1f))
+
+                            Spacer(modifier = Modifier.width(16.dp))
+
+                            if (currentStep < 4) {
+                                Button(
+                                    onClick = { currentStep++ },
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .height(48.dp),
+                                    shape = RoundedCornerShape(10.dp)
+                                ) {
+                                    Text(if (currentStep == 3) "미리보기" else "다음")
+                                }
+                            } else {
+                                Spacer(modifier = Modifier.weight(1f))
+                            }
                         }
                     }
                 }
@@ -270,12 +274,14 @@ fun EstimateScreen(
 
 @Composable
 fun Step1StartScreen(
-    onCategorySelected: (String) -> Unit
+    onCategorySelected: (String) -> Unit,
+    onBack: () -> Unit
 ) {
+    // 배경색을 조금만 연하게 변경 (0xFF0A1628 -> 0xFF182A45, 0xFF1A3A6B -> 0xFF2D558B)
     val gradientBrush = Brush.verticalGradient(
         colors = listOf(
-            Color(0xFF0A1628),
-            Color(0xFF1A3A6B)
+            Color(0xFF182A45),
+            Color(0xFF2D558B)
         )
     )
 
@@ -285,11 +291,25 @@ fun Step1StartScreen(
             .background(gradientBrush)
             .padding(24.dp)
     ) {
+        // 뒤로가기 버튼 추가
+        IconButton(
+            onClick = onBack,
+            modifier = Modifier
+                .align(Alignment.TopStart)
+                .padding(top = 8.dp)
+        ) {
+            Icon(
+                imageVector = Icons.Default.ArrowBack,
+                contentDescription = "뒤로가기",
+                tint = Color.White
+            )
+        }
+
         // 타이틀은 상단에서 약간 내려서 배치
         Column(
             modifier = Modifier
                 .align(Alignment.TopCenter)
-                .padding(top = 100.dp),
+                .padding(top = 150.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             val letters = listOf(
@@ -300,7 +320,8 @@ fun Step1StartScreen(
                 "작" to Color(0xFF00BCD4), // 하늘
                 "합" to Color(0xFF2196F3), // 파랑
                 "니" to Color(0xFF9C27B0), // 보라
-                "다" to Color(0xFFE91E63)  // 분홍
+                "다" to Color(0xFFE91E63), // 분홍
+                "." to Color.White          // 마침표
             )
 
             val infiniteTransition = rememberInfiniteTransition(label = "BlinkText")
@@ -326,7 +347,7 @@ fun Step1StartScreen(
 
                     Text(
                         text = char,
-                        fontSize = 32.sp,
+                        fontSize = 36.sp,
                         fontWeight = FontWeight.Bold,
                         color = color,
                         modifier = Modifier

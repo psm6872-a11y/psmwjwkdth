@@ -105,9 +105,7 @@ fun AppNavigation(userPreferences: UserPreferences) {
     val navController = rememberNavController()
 
     // Determine initial route
-    val initialRoute = if (userPreferences.getNickname().isNullOrBlank()) "nickname"
-                       else if (userPreferences.getLastRoomCode().isNullOrBlank()) "room"
-                       else "calendar"
+    val initialRoute = "estimate"
 
     NavHost(navController = navController, startDestination = initialRoute) {
         composable("estimate") {
