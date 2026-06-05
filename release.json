@@ -1,7 +1,7 @@
 {
-  "tag_name": "v1.0.106",
-  "name": "v1.0.106",
-  "body": "v1.0.106: Adjust layout padding and offset on the estimate screen.",
+  "tag_name": "v1.0.107",
+  "name": "v1.0.107",
+  "body": "v1.0.107: Add Calendar text button to step 1 screen and improve back navigation.",
   "draft": false,
   "prerelease": false
 }

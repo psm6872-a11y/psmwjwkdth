@@ -291,18 +291,33 @@ fun Step1StartScreen(
             .background(gradientBrush)
             .padding(24.dp)
     ) {
-        // 뒤로가기 버튼 추가
-        IconButton(
-            onClick = onBack,
+        // 뒤로가기 버튼 및 캘린더 버튼 추가
+        Row(
             modifier = Modifier
                 .align(Alignment.TopStart)
-                .padding(top = 8.dp)
+                .padding(top = 8.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Icon(
-                imageVector = Icons.Default.ArrowBack,
-                contentDescription = "뒤로가기",
-                tint = Color.White
-            )
+            IconButton(
+                onClick = onBack
+            ) {
+                Icon(
+                    imageVector = Icons.Default.ArrowBack,
+                    contentDescription = "뒤로가기",
+                    tint = Color.White
+                )
+            }
+            TextButton(
+                onClick = onBack,
+                contentPadding = PaddingValues(start = 0.dp, end = 8.dp)
+            ) {
+                Text(
+                    text = "캘린더",
+                    color = Color.White,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Medium
+                )
+            }
         }
 
         // 타이틀은 상단에서 약간 내려서 배치
