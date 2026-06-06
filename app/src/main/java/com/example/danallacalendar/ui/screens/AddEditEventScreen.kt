@@ -97,29 +97,6 @@ fun AddEditEventScreen(
     var notesFieldValues by remember {
         mutableStateOf(notesList.map { androidx.compose.ui.text.input.TextFieldValue(it) })
     }
-    // 사용자가 직접 입력 중인지 여부를 추적하여 외부 업데이트와 구분
-    var isUserTyping by remember { mutableStateOf(false) }
-
-    LaunchedEffect(notesList) {
-        if (!isUserTyping) {
-            val updated = notesFieldValues.toMutableList()
-            notesList.forEachIndexed { index, text ->
-                val current = updated.getOrNull(index)
-                if (current == null || current.text != text) {
-                    if (index < updated.size) {
-                        updated[index] = updated[index].copy(text = text)
-                    } else {
-                        updated.add(androidx.compose.ui.text.input.TextFieldValue(text))
-                    }
-                }
-            }
-            while (updated.size > notesList.size) {
-                updated.removeAt(updated.size - 1)
-            }
-            notesFieldValues = updated
-        }
-        isUserTyping = false
-    }
     var activeRecentCallsIndex by remember { mutableStateOf(-1) }
     var selectedCategory by remember { mutableStateOf<CalendarCategory?>(null) }
     var selectedColorHex by remember { mutableStateOf(prefs.getString("last_used_color_hex", "#ff3b30") ?: "#ff3b30") }
@@ -199,6 +176,7 @@ fun AddEditEventScreen(
                         calStart.get(Calendar.DAY_OF_YEAR) != calEnd.get(Calendar.DAY_OF_YEAR)
                 val notesParts = event.notes.split("|||")
                 notesList = if (notesParts.isNotEmpty()) notesParts else listOf("")
+                notesFieldValues = notesList.map { androidx.compose.ui.text.input.TextFieldValue(it) }
                 repeatType = event.repeatType
                 reminderMinutes = event.reminderMinutes
                 val cat = categories.find { cat -> cat.id == event.calendarId } ?: categories.firstOrNull()
@@ -733,7 +711,6 @@ fun AddEditEventScreen(
                                 BasicTextField(
                                     value = notesFieldValues.getOrElse(index) { androidx.compose.ui.text.input.TextFieldValue(phone) },
                                     onValueChange = { newValue ->
-                                        isUserTyping = true
                                         notesFieldValues = notesFieldValues.toMutableList().apply {
                                             if (index < size) this[index] = newValue
                                             else add(newValue)
@@ -768,6 +745,7 @@ fun AddEditEventScreen(
                                 onClick = {
                                     if (!isReadOnly) {
                                         notesList = notesList + ""
+                                        notesFieldValues = notesFieldValues + androidx.compose.ui.text.input.TextFieldValue("")
                                     }
                                 },
                                 enabled = !isReadOnly,
@@ -1273,6 +1251,11 @@ fun AddEditEventScreen(
                 notesList = notesList.toMutableList().apply {
                     if (activeRecentCallsIndex in indices) {
                         this[activeRecentCallsIndex] = number
+                    }
+                }
+                notesFieldValues = notesFieldValues.toMutableList().apply {
+                    if (activeRecentCallsIndex in indices) {
+                        this[activeRecentCallsIndex] = androidx.compose.ui.text.input.TextFieldValue(number)
                     }
                 }
                 showRecentCallsDialog = false
