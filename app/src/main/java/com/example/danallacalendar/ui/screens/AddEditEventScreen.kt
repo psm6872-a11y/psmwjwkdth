@@ -230,10 +230,14 @@ fun AddEditEventScreen(
             TopAppBar(
                 title = {
                     Row(
+                        modifier = Modifier.fillMaxHeight(),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        Text(if (eventId == null) "일정 추가" else "일정 편집", fontWeight = FontWeight.Bold)
+                        Text(
+                            if (eventId == null) "일정 추가" else "일정 편집",
+                            fontWeight = FontWeight.Bold
+                        )
                         Box(
                             modifier = Modifier
                                 .height(26.dp)
@@ -506,7 +510,7 @@ fun AddEditEventScreen(
                                 enabled = !isReadOnly,
                                 keyboardOptions = KeyboardOptions(
                                     keyboardType = KeyboardType.Text,
-                                    imeAction = ImeAction.Next
+                                    imeAction = ImeAction.Default
                                 ),
                                 textStyle = androidx.compose.ui.text.TextStyle(
                                     fontSize = 15.sp,
@@ -639,7 +643,7 @@ fun AddEditEventScreen(
                                     enabled = !isReadOnly,
                                     keyboardOptions = KeyboardOptions(
                                         keyboardType = KeyboardType.Text,
-                                        imeAction = ImeAction.Next
+                                        imeAction = ImeAction.Default
                                     ),
                                     textStyle = androidx.compose.ui.text.TextStyle(
                                         fontSize = 15.sp,
@@ -705,8 +709,8 @@ fun AddEditEventScreen(
                                     singleLine = true,
                                     enabled = !isReadOnly,
                                     keyboardOptions = KeyboardOptions(
-                                        keyboardType = KeyboardType.Number,
-                                        imeAction = ImeAction.Done
+                                        keyboardType = KeyboardType.Text,
+                                        imeAction = ImeAction.Default
                                     ),
                                     keyboardActions = KeyboardActions(
                                         onDone = { 
