@@ -483,69 +483,73 @@ fun MainTopAppBar(
             }
         },
         actions = {
-            Box(
-                modifier = Modifier
-                    .padding(end = 4.dp)
-                    .height(20.dp)
-                    .clip(RoundedCornerShape(6.dp))
-                    .background(Color(0xFFF3E5F5))
-                    .border(1.dp, Color(0xFFAB47BC), RoundedCornerShape(6.dp))
-                    .clickable { onNavigateToEstimate() }
-                    .padding(horizontal = 6.dp),
-                contentAlignment = Alignment.Center
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(0.dp),
+                modifier = Modifier.offset(x = 8.dp)
             ) {
-                Text(
-                    text = "견적내기",
-                    fontSize = 10.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color(0xFF8E24AA),
-                    lineHeight = 10.sp,
-                    textAlign = TextAlign.Center
-                )
-            }
-            IconButton(
-                onClick = onNavigateToSearch,
-                modifier = Modifier.size(36.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Search,
-                    contentDescription = "검색",
-                    modifier = Modifier.size(20.dp)
-                )
-            }
-            IconButton(
-                onClick = onGoToToday,
-                modifier = Modifier.size(36.dp)
-            ) {
-                // Go to today icon (calendar sheet with today's date inside)
-                val dayStr = SimpleDateFormat("d", Locale.getDefault()).format(Date())
                 Box(
-                    contentAlignment = Alignment.Center,
                     modifier = Modifier
-                        .size(20.dp)
-                        .border(1.2.dp, MaterialTheme.colorScheme.onSurface, RoundedCornerShape(3.dp))
+                        .height(20.dp)
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(Color(0xFFF3E5F5))
+                        .border(1.dp, Color(0xFFAB47BC), RoundedCornerShape(6.dp))
+                        .clickable { onNavigateToEstimate() }
+                        .padding(horizontal = 6.dp),
+                    contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = dayStr,
-                        fontSize = 9.sp,
+                        text = "견적내기",
+                        fontSize = 10.sp,
                         fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        textAlign = TextAlign.Center,
-                        lineHeight = 9.sp,
-                        style = androidx.compose.ui.text.TextStyle(
-                            platformStyle = androidx.compose.ui.text.PlatformTextStyle(
-                                includeFontPadding = false
-                            ),
-                            lineHeightStyle = androidx.compose.ui.text.style.LineHeightStyle(
-                                alignment = androidx.compose.ui.text.style.LineHeightStyle.Alignment.Center,
-                                trim = androidx.compose.ui.text.style.LineHeightStyle.Trim.None
-                            )
-                        ),
-                        modifier = Modifier.align(Alignment.Center)
+                        color = Color(0xFF8E24AA),
+                        lineHeight = 10.sp,
+                        textAlign = TextAlign.Center
                     )
                 }
+                IconButton(
+                    onClick = onNavigateToSearch,
+                    modifier = Modifier.size(36.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Search,
+                        contentDescription = "검색",
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+                IconButton(
+                    onClick = onGoToToday,
+                    modifier = Modifier.size(36.dp)
+                ) {
+                    // Go to today icon (calendar sheet with today's date inside)
+                    val dayStr = SimpleDateFormat("d", Locale.getDefault()).format(Date())
+                    Box(
+                        contentAlignment = Alignment.Center,
+                        modifier = Modifier
+                            .size(20.dp)
+                            .border(1.2.dp, MaterialTheme.colorScheme.onSurface, RoundedCornerShape(3.dp))
+                    ) {
+                        Text(
+                            text = dayStr,
+                            fontSize = 9.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            textAlign = TextAlign.Center,
+                            lineHeight = 9.sp,
+                            style = androidx.compose.ui.text.TextStyle(
+                                platformStyle = androidx.compose.ui.text.PlatformTextStyle(
+                                    includeFontPadding = false
+                                ),
+                                lineHeightStyle = androidx.compose.ui.text.style.LineHeightStyle(
+                                    alignment = androidx.compose.ui.text.style.LineHeightStyle.Alignment.Center,
+                                    trim = androidx.compose.ui.text.style.LineHeightStyle.Trim.None
+                                )
+                            ),
+                            modifier = Modifier.align(Alignment.Center)
+                        )
+                    }
+                }
             }
-
         },
         colors = TopAppBarDefaults.topAppBarColors(
             containerColor = MaterialTheme.colorScheme.background

@@ -230,6 +230,7 @@ fun AddEditEventScreen(
             TopAppBar(
                 title = {
                     Row(
+                        modifier = Modifier.height(56.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
@@ -507,7 +508,8 @@ fun AddEditEventScreen(
                             BasicTextField(
                                 value = location1b,
                                 onValueChange = { location1b = it },
-                                singleLine = true,
+                                singleLine = false,
+                                maxLines = 1,
                                 enabled = !isReadOnly,
                                 keyboardOptions = KeyboardOptions(
                                     keyboardType = KeyboardType.Text,
@@ -640,7 +642,8 @@ fun AddEditEventScreen(
                                 BasicTextField(
                                     value = location2b,
                                     onValueChange = { location2b = it },
-                                    singleLine = true,
+                                    singleLine = false,
+                                    maxLines = 1,
                                     enabled = !isReadOnly,
                                     keyboardOptions = KeyboardOptions(
                                         keyboardType = KeyboardType.Text,
@@ -707,7 +710,8 @@ fun AddEditEventScreen(
                                             this[index] = formatted
                                         }
                                     },
-                                    singleLine = true,
+                                    singleLine = false,
+                                    maxLines = 1,
                                     enabled = !isReadOnly,
                                     keyboardOptions = KeyboardOptions(
                                         keyboardType = KeyboardType.Text,
