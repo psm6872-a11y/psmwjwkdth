@@ -94,9 +94,6 @@ fun AddEditEventScreen(
     var location2 by remember { mutableStateOf("") }  // 위치 2 상단
     var location2b by remember { mutableStateOf("") } // 위치 2 하단
     var notesList by remember { mutableStateOf(listOf("")) }
-    var notesFieldValues by remember {
-        mutableStateOf(notesList.map { androidx.compose.ui.text.input.TextFieldValue(it) })
-    }
     var activeRecentCallsIndex by remember { mutableStateOf(-1) }
     var selectedCategory by remember { mutableStateOf<CalendarCategory?>(null) }
     var selectedColorHex by remember { mutableStateOf(prefs.getString("last_used_color_hex", "#ff3b30") ?: "#ff3b30") }
@@ -176,7 +173,6 @@ fun AddEditEventScreen(
                         calStart.get(Calendar.DAY_OF_YEAR) != calEnd.get(Calendar.DAY_OF_YEAR)
                 val notesParts = event.notes.split("|||")
                 notesList = if (notesParts.isNotEmpty()) notesParts else listOf("")
-                notesFieldValues = notesList.map { androidx.compose.ui.text.input.TextFieldValue(it) }
                 repeatType = event.repeatType
                 reminderMinutes = event.reminderMinutes
                 val cat = categories.find { cat -> cat.id == event.calendarId } ?: categories.firstOrNull()
@@ -708,19 +704,30 @@ fun AddEditEventScreen(
                                 if (phone.isEmpty()) {
                                     Text("전화번호", fontSize = 15.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                 }
-                                PhoneTextFieldValueInput(
-                                    initialValue = notesFieldValues.getOrElse(index) { androidx.compose.ui.text.input.TextFieldValue(phone) },
-                                    isReadOnly = isReadOnly,
-                                    focusManager = focusManager,
+                                BasicTextField(
+                                    value = phone,
                                     onValueChange = { newValue ->
-                                        notesFieldValues = notesFieldValues.toMutableList().apply {
-                                            if (index < size) this[index] = newValue
-                                            else add(newValue)
-                                        }
                                         notesList = notesList.toMutableList().apply {
-                                            this[index] = newValue.text
+                                            this[index] = newValue
                                         }
-                                    }
+                                    },
+                                    singleLine = false,
+                                    maxLines = 1,
+                                    enabled = !isReadOnly,
+                                    keyboardOptions = KeyboardOptions(
+                                        keyboardType = KeyboardType.Text,
+                                        imeAction = ImeAction.Default
+                                    ),
+                                    keyboardActions = KeyboardActions(
+                                        onDone = { 
+                                            focusManager.clearFocus() 
+                                        }
+                                    ),
+                                    textStyle = androidx.compose.ui.text.TextStyle(
+                                        fontSize = 15.sp,
+                                        color = if (isReadOnly) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface
+                                    ),
+                                    modifier = Modifier.fillMaxWidth()
                                 )
                             }
                             if (index == 0) {
@@ -730,7 +737,6 @@ fun AddEditEventScreen(
                                     onClick = {
                                         if (!isReadOnly) {
                                             notesList = notesList + ""
-                                            notesFieldValues = notesFieldValues + androidx.compose.ui.text.input.TextFieldValue("")
                                         }
                                     },
                                     enabled = !isReadOnly,
@@ -1248,11 +1254,6 @@ fun AddEditEventScreen(
                         this[activeRecentCallsIndex] = number
                     }
                 }
-                notesFieldValues = notesFieldValues.toMutableList().apply {
-                    if (activeRecentCallsIndex in indices) {
-                        this[activeRecentCallsIndex] = androidx.compose.ui.text.input.TextFieldValue(number)
-                    }
-                }
                 showRecentCallsDialog = false
             },
             onDismiss = { showRecentCallsDialog = false }
@@ -1638,46 +1639,5 @@ fun WheelPicker(
             }
         }
     }
-}
-
-@Composable
-fun PhoneTextFieldValueInput(
-    initialValue: androidx.compose.ui.text.input.TextFieldValue,
-    isReadOnly: Boolean,
-    focusManager: androidx.compose.ui.focus.FocusManager,
-    onValueChange: (androidx.compose.ui.text.input.TextFieldValue) -> Unit
-) {
-    var state by remember { mutableStateOf(initialValue) }
-
-    LaunchedEffect(initialValue) {
-        if (initialValue.text != state.text) {
-            state = initialValue
-        }
-    }
-
-    BasicTextField(
-        value = state,
-        onValueChange = { newValue ->
-            state = newValue
-            onValueChange(newValue)
-        },
-        singleLine = false,
-        maxLines = 1,
-        enabled = !isReadOnly,
-        keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
-            keyboardType = KeyboardType.Text,
-            imeAction = ImeAction.Default
-        ),
-        keyboardActions = androidx.compose.foundation.text.KeyboardActions(
-            onDone = { 
-                focusManager.clearFocus() 
-            }
-        ),
-        textStyle = androidx.compose.ui.text.TextStyle(
-            fontSize = 15.sp,
-            color = if (isReadOnly) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface
-        ),
-        modifier = Modifier.fillMaxWidth()
-    )
 }
 
