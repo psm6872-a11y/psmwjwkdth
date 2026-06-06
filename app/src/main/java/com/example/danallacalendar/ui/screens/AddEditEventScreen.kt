@@ -708,8 +708,10 @@ fun AddEditEventScreen(
                                 if (phone.isEmpty()) {
                                     Text("전화번호", fontSize = 15.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                 }
-                                BasicTextField(
-                                    value = notesFieldValues.getOrElse(index) { androidx.compose.ui.text.input.TextFieldValue(phone) },
+                                PhoneTextFieldValueInput(
+                                    initialValue = notesFieldValues.getOrElse(index) { androidx.compose.ui.text.input.TextFieldValue(phone) },
+                                    isReadOnly = isReadOnly,
+                                    focusManager = focusManager,
                                     onValueChange = { newValue ->
                                         notesFieldValues = notesFieldValues.toMutableList().apply {
                                             if (index < size) this[index] = newValue
@@ -718,25 +720,7 @@ fun AddEditEventScreen(
                                         notesList = notesList.toMutableList().apply {
                                             this[index] = newValue.text
                                         }
-                                    },
-                                    singleLine = false,
-                                    maxLines = 1,
-                                    enabled = !isReadOnly,
-                                    keyboardOptions = KeyboardOptions(
-                                        keyboardType = KeyboardType.Text,
-                                        imeAction = ImeAction.Default
-                                    ),
-                                    keyboardActions = KeyboardActions(
-                                        onDone = { 
-                                            focusManager.clearFocus() 
-                                        }
-                                    ),
-                                    textStyle = androidx.compose.ui.text.TextStyle(
-                                        fontSize = 15.sp,
-                                        color = if (isReadOnly) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface
-                                    ),
-                                    modifier = Modifier
-                                        .fillMaxWidth()
+                                    }
                                 )
                             }
                             if (index == 0) {
@@ -1655,3 +1639,45 @@ fun WheelPicker(
         }
     }
 }
+
+@Composable
+fun PhoneTextFieldValueInput(
+    initialValue: androidx.compose.ui.text.input.TextFieldValue,
+    isReadOnly: Boolean,
+    focusManager: androidx.compose.ui.focus.FocusManager,
+    onValueChange: (androidx.compose.ui.text.input.TextFieldValue) -> Unit
+) {
+    var state by remember { mutableStateOf(initialValue) }
+
+    LaunchedEffect(initialValue) {
+        if (initialValue.text != state.text) {
+            state = initialValue
+        }
+    }
+
+    BasicTextField(
+        value = state,
+        onValueChange = { newValue ->
+            state = newValue
+            onValueChange(newValue)
+        },
+        singleLine = false,
+        maxLines = 1,
+        enabled = !isReadOnly,
+        keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+            keyboardType = KeyboardType.Text,
+            imeAction = ImeAction.Default
+        ),
+        keyboardActions = androidx.compose.foundation.text.KeyboardActions(
+            onDone = { 
+                focusManager.clearFocus() 
+            }
+        ),
+        textStyle = androidx.compose.ui.text.TextStyle(
+            fontSize = 15.sp,
+            color = if (isReadOnly) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface
+        ),
+        modifier = Modifier.fillMaxWidth()
+    )
+}
+
