@@ -15,7 +15,7 @@ android {
         applicationId = "com.example.danallacalendar"
         minSdk = 24
         targetSdk = 34
-        versionCode = 120
+        versionCode = 126
         versionName = "1.1.0"
 
 
