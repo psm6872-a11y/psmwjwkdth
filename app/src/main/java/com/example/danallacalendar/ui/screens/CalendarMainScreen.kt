@@ -485,8 +485,8 @@ fun MainTopAppBar(
         actions = {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(0.dp),
-                modifier = Modifier.offset(x = 8.dp)
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                modifier = Modifier.padding(end = 4.dp)
             ) {
                 Box(
                     modifier = Modifier
@@ -507,9 +507,13 @@ fun MainTopAppBar(
                         textAlign = TextAlign.Center
                     )
                 }
-                IconButton(
-                    onClick = onNavigateToSearch,
-                    modifier = Modifier.size(36.dp)
+                // 검색(돋보기) 버튼
+                Box(
+                    modifier = Modifier
+                        .size(24.dp)
+                        .clip(androidx.compose.foundation.shape.CircleShape)
+                        .clickable { onNavigateToSearch() },
+                    contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = Icons.Default.Search,
@@ -517,11 +521,14 @@ fun MainTopAppBar(
                         modifier = Modifier.size(20.dp)
                     )
                 }
-                IconButton(
-                    onClick = onGoToToday,
-                    modifier = Modifier.size(36.dp)
+                // 오늘날짜 이동 버튼
+                Box(
+                    modifier = Modifier
+                        .size(24.dp)
+                        .clip(RoundedCornerShape(4.dp))
+                        .clickable { onGoToToday() },
+                    contentAlignment = Alignment.Center
                 ) {
-                    // Go to today icon (calendar sheet with today's date inside)
                     val dayStr = SimpleDateFormat("d", Locale.getDefault()).format(Date())
                     Box(
                         contentAlignment = Alignment.Center,
