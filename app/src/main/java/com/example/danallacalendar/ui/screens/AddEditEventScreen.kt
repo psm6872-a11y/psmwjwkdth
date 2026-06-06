@@ -739,29 +739,40 @@ fun AddEditEventScreen(
                                         .fillMaxWidth()
                                 )
                             }
-                            Spacer(modifier = Modifier.width(4.dp))
-                            // "추가" Button
-                            Button(
-                                onClick = {
-                                    if (!isReadOnly) {
-                                        notesList = notesList + ""
-                                        notesFieldValues = notesFieldValues + androidx.compose.ui.text.input.TextFieldValue("")
-                                    }
-                                },
-                                enabled = !isReadOnly,
-                                contentPadding = PaddingValues(horizontal = 6.dp, vertical = 1.dp),
-                                shape = RoundedCornerShape(8.dp),
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = MaterialTheme.colorScheme.primaryContainer,
-                                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer
-                                ),
-                                modifier = Modifier
-                                    .defaultMinSize(minWidth = 1.dp, minHeight = 1.dp)
-                                    .height(26.dp)
-                            ) {
-                                Text("추가", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                            if (index == 0) {
+                                Spacer(modifier = Modifier.width(8.dp))
+                                // "추가" Button
+                                Button(
+                                    onClick = {
+                                        if (!isReadOnly) {
+                                            notesList = notesList + ""
+                                            notesFieldValues = notesFieldValues + androidx.compose.ui.text.input.TextFieldValue("")
+                                        }
+                                    },
+                                    enabled = !isReadOnly,
+                                    contentPadding = PaddingValues(horizontal = 4.dp, vertical = 0.dp),
+                                    shape = RoundedCornerShape(6.dp),
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = MaterialTheme.colorScheme.primaryContainer,
+                                        contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                                    ),
+                                    modifier = Modifier
+                                        .defaultMinSize(minWidth = 1.dp, minHeight = 1.dp)
+                                        .height(22.dp)
+                                ) {
+                                    Text(
+                                        text = "추가", 
+                                        fontSize = 9.sp, 
+                                        fontWeight = FontWeight.Bold,
+                                        style = androidx.compose.ui.text.TextStyle(
+                                            platformStyle = androidx.compose.ui.text.PlatformTextStyle(
+                                                includeFontPadding = false
+                                            )
+                                        )
+                                    )
+                                }
+                                Spacer(modifier = Modifier.width(2.dp))
                             }
-                            Spacer(modifier = Modifier.width(4.dp))
                             IconButton(
                                 onClick = {
                                     if (!isReadOnly) {
