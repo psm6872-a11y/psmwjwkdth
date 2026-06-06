@@ -97,25 +97,28 @@ fun AddEditEventScreen(
     var notesFieldValues by remember {
         mutableStateOf(notesList.map { androidx.compose.ui.text.input.TextFieldValue(it) })
     }
+    // 사용자가 직접 입력 중인지 여부를 추적하여 외부 업데이트와 구분
+    var isUserTyping by remember { mutableStateOf(false) }
 
     LaunchedEffect(notesList) {
-        val updated = notesFieldValues.toMutableList()
-        notesList.forEachIndexed { index, text ->
-            val current = updated.getOrNull(index)
-            // 현재 입력 중인 텍스트와 다를 때만 업데이트 (커서 리셋 방지)
-            if (current == null || current.text != text) {
-                if (index < updated.size) {
-                    updated[index] = updated[index].copy(text = text)
-                } else {
-                    updated.add(androidx.compose.ui.text.input.TextFieldValue(text))
+        if (!isUserTyping) {
+            val updated = notesFieldValues.toMutableList()
+            notesList.forEachIndexed { index, text ->
+                val current = updated.getOrNull(index)
+                if (current == null || current.text != text) {
+                    if (index < updated.size) {
+                        updated[index] = updated[index].copy(text = text)
+                    } else {
+                        updated.add(androidx.compose.ui.text.input.TextFieldValue(text))
+                    }
                 }
             }
+            while (updated.size > notesList.size) {
+                updated.removeAt(updated.size - 1)
+            }
+            notesFieldValues = updated
         }
-        // 항목 수가 줄었을 때 처리
-        while (updated.size > notesList.size) {
-            updated.removeAt(updated.size - 1)
-        }
-        notesFieldValues = updated
+        isUserTyping = false
     }
     var activeRecentCallsIndex by remember { mutableStateOf(-1) }
     var selectedCategory by remember { mutableStateOf<CalendarCategory?>(null) }
@@ -730,6 +733,7 @@ fun AddEditEventScreen(
                                 BasicTextField(
                                     value = notesFieldValues.getOrElse(index) { androidx.compose.ui.text.input.TextFieldValue(phone) },
                                     onValueChange = { newValue ->
+                                        isUserTyping = true
                                         notesFieldValues = notesFieldValues.toMutableList().apply {
                                             if (index < size) this[index] = newValue
                                             else add(newValue)
@@ -811,29 +815,6 @@ fun AddEditEventScreen(
                     modifier = Modifier.padding(16.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    // All Day switch
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(36.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(imageVector = Icons.Default.AccessTime, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                            Spacer(modifier = Modifier.width(12.dp))
-                            Text("하루 종일", fontSize = 16.sp)
-                        }
-                        Switch(
-                            checked = isAllDay,
-                            onCheckedChange = { isAllDay = it },
-                            enabled = !isReadOnly,
-                            modifier = Modifier.scale(0.85f)
-                        )
-                    }
-
-                    HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
-
                     // Start Time Row
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -998,6 +979,29 @@ fun AddEditEventScreen(
                                 }
                             }
                         }
+                    }
+
+                    HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
+
+                    // All Day switch
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(36.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(imageVector = Icons.Default.AccessTime, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Text("하루 종일", fontSize = 16.sp)
+                        }
+                        Switch(
+                            checked = isAllDay,
+                            onCheckedChange = { isAllDay = it },
+                            enabled = !isReadOnly,
+                            modifier = Modifier.scale(0.85f)
+                        )
                     }
                 }
             }
