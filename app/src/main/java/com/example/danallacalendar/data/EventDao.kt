@@ -89,6 +89,9 @@ interface EventDao {
     @Query("SELECT * FROM deadline_dates")
     fun getAllDeadlineDates(): Flow<List<DeadlineDate>>
 
+    @Query("SELECT * FROM deadline_dates")
+    suspend fun getAllDeadlineDatesList(): List<DeadlineDate>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertDeadlineDate(deadlineDate: DeadlineDate)
 

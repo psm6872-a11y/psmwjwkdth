@@ -193,6 +193,13 @@ class CalendarViewModel @Inject constructor(
                 repository.startRealtimeSync(roomCode, sharedCatId)
                     .catch { e -> android.util.Log.e("SyncError", "Sync failure", e) }
                     .collect()
+
+                // Sync deadline dates from Firestore
+                try {
+                    repository.syncDeadlineDatesFromFirestore()
+                } catch (e: Exception) {
+                    android.util.Log.e("SyncError", "Failed to sync deadline dates", e)
+                }
             }
         }
 

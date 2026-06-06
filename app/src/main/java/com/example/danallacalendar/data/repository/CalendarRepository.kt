@@ -181,9 +181,85 @@ class CalendarRepository @Inject constructor(
     // DeadlineDates
     fun getAllDeadlineDates(): Flow<List<DeadlineDate>> = eventDao.getAllDeadlineDates()
 
-    suspend fun insertDeadlineDate(deadlineDate: DeadlineDate) = eventDao.insertDeadlineDate(deadlineDate)
+    suspend fun insertDeadlineDate(deadlineDate: DeadlineDate) {
+        eventDao.insertDeadlineDate(deadlineDate)
+        uploadDeadlineDateToFirestore(deadlineDate)
+    }
 
-    suspend fun deleteDeadlineDate(dateMillis: Long) = eventDao.deleteDeadlineDate(dateMillis)
+    suspend fun deleteDeadlineDate(dateMillis: Long) {
+        eventDao.deleteDeadlineDate(dateMillis)
+        deleteDeadlineDateFromFirestore(dateMillis)
+    }
+
+    private fun uploadDeadlineDateToFirestore(deadlineDate: DeadlineDate) {
+        val roomCode = userPreferences.getLastRoomCode()
+        if (roomCode.isEmpty()) return
+
+        val docData = hashMapOf(
+            "dateMillis" to deadlineDate.dateMillis
+        )
+
+        firestore.collection("rooms")
+            .document(roomCode)
+            .collection("deadline_dates")
+            .document(deadlineDate.dateMillis.toString())
+            .set(docData, com.google.firebase.firestore.SetOptions.merge())
+    }
+
+    private fun deleteDeadlineDateFromFirestore(dateMillis: Long) {
+        val roomCode = userPreferences.getLastRoomCode()
+        if (roomCode.isEmpty()) return
+
+        firestore.collection("rooms")
+            .document(roomCode)
+            .collection("deadline_dates")
+            .document(dateMillis.toString())
+            .delete()
+    }
+
+    suspend fun syncDeadlineDatesFromFirestore() {
+        val roomCode = userPreferences.getLastRoomCode()
+        if (roomCode.isEmpty()) return
+
+        return suspendCancellableCoroutine<Unit> { continuation ->
+            firestore.collection("rooms")
+                .document(roomCode)
+                .collection("deadline_dates")
+                .get()
+                .addOnSuccessListener { snapshot ->
+                    kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+                        try {
+                            val remoteDeadlineDates = snapshot.documents.mapNotNull { doc ->
+                                val dateMillis = doc.getLong("dateMillis") ?: return@mapNotNull null
+                                DeadlineDate(dateMillis)
+                            }
+
+                            // Remote dates를 local DB에 동기화
+                            remoteDeadlineDates.forEach { remote ->
+                                eventDao.insertDeadlineDate(remote)
+                            }
+
+                            // Local에만 있는 dates 삭제 (remote에 없는 경우)
+                            val localDates = eventDao.getAllDeadlineDatesList()
+                            val remoteDateMillis = remoteDeadlineDates.map { it.dateMillis }.toSet()
+                            localDates.forEach { local ->
+                                if (local.dateMillis !in remoteDateMillis) {
+                                    eventDao.deleteDeadlineDate(local.dateMillis)
+                                }
+                            }
+
+                            if (continuation.isActive) continuation.resume(Unit)
+                        } catch (e: Exception) {
+                            android.util.Log.e("SyncError", "Failed to sync deadline dates", e)
+                            if (continuation.isActive) continuation.resumeWithException(e)
+                        }
+                    }
+                }
+                .addOnFailureListener { e ->
+                    if (continuation.isActive) continuation.resumeWithException(e)
+                }
+        }
+    }
 
     suspend fun deleteAllEvents() = eventDao.deleteAllEvents()
 
