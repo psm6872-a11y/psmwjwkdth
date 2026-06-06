@@ -230,17 +230,18 @@ fun AddEditEventScreen(
             TopAppBar(
                 title = {
                     Row(
-                        modifier = Modifier.fillMaxHeight(),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         Text(
-                            if (eventId == null) "일정 추가" else "일정 편집",
-                            fontWeight = FontWeight.Bold
+                            text = if (eventId == null) "일정 추가" else "일정 편집",
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.align(Alignment.CenterVertically)
                         )
                         Box(
                             modifier = Modifier
                                 .height(26.dp)
+                                .align(Alignment.CenterVertically)
                                 .clip(RoundedCornerShape(6.dp))
                                 .background(Color(0xFFF3E5F5))
                                 .border(1.dp, Color(0xFFAB47BC), RoundedCornerShape(6.dp))
