@@ -711,23 +711,12 @@ fun AddEditEventScreen(
                                 BasicTextField(
                                     value = notesFieldValues.getOrElse(index) { androidx.compose.ui.text.input.TextFieldValue(phone) },
                                     onValueChange = { newValue ->
-                                        val formatted = formatPhoneNumber(newValue.text)
-                                        val newFieldValue = if (formatted == newValue.text) {
-                                            // 한글 입력 중 - 커서 위치 그대로 유지 (조합 안 끊김)
-                                            newValue.copy(text = formatted)
-                                        } else {
-                                            // 숫자 포맷팅 적용 - 커서 맨 뒤로
-                                            newValue.copy(
-                                                text = formatted,
-                                                selection = androidx.compose.ui.text.TextRange(formatted.length)
-                                            )
-                                        }
                                         notesFieldValues = notesFieldValues.toMutableList().apply {
-                                            if (index < size) this[index] = newFieldValue
-                                            else add(newFieldValue)
+                                            if (index < size) this[index] = newValue
+                                            else add(newValue)
                                         }
                                         notesList = notesList.toMutableList().apply {
-                                            this[index] = formatted
+                                            this[index] = newValue.text
                                         }
                                     },
                                     singleLine = false,
