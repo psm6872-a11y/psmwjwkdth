@@ -15,8 +15,8 @@ android {
         applicationId = "com.example.danallacalendar"
         minSdk = 24
         targetSdk = 34
-        versionCode = 114
-        versionName = "1.0.114"
+        versionCode = 115
+        versionName = "1.0.115"
 
 
         val spreadsheetUrl = System.getenv("SPREADSHEET_WEB_APP_URL") ?: ""

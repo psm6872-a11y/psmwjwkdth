@@ -44,12 +44,18 @@ data class RecentCall(
 )
 
 fun formatPhoneNumber(input: String): String {
-    // 숫자 부분과 한글 부분 분리
-    val digitPart = input.filter { it.isDigit() || it == '+' }
-    val textPart = input.filter { !it.isDigit() && it != '+' && it != '-' }
+    // 한글 또는 공백이 포함되어 있으면 포맷팅 하지 않고 그대로 반환
+    if (input.any { 
+        it == ' ' ||
+        it in '\uAC00'..'\uD7A3' || 
+        it in '\u1100'..'\u11FF' || 
+        it in '\u3130'..'\u318F' 
+    }) {
+        return input
+    }
 
-    // 숫자만 포맷팅
-    var formatted = digitPart
+    val clean = input.filter { it.isDigit() || it == '+' }
+    var formatted = clean
     if (formatted.startsWith("+82")) {
         formatted = "0" + formatted.substring(3)
     } else if (formatted.startsWith("82")) {
@@ -57,7 +63,7 @@ fun formatPhoneNumber(input: String): String {
     }
 
     val cleanDigits = formatted.filter { it.isDigit() }
-    val formattedNumber = when (cleanDigits.length) {
+    return when (cleanDigits.length) {
         8 -> "${cleanDigits.substring(0, 4)}-${cleanDigits.substring(4)}"
         9 -> "${cleanDigits.substring(0, 2)}-${cleanDigits.substring(2, 5)}-${cleanDigits.substring(5)}"
         10 -> {
@@ -68,11 +74,8 @@ fun formatPhoneNumber(input: String): String {
             }
         }
         11 -> "${cleanDigits.substring(0, 3)}-${cleanDigits.substring(3, 7)}-${cleanDigits.substring(7)}"
-        else -> digitPart
+        else -> input
     }
-
-    // 숫자 포맷 + 한글 합치기
-    return if (textPart.isNotEmpty()) "$formattedNumber $textPart" else formattedNumber
 }
 
 fun formatPhoneNumberForDetail(number: String): String {
