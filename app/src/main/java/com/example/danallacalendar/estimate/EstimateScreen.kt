@@ -33,10 +33,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.Image
+import androidx.compose.ui.res.painterResource
+import com.example.danallacalendar.R
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import java.text.NumberFormat
 import java.text.SimpleDateFormat
@@ -289,13 +293,13 @@ fun Step1StartScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(gradientBrush)
-            .padding(24.dp)
+            .padding(horizontal = 24.dp)
     ) {
         // 뒤로가기 버튼 및 캘린더 버튼 추가
         Row(
             modifier = Modifier
                 .align(Alignment.TopStart)
-                .padding(top = 8.dp),
+                .padding(top = 40.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             IconButton(
@@ -324,34 +328,60 @@ fun Step1StartScreen(
         Column(
             modifier = Modifier
                 .align(Alignment.TopCenter)
-                .padding(top = 150.dp),
+                .padding(top = 0.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
+            // 미니카 이미지
+            Image(
+                painter = painterResource(R.drawable.mini_car_final),
+                contentDescription = "Mini Car",
+                modifier = Modifier.size(260.dp)
+                    .offset(y = 10.dp)
+            )
+
+            Spacer(modifier = Modifier.height(0.dp))
+
+            // Directed by 텍스트
+            Text(
+                text = "Directed by 다날라 익스프레스",
+                fontSize = 15.sp,
+                color = Color.White,
+                        modifier = Modifier.offset(y = (-55).dp)
+            )
+
+            Spacer(modifier = Modifier.height(0.dp))
+
             val letters = listOf(
-                "견" to Color(0xFFFF5252), // 빨강
-                "적" to Color(0xFFFF9800), // 주황
-                "을" to Color(0xFFFFEB3B), // 노랑
-                "시" to Color(0xFF4CAF50), // 초록
-                "작" to Color(0xFF00BCD4), // 하늘
-                "합" to Color(0xFF2196F3), // 파랑
-                "니" to Color(0xFF9C27B0), // 보라
-                "다" to Color(0xFFE91E63), // 분홍
-                "." to Color.White          // 마침표
+                "견", "적", "을", "시", "작", "합", "니", "다", "."
             )
 
             val infiniteTransition = rememberInfiniteTransition(label = "BlinkText")
 
             Row(
-                modifier = Modifier.rotate(-4f),
+                modifier = Modifier
+                    .rotate(-4f)
+                    .offset(y = (-8).dp),
                 horizontalArrangement = Arrangement.Center,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                letters.forEachIndexed { index, (char, color) ->
+                letters.forEachIndexed { index, char ->
+                    // 색상 애니메이션 (hue가 0~360도로 순환)
+                    val hue by infiniteTransition.animateFloat(
+                        initialValue = index * 40f,
+                        targetValue = index * 40f + 360f,
+                        animationSpec = infiniteRepeatable(
+                            animation = tween(durationMillis = 3000, easing = LinearEasing),
+                            repeatMode = RepeatMode.Restart
+                        ),
+                        label = "hue_$index"
+                    )
+
+                    // 점멸 애니메이션 (alpha가 0.4~1.0으로 변화)
                     val alpha by infiniteTransition.animateFloat(
-                        initialValue = 0.6f,
+                        initialValue = 0.4f,
                         targetValue = 1.0f,
                         animationSpec = infiniteRepeatable(
-                            animation = tween(durationMillis = 1000, delayMillis = index * 100, easing = LinearEasing),
+                            animation = tween(durationMillis = 800, delayMillis = index * 50, easing = LinearEasing),
                             repeatMode = RepeatMode.Reverse
                         ),
                         label = "alpha_$index"
@@ -360,11 +390,14 @@ fun Step1StartScreen(
                     // 뒤로 갈수록 글자가 위로 올라가는 효과 (y offset 증가)
                     val yOffset = -(index * 2).dp
 
+                    // HSV를 RGB로 변환하여 색상 생성
+                    val animatedColor = Color.hsv(hue % 360f, 0.8f, 1.0f)
+
                     Text(
                         text = char,
-                        fontSize = 36.sp,
+                        fontSize = 40.sp,
                         fontWeight = FontWeight.Bold,
-                        color = color,
+                        color = animatedColor,
                         modifier = Modifier
                             .offset(y = yOffset)
                             .alpha(alpha)
@@ -382,7 +415,7 @@ fun Step1StartScreen(
         Column(
             modifier = Modifier
                 .align(Alignment.Center)
-                .offset(y = 80.dp),
+                .offset(y = 110.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
@@ -395,7 +428,7 @@ fun Step1StartScreen(
             categories.forEach { (category, brush, textColor) ->
                 Box(
                     modifier = Modifier
-                        .width(220.dp)
+                        .width(240.dp)
                         .padding(vertical = 8.dp)
                         .height(60.dp)
                         .background(brush, shape = RoundedCornerShape(16.dp))
@@ -404,7 +437,7 @@ fun Step1StartScreen(
                 ) {
                     Text(
                         text = category,
-                        fontSize = 18.sp,
+                        fontSize = 20.sp,
                         fontWeight = FontWeight.Bold,
                         color = textColor
                     )
