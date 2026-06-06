@@ -1638,7 +1638,6 @@ fun PhoneInputField(
         value = value,
         onValueChange = onValueChange,
         singleLine = false,
-        maxLines = 1,
         enabled = !isReadOnly,
         keyboardOptions = KeyboardOptions(
             keyboardType = KeyboardType.Text,
