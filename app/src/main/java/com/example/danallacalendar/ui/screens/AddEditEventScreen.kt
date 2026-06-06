@@ -98,11 +98,24 @@ fun AddEditEventScreen(
         mutableStateOf(notesList.map { androidx.compose.ui.text.input.TextFieldValue(it) })
     }
 
-    // 외부 요인(일정 로드, 최근 통화 선택, 추가 버튼 등)으로 notesList가 변경될 때 notesFieldValues와 동기화
     LaunchedEffect(notesList) {
-        if (notesFieldValues.map { it.text } != notesList) {
-            notesFieldValues = notesList.map { androidx.compose.ui.text.input.TextFieldValue(it) }
+        val updated = notesFieldValues.toMutableList()
+        notesList.forEachIndexed { index, text ->
+            val current = updated.getOrNull(index)
+            // 현재 입력 중인 텍스트와 다를 때만 업데이트 (커서 리셋 방지)
+            if (current == null || current.text != text) {
+                if (index < updated.size) {
+                    updated[index] = updated[index].copy(text = text)
+                } else {
+                    updated.add(androidx.compose.ui.text.input.TextFieldValue(text))
+                }
+            }
         }
+        // 항목 수가 줄었을 때 처리
+        while (updated.size > notesList.size) {
+            updated.removeAt(updated.size - 1)
+        }
+        notesFieldValues = updated
     }
     var activeRecentCallsIndex by remember { mutableStateOf(-1) }
     var selectedCategory by remember { mutableStateOf<CalendarCategory?>(null) }
@@ -262,7 +275,13 @@ fun AddEditEventScreen(
                                 text = "견적내기",
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = Color(0xFF8E24AA)
+                                color = Color(0xFF8E24AA),
+                                style = androidx.compose.ui.text.TextStyle(
+                                    platformStyle = androidx.compose.ui.text.PlatformTextStyle(
+                                        includeFontPadding = false
+                                    )
+                                ),
+                                textAlign = androidx.compose.ui.text.style.TextAlign.Center
                             )
                         }
                     }
