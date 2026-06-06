@@ -43,17 +43,21 @@ data class RecentCall(
     val type: Int
 )
 
-fun formatPhoneNumber(number: String): String {
-    val clean = number.replace(Regex("[^0-9+]"), "")
-    var formatted = clean
+fun formatPhoneNumber(input: String): String {
+    // 숫자 부분과 한글 부분 분리
+    val digitPart = input.filter { it.isDigit() || it == '+' }
+    val textPart = input.filter { !it.isDigit() && it != '+' && it != '-' }
+
+    // 숫자만 포맷팅
+    var formatted = digitPart
     if (formatted.startsWith("+82")) {
         formatted = "0" + formatted.substring(3)
     } else if (formatted.startsWith("82")) {
         formatted = "0" + formatted.substring(2)
     }
-    
-    val cleanDigits = formatted.replace(Regex("[^0-9]"), "")
-    return when (cleanDigits.length) {
+
+    val cleanDigits = formatted.filter { it.isDigit() }
+    val formattedNumber = when (cleanDigits.length) {
         8 -> "${cleanDigits.substring(0, 4)}-${cleanDigits.substring(4)}"
         9 -> "${cleanDigits.substring(0, 2)}-${cleanDigits.substring(2, 5)}-${cleanDigits.substring(5)}"
         10 -> {
@@ -64,8 +68,11 @@ fun formatPhoneNumber(number: String): String {
             }
         }
         11 -> "${cleanDigits.substring(0, 3)}-${cleanDigits.substring(3, 7)}-${cleanDigits.substring(7)}"
-        else -> number
+        else -> digitPart
     }
+
+    // 숫자 포맷 + 한글 합치기
+    return if (textPart.isNotEmpty()) "$formattedNumber $textPart" else formattedNumber
 }
 
 fun formatPhoneNumberForDetail(number: String): String {

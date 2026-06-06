@@ -509,7 +509,6 @@ fun AddEditEventScreen(
                                 value = location1b,
                                 onValueChange = { location1b = it },
                                 singleLine = false,
-                                maxLines = 1,
                                 enabled = !isReadOnly,
                                 keyboardOptions = KeyboardOptions(
                                     keyboardType = KeyboardType.Text,
@@ -643,7 +642,6 @@ fun AddEditEventScreen(
                                     value = location2b,
                                     onValueChange = { location2b = it },
                                     singleLine = false,
-                                    maxLines = 1,
                                     enabled = !isReadOnly,
                                     keyboardOptions = KeyboardOptions(
                                         keyboardType = KeyboardType.Text,
