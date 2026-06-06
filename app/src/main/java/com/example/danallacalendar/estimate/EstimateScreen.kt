@@ -281,14 +281,12 @@ fun Step1StartScreen(
     onCategorySelected: (String) -> Unit,
     onBack: () -> Unit
 ) {
-    // 배경색을 조금만 연하게 변경 (0xFF0A1628 -> 0xFF182A45, 0xFF1A3A6B -> 0xFF2D558B)
     val gradientBrush = Brush.verticalGradient(
         colors = listOf(
-            Color(0xFF182A45),
-            Color(0xFF2D558B)
+            Color(0xFF2D1B69),
+            Color(0xFF4A148C)
         )
     )
-
     Box(
         modifier = Modifier
             .fillMaxSize()
