@@ -94,6 +94,16 @@ fun AddEditEventScreen(
     var location2 by remember { mutableStateOf("") }  // 위치 2 상단
     var location2b by remember { mutableStateOf("") } // 위치 2 하단
     var notesList by remember { mutableStateOf(listOf("")) }
+    var notesFieldValues by remember {
+        mutableStateOf(notesList.map { androidx.compose.ui.text.input.TextFieldValue(it) })
+    }
+
+    // 외부 요인(일정 로드, 최근 통화 선택, 추가 버튼 등)으로 notesList가 변경될 때 notesFieldValues와 동기화
+    LaunchedEffect(notesList) {
+        if (notesFieldValues.map { it.text } != notesList) {
+            notesFieldValues = notesList.map { androidx.compose.ui.text.input.TextFieldValue(it) }
+        }
+    }
     var activeRecentCallsIndex by remember { mutableStateOf(-1) }
     var selectedCategory by remember { mutableStateOf<CalendarCategory?>(null) }
     var selectedColorHex by remember { mutableStateOf(prefs.getString("last_used_color_hex", "#ff3b30") ?: "#ff3b30") }
@@ -699,9 +709,17 @@ fun AddEditEventScreen(
                                     Text("전화번호", fontSize = 15.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                 }
                                 BasicTextField(
-                                    value = phone,
+                                    value = notesFieldValues.getOrElse(index) { androidx.compose.ui.text.input.TextFieldValue(phone) },
                                     onValueChange = { newValue ->
-                                        val formatted = formatPhoneNumber(newValue)
+                                        val formatted = formatPhoneNumber(newValue.text)
+                                        val newFieldValue = newValue.copy(
+                                            text = formatted,
+                                            selection = androidx.compose.ui.text.TextRange(formatted.length) // 커서 항상 맨 뒤 고정
+                                        )
+                                        notesFieldValues = notesFieldValues.toMutableList().apply {
+                                            if (index < size) this[index] = newFieldValue
+                                            else add(newFieldValue)
+                                        }
                                         notesList = notesList.toMutableList().apply {
                                             this[index] = formatted
                                         }
