@@ -916,8 +916,20 @@ fun Step2ItemSelection(
         }
 
         // Bottom Sheet & Complete Button fixed at the bottom overlay
+        val configuration = androidx.compose.ui.platform.LocalConfiguration.current
+        val screenHeight = configuration.screenHeightDp.dp
+        val maxExpandedHeight = screenHeight * 0.75f
+
+        val preferredHeight = if (selectedItems.isEmpty()) {
+            160.dp
+        } else {
+            88.dp + (selectedItems.size * 56).dp
+        }
+
+        val targetExpandedHeight = minOf(preferredHeight, maxExpandedHeight)
+
         val sheetHeight by animateDpAsState(
-            targetValue = if (isBottomSheetExpanded) 380.dp else 64.dp,
+            targetValue = if (isBottomSheetExpanded) targetExpandedHeight else 64.dp,
             animationSpec = spring(dampingRatio = Spring.DampingRatioLowBouncy, stiffness = Spring.StiffnessMedium),
             label = "sheetHeight"
         )
