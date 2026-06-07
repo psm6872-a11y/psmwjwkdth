@@ -809,7 +809,7 @@ fun Step2ItemSelection(
     onUpdateExpectedVolume: (String) -> Unit,
     onComplete: () -> Unit
 ) {
-    val predefinedItems = (spaceItemsMap[spaceName] ?: emptyList()) + PredefinedItem("직접입력", R.drawable.ic_add)
+    val predefinedItems = spaceItemsMap[spaceName] ?: emptyList()
     val chunkedItems = predefinedItems.chunked(3)
     var itemPendingOptions by remember { mutableStateOf<PredefinedItem?>(null) }
     var showDirectInputDialog by remember { mutableStateOf(false) }
@@ -870,7 +870,7 @@ fun Step2ItemSelection(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(bottom = 120.dp), // Leave space for bottom sheet peek and complete button
+                .padding(bottom = 260.dp), // Leave space for bottom sheet peek, expected volume, and complete button
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             Spacer(modifier = Modifier.height(8.dp))
@@ -931,6 +931,7 @@ fun Step2ItemSelection(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .weight(1f)
                     .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
@@ -983,6 +984,7 @@ fun Step2ItemSelection(
                         }
                     }
                 }
+                Spacer(modifier = Modifier.height(24.dp))
             }
         }
 
@@ -1168,28 +1170,34 @@ fun Step2ItemSelection(
                     .padding(horizontal = 16.dp, vertical = 12.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                OutlinedTextField(
-                    value = expectedVolume,
-                    onValueChange = { input ->
-                        if (input.isEmpty() || input.matches(Regex("^\\d*\\.?\\d*$"))) {
-                            onUpdateExpectedVolume(input)
-                        }
-                    },
-                    label = { Text("예상물량 (t)", color = Color.White.copy(alpha = 0.6f)) },
-                    placeholder = { Text("0.0", color = Color.White.copy(alpha = 0.3f)) },
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedTextColor = Color.White,
-                        unfocusedTextColor = Color.White,
-                        focusedBorderColor = Color(0xFFE040FB),
-                        unfocusedBorderColor = Color.White.copy(alpha = 0.3f),
-                        focusedLabelColor = Color(0xFFE040FB),
-                        unfocusedLabelColor = Color.White.copy(alpha = 0.6f),
-                        cursorColor = Color(0xFFE040FB)
-                    ),
-                    modifier = Modifier.fillMaxWidth()
-                )
+                AnimatedVisibility(
+                    visible = isBottomSheetExpanded,
+                    enter = expandVertically() + fadeIn(),
+                    exit = shrinkVertically() + fadeOut()
+                ) {
+                    OutlinedTextField(
+                        value = expectedVolume,
+                        onValueChange = { input ->
+                            if (input.isEmpty() || input.matches(Regex("^\\d*\\.?\\d*$"))) {
+                                onUpdateExpectedVolume(input)
+                            }
+                        },
+                        label = { Text("예상물량 (t)", color = Color.White.copy(alpha = 0.6f)) },
+                        placeholder = { Text("0.0", color = Color.White.copy(alpha = 0.3f)) },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedTextColor = Color.White,
+                            unfocusedTextColor = Color.White,
+                            focusedBorderColor = Color(0xFFE040FB),
+                            unfocusedBorderColor = Color.White.copy(alpha = 0.3f),
+                            focusedLabelColor = Color(0xFFE040FB),
+                            unfocusedLabelColor = Color.White.copy(alpha = 0.6f),
+                            cursorColor = Color(0xFFE040FB)
+                        ),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
 
                 Button(
                     onClick = {
@@ -1597,7 +1605,8 @@ private val spaceItemsMap = mapOf(
         PredefinedItem("시스템행거", R.drawable.ic_hanger, listOf("2칸", "3칸", "L형")),
         PredefinedItem("화장대", R.drawable.ic_dressing_table),
         PredefinedItem("책장", R.drawable.ic_bookshelf, listOf("3x3", "3x5")),
-        PredefinedItem("의자", R.drawable.ic_chair)
+        PredefinedItem("의자", R.drawable.ic_chair),
+        PredefinedItem("직접입력", R.drawable.ic_add)
     ),
     "작은방1" to listOf(
         PredefinedItem("침대", R.drawable.ic_bed, listOf("싱글", "더블", "킹")),
@@ -1608,7 +1617,8 @@ private val spaceItemsMap = mapOf(
         PredefinedItem("시스템행거", R.drawable.ic_hanger, listOf("2칸", "3칸", "L형")),
         PredefinedItem("화장대", R.drawable.ic_dressing_table),
         PredefinedItem("책장", R.drawable.ic_bookshelf, listOf("3x3", "3x5")),
-        PredefinedItem("의자", R.drawable.ic_chair)
+        PredefinedItem("의자", R.drawable.ic_chair),
+        PredefinedItem("직접입력", R.drawable.ic_add)
     ),
     "작은방2" to listOf(
         PredefinedItem("침대", R.drawable.ic_bed, listOf("싱글", "더블", "킹")),
@@ -1619,7 +1629,8 @@ private val spaceItemsMap = mapOf(
         PredefinedItem("시스템행거", R.drawable.ic_hanger, listOf("2칸", "3칸", "L형")),
         PredefinedItem("화장대", R.drawable.ic_dressing_table),
         PredefinedItem("책장", R.drawable.ic_bookshelf, listOf("3x3", "3x5")),
-        PredefinedItem("의자", R.drawable.ic_chair)
+        PredefinedItem("의자", R.drawable.ic_chair),
+        PredefinedItem("직접입력", R.drawable.ic_add)
     ),
     "입구방" to listOf(
         PredefinedItem("침대", R.drawable.ic_bed, listOf("싱글", "더블", "킹")),
@@ -1630,7 +1641,8 @@ private val spaceItemsMap = mapOf(
         PredefinedItem("시스템행거", R.drawable.ic_hanger, listOf("2칸", "3칸", "L형")),
         PredefinedItem("화장대", R.drawable.ic_dressing_table),
         PredefinedItem("책장", R.drawable.ic_bookshelf, listOf("3x3", "3x5")),
-        PredefinedItem("의자", R.drawable.ic_chair)
+        PredefinedItem("의자", R.drawable.ic_chair),
+        PredefinedItem("직접입력", R.drawable.ic_add)
     ),
     "거실" to listOf(
         PredefinedItem("소파", R.drawable.ic_sofa, listOf("2인", "3인", "L형")),
@@ -1639,21 +1651,24 @@ private val spaceItemsMap = mapOf(
         PredefinedItem("에어컨", R.drawable.ic_air_conditioner, listOf("2in1", "스탠드", "벽걸이")),
         PredefinedItem("장식장", R.drawable.ic_cabinet),
         PredefinedItem("테이블", R.drawable.ic_table),
-        PredefinedItem("식물", R.drawable.ic_plant)
+        PredefinedItem("식물", R.drawable.ic_plant),
+        PredefinedItem("직접입력", R.drawable.ic_add)
     ),
     "주방" to listOf(
         PredefinedItem("냉장고", R.drawable.ic_refrigerator, listOf("일반", "양문형", "4도어")),
         PredefinedItem("김치냉장고", R.drawable.ic_dishwasher, listOf("일반형", "스탠드형")),
         PredefinedItem("식탁", R.drawable.ic_dining_table, listOf("4인", "6인")),
         PredefinedItem("정수기", R.drawable.ic_water_purifier),
-        PredefinedItem("장독", R.drawable.ic_jangdok)
+        PredefinedItem("장독", R.drawable.ic_jangdok),
+        PredefinedItem("직접입력", R.drawable.ic_add)
     ),
     "그외" to listOf(
         PredefinedItem("세탁기", R.drawable.ic_washing_machine, listOf("통돌이", "드럼형", "일체형")),
         PredefinedItem("건조기", R.drawable.ic_washing_machine, listOf("단독형", "일체형")),
         PredefinedItem("식기세척기", R.drawable.ic_shelf, listOf("노출형", "매립형")),
         PredefinedItem("선반", R.drawable.ic_shelf),
-        PredefinedItem("TV스탠드", R.drawable.ic_tv_stand)
+        PredefinedItem("TV스탠드", R.drawable.ic_tv_stand),
+        PredefinedItem("직접입력", R.drawable.ic_add)
     )
 )
 
