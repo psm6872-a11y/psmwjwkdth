@@ -48,8 +48,13 @@ exports.onCalendarEventWritten = onDocumentWritten("rooms/{roomCode}/events/{eve
 
     if (!changeType) return null;
 
-    // ✅ CREATE/UPDATE 시 30초 쿨다운 체크
-    if (changeType === "CREATE" || changeType === "UPDATE") {
+    // 완료 버튼 변경 여부 확인
+    const beforeIsCompleted = beforeData ? (beforeData.isCompleted || false) : false;
+    const afterIsCompleted = afterData ? (afterData.isCompleted || false) : false;
+    const isCompletedChanged = changeType === "UPDATE" && (beforeIsCompleted !== afterIsCompleted);
+
+    // ✅ CREATE/UPDATE 시 30초 쿨다운 체크 (단, 완료 버튼 상태 변경은 예외)
+    if ((changeType === "CREATE" || changeType === "UPDATE") && !isCompletedChanged) {
         const cooldownRef = db.collection("rooms")
             .doc(roomCode)
             .collection("fcm_cooldown")
@@ -101,18 +106,16 @@ exports.onCalendarEventWritten = onDocumentWritten("rooms/{roomCode}/events/{eve
         body = `📅 ${eventTitle} - ${formattedTime}`;
     } else if (changeType === "UPDATE") {
         // ✅ isCompleted 변경 감지 (최우선 처리)
-        const beforeIsCompleted = beforeData.isCompleted || false;
-        const afterIsCompleted = afterData.isCompleted || false;
-        const completedChanged = beforeIsCompleted !== afterIsCompleted;
-
-        if (!beforeIsCompleted && afterIsCompleted) {
-            // false → true: 완료 버튼 누름
-            title = `${nickname}님이 완료 버튼을 눌렀습니다.`;
-            body = `✅ ${eventTitle}`;
-        } else if (beforeIsCompleted && !afterIsCompleted) {
-            // true → false: 완료 버튼 해제
-            title = `${nickname}님이 완료 버튼을 해제했습니다.`;
-            body = `↩️ ${eventTitle}`;
+        if (isCompletedChanged) {
+            if (!beforeIsCompleted && afterIsCompleted) {
+                // false → true: 완료 버튼 누름
+                title = `${nickname}님이 완료 버튼을 눌렀습니다.`;
+                body = `✅ ${eventTitle}`;
+            } else if (beforeIsCompleted && !afterIsCompleted) {
+                // true → false: 완료 버튼 해제
+                title = `${nickname}님이 완료 버튼을 해제했습니다.`;
+                body = `↩️ ${eventTitle}`;
+            }
         } else {
             // isCompleted 변경 없음 → 기존 필드 변경 감지 로직
             title = `${nickname}님이 일정 수정`;

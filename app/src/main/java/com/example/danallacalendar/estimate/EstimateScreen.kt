@@ -711,49 +711,60 @@ fun SpaceCard(
     val itemCount = roomItems[space]?.values?.sum() ?: 0
     val isCompleted = completedSpaces.contains(space) || itemCount > 0
 
+    val emoji = when (space) {
+        "안방" -> "🛏️"
+        "작은방1" -> "🛏️"
+        "작은방2" -> "🛏️"
+        "입구방" -> "🚪"
+        "거실" -> "🛋️"
+        "주방" -> "🍳"
+        "그외" -> "📦"
+        else -> ""
+    }
+
     Card(
         modifier = modifier
-            .height(110.dp)
+            .height(90.dp)
             .clickable { onClick(space) },
         colors = CardDefaults.cardColors(
             containerColor = if (isCompleted) {
-                Color(0xFFAB47BC).copy(alpha = 0.5f)
+                Color(0xFFAB47BC).copy(alpha = 0.6f) // 완료 시 더 밝은 보라색
             } else {
-                Color.White.copy(alpha = 0.15f)
+                Color(0xFF8E24AA).copy(alpha = 0.15f) // 미완료 시 반투명 보라색 배경
             }
         ),
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(18.dp), // 모서리 더 둥글게 (18.dp)
         border = BorderStroke(
-            width = 1.dp,
-            color = if (isCompleted) Color(0xFFE040FB).copy(alpha = 0.6f) else Color.White.copy(alpha = 0.2f)
+            width = if (isCompleted) 1.5.dp else 1.dp,
+            color = if (isCompleted) Color(0xFFE040FB) else Color(0xFFCE93D8).copy(alpha = 0.4f)
         ),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(16.dp)
+                .padding(horizontal = 12.dp, vertical = 8.dp) // 세로 패딩을 12.dp -> 8.dp로 축소하여 내부 세로 공간 확보
         ) {
             Column(
                 modifier = Modifier.align(Alignment.CenterStart)
             ) {
                 Text(
-                    text = space,
-                    fontSize = 18.sp,
+                    text = "$space $emoji", // 공간에 이모지 아이콘 추가
+                    fontSize = 15.sp,
                     fontWeight = FontWeight.Bold,
                     color = Color.White
                 )
-                Spacer(modifier = Modifier.height(4.dp))
+                Spacer(modifier = Modifier.height(1.dp)) // 행간 간격 3.dp -> 1.dp로 축소
                 Text(
                     text = if (itemCount > 0) "${itemCount}개 선택됨" else "비어 있음",
-                    fontSize = 13.sp,
+                    fontSize = 11.sp,
                     color = Color.White.copy(alpha = 0.7f)
                 )
                 if (!expectedVolume.isNullOrBlank()) {
-                    Spacer(modifier = Modifier.height(2.dp))
+                    Spacer(modifier = Modifier.height(1.dp)) // 행간 간격 2.dp -> 1.dp로 축소
                     Text(
                         text = "예상: ${expectedVolume}t",
-                        fontSize = 12.sp,
+                        fontSize = 10.sp,
                         color = Color(0xFFE040FB),
                         fontWeight = FontWeight.Bold
                     )
@@ -763,9 +774,9 @@ fun SpaceCard(
             if (isCompleted) {
                 Box(
                     modifier = Modifier
-                        .size(24.dp)
+                        .size(20.dp)
                         .background(
-                            Color(0xFFE040FB),
+                            Color(0xFF4CAF50), // 완료된 공간은 초록색 체크 표시
                             shape = RoundedCornerShape(50)
                         )
                         .align(Alignment.TopEnd),
@@ -775,7 +786,7 @@ fun SpaceCard(
                         text = "✓",
                         color = Color.White,
                         fontWeight = FontWeight.Bold,
-                        fontSize = 12.sp
+                        fontSize = 10.sp
                     )
                 }
             }
@@ -795,6 +806,9 @@ fun Step2ItemSelection(
     val predefinedItems = spaceItemsMap[spaceName] ?: emptyList()
     val chunkedItems = predefinedItems.chunked(3)
     var itemPendingOptions by remember { mutableStateOf<PredefinedItem?>(null) }
+    var isSecondBubble by remember { mutableStateOf(false) }
+    var isAirconBrandBubble by remember { mutableStateOf(false) }
+    var selectedFirstOption by remember { mutableStateOf<String?>(null) }
     var showDirectInputDialog by remember { mutableStateOf(false) }
     var directInputText by remember { mutableStateOf("") }
     var clickedItemPosition by remember { mutableStateOf(Offset.Zero) }
@@ -952,13 +966,8 @@ fun Step2ItemSelection(
                                     if (item.name == "직접입력") {
                                         directInputText = ""
                                         showDirectInputDialog = true
-                                    } else if (item.options.isNotEmpty()) {
-                                        itemPendingOptions = item
                                     } else {
-                                        val currentCount = roomItems[spaceName]?.get(item.name) ?: 0
-                                        onUpdateCount(spaceName, item.name, currentCount + 1)
-                                        toastMessage = "${item.name}이 추가되었습니다."
-                                        spawnFlyingParticle(item)
+                                        itemPendingOptions = item
                                     }
                                 },
                                 modifier = Modifier.weight(1f)
@@ -1271,6 +1280,9 @@ fun Step2ItemSelection(
                     indication = null
                 ) {
                     itemPendingOptions = null
+                    isSecondBubble = false
+                    isAirconBrandBubble = false
+                    selectedFirstOption = null
                 }
         ) {
             val bubbleTopPx = clickedItemPosition.y - bubbleHeightPx - 8f
@@ -1331,7 +1343,11 @@ fun Step2ItemSelection(
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = "${itemPendingOptions!!.name} 선택",
+                            text = when {
+                                isAirconBrandBubble -> "${itemPendingOptions!!.name} 제조사 선택"
+                                isSecondBubble -> "${itemPendingOptions!!.name} 제외 옵션"
+                                else -> "${itemPendingOptions!!.name} 선택"
+                            },
                             fontSize = 16.sp,
                             fontWeight = FontWeight.Bold,
                             color = Color.White
@@ -1340,18 +1356,97 @@ fun Step2ItemSelection(
 
                     Spacer(modifier = Modifier.height(12.dp))
 
-                    itemPendingOptions!!.options.forEach { option ->
+                    if (!isSecondBubble && !isAirconBrandBubble) {
+                        // 1차 말풍선
+                        val hasOptions = itemPendingOptions!!.options.isNotEmpty()
+                        if (hasOptions) {
+                            // 기존에 옵션 있던 물품 (침대, 소파 등): 기존 옵션들 + 제외
+                            itemPendingOptions!!.options.forEach { option ->
+                                Card(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = 3.dp)
+                                        .clickable {
+                                            if (itemPendingOptions!!.name == "에어컨") {
+                                                selectedFirstOption = option
+                                                isAirconBrandBubble = true
+                                                bubbleHeightPx = 0f // 높이 재계산 유도
+                                            } else {
+                                                val displayName = "${itemPendingOptions!!.name} ($option)"
+                                                val currentCount = roomItems[spaceName]?.get(displayName) ?: 0
+                                                onUpdateCount(spaceName, displayName, currentCount + 1)
+                                                toastMessage = "${displayName}이 추가되었습니다."
+                                                spawnFlyingParticle(itemPendingOptions!!)
+                                                itemPendingOptions = null
+                                                isSecondBubble = false
+                                            }
+                                        },
+                                    colors = CardDefaults.cardColors(
+                                        containerColor = Color.White.copy(alpha = 0.1f)
+                                    ),
+                                    shape = RoundedCornerShape(8.dp),
+                                    border = BorderStroke(1.dp, Color.White.copy(alpha = 0.05f))
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(vertical = 10.dp),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Text(
+                                            text = option,
+                                            fontSize = 14.sp,
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = Color.White
+                                        )
+                                    }
+                                }
+                            }
+                        } else {
+                            // 기존에 옵션 없던 물품 (서랍장, 화장대 등): 추가 + 제외
+                            Card(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 3.dp)
+                                    .clickable {
+                                        val displayName = itemPendingOptions!!.name
+                                        val currentCount = roomItems[spaceName]?.get(displayName) ?: 0
+                                        onUpdateCount(spaceName, displayName, currentCount + 1)
+                                        toastMessage = "${displayName}이 추가되었습니다."
+                                        spawnFlyingParticle(itemPendingOptions!!)
+                                        itemPendingOptions = null
+                                        isSecondBubble = false
+                                    },
+                                colors = CardDefaults.cardColors(
+                                    containerColor = Color.White.copy(alpha = 0.1f)
+                                ),
+                                shape = RoundedCornerShape(8.dp),
+                                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.05f))
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = 10.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = "추가",
+                                        fontSize = 14.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = Color.White
+                                    )
+                                }
+                            }
+                        }
+
+                        // 공통 '제외' 카드
                         Card(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(vertical = 3.dp)
                                 .clickable {
-                                    val displayName = "${itemPendingOptions!!.name} ($option)"
-                                    val currentCount = roomItems[spaceName]?.get(displayName) ?: 0
-                                    onUpdateCount(spaceName, displayName, currentCount + 1)
-                                    toastMessage = "${displayName}이 추가되었습니다."
-                                    spawnFlyingParticle(itemPendingOptions!!)
-                                    itemPendingOptions = null
+                                    isSecondBubble = true
+                                    bubbleHeightPx = 0f // 높이 재계산 유도
                                 },
                             colors = CardDefaults.cardColors(
                                 containerColor = Color.White.copy(alpha = 0.1f)
@@ -1366,11 +1461,88 @@ fun Step2ItemSelection(
                                 contentAlignment = Alignment.Center
                             ) {
                                 Text(
-                                    text = option,
+                                    text = "제외",
                                     fontSize = 14.sp,
                                     fontWeight = FontWeight.SemiBold,
                                     color = Color.White
                                 )
+                            }
+                        }
+                    } else if (isAirconBrandBubble) {
+                        // 에어컨 브랜드 2차 말풍선: 삼성 / LG / 캐리어 / 위니아
+                        val brands = listOf("삼성", "LG", "캐리어", "위니아")
+                        brands.forEach { brand ->
+                            Card(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 3.dp)
+                                    .clickable {
+                                        val displayName = "${itemPendingOptions!!.name} (${selectedFirstOption!!}-$brand)"
+                                        val currentCount = roomItems[spaceName]?.get(displayName) ?: 0
+                                        onUpdateCount(spaceName, displayName, currentCount + 1)
+                                        toastMessage = "${displayName}이 추가되었습니다."
+                                        spawnFlyingParticle(itemPendingOptions!!)
+                                        itemPendingOptions = null
+                                        isAirconBrandBubble = false
+                                        selectedFirstOption = null
+                                    },
+                                colors = CardDefaults.cardColors(
+                                    containerColor = Color.White.copy(alpha = 0.1f)
+                                ),
+                                shape = RoundedCornerShape(8.dp),
+                                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.05f))
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = 10.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = brand,
+                                        fontSize = 14.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = Color.White
+                                    )
+                                }
+                            }
+                        }
+                    } else {
+                        // 2차 말풍선: 폐기 / 제자리 / 1층
+                        val excludeOptions = listOf("폐기", "제자리", "1층")
+                        excludeOptions.forEach { option ->
+                            Card(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 3.dp)
+                                    .clickable {
+                                        val displayName = "${itemPendingOptions!!.name} (제외-$option)"
+                                        val currentCount = roomItems[spaceName]?.get(displayName) ?: 0
+                                        onUpdateCount(spaceName, displayName, currentCount + 1)
+                                        toastMessage = "${displayName}이 추가되었습니다."
+                                        spawnFlyingParticle(itemPendingOptions!!)
+                                        itemPendingOptions = null
+                                        isSecondBubble = false
+                                    },
+                                colors = CardDefaults.cardColors(
+                                    containerColor = Color.White.copy(alpha = 0.1f)
+                                ),
+                                shape = RoundedCornerShape(8.dp),
+                                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.05f))
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = 10.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = option,
+                                        fontSize = 14.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = Color.White
+                                    )
+                                }
                             }
                         }
                     }
@@ -1378,7 +1550,12 @@ fun Step2ItemSelection(
                     Spacer(modifier = Modifier.height(8.dp))
 
                     TextButton(
-                        onClick = { itemPendingOptions = null },
+                        onClick = {
+                            itemPendingOptions = null
+                            isSecondBubble = false
+                            isAirconBrandBubble = false
+                            selectedFirstOption = null
+                        },
                         modifier = Modifier.align(Alignment.End),
                         contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
                     ) {
@@ -1588,50 +1765,46 @@ data class PredefinedItem(
 private val spaceItemsMap = mapOf(
     "안방" to listOf(
         PredefinedItem("침대", R.drawable.ic_bed, listOf("싱글", "더블", "킹")),
-        PredefinedItem("장농", R.drawable.ic_wardrobe, listOf("1칸", "2칸", "3칸", "분해형")),
-        PredefinedItem("책상", R.drawable.ic_desk, listOf("일반형", "책장형")),
+        PredefinedItem("화장대", R.drawable.ic_dressing_table),
         PredefinedItem("서랍장", R.drawable.ic_drawers),
         PredefinedItem("행거", R.drawable.ic_hanger, listOf("1칸", "2칸", "3칸", "4칸")),
         PredefinedItem("시스템행거", R.drawable.ic_hanger, listOf("2칸", "3칸", "L형")),
-        PredefinedItem("화장대", R.drawable.ic_dressing_table),
         PredefinedItem("책장", R.drawable.ic_bookshelf, listOf("3x3", "3x5")),
-        PredefinedItem("의자", R.drawable.ic_chair),
+        PredefinedItem("책상", R.drawable.ic_desk, listOf("일반형", "책장형")),
+        PredefinedItem("장농", R.drawable.ic_wardrobe, listOf("1칸", "2칸", "3칸", "분해형")),
         PredefinedItem("직접입력", R.drawable.ic_add)
     ),
     "작은방1" to listOf(
         PredefinedItem("침대", R.drawable.ic_bed, listOf("싱글", "더블", "킹")),
-        PredefinedItem("장농", R.drawable.ic_wardrobe, listOf("1칸", "2칸", "3칸", "분해형")),
-        PredefinedItem("책상", R.drawable.ic_desk, listOf("일반형", "책장형")),
+        PredefinedItem("화장대", R.drawable.ic_dressing_table),
         PredefinedItem("서랍장", R.drawable.ic_drawers),
         PredefinedItem("행거", R.drawable.ic_hanger, listOf("1칸", "2칸", "3칸", "4칸")),
         PredefinedItem("시스템행거", R.drawable.ic_hanger, listOf("2칸", "3칸", "L형")),
-        PredefinedItem("화장대", R.drawable.ic_dressing_table),
         PredefinedItem("책장", R.drawable.ic_bookshelf, listOf("3x3", "3x5")),
-        PredefinedItem("의자", R.drawable.ic_chair),
+        PredefinedItem("책상", R.drawable.ic_desk, listOf("일반형", "책장형")),
+        PredefinedItem("장농", R.drawable.ic_wardrobe, listOf("1칸", "2칸", "3칸", "분해형")),
         PredefinedItem("직접입력", R.drawable.ic_add)
     ),
     "작은방2" to listOf(
         PredefinedItem("침대", R.drawable.ic_bed, listOf("싱글", "더블", "킹")),
-        PredefinedItem("장농", R.drawable.ic_wardrobe, listOf("1칸", "2칸", "3칸", "분해형")),
-        PredefinedItem("책상", R.drawable.ic_desk, listOf("일반형", "책장형")),
+        PredefinedItem("화장대", R.drawable.ic_dressing_table),
         PredefinedItem("서랍장", R.drawable.ic_drawers),
         PredefinedItem("행거", R.drawable.ic_hanger, listOf("1칸", "2칸", "3칸", "4칸")),
         PredefinedItem("시스템행거", R.drawable.ic_hanger, listOf("2칸", "3칸", "L형")),
-        PredefinedItem("화장대", R.drawable.ic_dressing_table),
         PredefinedItem("책장", R.drawable.ic_bookshelf, listOf("3x3", "3x5")),
-        PredefinedItem("의자", R.drawable.ic_chair),
+        PredefinedItem("책상", R.drawable.ic_desk, listOf("일반형", "책장형")),
+        PredefinedItem("장농", R.drawable.ic_wardrobe, listOf("1칸", "2칸", "3칸", "분해형")),
         PredefinedItem("직접입력", R.drawable.ic_add)
     ),
     "입구방" to listOf(
         PredefinedItem("침대", R.drawable.ic_bed, listOf("싱글", "더블", "킹")),
-        PredefinedItem("장농", R.drawable.ic_wardrobe, listOf("1칸", "2칸", "3칸", "분해형")),
-        PredefinedItem("책상", R.drawable.ic_desk, listOf("일반형", "책장형")),
+        PredefinedItem("화장대", R.drawable.ic_dressing_table),
         PredefinedItem("서랍장", R.drawable.ic_drawers),
         PredefinedItem("행거", R.drawable.ic_hanger, listOf("1칸", "2칸", "3칸", "4칸")),
         PredefinedItem("시스템행거", R.drawable.ic_hanger, listOf("2칸", "3칸", "L형")),
-        PredefinedItem("화장대", R.drawable.ic_dressing_table),
         PredefinedItem("책장", R.drawable.ic_bookshelf, listOf("3x3", "3x5")),
-        PredefinedItem("의자", R.drawable.ic_chair),
+        PredefinedItem("책상", R.drawable.ic_desk, listOf("일반형", "책장형")),
+        PredefinedItem("장농", R.drawable.ic_wardrobe, listOf("1칸", "2칸", "3칸", "분해형")),
         PredefinedItem("직접입력", R.drawable.ic_add)
     ),
     "거실" to listOf(
@@ -1641,7 +1814,9 @@ private val spaceItemsMap = mapOf(
         PredefinedItem("에어컨", R.drawable.ic_air_conditioner, listOf("2in1", "스탠드", "벽걸이")),
         PredefinedItem("장식장", R.drawable.ic_cabinet),
         PredefinedItem("테이블", R.drawable.ic_table),
-        PredefinedItem("식물", R.drawable.ic_plant),
+        PredefinedItem("안마의자", R.drawable.ic_chair),
+        PredefinedItem("화분", R.drawable.ic_plant),
+        PredefinedItem("항아리", R.drawable.ic_jangdok),
         PredefinedItem("직접입력", R.drawable.ic_add)
     ),
     "주방" to listOf(
@@ -1649,15 +1824,14 @@ private val spaceItemsMap = mapOf(
         PredefinedItem("김치냉장고", R.drawable.ic_dishwasher, listOf("일반형", "스탠드형")),
         PredefinedItem("식탁", R.drawable.ic_dining_table, listOf("4인", "6인")),
         PredefinedItem("정수기", R.drawable.ic_water_purifier),
-        PredefinedItem("장독", R.drawable.ic_jangdok),
-        PredefinedItem("직접입력", R.drawable.ic_add)
-    ),
-    "그외" to listOf(
         PredefinedItem("세탁기", R.drawable.ic_washing_machine, listOf("통돌이", "드럼형", "일체형")),
         PredefinedItem("건조기", R.drawable.ic_washing_machine, listOf("단독형", "일체형")),
         PredefinedItem("식기세척기", R.drawable.ic_shelf, listOf("노출형", "매립형")),
         PredefinedItem("선반", R.drawable.ic_shelf),
-        PredefinedItem("TV스탠드", R.drawable.ic_tv_stand),
+        PredefinedItem("항아리", R.drawable.ic_jangdok),
+        PredefinedItem("직접입력", R.drawable.ic_add)
+    ),
+    "그외" to listOf(
         PredefinedItem("직접입력", R.drawable.ic_add)
     )
 )

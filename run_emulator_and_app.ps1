@@ -1,6 +1,6 @@
 $emulatorPath = "C:\Users\me\AppData\Local\Android\Sdk\emulator\emulator.exe"
 $adbPath = "C:\Users\me\AppData\Local\Android\Sdk\platform-tools\adb.exe"
-$artifactDir = "C:\Users\me\.gemini\antigravity\brain\2dae3cf7-303e-403f-8b2e-27900292a8c7"
+$artifactDir = "C:\Users\me\.gemini\antigravity\brain\a06b180f-e53f-417c-837f-e888b1647648"
 
 $env:JAVA_HOME = "C:\Program Files\Android\Android Studio\jbr"
 $env:PATH = "$env:JAVA_HOME\bin;$env:PATH"
