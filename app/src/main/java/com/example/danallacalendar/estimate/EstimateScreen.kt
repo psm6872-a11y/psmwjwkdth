@@ -1,9 +1,14 @@
 package com.example.danallacalendar.estimate
 
+import android.app.Activity
 import android.app.DatePickerDialog
 import android.app.TimePickerDialog
 import android.content.Context
+import android.content.ContextWrapper
 import android.content.Intent
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import android.net.Uri
 import android.print.PrintAttributes
 import android.print.PrintManager
@@ -77,6 +82,23 @@ fun EstimateScreen(
     onNavigateBack: () -> Unit
 ) {
     val context = LocalContext.current
+    DisposableEffect(Unit) {
+        val activity = context.findActivity()
+        val window = activity?.window
+        if (window != null) {
+            val controller = WindowCompat.getInsetsController(window, window.decorView)
+            controller.hide(WindowInsetsCompat.Type.navigationBars())
+            controller.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+        }
+        onDispose {
+            val activity = context.findActivity()
+            val window = activity?.window
+            if (window != null) {
+                val controller = WindowCompat.getInsetsController(window, window.decorView)
+                controller.show(WindowInsetsCompat.Type.navigationBars())
+            }
+        }
+    }
     var currentStep by remember { mutableStateOf(1) }
     var activeSpaceForCargoInput by remember { mutableStateOf<String?>(null) }
     var completedSpaces by remember { mutableStateOf(setOf<String>()) }
@@ -2063,3 +2085,10 @@ fun printEstimate(
         loadDataWithBaseURL(null, htmlDocument, "text/html", "UTF-8", null)
     }
 }
+
+private tailrec fun Context.findActivity(): Activity? =
+    when (this) {
+        is Activity -> this
+        is ContextWrapper -> baseContext.findActivity()
+        else -> null
+    }
