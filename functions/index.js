@@ -5,6 +5,20 @@ admin.initializeApp();
 
 const db = admin.firestore();
 
+function formatEventDateTime(startMillis, isAllDay) {
+    if (!startMillis) return "";
+    const date = new Date(startMillis);
+    const m = String(date.getMonth() + 1).padStart(2, '0');
+    const d = String(date.getDate()).padStart(2, '0');
+    if (isAllDay) {
+        return `${m}/${d}`;
+    } else {
+        const hh = String(date.getHours()).padStart(2, '0');
+        const mm = String(date.getMinutes()).padStart(2, '0');
+        return `${m}/${d} ${hh}:${mm}`;
+    }
+}
+
 exports.onCalendarEventWritten = onDocumentWritten("rooms/{roomCode}/events/{eventId}", async (event) => {
     const roomCode = event.params.roomCode;
     const eventId = event.params.eventId;
@@ -12,10 +26,8 @@ exports.onCalendarEventWritten = onDocumentWritten("rooms/{roomCode}/events/{eve
     const beforeData = event.data.before ? event.data.before.data() : null;
     const afterData = event.data.after ? event.data.after.data() : null;
 
-    let changeType = ""; // CREATE, UPDATE, DELETE
+    let changeType = "";
     let eventTitle = "";
-    let dateStr = "";
-    let timeStr = "";
     let nickname = "";
     let lastUpdatedBy = "";
 
@@ -23,38 +35,10 @@ exports.onCalendarEventWritten = onDocumentWritten("rooms/{roomCode}/events/{eve
         changeType = "CREATE";
         eventTitle = afterData.title || "(제목 없음)";
         lastUpdatedBy = afterData.createdBy || afterData.lastUpdatedBy || "";
-
-        const startMillis = afterData.startMillis;
-        const isAllDay = afterData.isAllDay;
-        const startDate = new Date(startMillis);
-        const y = startDate.getFullYear();
-        const m = String(startDate.getMonth() + 1).padStart(2, '0');
-        const d = String(startDate.getDate()).padStart(2, '0');
-        dateStr = `${y}-${m}-${d}`;
-
-        if (!isAllDay) {
-            const hh = String(startDate.getHours()).padStart(2, '0');
-            const mm = String(startDate.getMinutes()).padStart(2, '0');
-            timeStr = ` ${hh}:${mm}`;
-        }
     } else if (afterData && beforeData) {
         changeType = "UPDATE";
         eventTitle = afterData.title || "(제목 없음)";
         lastUpdatedBy = afterData.lastUpdatedBy || afterData.createdBy || "";
-
-        const startMillis = afterData.startMillis;
-        const isAllDay = afterData.isAllDay;
-        const startDate = new Date(startMillis);
-        const y = startDate.getFullYear();
-        const m = String(startDate.getMonth() + 1).padStart(2, '0');
-        const d = String(startDate.getDate()).padStart(2, '0');
-        dateStr = `${y}-${m}-${d}`;
-
-        if (!isAllDay) {
-            const hh = String(startDate.getHours()).padStart(2, '0');
-            const mm = String(startDate.getMinutes()).padStart(2, '0');
-            timeStr = ` ${hh}:${mm}`;
-        }
     } else if (!afterData && beforeData) {
         changeType = "DELETE";
         eventTitle = beforeData.title || "(제목 없음)";
@@ -62,6 +46,30 @@ exports.onCalendarEventWritten = onDocumentWritten("rooms/{roomCode}/events/{eve
     }
 
     if (!changeType) return null;
+
+    // ✅ CREATE/UPDATE 시 30초 쿨다운 체크
+    if (changeType === "CREATE" || changeType === "UPDATE") {
+        const cooldownRef = db.collection("rooms")
+            .doc(roomCode)
+            .collection("fcm_cooldown")
+            .doc(eventId);
+
+        const now = Date.now();
+        const cooldownDoc = await cooldownRef.get();
+
+        if (cooldownDoc.exists) {
+            const lastSentAt = cooldownDoc.data().lastSentAt || 0;
+            if (now - lastSentAt < 30000) {
+                console.log(`쿨다운 중 - 알림 스킵 (${Math.round((now - lastSentAt) / 1000)}초 경과)`);
+                // 시각만 갱신
+                await cooldownRef.set({ lastSentAt: now });
+                return null;
+            }
+        }
+
+        // 30초 지났거나 첫 수정 → 시각 저장 후 알림 전송
+        await cooldownRef.set({ lastSentAt: now });
+    }
 
     if (lastUpdatedBy) {
         try {
@@ -87,17 +95,33 @@ exports.onCalendarEventWritten = onDocumentWritten("rooms/{roomCode}/events/{eve
     let body = "";
 
     if (changeType === "CREATE") {
-        title = `${nickname}님이 새 일정을 추가했어요`;
-        body = `📅 ${eventTitle} - ${dateStr}${timeStr}`;
+        title = `${nickname}님이 일정 추가`;
+        const formattedTime = formatEventDateTime(afterData.startMillis, afterData.isAllDay);
+        body = `📅 ${eventTitle} - ${formattedTime}`;
     } else if (changeType === "UPDATE") {
-        title = `${nickname}님이 일정을 수정했어요`;
-        body = `✏️ ${eventTitle} - ${dateStr}${timeStr}`;
+        title = `${nickname}님이 일정 수정`;
+
+        const beforeTitle = beforeData.title || "(제목 없음)";
+        const afterTitle = afterData.title || "(제목 없음)";
+        const titleChanged = beforeTitle !== afterTitle;
+
+        const beforeFormatted = formatEventDateTime(beforeData.startMillis, beforeData.isAllDay);
+        const afterFormatted = formatEventDateTime(afterData.startMillis, afterData.isAllDay);
+        const timeOrDateChanged = beforeFormatted !== afterFormatted;
+
+        const bodyParts = [];
+        if (titleChanged) {
+            bodyParts.push(`${beforeTitle} → ${afterTitle}`);
+        }
+        if (timeOrDateChanged) {
+            bodyParts.push(`${beforeFormatted} → ${afterFormatted}`);
+        }
+        body = bodyParts.join("\n");
     } else if (changeType === "DELETE") {
-        title = `${nickname}님이 일정을 삭제했어요`;
+        title = `${nickname}님이 일정 삭제`;
         body = `🗑️ ${eventTitle}`;
     }
 
-    // Fetch target tokens
     let membersSnapshot;
     try {
         membersSnapshot = await db.collection("rooms")
@@ -126,13 +150,17 @@ exports.onCalendarEventWritten = onDocumentWritten("rooms/{roomCode}/events/{eve
 
     const targetDateMillis = afterData ? afterData.startMillis : (beforeData ? beforeData.startMillis : Date.now());
 
+    const messageData = {
+        title: title,
+        click_action: "danallacalendar://view?dateMillis=" + targetDateMillis,
+        dateMillis: String(targetDateMillis)
+    };
+    if (body) {
+        messageData.body = body;
+    }
+
     const message = {
-        data: {
-            title: title,
-            body: body,
-            click_action: "danallacalendar://view?dateMillis=" + targetDateMillis,
-            dateMillis: String(targetDateMillis)
-        },
+        data: messageData,
         tokens: tokens
     };
 

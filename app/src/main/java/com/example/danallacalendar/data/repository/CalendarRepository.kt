@@ -261,6 +261,50 @@ class CalendarRepository @Inject constructor(
         }
     }
 
+    fun startDeadlineRealtimeSync(roomCode: String) = callbackFlow<Unit> {
+        if (roomCode.isEmpty()) {
+            close()
+            return@callbackFlow
+        }
+        val listener = firestore.collection("rooms")
+            .document(roomCode)
+            .collection("deadline_dates")
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    close(error)
+                    return@addSnapshotListener
+                }
+                if (snapshot != null) {
+                    kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+                        try {
+                            val remoteDeadlineDates = snapshot.documents.mapNotNull { doc ->
+                                val dateMillis = doc.getLong("dateMillis") ?: return@mapNotNull null
+                                DeadlineDate(dateMillis)
+                            }
+
+                            // 1. Remote dates를 local DB에 동기화
+                            remoteDeadlineDates.forEach { remote ->
+                                eventDao.insertDeadlineDate(remote)
+                            }
+
+                            // 2. Local에만 있는 dates 삭제 (remote에 없는 경우)
+                            val localDates = eventDao.getAllDeadlineDatesList()
+                            val remoteDateMillis = remoteDeadlineDates.map { it.dateMillis }.toSet()
+                            localDates.forEach { local ->
+                                if (local.dateMillis !in remoteDateMillis) {
+                                    eventDao.deleteDeadlineDate(local.dateMillis)
+                                }
+                            }
+                        } catch (e: Exception) {
+                            android.util.Log.e("SyncError", "Failed to sync remote deadline dates", e)
+                        }
+                    }
+                    trySend(Unit)
+                }
+            }
+        awaitClose { listener.remove() }
+    }
+
     suspend fun deleteAllEvents() = eventDao.deleteAllEvents()
 
     // Firestore Bidirectional Sync

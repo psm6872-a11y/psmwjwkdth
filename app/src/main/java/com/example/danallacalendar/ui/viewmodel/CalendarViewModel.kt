@@ -190,15 +190,19 @@ class CalendarViewModel @Inject constructor(
             val sharedCatId = getOrCreateSharedCategory()
             if (roomCode.isNotEmpty()) {
                 repository.registerMemberInFirestore(roomCode)
-                repository.startRealtimeSync(roomCode, sharedCatId)
-                    .catch { e -> android.util.Log.e("SyncError", "Sync failure", e) }
-                    .collect()
+                
+                // 1. 이벤트 실시간 동기화
+                launch {
+                    repository.startRealtimeSync(roomCode, sharedCatId)
+                        .catch { e -> android.util.Log.e("SyncError", "Sync failure", e) }
+                        .collect()
+                }
 
-                // Sync deadline dates from Firestore
-                try {
-                    repository.syncDeadlineDatesFromFirestore()
-                } catch (e: Exception) {
-                    android.util.Log.e("SyncError", "Failed to sync deadline dates", e)
+                // 2. 마감도장 실시간 동기화
+                launch {
+                    repository.startDeadlineRealtimeSync(roomCode)
+                        .catch { e -> android.util.Log.e("SyncError", "Deadline sync failure", e) }
+                        .collect()
                 }
             }
         }
