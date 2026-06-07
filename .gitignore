@@ -17,6 +17,7 @@ local.properties
 # Firebase Cloud Functions
 functions/node_modules/
 functions/package-lock.json
+functions/delete_rooms.js
 
 # Keystore
 *.jks

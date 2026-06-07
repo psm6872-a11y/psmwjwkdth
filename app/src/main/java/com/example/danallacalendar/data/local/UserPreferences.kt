@@ -1,6 +1,7 @@
 package com.example.danallacalendar.data.local
 
 import android.content.Context
+import android.provider.Settings
 import java.util.UUID
 
 class UserPreferences(context: Context) {
@@ -15,7 +16,15 @@ class UserPreferences(context: Context) {
     init {
         // Generate and save device UUID if it doesn't exist
         if (prefs.getString(KEY_DEVICE_UUID, null) == null) {
-            val uuid = UUID.randomUUID().toString()
+            val androidId = Settings.Secure.getString(
+                context.contentResolver,
+                Settings.Secure.ANDROID_ID
+            )
+            val uuid = if (!androidId.isNullOrEmpty()) {
+                androidId
+            } else {
+                UUID.randomUUID().toString()
+            }
             prefs.edit().putString(KEY_DEVICE_UUID, uuid).apply()
         }
     }
