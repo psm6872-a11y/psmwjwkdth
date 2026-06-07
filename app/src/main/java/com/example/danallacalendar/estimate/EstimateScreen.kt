@@ -648,30 +648,13 @@ fun Step2SpaceSelection(
                 .padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "물품을 확인할 공간을 선택해주세요.",
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White,
-                    modifier = Modifier.padding(horizontal = 4.dp)
-                )
-
-                val totalVol = spaceExpectedVolumes.values.mapNotNull { it.toDoubleOrNull() }.sum()
-                if (totalVol > 0.0) {
-                    val formattedVol = if (totalVol % 1.0 == 0.0) totalVol.toInt().toString() else String.format(Locale.US, "%.2f", totalVol).trimEnd('0').trimEnd('.')
-                    Text(
-                        text = "총 예상물량: ${formattedVol}t",
-                        fontSize = 15.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color(0xFFE040FB)
-                    )
-                }
-            }
+            Text(
+                text = "물품을 확인할 공간을 선택해주세요.",
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color.White,
+                modifier = Modifier.padding(horizontal = 4.dp)
+            )
 
             Column(
                 modifier = Modifier.fillMaxWidth(),
@@ -818,6 +801,7 @@ fun Step2ItemSelection(
     var clickedItemSize by remember { mutableStateOf(IntSize.Zero) }
     var clickedItemCol by remember { mutableStateOf(0) }
     var rootCoordinates by remember { mutableStateOf<androidx.compose.ui.layout.LayoutCoordinates?>(null) }
+    var bottomOverlayHeightPx by remember { mutableStateOf(0) }
 
     var toastMessage by remember { mutableStateOf<String?>(null) }
     var toastVisibleText by remember { mutableStateOf("") }
@@ -866,11 +850,14 @@ fun Step2ItemSelection(
             .fillMaxSize()
             .onGloballyPositioned { rootCoordinates = it }
     ) {
+        val density = LocalDensity.current
+        val bottomOverlayHeightDp = with(density) { bottomOverlayHeightPx.toDp() }
+
         // Main Content (Grid of items + Header)
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(bottom = 260.dp), // Leave space for bottom sheet peek, expected volume, and complete button
+                .padding(bottom = if (bottomOverlayHeightDp > 0.dp) bottomOverlayHeightDp else 64.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             Spacer(modifier = Modifier.height(8.dp))
@@ -1011,6 +998,9 @@ fun Step2ItemSelection(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .fillMaxWidth()
+                .onGloballyPositioned { coords ->
+                    bottomOverlayHeightPx = coords.size.height
+                }
         ) {
             // Bottom Sheet Container
             Card(

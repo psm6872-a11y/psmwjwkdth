@@ -905,7 +905,7 @@ fun CalendarDayCell(
                     .background(
                         when {
                             isSelected -> MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)
-                            day.isToday -> Color(0xFF2C2C2C)
+                            day.isToday -> Color(0xFF757575)
                             else -> Color.Transparent
                         }
                     ),
@@ -916,6 +916,7 @@ fun CalendarDayCell(
                     color = when {
                         isSelected -> MaterialTheme.colorScheme.onPrimary
                         day.isToday -> Color.White
+                        isDeadline -> dayTextColor.copy(alpha = 0.2f)
                         else -> dayTextColor
                     },
                     fontSize = 13.sp,
@@ -1219,7 +1220,7 @@ fun EventItemCard(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(start = 10.dp, end = 16.dp, top = 10.dp, bottom = 10.dp),
+                    .padding(start = 10.dp, end = 16.dp, top = if (event.isAllDay) 15.dp else 10.dp, bottom = if (event.isAllDay) 15.dp else 10.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 if (!event.isAllDay) {

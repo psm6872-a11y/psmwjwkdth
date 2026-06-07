@@ -100,44 +100,60 @@ exports.onCalendarEventWritten = onDocumentWritten("rooms/{roomCode}/events/{eve
         const formattedTime = formatEventDateTime(afterData.startMillis, afterData.isAllDay);
         body = `📅 ${eventTitle} - ${formattedTime}`;
     } else if (changeType === "UPDATE") {
-        title = `${nickname}님이 일정 수정`;
+        // ✅ isCompleted 변경 감지 (최우선 처리)
+        const beforeIsCompleted = beforeData.isCompleted || false;
+        const afterIsCompleted = afterData.isCompleted || false;
+        const completedChanged = beforeIsCompleted !== afterIsCompleted;
 
-        const beforeTitle = beforeData.title || "(제목 없음)";
-        const afterTitle = afterData.title || "(제목 없음)";
-        const titleChanged = beforeTitle !== afterTitle;
+        if (!beforeIsCompleted && afterIsCompleted) {
+            // false → true: 완료 버튼 누름
+            title = `${nickname}님이 완료 버튼을 눌렀습니다.`;
+            body = `✅ ${eventTitle}`;
+        } else if (beforeIsCompleted && !afterIsCompleted) {
+            // true → false: 완료 버튼 해제
+            title = `${nickname}님이 완료 버튼을 해제했습니다.`;
+            body = `↩️ ${eventTitle}`;
+        } else {
+            // isCompleted 변경 없음 → 기존 필드 변경 감지 로직
+            title = `${nickname}님이 일정 수정`;
 
-        const beforeFormatted = formatEventDateTime(beforeData.startMillis, beforeData.isAllDay);
-        const afterFormatted = formatEventDateTime(afterData.startMillis, afterData.isAllDay);
-        const timeOrDateChanged = beforeFormatted !== afterFormatted;
+            const beforeTitle = beforeData.title || "(제목 없음)";
+            const afterTitle = afterData.title || "(제목 없음)";
+            const titleChanged = beforeTitle !== afterTitle;
 
-        const beforeLocation = beforeData.location || "";
-        const afterLocation = afterData.location || "";
-        const beforeDepAddress = (beforeLocation.split("|||")[0] || "").trim();
-        const afterDepAddress = (afterLocation.split("|||")[0] || "").trim();
-        const beforeDepFirstWord = beforeDepAddress.split(/\s+/)[0] || "";
-        const afterDepFirstWord = afterDepAddress.split(/\s+/)[0] || "";
-        const departureChanged = beforeDepFirstWord !== afterDepFirstWord;
+            const beforeFormatted = formatEventDateTime(beforeData.startMillis, beforeData.isAllDay);
+            const afterFormatted = formatEventDateTime(afterData.startMillis, afterData.isAllDay);
+            const timeOrDateChanged = beforeFormatted !== afterFormatted;
 
-        const beforeNotes = beforeData.notes || "";
-        const afterNotes = afterData.notes || "";
-        const beforePhone = (beforeNotes.split("|||")[0] || "").trim();
-        const afterPhone = (afterNotes.split("|||")[0] || "").trim();
-        const phoneChanged = beforePhone !== afterPhone;
+            const beforeLocation = beforeData.location || "";
+            const afterLocation = afterData.location || "";
+            const beforeDepAddress = (beforeLocation.split("|||")[0] || "").trim();
+            const afterDepAddress = (afterLocation.split("|||")[0] || "").trim();
+            const beforeDepFirstWord = beforeDepAddress.split(/\s+/)[0] || "";
+            const afterDepFirstWord = afterDepAddress.split(/\s+/)[0] || "";
+            const departureChanged = beforeDepFirstWord !== afterDepFirstWord;
 
-        const bodyParts = [];
-        if (titleChanged) {
-            bodyParts.push(`${beforeTitle} → ${afterTitle}`);
+            const beforeNotes = beforeData.notes || "";
+            const afterNotes = afterData.notes || "";
+            const beforePhone = (beforeNotes.split("|||")[0] || "").trim();
+            const afterPhone = (afterNotes.split("|||")[0] || "").trim();
+            const phoneChanged = beforePhone !== afterPhone;
+
+            const bodyParts = [];
+            if (titleChanged) {
+                bodyParts.push(`${beforeTitle} → ${afterTitle}`);
+            }
+            if (timeOrDateChanged) {
+                bodyParts.push(`${beforeFormatted} → ${afterFormatted}`);
+            }
+            if (departureChanged && (beforeDepFirstWord || afterDepFirstWord)) {
+                bodyParts.push(`${beforeDepFirstWord || "(없음)"} → ${afterDepFirstWord || "(없음)"}`);
+            }
+            if (phoneChanged && (beforePhone || afterPhone)) {
+                bodyParts.push(`${beforePhone || "(없음)"} → ${afterPhone || "(없음)"}`);
+            }
+            body = bodyParts.join("\n");
         }
-        if (timeOrDateChanged) {
-            bodyParts.push(`${beforeFormatted} → ${afterFormatted}`);
-        }
-        if (departureChanged && (beforeDepFirstWord || afterDepFirstWord)) {
-            bodyParts.push(`${beforeDepFirstWord || "(없음)"} → ${afterDepFirstWord || "(없음)"}`);
-        }
-        if (phoneChanged && (beforePhone || afterPhone)) {
-            bodyParts.push(`${beforePhone || "(없음)"} → ${afterPhone || "(없음)"}`);
-        }
-        body = bodyParts.join("\n");
     } else if (changeType === "DELETE") {
         title = `${nickname}님이 일정 삭제`;
         body = `🗑️ ${eventTitle}`;
