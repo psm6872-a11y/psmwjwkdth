@@ -158,10 +158,16 @@ jobs:
             -H "If-Match: $ETAG" \
             -d @config.json
 
+      - name: Install Firebase Functions Dependencies
+        run: |
+          cd functions
+          npm install
+
       - name: Deploy Firebase Cloud Functions
         run: |
           echo '${{ secrets.FIREBASE_SERVICE_ACCOUNT }}' > sa.json
           export GOOGLE_APPLICATION_CREDENTIALS=sa.json
           npx firebase-tools deploy --only functions --project danalla-calendar
           rm sa.json
+
 
