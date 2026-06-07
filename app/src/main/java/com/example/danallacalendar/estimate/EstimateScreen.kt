@@ -80,6 +80,7 @@ fun EstimateScreen(
     var currentStep by remember { mutableStateOf(1) }
     var activeSpaceForCargoInput by remember { mutableStateOf<String?>(null) }
     var completedSpaces by remember { mutableStateOf(setOf<String>()) }
+    var spaceExpectedVolumes by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
 
     val customerName by viewModel.customerName.collectAsStateWithLifecycle()
     val phoneNumber by viewModel.phoneNumber.collectAsStateWithLifecycle()
@@ -224,6 +225,10 @@ fun EstimateScreen(
                                 onActiveSpaceChange = { activeSpaceForCargoInput = it },
                                 completedSpaces = completedSpaces,
                                 onCompletedSpacesChange = { completedSpaces = it },
+                                spaceExpectedVolumes = spaceExpectedVolumes,
+                                onUpdateExpectedVolume = { space, volume ->
+                                    spaceExpectedVolumes = spaceExpectedVolumes + (space to volume)
+                                },
                                 onNavigateNext = { currentStep = 3 }
                             )
                             3 -> Step3CustomerInfo(
@@ -248,45 +253,52 @@ fun EstimateScreen(
                                 estimateDate = estimateDate,
                                 onSelectEstimateDate = { showDatePicker(estimateDate) { viewModel.estimateDate.value = it } }
                             )
-                            4 -> Step4PreviewAndActions(
-                                customerName = customerName,
-                                phoneNumber = phoneNumber,
-                                departure = departure,
-                                destination = destination,
-                                moveDate = moveDate,
-                                moveType = moveType,
-                                startTime = startTime,
-                                amount = amount,
-                                memo = memo,
-                                roomItemsSummary = viewModel.formatRoomItemsSummary(),
-                                saveState = saveState,
-                                onPrint = {
-                                    printEstimate(context, customerName, phoneNumber, moveDate, startTime, moveType, departure, destination, amount, viewModel.formatRoomItemsSummary(), memo)
-                                },
-                                onSave = {
-                                    if (customerName.isBlank()) {
-                                        Toast.makeText(context, "고객명을 입력해주세요.", Toast.LENGTH_SHORT).show()
-                                        currentStep = 3
-                                    } else {
+                            4 -> {
+                                val totalVol = spaceExpectedVolumes.values.mapNotNull { it.toDoubleOrNull() }.sum()
+                                val totalExpectedVolumeStr = if (totalVol > 0.0) {
+                                    if (totalVol % 1.0 == 0.0) totalVol.toInt().toString() else String.format(Locale.US, "%.2f", totalVol).trimEnd('0').trimEnd('.')
+                                } else ""
+                                Step4PreviewAndActions(
+                                    customerName = customerName,
+                                    phoneNumber = phoneNumber,
+                                    departure = departure,
+                                    destination = destination,
+                                    moveDate = moveDate,
+                                    moveType = moveType,
+                                    startTime = startTime,
+                                    amount = amount,
+                                    memo = memo,
+                                    roomItemsSummary = viewModel.formatRoomItemsSummary(),
+                                    saveState = saveState,
+                                    totalExpectedVolume = totalExpectedVolumeStr,
+                                    onPrint = {
+                                        printEstimate(context, customerName, phoneNumber, moveDate, startTime, moveType, departure, destination, amount, viewModel.formatRoomItemsSummary(), memo, totalExpectedVolumeStr)
+                                    },
+                                    onSave = {
+                                        if (customerName.isBlank()) {
+                                            Toast.makeText(context, "고객명을 입력해주세요.", Toast.LENGTH_SHORT).show()
+                                            currentStep = 3
+                                        } else {
+                                            viewModel.saveEstimate { smsBody ->
+                                                Toast.makeText(context, "구글 시트 및 DB 저장 완료!", Toast.LENGTH_SHORT).show()
+                                            }
+                                        }
+                                    },
+                                    onSendSms = {
                                         viewModel.saveEstimate { smsBody ->
-                                            Toast.makeText(context, "구글 시트 및 DB 저장 완료!", Toast.LENGTH_SHORT).show()
+                                            val intent = Intent(Intent.ACTION_SENDTO).apply {
+                                                data = Uri.parse("smsto:${phoneNumber}")
+                                                putExtra("sms_body", smsBody)
+                                            }
+                                            try {
+                                                context.startActivity(intent)
+                                            } catch (e: Exception) {
+                                                Toast.makeText(context, "문자 앱을 실행할 수 없습니다.", Toast.LENGTH_SHORT).show()
+                                            }
                                         }
                                     }
-                                },
-                                onSendSms = {
-                                    viewModel.saveEstimate { smsBody ->
-                                        val intent = Intent(Intent.ACTION_SENDTO).apply {
-                                            data = Uri.parse("smsto:${phoneNumber}")
-                                            putExtra("sms_body", smsBody)
-                                        }
-                                        try {
-                                            context.startActivity(intent)
-                                        } catch (e: Exception) {
-                                            Toast.makeText(context, "문자 앱을 실행할 수 없습니다.", Toast.LENGTH_SHORT).show()
-                                        }
-                                    }
-                                }
-                            )
+                                )
+                            }
                         }
                     }
 
@@ -513,12 +525,15 @@ fun Step2CargoInput(
     onActiveSpaceChange: (String?) -> Unit,
     completedSpaces: Set<String>,
     onCompletedSpacesChange: (Set<String>) -> Unit,
+    spaceExpectedVolumes: Map<String, String>,
+    onUpdateExpectedVolume: (String, String) -> Unit,
     onNavigateNext: () -> Unit
 ) {
     if (activeSpace == null) {
         Step2SpaceSelection(
             roomItems = roomItems,
             completedSpaces = completedSpaces,
+            spaceExpectedVolumes = spaceExpectedVolumes,
             onSpaceClick = onActiveSpaceChange,
             onNavigateNext = onNavigateNext
         )
@@ -527,6 +542,8 @@ fun Step2CargoInput(
             spaceName = activeSpace,
             roomItems = roomItems,
             onUpdateCount = onUpdateCount,
+            expectedVolume = spaceExpectedVolumes[activeSpace] ?: "",
+            onUpdateExpectedVolume = { volume -> onUpdateExpectedVolume(activeSpace, volume) },
             onComplete = {
                 onCompletedSpacesChange(completedSpaces + activeSpace)
                 onActiveSpaceChange(null)
@@ -539,6 +556,7 @@ fun Step2CargoInput(
 fun Step2SpaceSelection(
     roomItems: Map<String, Map<String, Int>>,
     completedSpaces: Set<String>,
+    spaceExpectedVolumes: Map<String, String>,
     onSpaceClick: (String) -> Unit,
     onNavigateNext: () -> Unit
 ) {
@@ -608,13 +626,30 @@ fun Step2SpaceSelection(
                 .padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            Text(
-                text = "물품을 확인할 공간을 선택해주세요.",
-                fontSize = 16.sp,
-                fontWeight = FontWeight.Bold,
-                color = Color.White,
-                modifier = Modifier.padding(horizontal = 4.dp)
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "물품을 확인할 공간을 선택해주세요.",
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White,
+                    modifier = Modifier.padding(horizontal = 4.dp)
+                )
+
+                val totalVol = spaceExpectedVolumes.values.mapNotNull { it.toDoubleOrNull() }.sum()
+                if (totalVol > 0.0) {
+                    val formattedVol = if (totalVol % 1.0 == 0.0) totalVol.toInt().toString() else String.format(Locale.US, "%.2f", totalVol).trimEnd('0').trimEnd('.')
+                    Text(
+                        text = "총 예상물량: ${formattedVol}t",
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFFE040FB)
+                    )
+                }
+            }
 
             Column(
                 modifier = Modifier.fillMaxWidth(),
@@ -636,6 +671,7 @@ fun Step2SpaceSelection(
                             space = pair.first,
                             roomItems = roomItems,
                             completedSpaces = completedSpaces,
+                            expectedVolume = spaceExpectedVolumes[pair.first],
                             onClick = onSpaceClick,
                             modifier = Modifier.weight(1f)
                         )
@@ -644,6 +680,7 @@ fun Step2SpaceSelection(
                                 space = pair.second!!,
                                 roomItems = roomItems,
                                 completedSpaces = completedSpaces,
+                                expectedVolume = spaceExpectedVolumes[pair.second!!],
                                 onClick = onSpaceClick,
                                 modifier = Modifier.weight(1f)
                             )
@@ -662,6 +699,7 @@ fun SpaceCard(
     space: String,
     roomItems: Map<String, Map<String, Int>>,
     completedSpaces: Set<String>,
+    expectedVolume: String?,
     onClick: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -670,7 +708,7 @@ fun SpaceCard(
 
     Card(
         modifier = modifier
-            .height(100.dp)
+            .height(110.dp)
             .clickable { onClick(space) },
         colors = CardDefaults.cardColors(
             containerColor = if (isCompleted) {
@@ -706,6 +744,15 @@ fun SpaceCard(
                     fontSize = 13.sp,
                     color = Color.White.copy(alpha = 0.7f)
                 )
+                if (!expectedVolume.isNullOrBlank()) {
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = "예상: ${expectedVolume}t",
+                        fontSize = 12.sp,
+                        color = Color(0xFFE040FB),
+                        fontWeight = FontWeight.Bold
+                    )
+                }
             }
 
             if (isCompleted) {
@@ -736,6 +783,8 @@ fun Step2ItemSelection(
     spaceName: String,
     roomItems: Map<String, Map<String, Int>>,
     onUpdateCount: (space: String, item: String, count: Int) -> Unit,
+    expectedVolume: String,
+    onUpdateExpectedVolume: (String) -> Unit,
     onComplete: () -> Unit
 ) {
     val predefinedItems = (spaceItemsMap[spaceName] ?: emptyList()) + PredefinedItem("직접입력", R.drawable.ic_add)
@@ -1089,15 +1138,45 @@ fun Step2ItemSelection(
                 }
             }
 
-            // Fixed Complete Button below Bottom Sheet
-            Box(
+            // Fixed Expected Volume Input & Complete Button below Bottom Sheet
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .background(Color(0xFF2D1B69))
-                    .padding(16.dp)
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
+                OutlinedTextField(
+                    value = expectedVolume,
+                    onValueChange = { input ->
+                        if (input.isEmpty() || input.matches(Regex("^\\d*\\.?\\d*$"))) {
+                            onUpdateExpectedVolume(input)
+                        }
+                    },
+                    label = { Text("예상물량 (t)", color = Color.White.copy(alpha = 0.6f)) },
+                    placeholder = { Text("0.0", color = Color.White.copy(alpha = 0.3f)) },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedTextColor = Color.White,
+                        unfocusedTextColor = Color.White,
+                        focusedBorderColor = Color(0xFFE040FB),
+                        unfocusedBorderColor = Color.White.copy(alpha = 0.3f),
+                        focusedLabelColor = Color(0xFFE040FB),
+                        unfocusedLabelColor = Color.White.copy(alpha = 0.6f),
+                        cursorColor = Color(0xFFE040FB)
+                    ),
+                    modifier = Modifier.fillMaxWidth()
+                )
+
                 Button(
-                    onClick = onComplete,
+                    onClick = {
+                        if (!isBottomSheetExpanded && selectedItems.isNotEmpty()) {
+                            isBottomSheetExpanded = true
+                        } else {
+                            onComplete()
+                        }
+                    },
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(48.dp),
@@ -1722,6 +1801,7 @@ fun Step4PreviewAndActions(
     memo: String,
     roomItemsSummary: String,
     saveState: SaveState,
+    totalExpectedVolume: String,
     onPrint: () -> Unit,
     onSave: () -> Unit,
     onSendSms: () -> Unit
@@ -1751,6 +1831,9 @@ fun Step4PreviewAndActions(
                 PreviewRow(label = "이사 날짜", value = "$moveDate ${if (startTime.isNotBlank()) "($startTime)" else ""}")
                 PreviewRow(label = "출발지", value = departure)
                 PreviewRow(label = "도착지", value = destination)
+                if (totalExpectedVolume.isNotBlank()) {
+                    PreviewRow(label = "총 예상물량", value = "${totalExpectedVolume}t", valueColor = Color(0xFFE040FB), isBold = true)
+                }
                 PreviewRow(label = "견적 금액", value = "${formattedAmount}원", valueColor = MaterialTheme.colorScheme.primary, isBold = true)
 
                 if (roomItemsSummary.isNotBlank()) {
@@ -1892,7 +1975,8 @@ fun printEstimate(
     destination: String,
     amount: String,
     roomItemsSummary: String,
-    memo: String
+    memo: String,
+    totalExpectedVolume: String
 ) {
     val printManager = context.getSystemService(Context.PRINT_SERVICE) as? PrintManager ?: return
     val formattedAmount = run {
@@ -1944,6 +2028,9 @@ fun printEstimate(
                     <th>도착지</th>
                     <td>$destination</td>
                 </tr>
+                ${if (totalExpectedVolume.isNotBlank()) {
+                    "<tr><th>총 예상물량</th><td>${totalExpectedVolume}t</td></tr>"
+                } else ""}
             </table>
 
             ${if (roomItemsSummary.isNotBlank()) {
