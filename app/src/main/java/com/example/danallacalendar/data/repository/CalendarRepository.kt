@@ -196,7 +196,8 @@ class CalendarRepository @Inject constructor(
         if (roomCode.isEmpty()) return
 
         val docData = hashMapOf(
-            "dateMillis" to deadlineDate.dateMillis
+            "dateMillis" to deadlineDate.dateMillis,
+            "createdBy" to userPreferences.getDeviceUUID()
         )
 
         firestore.collection("rooms")
@@ -210,11 +211,17 @@ class CalendarRepository @Inject constructor(
         val roomCode = userPreferences.getLastRoomCode()
         if (roomCode.isEmpty()) return
 
+        val docData = hashMapOf(
+            "dateMillis" to dateMillis,
+            "status" to "DELETED",
+            "deletedBy" to userPreferences.getDeviceUUID()
+        )
+
         firestore.collection("rooms")
             .document(roomCode)
             .collection("deadline_dates")
             .document(dateMillis.toString())
-            .delete()
+            .set(docData, com.google.firebase.firestore.SetOptions.merge())
     }
 
     suspend fun syncDeadlineDatesFromFirestore() {
