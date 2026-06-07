@@ -13,16 +13,24 @@ import android.webkit.WebViewClient
 import android.widget.Toast
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.draw.scale
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.gestures.Orientation
+import androidx.compose.foundation.gestures.draggable
+import androidx.compose.foundation.gestures.rememberDraggableState
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
@@ -42,6 +50,22 @@ import androidx.compose.foundation.Image
 import androidx.compose.ui.res.painterResource
 import com.example.danallacalendar.R
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.geometry.RoundRect
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Outline
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.LayoutDirection
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.unit.IntSize
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInRoot
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
 import java.text.NumberFormat
 import java.text.SimpleDateFormat
 import java.util.*
@@ -54,6 +78,8 @@ fun EstimateScreen(
 ) {
     val context = LocalContext.current
     var currentStep by remember { mutableStateOf(1) }
+    var activeSpaceForCargoInput by remember { mutableStateOf<String?>(null) }
+    var completedSpaces by remember { mutableStateOf(setOf<String>()) }
 
     val customerName by viewModel.customerName.collectAsStateWithLifecycle()
     val phoneNumber by viewModel.phoneNumber.collectAsStateWithLifecycle()
@@ -123,39 +149,63 @@ fun EstimateScreen(
             onBack = onNavigateBack
         )
     } else {
-        Scaffold(
-            topBar = {
-                TopAppBar(
-                    title = { 
-                        Text(
-                            text = "이사 견적서 작성 (${currentStep}/4)", 
-                            fontWeight = FontWeight.Bold, 
-                            fontSize = 18.sp
-                        ) 
-                    },
-                    navigationIcon = {
-                        IconButton(onClick = {
-                            if (currentStep > 1) {
-                                currentStep--
-                            } else {
-                                onNavigateBack()
-                            }
-                        }) {
-                            Icon(Icons.Default.ArrowBack, contentDescription = "Back")
-                        }
-                    },
-                    colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceVariant
-                    )
-                )
-            }
-        ) { paddingValues ->
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(paddingValues)
-                    .background(MaterialTheme.colorScheme.background)
-            ) {
+        val gradientBrush = Brush.verticalGradient(
+            colors = listOf(
+                Color(0xFF2D1B69),
+                Color(0xFF4A148C)
+            )
+        )
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(gradientBrush)
+        ) {
+            Scaffold(
+                containerColor = Color.Transparent,
+                topBar = {
+                    if (currentStep != 2) {
+                        TopAppBar(
+                            title = { 
+                                Text(
+                                    text = if (currentStep == 2 && activeSpaceForCargoInput != null) {
+                                        "${activeSpaceForCargoInput} 짐 선택"
+                                    } else {
+                                        "이사 견적서 작성 (${currentStep}/4)"
+                                    }, 
+                                    fontWeight = FontWeight.Bold, 
+                                    fontSize = 18.sp,
+                                    color = Color.White
+                                ) 
+                            },
+                            navigationIcon = {
+                                IconButton(onClick = {
+                                    if (currentStep == 2 && activeSpaceForCargoInput != null) {
+                                        activeSpaceForCargoInput = null
+                                    } else if (currentStep > 1) {
+                                        currentStep--
+                                    } else {
+                                        onNavigateBack()
+                                    }
+                                }) {
+                                    Icon(
+                                        imageVector = Icons.Default.ArrowBack, 
+                                        contentDescription = "Back",
+                                        tint = Color.White
+                                    )
+                                }
+                            },
+                            colors = TopAppBarDefaults.topAppBarColors(
+                                containerColor = Color.Transparent
+                            )
+                        )
+                    }
+                }
+            ) { paddingValues ->
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(paddingValues)
+                ) {
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
@@ -169,7 +219,12 @@ fun EstimateScreen(
                                 roomItems = roomItems,
                                 onUpdateCount = { space, item, count ->
                                     viewModel.updateItemCount(space, item, count)
-                                }
+                                },
+                                activeSpace = activeSpaceForCargoInput,
+                                onActiveSpaceChange = { activeSpaceForCargoInput = it },
+                                completedSpaces = completedSpaces,
+                                onCompletedSpacesChange = { completedSpaces = it },
+                                onNavigateNext = { currentStep = 3 }
                             )
                             3 -> Step3CustomerInfo(
                                 customerName = customerName,
@@ -236,7 +291,7 @@ fun EstimateScreen(
                     }
 
                     // Bottom Navigation Row for Navigation (Next / Back buttons)
-                    if (currentStep > 1) {
+                    if (currentStep > 1 && (currentStep != 2 || activeSpaceForCargoInput == null)) {
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -248,7 +303,11 @@ fun EstimateScreen(
                                 modifier = Modifier
                                     .weight(1f)
                                     .height(48.dp),
-                                shape = RoundedCornerShape(10.dp)
+                                shape = RoundedCornerShape(10.dp),
+                                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.5f)),
+                                colors = ButtonDefaults.outlinedButtonColors(
+                                    contentColor = Color.White
+                                )
                             ) {
                                 Text("이전")
                             }
@@ -274,6 +333,7 @@ fun EstimateScreen(
             }
         }
     }
+}
 }
 
 @Composable
@@ -448,139 +508,147 @@ fun Step1StartScreen(
 @Composable
 fun Step2CargoInput(
     roomItems: Map<String, Map<String, Int>>,
-    onUpdateCount: (space: String, item: String, count: Int) -> Unit
+    onUpdateCount: (space: String, item: String, count: Int) -> Unit,
+    activeSpace: String?,
+    onActiveSpaceChange: (String?) -> Unit,
+    completedSpaces: Set<String>,
+    onCompletedSpacesChange: (Set<String>) -> Unit,
+    onNavigateNext: () -> Unit
 ) {
-    val spaces = listOf("방1", "방2", "방3", "방4", "거실", "주방", "그외")
-    var selectedTabIndex by remember { mutableStateOf(0) }
-    val currentSpace = spaces[selectedTabIndex]
-
-    val predefinedItems = remember {
-        mapOf(
-            "방1" to listOf("침대", "옷장", "책상", "서랍장", "행거"),
-            "방2" to listOf("침대", "옷장", "책상", "서랍장", "행거"),
-            "방3" to listOf("침대", "옷장", "책상", "서랍장", "행거"),
-            "방4" to listOf("침대", "옷장", "책상", "서랍장", "행거"),
-            "거실" to listOf("소파", "TV", "에어컨", "장식장", "피아노"),
-            "주방" to listOf("냉장고", "김치냉장고", "식탁", "전자레인지", "정수기"),
-            "그외" to listOf("세탁기", "건조기", "자전거", "운동기구", "박스")
+    if (activeSpace == null) {
+        Step2SpaceSelection(
+            roomItems = roomItems,
+            completedSpaces = completedSpaces,
+            onSpaceClick = onActiveSpaceChange,
+            onNavigateNext = onNavigateNext
+        )
+    } else {
+        Step2ItemSelection(
+            spaceName = activeSpace,
+            roomItems = roomItems,
+            onUpdateCount = onUpdateCount,
+            onComplete = {
+                onCompletedSpacesChange(completedSpaces + activeSpace)
+                onActiveSpaceChange(null)
+            }
         )
     }
+}
 
-    var customItemName by remember { mutableStateOf("") }
+@Composable
+fun Step2SpaceSelection(
+    roomItems: Map<String, Map<String, Int>>,
+    completedSpaces: Set<String>,
+    onSpaceClick: (String) -> Unit,
+    onNavigateNext: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState()),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Spacer(modifier = Modifier.height(8.dp))
 
-    Column(modifier = Modifier.fillMaxSize()) {
-        ScrollableTabRow(
-            selectedTabIndex = selectedTabIndex,
-            edgePadding = 8.dp,
-            modifier = Modifier.fillMaxWidth()
+        // Animated Text "물품을 확인합니다."
+        val letters = listOf("물", "품", "을", "확", "인", "합", "니", "다", ".")
+        val infiniteTransition = rememberInfiniteTransition(label = "BlinkText")
+
+        Row(
+            modifier = Modifier
+                .rotate(-4f)
+                .padding(vertical = 16.dp),
+            horizontalArrangement = Arrangement.Center,
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            spaces.forEachIndexed { index, title ->
-                Tab(
-                    selected = selectedTabIndex == index,
-                    onClick = { selectedTabIndex = index },
-                    text = { Text(title, fontWeight = FontWeight.Bold) }
+            letters.forEachIndexed { index, char ->
+                val hue by infiniteTransition.animateFloat(
+                    initialValue = index * 40f,
+                    targetValue = index * 40f + 360f,
+                    animationSpec = infiniteRepeatable(
+                        animation = tween(durationMillis = 3000, easing = LinearEasing),
+                        repeatMode = RepeatMode.Restart
+                    ),
+                    label = "hue_$index"
                 )
+
+                val alpha by infiniteTransition.animateFloat(
+                    initialValue = 0.4f,
+                    targetValue = 1.0f,
+                    animationSpec = infiniteRepeatable(
+                        animation = tween(durationMillis = 800, delayMillis = index * 50, easing = LinearEasing),
+                        repeatMode = RepeatMode.Reverse
+                    ),
+                    label = "alpha_$index"
+                )
+
+                val yOffset = -(index * 2).dp
+                val animatedColor = Color.hsv(hue % 360f, 0.8f, 1.0f)
+
+                Text(
+                    text = char,
+                    fontSize = 40.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = animatedColor,
+                    modifier = Modifier
+                        .offset(y = yOffset)
+                        .alpha(alpha)
+                )
+
+                if (char == "을") {
+                    Spacer(modifier = Modifier.width(12.dp))
+                }
             }
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
-
         Column(
             modifier = Modifier
-                .weight(1f)
-                .verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             Text(
-                text = "${currentSpace}의 짐 목록 입력",
-                fontWeight = FontWeight.Bold,
+                text = "물품을 확인할 공간을 선택해주세요.",
                 fontSize = 16.sp,
-                color = MaterialTheme.colorScheme.primary,
+                fontWeight = FontWeight.Bold,
+                color = Color.White,
                 modifier = Modifier.padding(horizontal = 4.dp)
             )
 
-            // Custom Item Input Row
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 4.dp),
-                verticalAlignment = Alignment.CenterVertically
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                OutlinedTextField(
-                    value = customItemName,
-                    onValueChange = { customItemName = it },
-                    label = { Text("추가 짐 항목 이름") },
-                    modifier = Modifier.weight(1f),
-                    singleLine = true
+                val spacePairs = listOf(
+                    Pair("안방", "작은방1"),
+                    Pair("작은방2", "입구방"),
+                    Pair("거실", "주방"),
+                    Pair("그외", null)
                 )
-                Spacer(modifier = Modifier.width(8.dp))
-                IconButton(
-                    onClick = {
-                        if (customItemName.isNotBlank()) {
-                            onUpdateCount(currentSpace, customItemName.trim(), 1)
-                            customItemName = ""
-                        }
-                    },
-                    modifier = Modifier
-                        .size(56.dp)
-                        .background(MaterialTheme.colorScheme.primaryContainer, RoundedCornerShape(8.dp))
-                ) {
-                    Icon(Icons.Default.Add, contentDescription = "Add custom item", tint = MaterialTheme.colorScheme.onPrimaryContainer)
-                }
-            }
 
-            Divider(modifier = Modifier.padding(vertical = 8.dp))
-
-            // Predefined and added items list
-            val itemsToDisplay = remember(currentSpace, roomItems) {
-                val list = predefinedItems[currentSpace]?.toMutableList() ?: mutableListOf()
-                roomItems[currentSpace]?.keys?.forEach { item ->
-                    if (!list.contains(item)) {
-                        list.add(item)
-                    }
-                }
-                list
-            }
-
-            itemsToDisplay.forEach { item ->
-                val currentCount = roomItems[currentSpace]?.get(item) ?: 0
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(
-                        containerColor = if (currentCount > 0) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surface
-                    )
-                ) {
+                spacePairs.forEach { pair ->
                     Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 12.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        Text(item, fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            OutlinedButton(
-                                onClick = { onUpdateCount(currentSpace, item, currentCount - 1) },
-                                contentPadding = PaddingValues(0.dp),
-                                modifier = Modifier.size(36.dp),
-                                shape = RoundedCornerShape(8.dp)
-                            ) {
-                                Text("-", fontSize = 18.sp, fontWeight = FontWeight.Bold)
-                            }
-                            Text(
-                                text = "$currentCount",
-                                modifier = Modifier.padding(horizontal = 16.dp),
-                                fontSize = 16.sp,
-                                fontWeight = FontWeight.Bold
+                        SpaceCard(
+                            space = pair.first,
+                            roomItems = roomItems,
+                            completedSpaces = completedSpaces,
+                            onClick = onSpaceClick,
+                            modifier = Modifier.weight(1f)
+                        )
+                        if (pair.second != null) {
+                            SpaceCard(
+                                space = pair.second!!,
+                                roomItems = roomItems,
+                                completedSpaces = completedSpaces,
+                                onClick = onSpaceClick,
+                                modifier = Modifier.weight(1f)
                             )
-                            Button(
-                                onClick = { onUpdateCount(currentSpace, item, currentCount + 1) },
-                                contentPadding = PaddingValues(0.dp),
-                                modifier = Modifier.size(36.dp),
-                                shape = RoundedCornerShape(8.dp)
-                            ) {
-                                Text("+", fontSize = 18.sp, fontWeight = FontWeight.Bold)
-                            }
+                        } else {
+                            Spacer(modifier = Modifier.weight(1f))
                         }
                     }
                 }
@@ -588,6 +656,893 @@ fun Step2CargoInput(
         }
     }
 }
+
+@Composable
+fun SpaceCard(
+    space: String,
+    roomItems: Map<String, Map<String, Int>>,
+    completedSpaces: Set<String>,
+    onClick: (String) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val itemCount = roomItems[space]?.values?.sum() ?: 0
+    val isCompleted = completedSpaces.contains(space) || itemCount > 0
+
+    Card(
+        modifier = modifier
+            .height(100.dp)
+            .clickable { onClick(space) },
+        colors = CardDefaults.cardColors(
+            containerColor = if (isCompleted) {
+                Color(0xFFAB47BC).copy(alpha = 0.5f)
+            } else {
+                Color.White.copy(alpha = 0.15f)
+            }
+        ),
+        shape = RoundedCornerShape(16.dp),
+        border = BorderStroke(
+            width = 1.dp,
+            color = if (isCompleted) Color(0xFFE040FB).copy(alpha = 0.6f) else Color.White.copy(alpha = 0.2f)
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(16.dp)
+        ) {
+            Column(
+                modifier = Modifier.align(Alignment.CenterStart)
+            ) {
+                Text(
+                    text = space,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = if (itemCount > 0) "${itemCount}개 선택됨" else "비어 있음",
+                    fontSize = 13.sp,
+                    color = Color.White.copy(alpha = 0.7f)
+                )
+            }
+
+            if (isCompleted) {
+                Box(
+                    modifier = Modifier
+                        .size(24.dp)
+                        .background(
+                            Color(0xFFE040FB),
+                            shape = RoundedCornerShape(50)
+                        )
+                        .align(Alignment.TopEnd),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "✓",
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 12.sp
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun Step2ItemSelection(
+    spaceName: String,
+    roomItems: Map<String, Map<String, Int>>,
+    onUpdateCount: (space: String, item: String, count: Int) -> Unit,
+    onComplete: () -> Unit
+) {
+    val predefinedItems = (spaceItemsMap[spaceName] ?: emptyList()) + PredefinedItem("직접입력", R.drawable.ic_add)
+    val chunkedItems = predefinedItems.chunked(3)
+    var itemPendingOptions by remember { mutableStateOf<PredefinedItem?>(null) }
+    var showDirectInputDialog by remember { mutableStateOf(false) }
+    var directInputText by remember { mutableStateOf("") }
+    var clickedItemPosition by remember { mutableStateOf(Offset.Zero) }
+    var clickedItemSize by remember { mutableStateOf(IntSize.Zero) }
+    var clickedItemCol by remember { mutableStateOf(0) }
+    var rootCoordinates by remember { mutableStateOf<androidx.compose.ui.layout.LayoutCoordinates?>(null) }
+
+    var toastMessage by remember { mutableStateOf<String?>(null) }
+    var toastVisibleText by remember { mutableStateOf("") }
+
+    LaunchedEffect(toastMessage) {
+        if (toastMessage != null) {
+            toastVisibleText = toastMessage!!
+            delay(1500)
+            toastMessage = null
+        }
+    }
+
+    val toastAlpha by animateFloatAsState(
+        targetValue = if (toastMessage != null) 1f else 0f,
+        animationSpec = tween(durationMillis = 300),
+        label = "toastAlpha"
+    )
+
+    var isBottomSheetExpanded by remember { mutableStateOf(false) }
+
+    val context = LocalContext.current
+    val flyingParticles = remember { mutableStateListOf<FlyingParticle>() }
+
+    fun spawnFlyingParticle(item: PredefinedItem) {
+        val itemIndex = predefinedItems.indexOf(item)
+        val col = if (itemIndex >= 0) itemIndex % 3 else 1
+        val row = if (itemIndex >= 0) itemIndex / 3 else 1
+        val startX = (col - 1) * 110f
+        val startY = row * 100f + 120f
+        flyingParticles.add(
+            FlyingParticle(
+                id = System.nanoTime(),
+                name = item.name,
+                iconRes = item.iconRes,
+                startX = startX,
+                startY = startY
+            )
+        )
+    }
+
+    val selectedItems = roomItems[spaceName] ?: emptyMap()
+    val totalCount = selectedItems.values.sum()
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .onGloballyPositioned { rootCoordinates = it }
+    ) {
+        // Main Content (Grid of items + Header)
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(bottom = 120.dp), // Leave space for bottom sheet peek and complete button
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Animated Text "물품을 선택하세요."
+            val letters = listOf("물", "품", "을", "선", "택", "하", "세", "요", ".")
+            val infiniteTransition = rememberInfiniteTransition(label = "BlinkText")
+
+            Row(
+                modifier = Modifier
+                    .rotate(-4f)
+                    .padding(vertical = 16.dp)
+                    .align(Alignment.CenterHorizontally),
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                letters.forEachIndexed { index, char ->
+                    val hue by infiniteTransition.animateFloat(
+                        initialValue = index * 40f,
+                        targetValue = index * 40f + 360f,
+                        animationSpec = infiniteRepeatable(
+                            animation = tween(durationMillis = 3000, easing = LinearEasing),
+                            repeatMode = RepeatMode.Restart
+                        ),
+                        label = "hue_$index"
+                    )
+
+                    val alpha by infiniteTransition.animateFloat(
+                        initialValue = 0.4f,
+                        targetValue = 1.0f,
+                        animationSpec = infiniteRepeatable(
+                            animation = tween(durationMillis = 800, delayMillis = index * 50, easing = LinearEasing),
+                            repeatMode = RepeatMode.Reverse
+                        ),
+                        label = "alpha_$index"
+                    )
+
+                    val yOffset = -(index * 2).dp
+                    val animatedColor = Color.hsv(hue % 360f, 0.8f, 1.0f)
+
+                    Text(
+                        text = char,
+                        fontSize = 36.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = animatedColor,
+                        modifier = Modifier
+                            .offset(y = yOffset)
+                            .alpha(alpha)
+                    )
+
+                    if (char == "을") {
+                        Spacer(modifier = Modifier.width(12.dp))
+                    }
+                }
+            }
+
+            // Predefined items grid
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Text(
+                    text = "${spaceName}의 물품 선택 (두개는 두번선택)",
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White
+                )
+
+                chunkedItems.forEach { rowItems ->
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        rowItems.forEach { item ->
+                            val itemIndex = predefinedItems.indexOf(item)
+                            ItemSelectCard(
+                                item = item,
+                                onClick = { cardCoords ->
+                                    val root = rootCoordinates
+                                    if (root != null && cardCoords.isAttached) {
+                                        clickedItemPosition = root.localPositionOf(cardCoords, Offset.Zero)
+                                        clickedItemSize = cardCoords.size
+                                    } else {
+                                        clickedItemPosition = Offset.Zero
+                                        clickedItemSize = IntSize.Zero
+                                    }
+                                    clickedItemCol = if (itemIndex >= 0) itemIndex % 3 else 1
+
+                                    if (item.name == "직접입력") {
+                                        directInputText = ""
+                                        showDirectInputDialog = true
+                                    } else if (item.options.isNotEmpty()) {
+                                        itemPendingOptions = item
+                                    } else {
+                                        val currentCount = roomItems[spaceName]?.get(item.name) ?: 0
+                                        onUpdateCount(spaceName, item.name, currentCount + 1)
+                                        toastMessage = "${item.name}이 추가되었습니다."
+                                        spawnFlyingParticle(item)
+                                    }
+                                },
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+                        if (rowItems.size < 3) {
+                            repeat(3 - rowItems.size) {
+                                Spacer(modifier = Modifier.weight(1f))
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Bottom Sheet & Complete Button fixed at the bottom overlay
+        val sheetHeight by animateDpAsState(
+            targetValue = if (isBottomSheetExpanded) 380.dp else 64.dp,
+            animationSpec = spring(dampingRatio = Spring.DampingRatioLowBouncy, stiffness = Spring.StiffnessMedium),
+            label = "sheetHeight"
+        )
+
+        Column(
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .fillMaxWidth()
+        ) {
+            // Bottom Sheet Container
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(sheetHeight)
+                    .draggable(
+                        orientation = Orientation.Vertical,
+                        state = rememberDraggableState { delta ->
+                            if (delta < -10) {
+                                isBottomSheetExpanded = true
+                            } else if (delta > 10) {
+                                isBottomSheetExpanded = false
+                            }
+                        }
+                    ),
+                colors = CardDefaults.cardColors(
+                    containerColor = Color(0xFF1E0F3D).copy(alpha = 0.95f)
+                ),
+                shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
+                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.15f)),
+                elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+            ) {
+                Column(
+                    modifier = Modifier.fillMaxSize()
+                ) {
+                    // Drag Handle & Header Row
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { isBottomSheetExpanded = !isBottomSheetExpanded }
+                            .padding(vertical = 10.dp, horizontal = 16.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .width(36.dp)
+                                .height(4.dp)
+                                .background(Color.White.copy(alpha = 0.3f), shape = RoundedCornerShape(50))
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "선택된 물품 목록 ($totalCount)",
+                                fontSize = 15.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White
+                            )
+
+                            Icon(
+                                imageVector = if (isBottomSheetExpanded) {
+                                    Icons.Default.KeyboardArrowDown
+                                } else {
+                                    Icons.Default.KeyboardArrowUp
+                                },
+                                contentDescription = "Toggle Sheet",
+                                tint = Color.White
+                            )
+                        }
+                    }
+
+                    HorizontalDivider(color = Color.White.copy(alpha = 0.1f))
+
+                    // Scrollable list (visible when expanded)
+                    if (isBottomSheetExpanded) {
+                        if (selectedItems.isNotEmpty()) {
+                            Column(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .verticalScroll(rememberScrollState())
+                                    .padding(16.dp),
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                selectedItems.forEach { (itemWithOption, count) ->
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .background(
+                                                Color.White.copy(alpha = 0.08f),
+                                                shape = RoundedCornerShape(12.dp)
+                                            )
+                                            .border(1.dp, Color.White.copy(alpha = 0.05f), shape = RoundedCornerShape(12.dp))
+                                            .padding(horizontal = 12.dp, vertical = 8.dp),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text(
+                                            text = itemWithOption,
+                                            fontSize = 14.sp,
+                                            fontWeight = FontWeight.Medium,
+                                            color = Color.White
+                                        )
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            OutlinedButton(
+                                                onClick = { onUpdateCount(spaceName, itemWithOption, count - 1) },
+                                                contentPadding = PaddingValues(0.dp),
+                                                modifier = Modifier.size(32.dp),
+                                                shape = RoundedCornerShape(6.dp),
+                                                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.3f)),
+                                                colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White)
+                                            ) {
+                                                Text("-", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                                            }
+                                            Text(
+                                                text = "$count",
+                                                modifier = Modifier.padding(horizontal = 12.dp),
+                                                fontSize = 14.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = Color.White
+                                            )
+                                            Button(
+                                                onClick = { onUpdateCount(spaceName, itemWithOption, count + 1) },
+                                                contentPadding = PaddingValues(0.dp),
+                                                modifier = Modifier.size(32.dp),
+                                                shape = RoundedCornerShape(6.dp),
+                                                colors = ButtonDefaults.buttonColors(
+                                                    containerColor = Color(0xFFE040FB),
+                                                    contentColor = Color.White
+                                                )
+                                            ) {
+                                                Text("+", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        } else {
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .fillMaxWidth(),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = "추가된 물품이 없습니다.",
+                                    color = Color.White.copy(alpha = 0.5f),
+                                    fontSize = 14.sp
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Fixed Complete Button below Bottom Sheet
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(Color(0xFF2D1B69))
+                    .padding(16.dp)
+            ) {
+                Button(
+                    onClick = onComplete,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(48.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color(0xFFAB47BC),
+                        contentColor = Color.White
+                    )
+                ) {
+                    Text("완료", fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                }
+            }
+        }
+
+        // Flying Particles Overlay
+        flyingParticles.forEach { particle ->
+            key(particle.id) {
+                FlyingIcon(
+                    particle = particle,
+                    onAnimationEnd = {
+                        flyingParticles.remove(particle)
+                    }
+                )
+            }
+        }
+        // Custom Toast Overlay (1/3 from top)
+        if (toastAlpha > 0f) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .alpha(toastAlpha),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Spacer(modifier = Modifier.weight(1f))
+                Surface(
+                    color = Color(0xFF1E0F3D).copy(alpha = 0.9f),
+                    shape = RoundedCornerShape(24.dp),
+                    border = BorderStroke(1.dp, Color(0xFFE040FB).copy(alpha = 0.4f)),
+                    shadowElevation = 6.dp
+                ) {
+                    Text(
+                        text = toastVisibleText,
+                        color = Color.White,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(horizontal = 20.dp, vertical = 10.dp)
+                    )
+                }
+                Spacer(modifier = Modifier.weight(2f))
+            }
+        }
+    }
+
+    // Popup Dialog (Speech Bubble Overlay)
+    if (itemPendingOptions != null) {
+        val density = LocalDensity.current
+        val bubbleWidth = 280.dp
+        var bubbleHeightPx by remember { mutableStateOf(0f) }
+
+        val tailOffsetXFraction = when (clickedItemCol) {
+            0 -> 0.2f
+            2 -> 0.8f
+            else -> 0.5f
+        }
+
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.Black.copy(alpha = 0.4f))
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null
+                ) {
+                    itemPendingOptions = null
+                }
+        ) {
+            val bubbleTopPx = clickedItemPosition.y - bubbleHeightPx - 8f
+            val minTopPx = with(density) { 10.dp.toPx() }
+            val finalTopPx = maxOf(minTopPx, bubbleTopPx)
+            val finalTopDp = with(density) { finalTopPx.toDp() }
+
+            val bubbleLeftPx = clickedItemPosition.x + (clickedItemSize.width / 2f) - (with(density) { bubbleWidth.toPx() } * tailOffsetXFraction)
+            val finalLeftDp = with(density) { bubbleLeftPx.toDp() }
+
+            val bubbleAlpha by animateFloatAsState(
+                targetValue = if (bubbleHeightPx > 0f) 1f else 0f,
+                animationSpec = tween(durationMillis = 150),
+                label = "bubbleAlpha"
+            )
+
+            Surface(
+                shape = BubbleShape(
+                    tailWidthPx = with(density) { 16.dp.toPx() },
+                    tailHeightPx = with(density) { 10.dp.toPx() },
+                    tailOffsetXFraction = tailOffsetXFraction,
+                    cornerRadiusPx = with(density) { 16.dp.toPx() }
+                ),
+                color = Color(0xFF1E0F3D),
+                tonalElevation = 8.dp,
+                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.15f)),
+                modifier = Modifier
+                    .offset(x = finalLeftDp, y = finalTopDp)
+                    .width(bubbleWidth)
+                    .alpha(bubbleAlpha)
+                    .onGloballyPositioned { coords ->
+                        if (bubbleHeightPx == 0f) {
+                            bubbleHeightPx = coords.size.height.toFloat()
+                        }
+                    }
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null
+                    ) {
+                        // Prevent click propagation
+                    }
+            ) {
+                Column(
+                    modifier = Modifier
+                        .padding(start = 16.dp, top = 16.dp, end = 16.dp, bottom = 24.dp)
+                        .fillMaxWidth(),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center
+                    ) {
+                        Image(
+                            painter = painterResource(id = itemPendingOptions!!.iconRes),
+                            contentDescription = itemPendingOptions!!.name,
+                            modifier = Modifier.size(32.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "${itemPendingOptions!!.name} 선택",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    itemPendingOptions!!.options.forEach { option ->
+                        Card(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 3.dp)
+                                .clickable {
+                                    val displayName = "${itemPendingOptions!!.name} ($option)"
+                                    val currentCount = roomItems[spaceName]?.get(displayName) ?: 0
+                                    onUpdateCount(spaceName, displayName, currentCount + 1)
+                                    toastMessage = "${displayName}이 추가되었습니다."
+                                    spawnFlyingParticle(itemPendingOptions!!)
+                                    itemPendingOptions = null
+                                },
+                            colors = CardDefaults.cardColors(
+                                containerColor = Color.White.copy(alpha = 0.1f)
+                            ),
+                            shape = RoundedCornerShape(8.dp),
+                            border = BorderStroke(1.dp, Color.White.copy(alpha = 0.05f))
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 10.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = option,
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = Color.White
+                                )
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    TextButton(
+                        onClick = { itemPendingOptions = null },
+                        modifier = Modifier.align(Alignment.End),
+                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
+                    ) {
+                        Text("취소", color = Color(0xFFE040FB), fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+        }
+    }
+
+    if (showDirectInputDialog) {
+        Dialog(onDismissRequest = { showDirectInputDialog = false }) {
+            Surface(
+                shape = RoundedCornerShape(24.dp),
+                color = MaterialTheme.colorScheme.surface,
+                tonalElevation = 6.dp,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp)
+            ) {
+                Column(
+                    modifier = Modifier
+                        .padding(24.dp)
+                        .fillMaxWidth(),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(
+                        text = "물품 직접 입력",
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    OutlinedTextField(
+                        value = directInputText,
+                        onValueChange = { directInputText = it },
+                        placeholder = { Text("예: 스타일러, 식기세척기 등") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = TextFieldDefaults.colors(
+                            focusedContainerColor = Color.Transparent,
+                            unfocusedContainerColor = Color.Transparent
+                        )
+                    )
+                    Spacer(modifier = Modifier.height(24.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.End,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        TextButton(onClick = { showDirectInputDialog = false }) {
+                            Text("취소", color = MaterialTheme.colorScheme.primary)
+                        }
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Button(
+                            onClick = {
+                                val trimmed = directInputText.trim()
+                                if (trimmed.isNotEmpty()) {
+                                    val currentCount = roomItems[spaceName]?.get(trimmed) ?: 0
+                                    onUpdateCount(spaceName, trimmed, currentCount + 1)
+                                    toastMessage = "${trimmed}이 추가되었습니다."
+                                    val directItem = predefinedItems.find { it.name == "직접입력" }
+                                    if (directItem != null) {
+                                        spawnFlyingParticle(directItem)
+                                    }
+                                    showDirectInputDialog = false
+                                }
+                            },
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Text("추가")
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun ItemSelectCard(
+    item: PredefinedItem,
+    onClick: (androidx.compose.ui.layout.LayoutCoordinates) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    var coordinates by remember { mutableStateOf<androidx.compose.ui.layout.LayoutCoordinates?>(null) }
+
+    Column(
+        modifier = modifier
+            .height(90.dp)
+            .onGloballyPositioned { coordinates = it }
+            .clickable {
+                val coords = coordinates
+                if (coords != null && coords.isAttached) {
+                    onClick(coords)
+                }
+            }
+            .padding(8.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Image(
+            painter = painterResource(id = item.iconRes),
+            contentDescription = item.name,
+            modifier = Modifier.size(40.dp)
+        )
+        Spacer(modifier = Modifier.height(6.dp))
+        Text(
+            text = item.name,
+            fontSize = 12.sp,
+            fontWeight = FontWeight.Medium,
+            color = Color.White
+        )
+    }
+}
+
+data class FlyingParticle(
+    val id: Long,
+    val name: String,
+    val iconRes: Int,
+    val startX: Float,
+    val startY: Float
+)
+
+@Composable
+fun FlyingIcon(
+    particle: FlyingParticle,
+    onAnimationEnd: () -> Unit
+) {
+    val animX = remember { Animatable(particle.startX) }
+    val animY = remember { Animatable(particle.startY) }
+    val scale = remember { Animatable(1f) }
+    val alpha = remember { Animatable(1f) }
+
+    LaunchedEffect(Unit) {
+        val duration = 800
+        launch {
+            animX.animateTo(
+                targetValue = 0f,
+                animationSpec = tween(durationMillis = duration, easing = FastOutSlowInEasing)
+            )
+        }
+        launch {
+            animY.animateTo(
+                targetValue = 620f,
+                animationSpec = keyframes {
+                    durationMillis = duration
+                    (particle.startY - 60f) at 200 using FastOutSlowInEasing
+                    620f at duration using FastOutLinearInEasing
+                }
+            )
+        }
+        launch {
+            scale.animateTo(
+                targetValue = 0.2f,
+                animationSpec = keyframes {
+                    durationMillis = duration
+                    1.0f at 200
+                    0.6f at 500
+                    0.2f at duration
+                }
+            )
+        }
+        alpha.animateTo(
+            targetValue = 0.0f,
+            animationSpec = keyframes {
+                durationMillis = duration
+                1.0f at 400
+                0.5f at 650
+                0.0f at duration
+            }
+        )
+        onAnimationEnd()
+    }
+
+    Box(
+        modifier = Modifier.fillMaxSize(),
+        contentAlignment = Alignment.TopCenter
+    ) {
+        Box(
+            modifier = Modifier
+                .offset(x = animX.value.dp, y = animY.value.dp)
+                .size(44.dp)
+                .scale(scale.value)
+                .alpha(alpha.value)
+                .background(Color(0xFFE040FB), shape = RoundedCornerShape(50))
+                .padding(8.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Image(
+                painter = painterResource(id = particle.iconRes),
+                contentDescription = null,
+                modifier = Modifier.fillMaxSize()
+            )
+        }
+    }
+}
+
+data class PredefinedItem(
+    val name: String,
+    val iconRes: Int,
+    val options: List<String> = emptyList()
+)
+
+private val spaceItemsMap = mapOf(
+    "안방" to listOf(
+        PredefinedItem("침대", R.drawable.ic_bed, listOf("싱글", "더블", "킹")),
+        PredefinedItem("장농", R.drawable.ic_wardrobe, listOf("1칸", "2칸", "3칸", "분해형")),
+        PredefinedItem("책상", R.drawable.ic_desk, listOf("일반형", "책장형")),
+        PredefinedItem("서랍장", R.drawable.ic_drawers),
+        PredefinedItem("행거", R.drawable.ic_hanger, listOf("1칸", "2칸", "3칸", "4칸")),
+        PredefinedItem("시스템행거", R.drawable.ic_hanger, listOf("2칸", "3칸", "L형")),
+        PredefinedItem("화장대", R.drawable.ic_dressing_table),
+        PredefinedItem("책장", R.drawable.ic_bookshelf, listOf("3x3", "3x5")),
+        PredefinedItem("의자", R.drawable.ic_chair)
+    ),
+    "작은방1" to listOf(
+        PredefinedItem("침대", R.drawable.ic_bed, listOf("싱글", "더블", "킹")),
+        PredefinedItem("장농", R.drawable.ic_wardrobe, listOf("1칸", "2칸", "3칸", "분해형")),
+        PredefinedItem("책상", R.drawable.ic_desk, listOf("일반형", "책장형")),
+        PredefinedItem("서랍장", R.drawable.ic_drawers),
+        PredefinedItem("행거", R.drawable.ic_hanger, listOf("1칸", "2칸", "3칸", "4칸")),
+        PredefinedItem("시스템행거", R.drawable.ic_hanger, listOf("2칸", "3칸", "L형")),
+        PredefinedItem("화장대", R.drawable.ic_dressing_table),
+        PredefinedItem("책장", R.drawable.ic_bookshelf, listOf("3x3", "3x5")),
+        PredefinedItem("의자", R.drawable.ic_chair)
+    ),
+    "작은방2" to listOf(
+        PredefinedItem("침대", R.drawable.ic_bed, listOf("싱글", "더블", "킹")),
+        PredefinedItem("장농", R.drawable.ic_wardrobe, listOf("1칸", "2칸", "3칸", "분해형")),
+        PredefinedItem("책상", R.drawable.ic_desk, listOf("일반형", "책장형")),
+        PredefinedItem("서랍장", R.drawable.ic_drawers),
+        PredefinedItem("행거", R.drawable.ic_hanger, listOf("1칸", "2칸", "3칸", "4칸")),
+        PredefinedItem("시스템행거", R.drawable.ic_hanger, listOf("2칸", "3칸", "L형")),
+        PredefinedItem("화장대", R.drawable.ic_dressing_table),
+        PredefinedItem("책장", R.drawable.ic_bookshelf, listOf("3x3", "3x5")),
+        PredefinedItem("의자", R.drawable.ic_chair)
+    ),
+    "입구방" to listOf(
+        PredefinedItem("침대", R.drawable.ic_bed, listOf("싱글", "더블", "킹")),
+        PredefinedItem("장농", R.drawable.ic_wardrobe, listOf("1칸", "2칸", "3칸", "분해형")),
+        PredefinedItem("책상", R.drawable.ic_desk, listOf("일반형", "책장형")),
+        PredefinedItem("서랍장", R.drawable.ic_drawers),
+        PredefinedItem("행거", R.drawable.ic_hanger, listOf("1칸", "2칸", "3칸", "4칸")),
+        PredefinedItem("시스템행거", R.drawable.ic_hanger, listOf("2칸", "3칸", "L형")),
+        PredefinedItem("화장대", R.drawable.ic_dressing_table),
+        PredefinedItem("책장", R.drawable.ic_bookshelf, listOf("3x3", "3x5")),
+        PredefinedItem("의자", R.drawable.ic_chair)
+    ),
+    "거실" to listOf(
+        PredefinedItem("소파", R.drawable.ic_sofa, listOf("2인", "3인", "L형")),
+        PredefinedItem("TV", R.drawable.ic_tv, listOf("65\"이하", "75\"", "85\"이상")),
+        PredefinedItem("TV장", R.drawable.ic_tv_cabinet),
+        PredefinedItem("에어컨", R.drawable.ic_air_conditioner, listOf("2in1", "스탠드", "벽걸이")),
+        PredefinedItem("장식장", R.drawable.ic_cabinet),
+        PredefinedItem("테이블", R.drawable.ic_table),
+        PredefinedItem("식물", R.drawable.ic_plant)
+    ),
+    "주방" to listOf(
+        PredefinedItem("냉장고", R.drawable.ic_refrigerator, listOf("일반", "양문형", "4도어")),
+        PredefinedItem("김치냉장고", R.drawable.ic_dishwasher, listOf("일반형", "스탠드형")),
+        PredefinedItem("식탁", R.drawable.ic_dining_table, listOf("4인", "6인")),
+        PredefinedItem("정수기", R.drawable.ic_water_purifier),
+        PredefinedItem("장독", R.drawable.ic_jangdok)
+    ),
+    "그외" to listOf(
+        PredefinedItem("세탁기", R.drawable.ic_washing_machine, listOf("통돌이", "드럼형", "일체형")),
+        PredefinedItem("건조기", R.drawable.ic_washing_machine, listOf("단독형", "일체형")),
+        PredefinedItem("식기세척기", R.drawable.ic_shelf, listOf("노출형", "매립형")),
+        PredefinedItem("선반", R.drawable.ic_shelf),
+        PredefinedItem("TV스탠드", R.drawable.ic_tv_stand)
+    )
+)
 
 @Composable
 fun Step3CustomerInfo(
@@ -872,6 +1827,44 @@ fun PreviewRow(
             fontWeight = if (isBold) FontWeight.Bold else FontWeight.Normal,
             fontSize = 14.sp
         )
+    }
+}
+
+class BubbleShape(
+    val tailWidthPx: Float,
+    val tailHeightPx: Float,
+    val tailOffsetXFraction: Float = 0.5f,
+    val cornerRadiusPx: Float
+) : Shape {
+    override fun createOutline(
+        size: Size,
+        layoutDirection: LayoutDirection,
+        density: Density
+    ): Outline {
+        val path = Path().apply {
+            val rectHeight = size.height - tailHeightPx
+            val rectWidth = size.width
+
+            addRoundRect(
+                RoundRect(
+                    left = 0f,
+                    top = 0f,
+                    right = rectWidth,
+                    bottom = rectHeight,
+                    topLeftCornerRadius = androidx.compose.ui.geometry.CornerRadius(cornerRadiusPx),
+                    topRightCornerRadius = androidx.compose.ui.geometry.CornerRadius(cornerRadiusPx),
+                    bottomLeftCornerRadius = androidx.compose.ui.geometry.CornerRadius(cornerRadiusPx),
+                    bottomRightCornerRadius = androidx.compose.ui.geometry.CornerRadius(cornerRadiusPx)
+                )
+            )
+
+            val tailStart = (rectWidth * tailOffsetXFraction) - (tailWidthPx / 2)
+            moveTo(tailStart, rectHeight)
+            lineTo(tailStart + (tailWidthPx / 2), size.height)
+            lineTo(tailStart + tailWidthPx, rectHeight)
+            close()
+        }
+        return Outline.Generic(path)
     }
 }
 
