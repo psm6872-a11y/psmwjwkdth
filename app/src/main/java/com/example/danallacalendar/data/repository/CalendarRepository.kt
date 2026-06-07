@@ -237,6 +237,8 @@ class CalendarRepository @Inject constructor(
                     kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
                         try {
                             val remoteDeadlineDates = snapshot.documents.mapNotNull { doc ->
+                                val status = doc.getString("status") ?: ""
+                                if (status == "DELETED") return@mapNotNull null
                                 val dateMillis = doc.getLong("dateMillis") ?: return@mapNotNull null
                                 DeadlineDate(dateMillis)
                             }
@@ -285,6 +287,8 @@ class CalendarRepository @Inject constructor(
                     kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
                         try {
                             val remoteDeadlineDates = snapshot.documents.mapNotNull { doc ->
+                                val status = doc.getString("status") ?: ""
+                                if (status == "DELETED") return@mapNotNull null
                                 val dateMillis = doc.getLong("dateMillis") ?: return@mapNotNull null
                                 DeadlineDate(dateMillis)
                             }

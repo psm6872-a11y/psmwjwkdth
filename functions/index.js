@@ -7,14 +7,15 @@ const db = admin.firestore();
 
 function formatEventDateTime(startMillis, isAllDay) {
     if (!startMillis) return "";
-    const date = new Date(startMillis);
-    const m = String(date.getMonth() + 1).padStart(2, '0');
-    const d = String(date.getDate()).padStart(2, '0');
+    const kstMillis = startMillis + (9 * 60 * 60 * 1000);
+    const date = new Date(kstMillis);
+    const m = String(date.getUTCMonth() + 1).padStart(2, '0');
+    const d = String(date.getUTCDate()).padStart(2, '0');
     if (isAllDay) {
         return `${m}/${d}`;
     } else {
-        const hh = String(date.getHours()).padStart(2, '0');
-        const mm = String(date.getMinutes()).padStart(2, '0');
+        const hh = String(date.getUTCHours()).padStart(2, '0');
+        const mm = String(date.getUTCMinutes()).padStart(2, '0');
         return `${m}/${d} ${hh}:${mm}`;
     }
 }
@@ -109,12 +110,32 @@ exports.onCalendarEventWritten = onDocumentWritten("rooms/{roomCode}/events/{eve
         const afterFormatted = formatEventDateTime(afterData.startMillis, afterData.isAllDay);
         const timeOrDateChanged = beforeFormatted !== afterFormatted;
 
+        const beforeLocation = beforeData.location || "";
+        const afterLocation = afterData.location || "";
+        const beforeDepAddress = (beforeLocation.split("|||")[0] || "").trim();
+        const afterDepAddress = (afterLocation.split("|||")[0] || "").trim();
+        const beforeDepFirstWord = beforeDepAddress.split(/\s+/)[0] || "";
+        const afterDepFirstWord = afterDepAddress.split(/\s+/)[0] || "";
+        const departureChanged = beforeDepFirstWord !== afterDepFirstWord;
+
+        const beforeNotes = beforeData.notes || "";
+        const afterNotes = afterData.notes || "";
+        const beforePhone = (beforeNotes.split("|||")[0] || "").trim();
+        const afterPhone = (afterNotes.split("|||")[0] || "").trim();
+        const phoneChanged = beforePhone !== afterPhone;
+
         const bodyParts = [];
         if (titleChanged) {
             bodyParts.push(`${beforeTitle} → ${afterTitle}`);
         }
         if (timeOrDateChanged) {
             bodyParts.push(`${beforeFormatted} → ${afterFormatted}`);
+        }
+        if (departureChanged && (beforeDepFirstWord || afterDepFirstWord)) {
+            bodyParts.push(`${beforeDepFirstWord || "(없음)"} → ${afterDepFirstWord || "(없음)"}`);
+        }
+        if (phoneChanged && (beforePhone || afterPhone)) {
+            bodyParts.push(`${beforePhone || "(없음)"} → ${afterPhone || "(없음)"}`);
         }
         body = bodyParts.join("\n");
     } else if (changeType === "DELETE") {
@@ -193,9 +214,10 @@ exports.onDeadlineDateWritten = onDocumentWritten("rooms/{roomCode}/deadline_dat
     // 3. 날짜 형식 포맷 (MM/DD)
     const dateMillis = parseInt(dateMillisStr);
     if (isNaN(dateMillis)) return null;
-    const date = new Date(dateMillis);
-    const m = String(date.getMonth() + 1).padStart(2, '0');
-    const d = String(date.getDate()).padStart(2, '0');
+    const kstMillis = dateMillis + (9 * 60 * 60 * 1000);
+    const date = new Date(kstMillis);
+    const m = String(date.getUTCMonth() + 1).padStart(2, '0');
+    const d = String(date.getUTCDate()).padStart(2, '0');
     const formattedDate = `${m}/${d}`;
 
     // 4. 닉네임 구하기
