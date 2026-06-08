@@ -34,12 +34,15 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.gestures.draggable
 import androidx.compose.foundation.gestures.rememberDraggableState
+import android.speech.tts.TextToSpeech
+import android.speech.tts.Voice
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.DateRange
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -104,6 +107,78 @@ fun EstimateScreen(
     var completedSpaces by remember { mutableStateOf(setOf<String>()) }
     var spaceExpectedVolumes by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
 
+    var tts by remember { mutableStateOf<TextToSpeech?>(null) }
+    var ttsVoices by remember { mutableStateOf<List<Voice>>(emptyList()) }
+    var selectedVoice by remember { mutableStateOf<Voice?>(null) }
+    var isTtsEnabled by remember {
+        mutableStateOf(
+            context.getSharedPreferences("tts_prefs", Context.MODE_PRIVATE)
+                .getBoolean("tts_enabled", true)
+        )
+    }
+    var showTtsSettings by remember { mutableStateOf(false) }
+
+    fun speak(text: String) {
+        if (!isTtsEnabled) return
+        tts?.let { ttsInstance ->
+            ttsInstance.speak(text, TextToSpeech.QUEUE_FLUSH, null, "EstimateScreenTTS")
+        }
+    }
+
+    DisposableEffect(context) {
+        var ttsInstance: TextToSpeech? = null
+        ttsInstance = TextToSpeech(context) { status ->
+            if (status == TextToSpeech.SUCCESS) {
+                val safeTts = ttsInstance ?: return@TextToSpeech
+                val result = safeTts.setLanguage(Locale.KOREAN)
+                if (result != TextToSpeech.LANG_MISSING_DATA && result != TextToSpeech.LANG_NOT_SUPPORTED) {
+                    val allVoices = safeTts.voices
+                    if (allVoices != null) {
+                        val koVoices = allVoices.filterIsInstance<Voice>().filter { it.locale.language == "ko" }
+                        ttsVoices = koVoices
+                        
+                        val sharedPref = context.getSharedPreferences("tts_prefs", Context.MODE_PRIVATE)
+                        val savedVoiceName = sharedPref.getString("selected_voice", null)
+                        if (savedVoiceName != null) {
+                            val matchingVoice = koVoices.find { it.name == savedVoiceName }
+                            if (matchingVoice != null) {
+                                safeTts.voice = matchingVoice
+                                selectedVoice = matchingVoice
+                            }
+                        } else if (koVoices.isNotEmpty()) {
+                            selectedVoice = safeTts.voice
+                        }
+                    }
+                }
+            }
+        }
+        tts = ttsInstance
+        onDispose {
+            ttsInstance?.stop()
+            ttsInstance?.shutdown()
+        }
+    }
+
+    LaunchedEffect(currentStep, activeSpaceForCargoInput) {
+        delay(500)
+        val speakText = when (currentStep) {
+            1 -> "견적을 시작합니다. 이사 종류를 선택해주세요."
+            2 -> {
+                if (activeSpaceForCargoInput == null) {
+                    "물품을 확인할 공간을 선택해주세요."
+                } else {
+                    "${activeSpaceForCargoInput}의 물품을 선택해주세요."
+                }
+            }
+            3 -> "고객 정보 및 일정을 입력해주세요."
+            4 -> "최종 견적서 요약을 확인해주세요."
+            else -> ""
+        }
+        if (speakText.isNotEmpty()) {
+            speak(speakText)
+        }
+    }
+
     val customerName by viewModel.customerName.collectAsStateWithLifecycle()
     val phoneNumber by viewModel.phoneNumber.collectAsStateWithLifecycle()
     val departure by viewModel.departure.collectAsStateWithLifecycle()
@@ -165,11 +240,19 @@ fun EstimateScreen(
     if (currentStep == 1) {
         Step1StartScreen(
             onCategorySelected = { type ->
+                speak("${type} 선택")
                 viewModel.moveType.value = type
                 viewModel.autoSaveToGoogleSheets()
                 currentStep = 2
             },
-            onBack = onNavigateBack
+            onBack = {
+                speak("뒤로가기")
+                onNavigateBack()
+            },
+            onSettingClick = {
+                speak("설정")
+                showTtsSettings = true
+            }
         )
     } else {
         val gradientBrush = Brush.verticalGradient(
@@ -202,6 +285,7 @@ fun EstimateScreen(
                             },
                             navigationIcon = {
                                 IconButton(onClick = {
+                                    speak("이전")
                                     if (currentStep == 2 && activeSpaceForCargoInput != null) {
                                         activeSpaceForCargoInput = null
                                     } else if (currentStep > 1) {
@@ -213,6 +297,18 @@ fun EstimateScreen(
                                     Icon(
                                         imageVector = Icons.Default.ArrowBack, 
                                         contentDescription = "Back",
+                                        tint = Color.White
+                                    )
+                                }
+                            },
+                            actions = {
+                                IconButton(onClick = {
+                                    speak("설정")
+                                    showTtsSettings = true
+                                }) {
+                                    Icon(
+                                        imageVector = Icons.Default.Settings,
+                                        contentDescription = "TTS 설정",
                                         tint = Color.White
                                     )
                                 }
@@ -251,7 +347,17 @@ fun EstimateScreen(
                                 onUpdateExpectedVolume = { space, volume ->
                                     spaceExpectedVolumes = spaceExpectedVolumes + (space to volume)
                                 },
-                                onNavigateNext = { currentStep = 3 }
+                                onNavigateNext = {
+                                    speak("다음")
+                                    currentStep = 3
+                                },
+                                onSpaceClick = { space ->
+                                    speak("${space} 선택")
+                                    activeSpaceForCargoInput = space
+                                },
+                                onUpdateCountTts = { text ->
+                                    speak(text)
+                                }
                             )
                             3 -> Step3CustomerInfo(
                                 customerName = customerName,
@@ -263,9 +369,21 @@ fun EstimateScreen(
                                 destination = destination,
                                 onDestinationChange = { viewModel.destination.value = it; viewModel.autoSaveToGoogleSheets() },
                                 moveDate = moveDate,
-                                onSelectMoveDate = { showDatePicker(moveDate) { viewModel.moveDate.value = it } },
+                                onSelectMoveDate = {
+                                    speak("이사 날짜 선택")
+                                    showDatePicker(moveDate) {
+                                        viewModel.moveDate.value = it
+                                        speak("이사 날짜가 ${it}로 설정되었습니다.")
+                                    }
+                                },
                                 startTime = startTime,
-                                onSelectStartTime = { showTimePicker { viewModel.startTime.value = it } },
+                                onSelectStartTime = {
+                                    speak("시작 시간 선택")
+                                    showTimePicker {
+                                        viewModel.startTime.value = it
+                                        speak("시작 시간이 ${it}로 설정되었습니다.")
+                                    }
+                                },
                                 amount = amount,
                                 onAmountChange = { viewModel.amount.value = it; viewModel.autoSaveToGoogleSheets() },
                                 memo = memo,
@@ -273,7 +391,13 @@ fun EstimateScreen(
                                 googleSheetsUrl = googleSheetsUrl,
                                 onSheetsUrlChange = { viewModel.googleSheetsUrl.value = it },
                                 estimateDate = estimateDate,
-                                onSelectEstimateDate = { showDatePicker(estimateDate) { viewModel.estimateDate.value = it } }
+                                onSelectEstimateDate = {
+                                    speak("견적 작성일 선택")
+                                    showDatePicker(estimateDate) {
+                                        viewModel.estimateDate.value = it
+                                        speak("견적 작성일이 ${it}로 설정되었습니다.")
+                                    }
+                                }
                             )
                             4 -> {
                                 val totalVol = spaceExpectedVolumes.values.mapNotNull { it.toDoubleOrNull() }.sum()
@@ -294,19 +418,24 @@ fun EstimateScreen(
                                     saveState = saveState,
                                     totalExpectedVolume = totalExpectedVolumeStr,
                                     onPrint = {
+                                        speak("프린터 출력")
                                         printEstimate(context, customerName, phoneNumber, moveDate, startTime, moveType, departure, destination, amount, viewModel.formatRoomItemsSummary(), memo, totalExpectedVolumeStr)
                                     },
                                     onSave = {
+                                        speak("저장")
                                         if (customerName.isBlank()) {
+                                            speak("고객명을 입력해주세요.")
                                             Toast.makeText(context, "고객명을 입력해주세요.", Toast.LENGTH_SHORT).show()
                                             currentStep = 3
                                         } else {
                                             viewModel.saveEstimate { smsBody ->
+                                                speak("구글 시트 및 데이터베이스 저장 완료")
                                                 Toast.makeText(context, "구글 시트 및 DB 저장 완료!", Toast.LENGTH_SHORT).show()
                                             }
                                         }
                                     },
                                     onSendSms = {
+                                        speak("문자 전송")
                                         viewModel.saveEstimate { smsBody ->
                                             val intent = Intent(Intent.ACTION_SENDTO).apply {
                                                 data = Uri.parse("smsto:${phoneNumber}")
@@ -315,6 +444,7 @@ fun EstimateScreen(
                                             try {
                                                 context.startActivity(intent)
                                             } catch (e: Exception) {
+                                                speak("문자 앱을 실행할 수 없습니다.")
                                                 Toast.makeText(context, "문자 앱을 실행할 수 없습니다.", Toast.LENGTH_SHORT).show()
                                             }
                                         }
@@ -333,7 +463,10 @@ fun EstimateScreen(
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
                             OutlinedButton(
-                                onClick = { currentStep-- },
+                                onClick = {
+                                    speak("이전")
+                                    currentStep--
+                                },
                                 modifier = Modifier
                                     .weight(1f)
                                     .height(48.dp),
@@ -350,7 +483,10 @@ fun EstimateScreen(
 
                             if (currentStep < 4) {
                                 Button(
-                                    onClick = { currentStep++ },
+                                    onClick = {
+                                        speak(if (currentStep == 3) "미리보기" else "다음")
+                                        currentStep++
+                                    },
                                     modifier = Modifier
                                         .weight(1f)
                                         .height(48.dp),
@@ -367,13 +503,108 @@ fun EstimateScreen(
             }
         }
     }
-}
+    }
+
+    if (showTtsSettings) {
+        var tempSelectedVoice by remember { mutableStateOf(selectedVoice) }
+        val sharedPref = context.getSharedPreferences("tts_prefs", Context.MODE_PRIVATE)
+
+        AlertDialog(
+            onDismissRequest = { showTtsSettings = false },
+            title = { Text("TTS 음성 설정", color = MaterialTheme.colorScheme.onSurface) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("TTS 읽어주기 활성화", color = MaterialTheme.colorScheme.onSurface)
+                        Spacer(modifier = Modifier.weight(1f))
+                        Switch(
+                            checked = isTtsEnabled,
+                            onCheckedChange = {
+                                isTtsEnabled = it
+                                sharedPref.edit().putBoolean("tts_enabled", it).apply()
+                                speak(if (it) "음성 안내를 시작합니다." else "")
+                            }
+                        )
+                    }
+
+                    if (isTtsEnabled) {
+                        Text("목소리 선택", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
+
+                        if (ttsVoices.isEmpty()) {
+                            Text("사용 가능한 한국어 목소리가 없습니다.", color = Color.Gray)
+                        } else {
+                            var expanded by remember { mutableStateOf(false) }
+                            Box {
+                                OutlinedButton(
+                                    onClick = { expanded = true },
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Text(tempSelectedVoice?.name ?: "기본 목소리", color = MaterialTheme.colorScheme.primary)
+                                }
+                                DropdownMenu(
+                                    expanded = expanded,
+                                    onDismissRequest = { expanded = false },
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    ttsVoices.forEach { voice ->
+                                        DropdownMenuItem(
+                                            text = { Text(voice.name) },
+                                            onClick = {
+                                                tempSelectedVoice = voice
+                                                expanded = false
+                                            }
+                                        )
+                                    }
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.height(8.dp))
+
+                            Button(
+                                onClick = {
+                                    val originalVoice = tts?.voice
+                                    tts?.voice = tempSelectedVoice
+                                    tts?.speak("안녕하세요. 미리듣기 안내 음성입니다.", TextToSpeech.QUEUE_FLUSH, null, "PreviewTTS")
+                                },
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Text("미리듣기")
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        selectedVoice = tempSelectedVoice
+                        tempSelectedVoice?.let { voice ->
+                            tts?.voice = voice
+                            sharedPref.edit().putString("selected_voice", voice.name).apply()
+                        }
+                        showTtsSettings = false
+                    }
+                ) {
+                    Text("저장")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showTtsSettings = false }) {
+                    Text("취소")
+                }
+            }
+        )
+    }
 }
 
 @Composable
 fun Step1StartScreen(
     onCategorySelected: (String) -> Unit,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    onSettingClick: () -> Unit
 ) {
     val gradientBrush = Brush.verticalGradient(
         colors = listOf(
@@ -414,6 +645,20 @@ fun Step1StartScreen(
                     fontWeight = FontWeight.Medium
                 )
             }
+        }
+
+        // 설정 버튼 추가
+        IconButton(
+            onClick = onSettingClick,
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .padding(top = 40.dp, end = 8.dp)
+        ) {
+            Icon(
+                imageVector = Icons.Default.Settings,
+                contentDescription = "TTS 설정",
+                tint = Color.White
+            )
         }
 
         // 타이틀은 상단에서 약간 내려서 배치
@@ -549,14 +794,16 @@ fun Step2CargoInput(
     onCompletedSpacesChange: (Set<String>) -> Unit,
     spaceExpectedVolumes: Map<String, String>,
     onUpdateExpectedVolume: (String, String) -> Unit,
-    onNavigateNext: () -> Unit
+    onNavigateNext: () -> Unit,
+    onSpaceClick: (String) -> Unit,
+    onUpdateCountTts: (String) -> Unit
 ) {
     if (activeSpace == null) {
         Step2SpaceSelection(
             roomItems = roomItems,
             completedSpaces = completedSpaces,
             spaceExpectedVolumes = spaceExpectedVolumes,
-            onSpaceClick = onActiveSpaceChange,
+            onSpaceClick = onSpaceClick,
             onNavigateNext = onNavigateNext
         )
     } else {
@@ -569,7 +816,8 @@ fun Step2CargoInput(
             onComplete = {
                 onCompletedSpacesChange(completedSpaces + activeSpace)
                 onActiveSpaceChange(null)
-            }
+            },
+            onUpdateCountTts = onUpdateCountTts
         )
     }
 }
@@ -801,7 +1049,8 @@ fun Step2ItemSelection(
     onUpdateCount: (space: String, item: String, count: Int) -> Unit,
     expectedVolume: String,
     onUpdateExpectedVolume: (String) -> Unit,
-    onComplete: () -> Unit
+    onComplete: () -> Unit,
+    onUpdateCountTts: (String) -> Unit
 ) {
     val predefinedItems = spaceItemsMap[spaceName] ?: emptyList()
     val chunkedItems = predefinedItems.chunked(3)
@@ -964,9 +1213,11 @@ fun Step2ItemSelection(
                                     clickedItemCol = if (itemIndex >= 0) itemIndex % 3 else 1
 
                                     if (item.name == "직접입력") {
+                                        onUpdateCountTts("물품 직접 입력")
                                         directInputText = ""
                                         showDirectInputDialog = true
                                     } else {
+                                        onUpdateCountTts("${item.name} 선택")
                                         itemPendingOptions = item
                                     }
                                 },
@@ -1111,7 +1362,10 @@ fun Step2ItemSelection(
                                             verticalAlignment = Alignment.CenterVertically
                                         ) {
                                             OutlinedButton(
-                                                onClick = { onUpdateCount(spaceName, itemWithOption, count - 1) },
+                                                onClick = {
+                                                    onUpdateCount(spaceName, itemWithOption, count - 1)
+                                                    onUpdateCountTts("${itemWithOption} 감소. 현재 ${count - 1}개")
+                                                },
                                                 contentPadding = PaddingValues(0.dp),
                                                 modifier = Modifier.size(32.dp),
                                                 shape = RoundedCornerShape(6.dp),
@@ -1128,7 +1382,10 @@ fun Step2ItemSelection(
                                                 color = Color.White
                                             )
                                             Button(
-                                                onClick = { onUpdateCount(spaceName, itemWithOption, count + 1) },
+                                                onClick = {
+                                                    onUpdateCount(spaceName, itemWithOption, count + 1)
+                                                    onUpdateCountTts("${itemWithOption} 증가. 현재 ${count + 1}개")
+                                                },
                                                 contentPadding = PaddingValues(0.dp),
                                                 modifier = Modifier.size(32.dp),
                                                 shape = RoundedCornerShape(6.dp),
@@ -1200,6 +1457,7 @@ fun Step2ItemSelection(
 
                 Button(
                     onClick = {
+                        onUpdateCountTts("완료")
                         if (!isBottomSheetExpanded && selectedItems.isNotEmpty()) {
                             isBottomSheetExpanded = true
                         } else {
@@ -1368,6 +1626,7 @@ fun Step2ItemSelection(
                                         .padding(vertical = 3.dp)
                                         .clickable {
                                             if (itemPendingOptions!!.name == "에어컨") {
+                                                onUpdateCountTts("${option} 선택")
                                                 selectedFirstOption = option
                                                 isAirconBrandBubble = true
                                                 bubbleHeightPx = 0f // 높이 재계산 유도
@@ -1375,6 +1634,7 @@ fun Step2ItemSelection(
                                                 val displayName = "${itemPendingOptions!!.name} ($option)"
                                                 val currentCount = roomItems[spaceName]?.get(displayName) ?: 0
                                                 onUpdateCount(spaceName, displayName, currentCount + 1)
+                                                onUpdateCountTts("${displayName} 추가")
                                                 toastMessage = "${displayName}이 추가되었습니다."
                                                 spawnFlyingParticle(itemPendingOptions!!)
                                                 itemPendingOptions = null
@@ -1412,6 +1672,7 @@ fun Step2ItemSelection(
                                         val displayName = itemPendingOptions!!.name
                                         val currentCount = roomItems[spaceName]?.get(displayName) ?: 0
                                         onUpdateCount(spaceName, displayName, currentCount + 1)
+                                        onUpdateCountTts("${displayName} 추가")
                                         toastMessage = "${displayName}이 추가되었습니다."
                                         spawnFlyingParticle(itemPendingOptions!!)
                                         itemPendingOptions = null
@@ -1445,6 +1706,7 @@ fun Step2ItemSelection(
                                 .fillMaxWidth()
                                 .padding(vertical = 3.dp)
                                 .clickable {
+                                    onUpdateCountTts("제외 옵션 선택")
                                     isSecondBubble = true
                                     bubbleHeightPx = 0f // 높이 재계산 유도
                                 },
@@ -1480,6 +1742,7 @@ fun Step2ItemSelection(
                                         val displayName = "${itemPendingOptions!!.name} (${selectedFirstOption!!}-$brand)"
                                         val currentCount = roomItems[spaceName]?.get(displayName) ?: 0
                                         onUpdateCount(spaceName, displayName, currentCount + 1)
+                                        onUpdateCountTts("${displayName} 추가")
                                         toastMessage = "${displayName}이 추가되었습니다."
                                         spawnFlyingParticle(itemPendingOptions!!)
                                         itemPendingOptions = null
@@ -1519,6 +1782,7 @@ fun Step2ItemSelection(
                                         val displayName = "${itemPendingOptions!!.name} (제외-$option)"
                                         val currentCount = roomItems[spaceName]?.get(displayName) ?: 0
                                         onUpdateCount(spaceName, displayName, currentCount + 1)
+                                        onUpdateCountTts("${displayName} 추가")
                                         toastMessage = "${displayName}이 추가되었습니다."
                                         spawnFlyingParticle(itemPendingOptions!!)
                                         itemPendingOptions = null
@@ -1551,6 +1815,7 @@ fun Step2ItemSelection(
 
                     TextButton(
                         onClick = {
+                            onUpdateCountTts("취소")
                             itemPendingOptions = null
                             isSecondBubble = false
                             isAirconBrandBubble = false
@@ -1608,7 +1873,10 @@ fun Step2ItemSelection(
                         horizontalArrangement = Arrangement.End,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        TextButton(onClick = { showDirectInputDialog = false }) {
+                        TextButton(onClick = {
+                            onUpdateCountTts("취소")
+                            showDirectInputDialog = false
+                        }) {
                             Text("취소", color = MaterialTheme.colorScheme.primary)
                         }
                         Spacer(modifier = Modifier.width(8.dp))
@@ -1618,6 +1886,7 @@ fun Step2ItemSelection(
                                 if (trimmed.isNotEmpty()) {
                                     val currentCount = roomItems[spaceName]?.get(trimmed) ?: 0
                                     onUpdateCount(spaceName, trimmed, currentCount + 1)
+                                    onUpdateCountTts("${trimmed} 추가")
                                     toastMessage = "${trimmed}이 추가되었습니다."
                                     val directItem = predefinedItems.find { it.name == "직접입력" }
                                     if (directItem != null) {

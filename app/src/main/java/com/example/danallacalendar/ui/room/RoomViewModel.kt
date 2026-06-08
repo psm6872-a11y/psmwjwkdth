@@ -34,6 +34,7 @@ class RoomViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 val code = repository.createRoomSuspended()
+                userPreferences.setLastRoomCode(code)
                 _roomCode.value = code
                 onSuccess(code)
             } catch (e: Exception) {
@@ -57,6 +58,7 @@ class RoomViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 repository.joinRoomSuspended(formattedCode)
+                userPreferences.setLastRoomCode(formattedCode)
                 _roomCode.value = formattedCode
                 onSuccess()
             } catch (e: Exception) {
