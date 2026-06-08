@@ -117,6 +117,7 @@ fun EstimateScreen(
         )
     }
     var showTtsSettings by remember { mutableStateOf(false) }
+    var isTtsReady by remember { mutableStateOf(false) }
 
     fun speak(text: String) {
         if (!isTtsEnabled) return
@@ -150,6 +151,7 @@ fun EstimateScreen(
                         }
                     }
                 }
+                isTtsReady = true
             }
         }
         tts = ttsInstance
@@ -159,7 +161,8 @@ fun EstimateScreen(
         }
     }
 
-    LaunchedEffect(currentStep) {
+    LaunchedEffect(currentStep, isTtsReady) {
+        if (!isTtsReady) return@LaunchedEffect
         delay(500)
         val speakText = when (currentStep) {
             1 -> "견적을 시작합니다"
