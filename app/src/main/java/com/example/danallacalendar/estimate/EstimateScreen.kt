@@ -122,7 +122,7 @@ fun EstimateScreen(
     fun speak(text: String) {
         if (!isTtsEnabled) return
         tts?.let { ttsInstance ->
-            ttsInstance.speak(text, TextToSpeech.QUEUE_FLUSH, null, "EstimateScreenTTS")
+            ttsInstance.speak(text, TextToSpeech.QUEUE_ADD, null, "EstimateScreenTTS")
         }
     }
 
