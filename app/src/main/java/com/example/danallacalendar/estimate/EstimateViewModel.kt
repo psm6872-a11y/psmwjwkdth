@@ -39,6 +39,19 @@ class EstimateViewModel @Inject constructor(
     val startTime = MutableStateFlow("07시 00분")
     val visitDate = MutableStateFlow(SimpleDateFormat("yyyy-MM-dd", Locale.KOREA).format(java.util.Date()))
     val moveInfo = MutableStateFlow("포장이사")
+    val totalVolume = MutableStateFlow("")
+    val workersM = MutableStateFlow("4")
+    val workersF = MutableStateFlow("1")
+    val laddersStartFloor = MutableStateFlow("")
+    val laddersStartCost = MutableStateFlow("")
+    val laddersEndFloor = MutableStateFlow("")
+    val laddersEndCost = MutableStateFlow("")
+    val extraTruck = MutableStateFlow("")
+    val moveCost = MutableStateFlow("")
+    val totalCost = MutableStateFlow("")
+    val deposit = MutableStateFlow("")
+    val balance = MutableStateFlow("")
+    val optionCost = MutableStateFlow("")
 
     // Room-specific cargo items: Map<SpaceName, Map<ItemName, Count>>
     private val _roomItems = MutableStateFlow<Map<String, Map<String, Int>>>(emptyMap())
@@ -83,6 +96,34 @@ class EstimateViewModel @Inject constructor(
             }
         }
         return sb.toString().trim()
+    }
+
+    // 이사비용 또는 옵션비용 변경 시 총비용 자동계산
+    fun onMoveCostOrOptionChanged() {
+        val move = moveCost.value.toLongOrNull() ?: 0L
+        val option = optionCost.value.toLongOrNull() ?: 0L
+        val total = move + option
+        totalCost.value = if (total > 0) total.toString() else ""
+        // 잔금도 자동계산
+        val depositVal = deposit.value.toLongOrNull() ?: 0L
+        balance.value = if (total > 0) (total - depositVal).toString() else ""
+    }
+
+    // 계약금 변경 시 잔금 자동계산
+    fun onDepositChanged() {
+        val total = totalCost.value.toLongOrNull() ?: 0L
+        val dep = deposit.value.toLongOrNull() ?: 0L
+        balance.value = if (total > 0) (total - dep).toString() else ""
+    }
+
+    // 출발지사다리 금액 또는 도착지사다리 금액 변경 시 옵션비용 자동계산
+    fun onLadderCostChanged() {
+        val start = laddersStartCost.value.toLongOrNull() ?: 0L
+        val end = laddersEndCost.value.toLongOrNull() ?: 0L
+        val option = start + end
+        optionCost.value = if (option > 0) option.toString() else ""
+        // 옵션비용 변경됐으니 총비용/잔금도 연쇄 자동계산
+        onMoveCostOrOptionChanged()
     }
 
     fun autoSaveToGoogleSheets() {

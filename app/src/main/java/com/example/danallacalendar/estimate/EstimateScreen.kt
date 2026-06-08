@@ -30,6 +30,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.gestures.draggable
@@ -52,9 +53,13 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.unit.DpOffset
 import androidx.compose.foundation.Image
 import androidx.compose.ui.res.painterResource
 import com.example.danallacalendar.R
@@ -115,6 +120,10 @@ fun EstimateScreen(
     var activeSpaceForCargoInput by remember { mutableStateOf<String?>(null) }
     var completedSpaces by remember { mutableStateOf(setOf<String>()) }
     var spaceExpectedVolumes by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
+    val totalVol = spaceExpectedVolumes.values.mapNotNull { it.toDoubleOrNull() }.sum()
+    val totalExpectedVolumeStr = if (totalVol > 0.0) {
+        if (totalVol % 1.0 == 0.0) totalVol.toInt().toString() else String.format(Locale.US, "%.2f", totalVol).trimEnd('0').trimEnd('.')
+    } else ""
 
     var tts by remember { mutableStateOf<TextToSpeech?>(null) }
     var ttsVoices by remember { mutableStateOf<List<Voice>>(emptyList()) }
@@ -201,6 +210,19 @@ fun EstimateScreen(
     val roomItems by viewModel.roomItems.collectAsStateWithLifecycle()
     val visitDate by viewModel.visitDate.collectAsStateWithLifecycle()
     val moveInfo by viewModel.moveInfo.collectAsStateWithLifecycle()
+    val totalVolume by viewModel.totalVolume.collectAsStateWithLifecycle()
+    val workersM by viewModel.workersM.collectAsStateWithLifecycle()
+    val workersF by viewModel.workersF.collectAsStateWithLifecycle()
+    val laddersStartFloor by viewModel.laddersStartFloor.collectAsStateWithLifecycle()
+    val laddersStartCost by viewModel.laddersStartCost.collectAsStateWithLifecycle()
+    val laddersEndFloor by viewModel.laddersEndFloor.collectAsStateWithLifecycle()
+    val laddersEndCost by viewModel.laddersEndCost.collectAsStateWithLifecycle()
+    val extraTruck by viewModel.extraTruck.collectAsStateWithLifecycle()
+    val moveCost by viewModel.moveCost.collectAsStateWithLifecycle()
+    val totalCost by viewModel.totalCost.collectAsStateWithLifecycle()
+    val deposit by viewModel.deposit.collectAsStateWithLifecycle()
+    val balance by viewModel.balance.collectAsStateWithLifecycle()
+    val optionCost by viewModel.optionCost.collectAsStateWithLifecycle()
 
     val calendar = Calendar.getInstance()
 
@@ -402,7 +424,34 @@ fun EstimateScreen(
                                     }
                                 },
                                 moveInfo = moveInfo,
-                                onMoveInfoChange = { viewModel.moveInfo.value = it; viewModel.autoSaveToGoogleSheets() }
+                                onMoveInfoChange = { viewModel.moveInfo.value = it; viewModel.autoSaveToGoogleSheets() },
+                                totalVolume = totalVolume,
+                                onTotalVolumeChange = { viewModel.totalVolume.value = it; viewModel.autoSaveToGoogleSheets() },
+                                workersM = workersM,
+                                onWorkersMChange = { viewModel.workersM.value = it; viewModel.autoSaveToGoogleSheets() },
+                                workersF = workersF,
+                                onWorkersFChange = { viewModel.workersF.value = it; viewModel.autoSaveToGoogleSheets() },
+                                laddersStartFloor = laddersStartFloor,
+                                onLaddersStartFloorChange = { viewModel.laddersStartFloor.value = it; viewModel.autoSaveToGoogleSheets() },
+                                laddersStartCost = laddersStartCost,
+                                onLaddersStartCostChange = { viewModel.laddersStartCost.value = it; viewModel.onLadderCostChanged(); viewModel.autoSaveToGoogleSheets() },
+                                laddersEndFloor = laddersEndFloor,
+                                onLaddersEndFloorChange = { viewModel.laddersEndFloor.value = it; viewModel.autoSaveToGoogleSheets() },
+                                laddersEndCost = laddersEndCost,
+                                onLaddersEndCostChange = { viewModel.laddersEndCost.value = it; viewModel.onLadderCostChanged(); viewModel.autoSaveToGoogleSheets() },
+                                extraTruck = extraTruck,
+                                onExtraTruckChange = { viewModel.extraTruck.value = it; viewModel.autoSaveToGoogleSheets() },
+                                moveCost = moveCost,
+                                onMoveCostChange = { viewModel.moveCost.value = it; viewModel.onMoveCostOrOptionChanged(); viewModel.autoSaveToGoogleSheets() },
+                                totalCost = totalCost,
+                                onTotalCostChange = { viewModel.totalCost.value = it; viewModel.autoSaveToGoogleSheets() },
+                                deposit = deposit,
+                                onDepositChange = { viewModel.deposit.value = it; viewModel.onDepositChanged(); viewModel.autoSaveToGoogleSheets() },
+                                balance = balance,
+                                onBalanceChange = { viewModel.balance.value = it; viewModel.autoSaveToGoogleSheets() },
+                                optionCost = optionCost,
+                                onOptionCostChange = { viewModel.optionCost.value = it; viewModel.onMoveCostOrOptionChanged(); viewModel.autoSaveToGoogleSheets() },
+                                totalExpectedVolume = totalExpectedVolumeStr
                             )
                             4 -> {
                                 val totalVol = spaceExpectedVolumes.values.mapNotNull { it.toDoubleOrNull() }.sum()
@@ -489,7 +538,7 @@ fun EstimateScreen(
                                         .height(48.dp),
                                     shape = RoundedCornerShape(10.dp)
                                 ) {
-                                    Text(if (currentStep == 3) "미리보기" else "다음")
+                                    Text("다음")
                                 }
                             } else {
                                 Spacer(modifier = Modifier.weight(1f))
@@ -2143,6 +2192,89 @@ private val spaceItemsMap = mapOf(
     )
 )
 
+@Composable
+fun TableCell(
+    label: String,
+    value: String,
+    onValueChange: (String) -> Unit,
+    modifier: Modifier = Modifier,
+    isEmpty: Boolean = false,
+    suffix: String? = null,
+    prefix: String? = null,
+    keyboardType: KeyboardType = KeyboardType.Number,
+    textAlign: TextAlign = TextAlign.End,
+    textFieldModifier: Modifier = Modifier
+) {
+    Box(
+        modifier = modifier
+            .height(64.dp)
+            .border(0.5.dp, Color.White.copy(alpha = 0.2f))
+            .padding(horizontal = 8.dp, vertical = 4.dp)
+    ) {
+        if (!isEmpty) {
+            Column {
+                Text(
+                    text = label,
+                    fontSize = 13.sp,
+                    color = Color(0xFFCE93D8),
+                    fontWeight = FontWeight.Medium
+                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End
+                ) {
+                    if (!prefix.isNullOrEmpty()) {
+                        Text(
+                            text = prefix,
+                            color = Color.White.copy(alpha = 0.6f),
+                            fontSize = 13.sp
+                        )
+                    }
+                    BasicTextField(
+                        value = value,
+                        onValueChange = onValueChange,
+                        textStyle = TextStyle(
+                            color = Color.White,
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.Medium,
+                            textAlign = textAlign
+                        ),
+                        keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
+                        singleLine = true,
+                        modifier = if (textFieldModifier != Modifier) {
+                            textFieldModifier
+                        } else {
+                            if (!prefix.isNullOrEmpty()) Modifier.width((value.length.coerceAtLeast(3) * 10).dp) else (if (suffix.isNullOrEmpty()) Modifier.fillMaxWidth() else Modifier.weight(1f))
+                        },
+                        decorationBox = { inner ->
+                            Box(modifier = Modifier.fillMaxWidth()) {
+                                if (value.isEmpty()) {
+                                    Text(
+                                        text = "0",
+                                        color = Color.White.copy(alpha = 0.2f),
+                                        fontSize = 15.sp,
+                                        textAlign = textAlign,
+                                        modifier = Modifier.fillMaxWidth()
+                                    )
+                                }
+                                inner()
+                            }
+                        }
+                    )
+                    if (!suffix.isNullOrEmpty()) {
+                        Text(
+                            text = suffix,
+                            color = Color.White.copy(alpha = 0.6f),
+                            fontSize = 13.sp
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun Step3CustomerInfo(
@@ -2169,8 +2301,37 @@ fun Step3CustomerInfo(
     visitDate: String,
     onSelectVisitDate: () -> Unit,
     moveInfo: String,
-    onMoveInfoChange: (String) -> Unit
+    onMoveInfoChange: (String) -> Unit,
+    totalVolume: String,
+    onTotalVolumeChange: (String) -> Unit,
+    workersM: String,
+    onWorkersMChange: (String) -> Unit,
+    workersF: String,
+    onWorkersFChange: (String) -> Unit,
+    laddersStartFloor: String,
+    onLaddersStartFloorChange: (String) -> Unit,
+    laddersStartCost: String,
+    onLaddersStartCostChange: (String) -> Unit,
+    laddersEndFloor: String,
+    onLaddersEndFloorChange: (String) -> Unit,
+    laddersEndCost: String,
+    onLaddersEndCostChange: (String) -> Unit,
+    extraTruck: String,
+    onExtraTruckChange: (String) -> Unit,
+    moveCost: String,
+    onMoveCostChange: (String) -> Unit,
+    totalCost: String,
+    onTotalCostChange: (String) -> Unit,
+    deposit: String,
+    onDepositChange: (String) -> Unit,
+    balance: String,
+    onBalanceChange: (String) -> Unit,
+    optionCost: String,
+    onOptionCostChange: (String) -> Unit,
+    totalExpectedVolume: String
 ) {
+    val amountFieldWidth = listOf(moveCost, optionCost, totalCost, deposit, balance)
+        .maxOf { it.length.coerceAtLeast(3) } * 10
     val textFieldColors = OutlinedTextFieldDefaults.colors(
         focusedTextColor = Color.White,
         unfocusedTextColor = Color.White,
@@ -2178,8 +2339,18 @@ fun Step3CustomerInfo(
         unfocusedBorderColor = Color.White.copy(alpha = 0.3f),
         focusedLabelColor = Color(0xFFE040FB),
         unfocusedLabelColor = Color(0xFFCE93D8),
-        cursorColor = Color(0xFFE040FB)
+        cursorColor = Color(0xFFE040FB),
+        disabledTextColor = Color.White,
+        disabledBorderColor = Color.White.copy(alpha = 0.3f),
+        disabledLabelColor = Color(0xFFCE93D8),
+        disabledTrailingIconColor = Color(0xFFE040FB)
     )
+
+    LaunchedEffect(totalExpectedVolume) {
+        if (totalVolume.isEmpty() && totalExpectedVolume.isNotEmpty()) {
+            onTotalVolumeChange(totalExpectedVolume)
+        }
+    }
 
     var showTimeDialog by remember { mutableStateOf(false) }
 
@@ -2256,7 +2427,7 @@ fun Step3CustomerInfo(
                 modifier = Modifier.padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                Text("📅 이사 장소 및 일정", fontWeight = FontWeight.Bold, color = Color(0xFFE040FB))
+                Text("📅 이사 일정 및 장소", fontWeight = FontWeight.Bold, color = Color(0xFFE040FB))
                 OutlinedTextField(
                     value = visitDate,
                     onValueChange = {},
@@ -2300,31 +2471,62 @@ fun Step3CustomerInfo(
                 }
                 var moveInfoExpanded by remember { mutableStateOf(false) }
 
-                Box {
+                Box(modifier = Modifier.fillMaxWidth()) {
                     OutlinedTextField(
                         value = moveInfo,
                         onValueChange = {},
                         readOnly = true,
                         label = { Text("이사 종류") },
                         trailingIcon = {
-                            ExposedDropdownMenuDefaults.TrailingIcon(expanded = moveInfoExpanded)
+                            Icon(
+                                imageVector = Icons.Default.KeyboardArrowDown,
+                                contentDescription = null,
+                                tint = Color(0xFFE040FB)
+                            )
                         },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = textFieldColors,
+                        enabled = false  // enabled = false 로 해야 Box clickable이 동작함
+                    )
+                    Box(
                         modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { moveInfoExpanded = true },
-                        colors = textFieldColors
+                            .matchParentSize()
+                            .clickable { moveInfoExpanded = true }
                     )
                     DropdownMenu(
                         expanded = moveInfoExpanded,
-                        onDismissRequest = { moveInfoExpanded = false }
+                        onDismissRequest = { moveInfoExpanded = false },
+                        modifier = Modifier
+                            .width(180.dp)
+                            .background(
+                                color = Color(0xFF2D1B69),
+                                shape = RoundedCornerShape(12.dp)
+                            )
+                            .border(1.dp, Color(0xFFE040FB).copy(alpha = 0.4f), RoundedCornerShape(12.dp)),
+                        offset = DpOffset(x = 180.dp, y = 0.dp)
                     ) {
                         listOf("포장이사", "반포장이사", "일반이사").forEach { option ->
                             DropdownMenuItem(
-                                text = { Text(option, color = Color.Black) },
+                                text = {
+                                    Text(
+                                        text = option,
+                                        color = Color.White,
+                                        fontSize = 15.sp,
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                },
                                 onClick = {
                                     onMoveInfoChange(option)
                                     moveInfoExpanded = false
-                                }
+                                },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .background(
+                                        if (option == moveInfo)
+                                            Color(0xFFE040FB).copy(alpha = 0.2f)
+                                        else
+                                            Color.Transparent
+                                    )
                             )
                         }
                     }
@@ -2362,23 +2564,260 @@ fun Step3CustomerInfo(
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 Text("💰 견적 정보", fontWeight = FontWeight.Bold, color = Color(0xFFE040FB))
-                OutlinedTextField(
-                    value = amount,
-                    onValueChange = onAmountChange,
-                    label = { Text("금액 (원)") },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    colors = textFieldColors,
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true
-                )
-                OutlinedTextField(
-                    value = memo,
-                    onValueChange = onMemoChange,
-                    label = { Text("메모") },
-                    minLines = 3,
-                    colors = textFieldColors,
-                    modifier = Modifier.fillMaxWidth()
-                )
+                
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(Color(0xFF1E0F3D), RoundedCornerShape(8.dp))
+                        .border(1.dp, Color.White.copy(alpha = 0.2f), RoundedCornerShape(8.dp))
+                ) {
+                    // Row 1: 총견적물량 / 이사비용
+                    Row(modifier = Modifier.fillMaxWidth()) {
+                        TableCell(
+                            label = "총견적물량",
+                            value = totalVolume,
+                            onValueChange = onTotalVolumeChange,
+                            modifier = Modifier.weight(1f),
+                            suffix = " 톤"
+                        )
+                        TableCell(
+                            label = "이사비용",
+                            value = moveCost,
+                            onValueChange = onMoveCostChange,
+                            modifier = Modifier.weight(1f),
+                            prefix = "₩ ",
+                            suffix = " 만원",
+                            textFieldModifier = Modifier.width(amountFieldWidth.dp)
+                        )
+                    }
+                    // Row 2: 작업인원 / 옵션비용
+                    Row(modifier = Modifier.fillMaxWidth()) {
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(64.dp)
+                                .border(0.5.dp, Color.White.copy(alpha = 0.2f))
+                                .padding(horizontal = 8.dp, vertical = 4.dp)
+                        ) {
+                            Column {
+                                Text(
+                                    "작업인원",
+                                    fontSize = 13.sp,
+                                    color = Color(0xFFCE93D8),
+                                    fontWeight = FontWeight.Medium
+                                )
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.End
+                                ) {
+                                    Text("남자 ", color = Color.White.copy(alpha = 0.6f), fontSize = 13.sp)
+                                    BasicTextField(
+                                        value = workersM,
+                                        onValueChange = onWorkersMChange,
+                                        textStyle = TextStyle(color = Color.White, fontSize = 15.sp, textAlign = TextAlign.End),
+                                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                        singleLine = true,
+                                        modifier = Modifier.width(15.dp)
+                                    )
+                                    Text(" 명   ", color = Color.White.copy(alpha = 0.6f), fontSize = 13.sp)
+                                    Text("여자 ", color = Color.White.copy(alpha = 0.6f), fontSize = 13.sp)
+                                    BasicTextField(
+                                        value = workersF,
+                                        onValueChange = onWorkersFChange,
+                                        textStyle = TextStyle(color = Color.White, fontSize = 15.sp, textAlign = TextAlign.End),
+                                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                        singleLine = true,
+                                        modifier = Modifier.width(10.dp)
+                                    )
+                                    Text(" 명", color = Color.White.copy(alpha = 0.6f), fontSize = 13.sp)
+                                }
+                            }
+                        }
+                        TableCell(
+                            label = "옵션비용",
+                            value = optionCost,
+                            onValueChange = onOptionCostChange,
+                            modifier = Modifier.weight(1f),
+                            prefix = "₩ ",
+                            suffix = " 만원",
+                            textFieldModifier = Modifier.width(amountFieldWidth.dp)
+                        )
+                    }
+                    // Row 3: 출발지사다리 / 총비용
+                    Row(modifier = Modifier.fillMaxWidth()) {
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(64.dp)
+                                .border(0.5.dp, Color.White.copy(alpha = 0.2f))
+                                .padding(horizontal = 8.dp, vertical = 4.dp)
+                        ) {
+                            Column {
+                                Text(
+                                    text = "출발지사다리",
+                                    fontSize = 13.sp,
+                                    color = Color(0xFFCE93D8),
+                                    fontWeight = FontWeight.Medium
+                                )
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    BasicTextField(
+                                        value = laddersStartFloor,
+                                        onValueChange = onLaddersStartFloorChange,
+                                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                        textStyle = TextStyle(color = Color.White, fontSize = 15.sp, textAlign = TextAlign.End),
+                                        modifier = Modifier.weight(1f),
+                                        singleLine = true,
+                                        decorationBox = { inner ->
+                                            Box(modifier = Modifier.fillMaxWidth()) {
+                                                if (laddersStartFloor.isEmpty()) {
+                                                    Text(
+                                                        text = "0",
+                                                        color = Color.White.copy(alpha = 0.2f),
+                                                        fontSize = 15.sp,
+                                                        textAlign = TextAlign.End,
+                                                        modifier = Modifier.fillMaxWidth()
+                                                    )
+                                                }
+                                                inner()
+                                            }
+                                        }
+                                    )
+                                    Text(" 층", color = Color.White.copy(alpha = 0.6f), fontSize = 13.sp)
+                                    Spacer(Modifier.width(8.dp))
+                                    BasicTextField(
+                                        value = laddersStartCost,
+                                        onValueChange = onLaddersStartCostChange,
+                                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                        textStyle = TextStyle(color = Color.White, fontSize = 15.sp, textAlign = TextAlign.End),
+                                        modifier = Modifier.weight(1f),
+                                        singleLine = true,
+                                        decorationBox = { inner ->
+                                            Box(modifier = Modifier.fillMaxWidth()) {
+                                                if (laddersStartCost.isEmpty()) {
+                                                    Text(
+                                                        text = "0",
+                                                        color = Color.White.copy(alpha = 0.2f),
+                                                        fontSize = 15.sp,
+                                                        textAlign = TextAlign.End,
+                                                        modifier = Modifier.fillMaxWidth()
+                                                    )
+                                                }
+                                                inner()
+                                            }
+                                        }
+                                    )
+                                    Text(" 만원", color = Color.White.copy(alpha = 0.6f), fontSize = 13.sp)
+                                }
+                            }
+                        }
+                        TableCell(
+                            label = "총비용",
+                            value = totalCost,
+                            onValueChange = onTotalCostChange,
+                            modifier = Modifier.weight(1f),
+                            prefix = "₩ ",
+                            suffix = " 만원",
+                            textFieldModifier = Modifier.width(amountFieldWidth.dp)
+                        )
+                    }
+                    // Row 4: 도착지사다리 / 계약금
+                    Row(modifier = Modifier.fillMaxWidth()) {
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(64.dp)
+                                .border(0.5.dp, Color.White.copy(alpha = 0.2f))
+                                .padding(horizontal = 8.dp, vertical = 4.dp)
+                        ) {
+                            Column {
+                                Text(
+                                    text = "도착지사다리",
+                                    fontSize = 13.sp,
+                                    color = Color(0xFFCE93D8),
+                                    fontWeight = FontWeight.Medium
+                                )
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    BasicTextField(
+                                        value = laddersEndFloor,
+                                        onValueChange = onLaddersEndFloorChange,
+                                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                        textStyle = TextStyle(color = Color.White, fontSize = 15.sp, textAlign = TextAlign.End),
+                                        modifier = Modifier.weight(1f),
+                                        singleLine = true,
+                                        decorationBox = { inner ->
+                                            Box(modifier = Modifier.fillMaxWidth()) {
+                                                if (laddersEndFloor.isEmpty()) {
+                                                    Text(
+                                                        text = "0",
+                                                        color = Color.White.copy(alpha = 0.2f),
+                                                        fontSize = 15.sp,
+                                                        textAlign = TextAlign.End,
+                                                        modifier = Modifier.fillMaxWidth()
+                                                    )
+                                                }
+                                                inner()
+                                            }
+                                        }
+                                    )
+                                    Text(" 층", color = Color.White.copy(alpha = 0.6f), fontSize = 13.sp)
+                                    Spacer(Modifier.width(8.dp))
+                                    BasicTextField(
+                                        value = laddersEndCost,
+                                        onValueChange = onLaddersEndCostChange,
+                                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                        textStyle = TextStyle(color = Color.White, fontSize = 15.sp, textAlign = TextAlign.End),
+                                        modifier = Modifier.weight(1f),
+                                        singleLine = true,
+                                        decorationBox = { inner ->
+                                            Box(modifier = Modifier.fillMaxWidth()) {
+                                                if (laddersEndCost.isEmpty()) {
+                                                    Text(
+                                                        text = "0",
+                                                        color = Color.White.copy(alpha = 0.2f),
+                                                        fontSize = 15.sp,
+                                                        textAlign = TextAlign.End,
+                                                        modifier = Modifier.fillMaxWidth()
+                                                    )
+                                                }
+                                                inner()
+                                            }
+                                        }
+                                    )
+                                    Text(" 만원", color = Color.White.copy(alpha = 0.6f), fontSize = 13.sp)
+                                }
+                            }
+                        }
+                        TableCell(
+                            label = "계약금",
+                            value = deposit,
+                            onValueChange = onDepositChange,
+                            modifier = Modifier.weight(1f),
+                            prefix = "₩ ",
+                            suffix = " 만원",
+                            textFieldModifier = Modifier.width(amountFieldWidth.dp)
+                        )
+                    }
+                    // Row 5: 1T 추가시 / 잔금
+                    Row(modifier = Modifier.fillMaxWidth()) {
+                        TableCell(
+                            label = "1T 추가시",
+                            value = extraTruck,
+                            onValueChange = onExtraTruckChange,
+                            modifier = Modifier.weight(1f),
+                            suffix = " 만원"
+                        )
+                        TableCell(
+                            label = "잔금",
+                            value = balance,
+                            onValueChange = onBalanceChange,
+                            modifier = Modifier.weight(1f),
+                            prefix = "₩ ",
+                            suffix = " 만원",
+                            textFieldModifier = Modifier.width(amountFieldWidth.dp)
+                        )
+                    }
+                }
             }
         }
 
@@ -2397,18 +2836,18 @@ fun Step3CustomerInfo(
             ) {
                 Text("👤 고객 연락처", fontWeight = FontWeight.Bold, color = Color(0xFFE040FB))
                 OutlinedTextField(
-                    value = customerName,
-                    onValueChange = onCustomerNameChange,
-                    label = { Text("고객명") },
+                    value = phoneNumber,
+                    onValueChange = onPhoneNumberChange,
+                    label = { Text("전화번호") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
                     colors = textFieldColors,
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true
                 )
                 OutlinedTextField(
-                    value = phoneNumber,
-                    onValueChange = onPhoneNumberChange,
-                    label = { Text("전화번호") },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
+                    value = customerName,
+                    onValueChange = onCustomerNameChange,
+                    label = { Text("성명 또는 회사명(계약금 입금자명)") },
                     colors = textFieldColors,
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true
