@@ -234,17 +234,14 @@ fun EstimateScreen(
     if (currentStep == 1) {
         Step1StartScreen(
             onCategorySelected = { type ->
-                speak("${type} 선택")
                 viewModel.moveType.value = type
                 viewModel.autoSaveToGoogleSheets()
                 currentStep = 2
             },
             onBack = {
-                speak("뒤로가기")
                 onNavigateBack()
             },
             onSettingClick = {
-                speak("설정")
                 showTtsSettings = true
             }
         )
@@ -279,7 +276,6 @@ fun EstimateScreen(
                             },
                             navigationIcon = {
                                 IconButton(onClick = {
-                                    speak("이전")
                                     if (currentStep == 2 && activeSpaceForCargoInput != null) {
                                         activeSpaceForCargoInput = null
                                     } else if (currentStep > 1) {
@@ -297,7 +293,6 @@ fun EstimateScreen(
                             },
                             actions = {
                                 IconButton(onClick = {
-                                    speak("설정")
                                     showTtsSettings = true
                                 }) {
                                     Icon(
@@ -342,15 +337,13 @@ fun EstimateScreen(
                                     spaceExpectedVolumes = spaceExpectedVolumes + (space to volume)
                                 },
                                 onNavigateNext = {
-                                    speak("다음")
                                     currentStep = 3
                                 },
                                 onSpaceClick = { space ->
-                                    speak("${space} 선택")
                                     activeSpaceForCargoInput = space
                                 },
                                 onUpdateCountTts = { text ->
-                                    speak(text)
+                                    // Removed speak
                                 }
                             )
                             3 -> Step3CustomerInfo(
@@ -364,18 +357,14 @@ fun EstimateScreen(
                                 onDestinationChange = { viewModel.destination.value = it; viewModel.autoSaveToGoogleSheets() },
                                 moveDate = moveDate,
                                 onSelectMoveDate = {
-                                    speak("이사 날짜 선택")
                                     showDatePicker(moveDate) {
                                         viewModel.moveDate.value = it
-                                        speak("이사 날짜가 ${it}로 설정되었습니다.")
                                     }
                                 },
                                 startTime = startTime,
                                 onSelectStartTime = {
-                                    speak("시작 시간 선택")
                                     showTimePicker {
                                         viewModel.startTime.value = it
-                                        speak("시작 시간이 ${it}로 설정되었습니다.")
                                     }
                                 },
                                 amount = amount,
@@ -386,10 +375,8 @@ fun EstimateScreen(
                                 onSheetsUrlChange = { viewModel.googleSheetsUrl.value = it },
                                 estimateDate = estimateDate,
                                 onSelectEstimateDate = {
-                                    speak("견적 작성일 선택")
                                     showDatePicker(estimateDate) {
                                         viewModel.estimateDate.value = it
-                                        speak("견적 작성일이 ${it}로 설정되었습니다.")
                                     }
                                 }
                             )
@@ -412,24 +399,19 @@ fun EstimateScreen(
                                     saveState = saveState,
                                     totalExpectedVolume = totalExpectedVolumeStr,
                                     onPrint = {
-                                        speak("프린터 출력")
                                         printEstimate(context, customerName, phoneNumber, moveDate, startTime, moveType, departure, destination, amount, viewModel.formatRoomItemsSummary(), memo, totalExpectedVolumeStr)
                                     },
                                     onSave = {
-                                        speak("저장")
                                         if (customerName.isBlank()) {
-                                            speak("고객명을 입력해주세요.")
                                             Toast.makeText(context, "고객명을 입력해주세요.", Toast.LENGTH_SHORT).show()
                                             currentStep = 3
                                         } else {
                                             viewModel.saveEstimate { smsBody ->
-                                                speak("구글 시트 및 데이터베이스 저장 완료")
                                                 Toast.makeText(context, "구글 시트 및 DB 저장 완료!", Toast.LENGTH_SHORT).show()
                                             }
                                         }
                                     },
                                     onSendSms = {
-                                        speak("문자 전송")
                                         viewModel.saveEstimate { smsBody ->
                                             val intent = Intent(Intent.ACTION_SENDTO).apply {
                                                 data = Uri.parse("smsto:${phoneNumber}")
@@ -438,7 +420,6 @@ fun EstimateScreen(
                                             try {
                                                 context.startActivity(intent)
                                             } catch (e: Exception) {
-                                                speak("문자 앱을 실행할 수 없습니다.")
                                                 Toast.makeText(context, "문자 앱을 실행할 수 없습니다.", Toast.LENGTH_SHORT).show()
                                             }
                                         }
@@ -458,7 +439,6 @@ fun EstimateScreen(
                         ) {
                             OutlinedButton(
                                 onClick = {
-                                    speak("이전")
                                     currentStep--
                                 },
                                 modifier = Modifier
@@ -478,7 +458,6 @@ fun EstimateScreen(
                             if (currentStep < 4) {
                                 Button(
                                     onClick = {
-                                        speak(if (currentStep == 3) "미리보기" else "다음")
                                         currentStep++
                                     },
                                     modifier = Modifier
@@ -519,7 +498,6 @@ fun EstimateScreen(
                             onCheckedChange = {
                                 isTtsEnabled = it
                                 sharedPref.edit().putBoolean("tts_enabled", it).apply()
-                                speak(if (it) "음성 안내를 시작합니다." else "")
                             }
                         )
                     }
