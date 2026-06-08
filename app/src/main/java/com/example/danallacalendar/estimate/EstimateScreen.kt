@@ -38,6 +38,7 @@ import android.speech.tts.TextToSpeech
 import android.speech.tts.Voice
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.filled.KeyboardArrowRight
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
@@ -59,6 +60,9 @@ import androidx.compose.ui.res.painterResource
 import com.example.danallacalendar.R
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.geometry.RoundRect
 import androidx.compose.ui.geometry.Size
@@ -77,6 +81,11 @@ import kotlinx.coroutines.delay
 import java.text.NumberFormat
 import java.text.SimpleDateFormat
 import java.util.*
+import androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.ui.graphics.graphicsLayer
+import kotlin.math.abs
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -166,8 +175,8 @@ fun EstimateScreen(
         delay(500)
         val speakText = when (currentStep) {
             1 -> "견적을 시작합니다"
-            2 -> "물품을 확인합니다"
-            3 -> "고객 정보를 입력합니다"
+            2 -> "물품을 확인합니다. 확인할 공간을 선택해 주세요."
+            3 -> "이사정보를 확인합니다."
             4 -> "최종 견적서를 확인합니다"
             else -> ""
         }
@@ -190,6 +199,8 @@ fun EstimateScreen(
     val googleSheetsUrl by viewModel.googleSheetsUrl.collectAsStateWithLifecycle()
     val saveState by viewModel.saveState.collectAsStateWithLifecycle()
     val roomItems by viewModel.roomItems.collectAsStateWithLifecycle()
+    val visitDate by viewModel.visitDate.collectAsStateWithLifecycle()
+    val moveInfo by viewModel.moveInfo.collectAsStateWithLifecycle()
 
     val calendar = Calendar.getInstance()
 
@@ -263,7 +274,7 @@ fun EstimateScreen(
             Scaffold(
                 containerColor = Color.Transparent,
                 topBar = {
-                    if (currentStep != 2) {
+                    if (currentStep != 2 && currentStep != 3) {
                         TopAppBar(
                             title = { 
                                 Text(
@@ -343,6 +354,7 @@ fun EstimateScreen(
                                     currentStep = 3
                                 },
                                 onSpaceClick = { space ->
+                                    speak("${space} 선택")
                                     activeSpaceForCargoInput = space
                                 },
                                 onUpdateCountTts = { text ->
@@ -362,13 +374,13 @@ fun EstimateScreen(
                                 onSelectMoveDate = {
                                     showDatePicker(moveDate) {
                                         viewModel.moveDate.value = it
+                                        viewModel.autoSaveToGoogleSheets()
                                     }
                                 },
                                 startTime = startTime,
-                                onSelectStartTime = {
-                                    showTimePicker {
-                                        viewModel.startTime.value = it
-                                    }
+                                onSelectStartTime = { timeStr ->
+                                    viewModel.startTime.value = timeStr
+                                    viewModel.autoSaveToGoogleSheets()
                                 },
                                 amount = amount,
                                 onAmountChange = { viewModel.amount.value = it; viewModel.autoSaveToGoogleSheets() },
@@ -381,7 +393,16 @@ fun EstimateScreen(
                                     showDatePicker(estimateDate) {
                                         viewModel.estimateDate.value = it
                                     }
-                                }
+                                },
+                                visitDate = visitDate,
+                                onSelectVisitDate = {
+                                    showDatePicker(visitDate) {
+                                        viewModel.visitDate.value = it
+                                        viewModel.autoSaveToGoogleSheets()
+                                    }
+                                },
+                                moveInfo = moveInfo,
+                                onMoveInfoChange = { viewModel.moveInfo.value = it; viewModel.autoSaveToGoogleSheets() }
                             )
                             4 -> {
                                 val totalVol = spaceExpectedVolumes.values.mapNotNull { it.toDoubleOrNull() }.sum()
@@ -884,8 +905,8 @@ fun Step2SpaceSelection(
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 val spacePairs = listOf(
-                    Pair("안방", "작은방1"),
-                    Pair("작은방2", "입구방"),
+                    Pair("안방", "작은방 1"),
+                    Pair("작은방 2", "입구방"),
                     Pair("거실", "주방"),
                     Pair("그외", null)
                 )
@@ -934,16 +955,7 @@ fun SpaceCard(
     val itemCount = roomItems[space]?.values?.sum() ?: 0
     val isCompleted = completedSpaces.contains(space) || itemCount > 0
 
-    val emoji = when (space) {
-        "안방" -> "🛏️"
-        "작은방1" -> "🛏️"
-        "작은방2" -> "🛏️"
-        "입구방" -> "🚪"
-        "거실" -> "🛋️"
-        "주방" -> "🍳"
-        "그외" -> "📦"
-        else -> ""
-    }
+
 
     Card(
         modifier = modifier
@@ -963,54 +975,105 @@ fun SpaceCard(
         ),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(horizontal = 12.dp, vertical = 8.dp) // 세로 패딩을 12.dp -> 8.dp로 축소하여 내부 세로 공간 확보
+        Row(
+            modifier = Modifier.fillMaxSize(),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Column(
-                modifier = Modifier.align(Alignment.CenterStart)
+            // Left Text Area
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxHeight()
+                    .padding(start = 12.dp, top = 8.dp, bottom = 8.dp, end = 8.dp)
             ) {
-                Text(
-                    text = "$space $emoji", // 공간에 이모지 아이콘 추가
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White
-                )
-                Spacer(modifier = Modifier.height(1.dp)) // 행간 간격 3.dp -> 1.dp로 축소
-                Text(
-                    text = if (itemCount > 0) "${itemCount}개 선택됨" else "비어 있음",
-                    fontSize = 11.sp,
-                    color = Color.White.copy(alpha = 0.7f)
-                )
-                if (!expectedVolume.isNullOrBlank()) {
-                    Spacer(modifier = Modifier.height(1.dp)) // 행간 간격 2.dp -> 1.dp로 축소
+                Column(
+                    modifier = Modifier.align(Alignment.CenterStart)
+                ) {
                     Text(
-                        text = "예상: ${expectedVolume}t",
-                        fontSize = 10.sp,
-                        color = Color(0xFFE040FB),
-                        fontWeight = FontWeight.Bold
+                        text = space,
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White
                     )
+                    Spacer(modifier = Modifier.height(1.dp)) // 행간 간격 3.dp -> 1.dp로 축소
+                    Text(
+                        text = if (itemCount > 0) "${itemCount}개 선택됨" else "비어 있음",
+                        fontSize = 13.sp,
+                        color = Color.White.copy(alpha = 0.7f)
+                    )
+                    if (!expectedVolume.isNullOrBlank()) {
+                        Spacer(modifier = Modifier.height(1.dp)) // 행간 간격 2.dp -> 1.dp로 축소
+                        Text(
+                            text = "예상: ${expectedVolume}t",
+                            fontSize = 12.sp,
+                            color = Color(0xFFE040FB),
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+
+                if (isCompleted) {
+                    Box(
+                        modifier = Modifier
+                            .size(20.dp)
+                            .background(
+                                Color(0xFF4CAF50), // 완료된 공간은 초록색 체크 표시
+                                shape = RoundedCornerShape(50)
+                            )
+                            .align(Alignment.TopEnd),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "✓",
+                            color = Color.White,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 10.sp
+                        )
+                    }
                 }
             }
 
-            if (isCompleted) {
-                Box(
-                    modifier = Modifier
-                        .size(20.dp)
-                        .background(
-                            Color(0xFF4CAF50), // 완료된 공간은 초록색 체크 표시
-                            shape = RoundedCornerShape(50)
-                        )
-                        .align(Alignment.TopEnd),
-                    contentAlignment = Alignment.Center
+            // Divider Line
+
+
+            // Right Emoji Area
+            Box(
+                modifier = Modifier
+                    .width(56.dp)
+                    .fillMaxHeight(),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
                 ) {
-                    Text(
-                        text = "✓",
-                        color = Color.White,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 10.sp
-                    )
+                    when (space) {
+                        "안방" -> {
+                            Text(text = "🌙", fontSize = 28.sp)
+                            Text(text = "💤", fontSize = 28.sp)
+                        }
+                        "작은방 1" -> {
+                            Text(text = "📚", fontSize = 28.sp)
+                            Text(text = "✏️", fontSize = 28.sp)
+                        }
+                        "작은방 2" -> {
+                            Text(text = "📚", fontSize = 28.sp)
+                            Text(text = "✏️", fontSize = 28.sp)
+                        }
+                        "입구방" -> {
+                            Text(text = "🚪", fontSize = 36.sp)
+                        }
+                        "거실" -> {
+                            Text(text = "🛋️", fontSize = 36.sp)
+                        }
+                        "주방" -> {
+                            Text(text = "🍳", fontSize = 36.sp)
+                        }
+                        "그외" -> {
+                            Text(text = "📦", fontSize = 36.sp)
+                        }
+                        else -> {}
+                    }
                 }
             }
         }
@@ -2018,7 +2081,7 @@ private val spaceItemsMap = mapOf(
         PredefinedItem("장농", R.drawable.ic_wardrobe, listOf("1칸", "2칸", "3칸", "분해형")),
         PredefinedItem("직접입력", R.drawable.ic_add)
     ),
-    "작은방1" to listOf(
+    "작은방 1" to listOf(
         PredefinedItem("침대", R.drawable.ic_bed, listOf("싱글", "더블", "킹")),
         PredefinedItem("화장대", R.drawable.ic_dressing_table),
         PredefinedItem("서랍장", R.drawable.ic_drawers),
@@ -2029,7 +2092,7 @@ private val spaceItemsMap = mapOf(
         PredefinedItem("장농", R.drawable.ic_wardrobe, listOf("1칸", "2칸", "3칸", "분해형")),
         PredefinedItem("직접입력", R.drawable.ic_add)
     ),
-    "작은방2" to listOf(
+    "작은방 2" to listOf(
         PredefinedItem("침대", R.drawable.ic_bed, listOf("싱글", "더블", "킹")),
         PredefinedItem("화장대", R.drawable.ic_dressing_table),
         PredefinedItem("서랍장", R.drawable.ic_drawers),
@@ -2080,6 +2143,7 @@ private val spaceItemsMap = mapOf(
     )
 )
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun Step3CustomerInfo(
     customerName: String,
@@ -2093,7 +2157,7 @@ fun Step3CustomerInfo(
     moveDate: String,
     onSelectMoveDate: () -> Unit,
     startTime: String,
-    onSelectStartTime: () -> Unit,
+    onSelectStartTime: (String) -> Unit,
     amount: String,
     onAmountChange: (String) -> Unit,
     memo: String,
@@ -2101,46 +2165,109 @@ fun Step3CustomerInfo(
     googleSheetsUrl: String,
     onSheetsUrlChange: (String) -> Unit,
     estimateDate: String,
-    onSelectEstimateDate: () -> Unit
+    onSelectEstimateDate: () -> Unit,
+    visitDate: String,
+    onSelectVisitDate: () -> Unit,
+    moveInfo: String,
+    onMoveInfoChange: (String) -> Unit
 ) {
+    val textFieldColors = OutlinedTextFieldDefaults.colors(
+        focusedTextColor = Color.White,
+        unfocusedTextColor = Color.White,
+        focusedBorderColor = Color(0xFFE040FB),
+        unfocusedBorderColor = Color.White.copy(alpha = 0.3f),
+        focusedLabelColor = Color(0xFFE040FB),
+        unfocusedLabelColor = Color(0xFFCE93D8),
+        cursorColor = Color(0xFFE040FB)
+    )
+
+    var showTimeDialog by remember { mutableStateOf(false) }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        // Customer Card
-        Card(modifier = Modifier.fillMaxWidth()) {
-            Column(
-                modifier = Modifier.padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                Text("고객 연락처 정보", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
-                OutlinedTextField(
-                    value = customerName,
-                    onValueChange = onCustomerNameChange,
-                    label = { Text("고객명") },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true
+        Spacer(modifier = Modifier.height(8.dp))
+
+        // Animated Text "이사정보를 확인합니다."
+        val letters = listOf("이", "사", "정", "보", "를", "확", "인", "합", "니", "다", ".")
+        val infiniteTransition = rememberInfiniteTransition(label = "BlinkTextStep3")
+
+        Row(
+            modifier = Modifier
+                .rotate(-4f)
+                .padding(vertical = 16.dp)
+                .align(Alignment.CenterHorizontally),
+            horizontalArrangement = Arrangement.Center,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            letters.forEachIndexed { index, char ->
+                val hue by infiniteTransition.animateFloat(
+                    initialValue = index * 40f,
+                    targetValue = index * 40f + 360f,
+                    animationSpec = infiniteRepeatable(
+                        animation = tween(durationMillis = 3000, easing = LinearEasing),
+                        repeatMode = RepeatMode.Restart
+                    ),
+                    label = "hue_step3_$index"
                 )
-                OutlinedTextField(
-                    value = phoneNumber,
-                    onValueChange = onPhoneNumberChange,
-                    label = { Text("전화번호") },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true
+
+                val alpha by infiniteTransition.animateFloat(
+                    initialValue = 0.4f,
+                    targetValue = 1.0f,
+                    animationSpec = infiniteRepeatable(
+                        animation = tween(durationMillis = 800, delayMillis = index * 50, easing = LinearEasing),
+                        repeatMode = RepeatMode.Reverse
+                    ),
+                    label = "alpha_step3_$index"
                 )
+
+                val yOffset = -(index * 2).dp
+                val animatedColor = Color.hsv(hue % 360f, 0.8f, 1.0f)
+
+                Text(
+                    text = char,
+                    fontSize = 32.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = animatedColor,
+                    modifier = Modifier
+                        .offset(y = yOffset)
+                        .alpha(alpha)
+                )
+
+                if (char == "를") {
+                    Spacer(modifier = Modifier.width(12.dp))
+                }
             }
         }
 
         // Move Logistics Card
-        Card(modifier = Modifier.fillMaxWidth()) {
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(
+                containerColor = Color(0xFF1E0F3D).copy(alpha = 0.85f)
+            ),
+            shape = RoundedCornerShape(16.dp),
+            border = BorderStroke(1.dp, Color.White.copy(alpha = 0.12f))
+        ) {
             Column(
                 modifier = Modifier.padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                Text("이사 장소 및 일정", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                Text("📅 이사 장소 및 일정", fontWeight = FontWeight.Bold, color = Color(0xFFE040FB))
+                OutlinedTextField(
+                    value = visitDate,
+                    onValueChange = {},
+                    readOnly = true,
+                    label = { Text("방문 날짜") },
+                    trailingIcon = {
+                        Icon(Icons.Default.DateRange, contentDescription = "Select Visit Date", modifier = Modifier.clickable { onSelectVisitDate() })
+                    },
+                    colors = textFieldColors,
+                    modifier = Modifier.fillMaxWidth()
+                )
                 OutlinedTextField(
                     value = moveDate,
                     onValueChange = {},
@@ -2149,23 +2276,64 @@ fun Step3CustomerInfo(
                     trailingIcon = {
                         Icon(Icons.Default.DateRange, contentDescription = "Select Date", modifier = Modifier.clickable { onSelectMoveDate() })
                     },
+                    colors = textFieldColors,
                     modifier = Modifier.fillMaxWidth()
                 )
-                OutlinedTextField(
-                    value = startTime,
-                    onValueChange = {},
-                    readOnly = true,
-                    label = { Text("시작 시간") },
-                    placeholder = { Text("선택 안 됨") },
-                    trailingIcon = {
-                        Icon(Icons.Default.DateRange, contentDescription = "Select Time", modifier = Modifier.clickable { onSelectStartTime() })
-                    },
-                    modifier = Modifier.fillMaxWidth()
-                )
+                Box(modifier = Modifier.fillMaxWidth()) {
+                    OutlinedTextField(
+                        value = startTime,
+                        onValueChange = {},
+                        readOnly = true,
+                        label = { Text("시작 시간") },
+                        placeholder = { Text("선택 안 됨") },
+                        trailingIcon = {
+                            Icon(Icons.Default.DateRange, contentDescription = "Select Time")
+                        },
+                        colors = textFieldColors,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Box(
+                        modifier = Modifier
+                            .matchParentSize()
+                            .clickable { showTimeDialog = true }
+                    )
+                }
+                var moveInfoExpanded by remember { mutableStateOf(false) }
+
+                Box {
+                    OutlinedTextField(
+                        value = moveInfo,
+                        onValueChange = {},
+                        readOnly = true,
+                        label = { Text("이사 종류") },
+                        trailingIcon = {
+                            ExposedDropdownMenuDefaults.TrailingIcon(expanded = moveInfoExpanded)
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { moveInfoExpanded = true },
+                        colors = textFieldColors
+                    )
+                    DropdownMenu(
+                        expanded = moveInfoExpanded,
+                        onDismissRequest = { moveInfoExpanded = false }
+                    ) {
+                        listOf("포장이사", "반포장이사", "일반이사").forEach { option ->
+                            DropdownMenuItem(
+                                text = { Text(option, color = Color.Black) },
+                                onClick = {
+                                    onMoveInfoChange(option)
+                                    moveInfoExpanded = false
+                                }
+                            )
+                        }
+                    }
+                }
                 OutlinedTextField(
                     value = departure,
                     onValueChange = onDepartureChange,
                     label = { Text("출발지") },
+                    colors = textFieldColors,
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true
                 )
@@ -2173,6 +2341,7 @@ fun Step3CustomerInfo(
                     value = destination,
                     onValueChange = onDestinationChange,
                     label = { Text("도착지") },
+                    colors = textFieldColors,
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true
                 )
@@ -2180,17 +2349,25 @@ fun Step3CustomerInfo(
         }
 
         // Amount & Details Card
-        Card(modifier = Modifier.fillMaxWidth()) {
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(
+                containerColor = Color(0xFF1E0F3D).copy(alpha = 0.85f)
+            ),
+            shape = RoundedCornerShape(16.dp),
+            border = BorderStroke(1.dp, Color.White.copy(alpha = 0.12f))
+        ) {
             Column(
                 modifier = Modifier.padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                Text("견적 정보", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                Text("💰 견적 정보", fontWeight = FontWeight.Bold, color = Color(0xFFE040FB))
                 OutlinedTextField(
                     value = amount,
                     onValueChange = onAmountChange,
                     label = { Text("금액 (원)") },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    colors = textFieldColors,
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true
                 )
@@ -2199,36 +2376,90 @@ fun Step3CustomerInfo(
                     onValueChange = onMemoChange,
                     label = { Text("메모") },
                     minLines = 3,
+                    colors = textFieldColors,
                     modifier = Modifier.fillMaxWidth()
                 )
             }
         }
 
-        // Integration Card
-        Card(modifier = Modifier.fillMaxWidth()) {
+        // Customer Card
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(
+                containerColor = Color(0xFF1E0F3D).copy(alpha = 0.85f)
+            ),
+            shape = RoundedCornerShape(16.dp),
+            border = BorderStroke(1.dp, Color.White.copy(alpha = 0.12f))
+        ) {
             Column(
                 modifier = Modifier.padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                Text("시스템 연동", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                Text("👤 고객 연락처", fontWeight = FontWeight.Bold, color = Color(0xFFE040FB))
                 OutlinedTextField(
-                    value = googleSheetsUrl,
-                    onValueChange = onSheetsUrlChange,
-                    label = { Text("구글 스프레드시트 웹앱 URL") },
-                    placeholder = { Text("https://script.google.com/...") },
-                    modifier = Modifier.fillMaxWidth()
+                    value = customerName,
+                    onValueChange = onCustomerNameChange,
+                    label = { Text("고객명") },
+                    colors = textFieldColors,
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
                 )
                 OutlinedTextField(
-                    value = estimateDate,
-                    onValueChange = {},
-                    readOnly = true,
-                    label = { Text("견적 작성일") },
-                    trailingIcon = {
-                        Icon(Icons.Default.DateRange, contentDescription = "Select Date", modifier = Modifier.clickable { onSelectEstimateDate() })
-                    },
-                    modifier = Modifier.fillMaxWidth()
+                    value = phoneNumber,
+                    onValueChange = onPhoneNumberChange,
+                    label = { Text("전화번호") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
+                    colors = textFieldColors,
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
                 )
             }
+        }
+
+        if (showTimeDialog) {
+            val parts = startTime.split("시", "분").map { it.trim() }
+            val currentHour = parts.getOrNull(0)?.toIntOrNull() ?: 7
+            val currentMinute = parts.getOrNull(1)?.toIntOrNull() ?: 0
+
+            var selectedHour by remember { mutableStateOf(currentHour) }
+            var selectedMinute by remember { mutableStateOf(currentMinute) }
+
+            AlertDialog(
+                onDismissRequest = { showTimeDialog = false },
+                confirmButton = {
+                    TextButton(onClick = {
+                        val formatted = String.format(Locale.KOREA, "%02d시 %02d분", selectedHour, selectedMinute)
+                        onSelectStartTime(formatted)
+                        showTimeDialog = false
+                    }) {
+                        Text("선택", fontWeight = FontWeight.Bold)
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showTimeDialog = false }) {
+                        Text("취소")
+                    }
+                },
+                title = { Text("시작 시간 선택") },
+                text = {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 16.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        WheelTimePicker(
+                            initialHour = currentHour,
+                            initialMinute = currentMinute,
+                            modifier = Modifier.width(180.dp),
+                            onTimeChanged = { hour, minute ->
+                                selectedHour = hour
+                                selectedMinute = minute
+                            }
+                        )
+                    }
+                }
+            )
         }
     }
 }
@@ -2515,3 +2746,147 @@ private tailrec fun Context.findActivity(): Activity? =
         is ContextWrapper -> baseContext.findActivity()
         else -> null
     }
+
+@Composable
+fun WheelTimePicker(
+    initialHour: Int,
+    initialMinute: Int,
+    modifier: Modifier = Modifier,
+    onTimeChanged: (Int, Int) -> Unit
+) {
+    // 24시간제: 0~23
+    val hourList = (0..23).map { String.format(Locale.US, "%02d시", it) }
+    val minuteList = listOf("00분", "10분", "20분", "30분", "40분", "50분")
+
+    val initialHourIndex = initialHour.coerceIn(0, 23)
+
+    // Map initialMinute to the nearest 10 minutes step (00, 10, 20, 30, 40, 50)
+    val roundedMinute = ((initialMinute + 5) / 10 * 10) % 60
+    val initialMinuteIndex = (roundedMinute / 10).coerceIn(0, 5)
+
+    var selectedHourIndex by remember { mutableStateOf(initialHourIndex) }
+    var selectedMinuteIndex by remember { mutableStateOf(initialMinuteIndex) }
+
+    LaunchedEffect(selectedHourIndex, selectedMinuteIndex) {
+        val hour = selectedHourIndex
+        val minute = minuteList[selectedMinuteIndex].replace("분", "").toInt()
+        onTimeChanged(hour, minute)
+    }
+
+    Row(
+        modifier = modifier
+            .padding(horizontal = 8.dp),
+        horizontalArrangement = Arrangement.Center,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        WheelPicker(
+            items = hourList,
+            initialIndex = initialHourIndex,
+            onIndexSelected = { selectedHourIndex = it },
+            modifier = Modifier.weight(1f)
+        )
+        Spacer(modifier = Modifier.width(8.dp))
+        WheelPicker(
+            items = minuteList,
+            initialIndex = initialMinuteIndex,
+            onIndexSelected = { selectedMinuteIndex = it },
+            modifier = Modifier.weight(1f)
+        )
+    }
+}
+
+@Composable
+fun WheelPicker(
+    items: List<String>,
+    initialIndex: Int,
+    onIndexSelected: (Int) -> Unit,
+    modifier: Modifier = Modifier,
+    visibleItemsCount: Int = 5,
+    itemHeight: androidx.compose.ui.unit.Dp = 48.dp
+) {
+    val lazyListState = rememberLazyListState(initialFirstVisibleItemIndex = initialIndex)
+    val snapFlingBehavior = rememberSnapFlingBehavior(lazyListState)
+
+    val selectedIndex by remember {
+        derivedStateOf {
+            lazyListState.firstVisibleItemIndex
+        }
+    }
+
+    LaunchedEffect(initialIndex) {
+        if (initialIndex in items.indices && initialIndex != lazyListState.firstVisibleItemIndex) {
+            lazyListState.scrollToItem(initialIndex)
+        }
+    }
+
+    LaunchedEffect(selectedIndex) {
+        if (selectedIndex in items.indices) {
+            onIndexSelected(selectedIndex)
+        }
+    }
+
+    val verticalPadding = itemHeight * ((visibleItemsCount - 1) / 2)
+
+    Box(
+        modifier = modifier.height(itemHeight * visibleItemsCount),
+        contentAlignment = Alignment.Center
+    ) {
+        // Selection capsule styling (Samsung One UI style)
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(itemHeight)
+                .background(
+                    color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.25f),
+                    shape = RoundedCornerShape(8.dp)
+                )
+        )
+
+        LazyColumn(
+            state = lazyListState,
+            flingBehavior = snapFlingBehavior,
+            contentPadding = PaddingValues(vertical = verticalPadding),
+            modifier = Modifier.fillMaxSize(),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            items(items.size) { index ->
+                val indexDiff = abs(index - selectedIndex)
+                val alpha = when (indexDiff) {
+                    0 -> 1.0f
+                    1 -> 0.5f
+                    2 -> 0.2f
+                    else -> 0.0f
+                }
+                val scale = when (indexDiff) {
+                    0 -> 1.15f
+                    1 -> 1.0f
+                    2 -> 0.85f
+                    else -> 0.7f
+                }
+
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(itemHeight),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = items[index],
+                        fontSize = 20.sp,
+                        fontWeight = if (indexDiff == 0) FontWeight.Bold else FontWeight.Medium,
+                        color = if (indexDiff == 0) {
+                            MaterialTheme.colorScheme.primary
+                        } else {
+                            MaterialTheme.colorScheme.onSurface
+                        },
+                        modifier = Modifier.graphicsLayer {
+                            this.alpha = alpha
+                            this.scaleX = scale
+                            this.scaleY = scale
+                        }
+                    )
+                }
+            }
+        }
+    }
+}

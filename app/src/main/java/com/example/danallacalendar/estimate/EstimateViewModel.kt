@@ -36,7 +36,9 @@ class EstimateViewModel @Inject constructor(
     val amount = MutableStateFlow("")
     val memo = MutableStateFlow("")
     val estimateDate = MutableStateFlow("")
-    val startTime = MutableStateFlow("")
+    val startTime = MutableStateFlow("07시 00분")
+    val visitDate = MutableStateFlow(SimpleDateFormat("yyyy-MM-dd", Locale.KOREA).format(java.util.Date()))
+    val moveInfo = MutableStateFlow("포장이사")
 
     // Room-specific cargo items: Map<SpaceName, Map<ItemName, Count>>
     private val _roomItems = MutableStateFlow<Map<String, Map<String, Int>>>(emptyMap())
@@ -51,7 +53,6 @@ class EstimateViewModel @Inject constructor(
     init {
         val today = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(java.util.Date())
         estimateDate.value = today
-        moveDate.value = today
         googleSheetsUrl.value = BuildConfig.SPREADSHEET_WEB_APP_URL
     }
 
