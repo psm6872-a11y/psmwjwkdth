@@ -159,19 +159,13 @@ fun EstimateScreen(
         }
     }
 
-    LaunchedEffect(currentStep, activeSpaceForCargoInput) {
+    LaunchedEffect(currentStep) {
         delay(500)
         val speakText = when (currentStep) {
-            1 -> "견적을 시작합니다. 이사 종류를 선택해주세요."
-            2 -> {
-                if (activeSpaceForCargoInput == null) {
-                    "물품을 확인할 공간을 선택해주세요."
-                } else {
-                    "${activeSpaceForCargoInput}의 물품을 선택해주세요."
-                }
-            }
-            3 -> "고객 정보 및 일정을 입력해주세요."
-            4 -> "최종 견적서 요약을 확인해주세요."
+            1 -> "견적을 시작합니다"
+            2 -> "물품을 확인합니다"
+            3 -> "고객 정보를 입력합니다"
+            4 -> "최종 견적서를 확인합니다"
             else -> ""
         }
         if (speakText.isNotEmpty()) {
