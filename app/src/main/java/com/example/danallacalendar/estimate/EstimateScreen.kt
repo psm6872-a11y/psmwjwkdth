@@ -800,9 +800,11 @@ fun Step1StartScreen(
                         val yOffset = -screenHeight * (index * 0.0025f)
                         val animatedColor = Color.hsv(hue % 360f, 0.8f, 1.0f)
 
+                        val screenWidth = androidx.compose.ui.platform.LocalConfiguration.current.screenWidthDp.dp
+                        val animTextSize = screenWidth * 0.09f
                         Text(
                             text = char,
-                            fontSize = 40.sp,
+                            fontSize = animTextSize,
                             fontWeight = FontWeight.Bold,
                             color = animatedColor,
                             modifier = Modifier
@@ -946,9 +948,11 @@ fun Step2SpaceSelection(
                 val yOffset = -(index * 2).dp
                 val animatedColor = Color.hsv(hue % 360f, 0.8f, 1.0f)
 
+                val screenWidth = androidx.compose.ui.platform.LocalConfiguration.current.screenWidthDp.dp
+                val animTextSize = screenWidth * 0.09f
                 Text(
                     text = char,
-                    fontSize = 40.sp,
+                    fontSize = animTextSize,
                     fontWeight = FontWeight.Bold,
                     color = animatedColor,
                     modifier = Modifier
@@ -1280,9 +1284,11 @@ fun Step2ItemSelection(
                     val yOffset = -(index * 2).dp
                     val animatedColor = Color.hsv(hue % 360f, 0.8f, 1.0f)
 
+                    val screenWidth = androidx.compose.ui.platform.LocalConfiguration.current.screenWidthDp.dp
+                    val animTextSize = screenWidth * 0.09f
                     Text(
                         text = char,
-                        fontSize = 36.sp,
+                        fontSize = animTextSize,
                         fontWeight = FontWeight.Bold,
                         color = animatedColor,
                         modifier = Modifier
@@ -2449,9 +2455,11 @@ fun Step3CustomerInfo(
                 val yOffset = -(index * 2).dp
                 val animatedColor = Color.hsv(hue % 360f, 0.8f, 1.0f)
 
+                val screenWidth = androidx.compose.ui.platform.LocalConfiguration.current.screenWidthDp.dp
+                val animTextSize = screenWidth * 0.09f
                 Text(
                     text = char,
-                    fontSize = 32.sp,
+                    fontSize = animTextSize,
                     fontWeight = FontWeight.Bold,
                     color = animatedColor,
                     modifier = Modifier
@@ -3058,9 +3066,11 @@ fun Step4PreviewAndActions(
                 val yOffset = -(index * 2).dp
                 val animatedColor = Color.hsv(hue % 360f, 0.8f, 1.0f)
 
+                val screenWidth = androidx.compose.ui.platform.LocalConfiguration.current.screenWidthDp.dp
+                val animTextSize = screenWidth * 0.09f
                 Text(
                     text = char,
-                    fontSize = 40.sp,
+                    fontSize = animTextSize,
                     fontWeight = FontWeight.Bold,
                     color = animatedColor,
                     modifier = Modifier
