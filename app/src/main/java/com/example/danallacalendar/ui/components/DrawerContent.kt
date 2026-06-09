@@ -440,7 +440,7 @@ fun DrawerContent(
             )
             Spacer(modifier = Modifier.width(16.dp))
             Text(
-                text = "apk",
+                text = "apk 저장",
                 fontSize = 15.sp,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.secondary
