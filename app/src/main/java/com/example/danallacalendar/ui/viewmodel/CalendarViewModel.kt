@@ -265,8 +265,11 @@ class CalendarViewModel @Inject constructor(
             }
             isVisible && matchesFilter
         }.sortedWith(
-            compareByDescending<Event> { it.isAllDay }
-                .thenBy { it.startMillis }
+            compareBy(
+                { !it.isAllDay },
+                { if (it.isAllDay) it.title else "" },
+                { if (!it.isAllDay) it.startMillis else 0L }
+            )
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
@@ -295,8 +298,11 @@ class CalendarViewModel @Inject constructor(
             }
             isVisible && matchesFilter
         }.sortedWith(
-            compareByDescending<Event> { it.isAllDay }
-                .thenBy { it.startMillis }
+            compareBy(
+                { !it.isAllDay },
+                { if (it.isAllDay) it.title else "" },
+                { if (!it.isAllDay) it.startMillis else 0L }
+            )
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
@@ -316,8 +322,11 @@ class CalendarViewModel @Inject constructor(
         events.filter { event ->
             cats.find { it.id == event.calendarId }?.isVisible ?: true
         }.sortedWith(
-            compareByDescending<Event> { it.isAllDay }
-                .thenBy { it.startMillis }
+            compareBy(
+                { !it.isAllDay },
+                { if (it.isAllDay) it.title else "" },
+                { if (!it.isAllDay) it.startMillis else 0L }
+            )
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
