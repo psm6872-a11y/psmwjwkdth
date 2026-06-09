@@ -66,6 +66,8 @@ class EstimateViewModel @Inject constructor(
     private val _saveState = MutableStateFlow<SaveState>(SaveState.Idle)
     val saveState = _saveState.asStateFlow()
 
+    private var estimateId: String = ""
+
     init {
         val today = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(java.util.Date())
         estimateDate.value = today
@@ -130,9 +132,6 @@ class EstimateViewModel @Inject constructor(
     }
 
     fun autoSaveToGoogleSheets() {
-        val url = googleSheetsUrl.value
-        if (url.isBlank()) return
-
         val amt = amount.value.toLongOrNull() ?: 0L
         val formattedCargo = formatRoomItemsSummary()
         val combinedMemo = if (formattedCargo.isNotBlank()) {
@@ -142,6 +141,7 @@ class EstimateViewModel @Inject constructor(
         }
 
         val estimate = Estimate(
+            id = estimateId,
             customerName = customerName.value.ifBlank { "임시 고객" },
             phoneNumber = phoneNumber.value,
             departure = departure.value,
@@ -157,9 +157,10 @@ class EstimateViewModel @Inject constructor(
 
         viewModelScope.launch(Dispatchers.IO) {
             try {
-                repository.saveToGoogleSheets(url, estimate)
+                val savedId = repository.saveToFirestore(estimate)
+                estimateId = savedId
             } catch (e: Exception) {
-                android.util.Log.e("EstimateViewModel", "Auto save to Google Sheets failed", e)
+                android.util.Log.e("EstimateViewModel", "Auto save to Firestore failed", e)
             }
         }
     }
@@ -174,6 +175,7 @@ class EstimateViewModel @Inject constructor(
         }
 
         val estimate = Estimate(
+            id = estimateId,
             customerName = customerName.value,
             phoneNumber = phoneNumber.value,
             departure = departure.value,

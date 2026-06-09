@@ -58,3 +58,13 @@ function getNewSheetName(ss, dateStr) {
   }
   return dateStr + "(" + index + ")";
 }
+
+function deleteTestSheets() {
+  var ss = SpreadsheetApp.openById("1BDM_cWNaFm19fAbLSAbh-N1u11geMuUi7gXz8kZ6-v0");
+  var sheets = ss.getSheets();
+  sheets.forEach(function(sheet) {
+    if (sheet.getName() !== "포장이사") {
+      ss.deleteSheet(sheet);
+    }
+  });
+}
