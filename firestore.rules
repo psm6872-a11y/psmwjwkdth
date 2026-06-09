@@ -21,5 +21,10 @@ service cloud.firestore {
         allow read, write: if true;
       }
     }
+
+    // 이사 견적서 데이터 (누구나 읽기/쓰기 허용)
+    match /estimates/{document} {
+      allow read, write: if true;
+    }
   }
 }
