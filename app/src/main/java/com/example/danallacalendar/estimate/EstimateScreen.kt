@@ -829,7 +829,7 @@ fun Step1StartScreen(
                         val animatedColor = Color.hsv(hue % 360f, 0.8f, 1.0f)
 
                         val screenWidth = androidx.compose.ui.platform.LocalConfiguration.current.screenWidthDp
-                        val animTextSize = (screenWidth * 0.09f).sp
+                        val animTextSize = (screenWidth * 0.12f).sp
                         Text(
                             text = char,
                             fontSize = animTextSize,
@@ -977,7 +977,7 @@ fun Step2SpaceSelection(
                 val animatedColor = Color.hsv(hue % 360f, 0.8f, 1.0f)
 
                 val screenWidth = androidx.compose.ui.platform.LocalConfiguration.current.screenWidthDp
-                val animTextSize = (screenWidth * 0.09f).sp
+                val animTextSize = (screenWidth * 0.12f).sp
                 Text(
                     text = char,
                     fontSize = animTextSize,
@@ -1314,7 +1314,7 @@ fun Step2ItemSelection(
                     val animatedColor = Color.hsv(hue % 360f, 0.8f, 1.0f)
 
                     val screenWidth = androidx.compose.ui.platform.LocalConfiguration.current.screenWidthDp
-                    val animTextSize = (screenWidth * 0.09f).sp
+                    val animTextSize = (screenWidth * 0.12f).sp
                     Text(
                         text = char,
                         fontSize = animTextSize,
@@ -2533,7 +2533,7 @@ fun Step3CustomerInfo(
                 val animatedColor = Color.hsv(hue % 360f, 0.8f, 1.0f)
 
                 val screenWidth = androidx.compose.ui.platform.LocalConfiguration.current.screenWidthDp
-                val animTextSize = (screenWidth * 0.09f).sp
+                val animTextSize = (screenWidth * 0.12f).sp
                 Text(
                     text = char,
                     fontSize = animTextSize,
@@ -3144,7 +3144,7 @@ fun Step4PreviewAndActions(
                 val animatedColor = Color.hsv(hue % 360f, 0.8f, 1.0f)
 
                 val screenWidth = androidx.compose.ui.platform.LocalConfiguration.current.screenWidthDp
-                val animTextSize = (screenWidth * 0.09f).sp
+                val animTextSize = (screenWidth * 0.12f).sp
                 Text(
                     text = char,
                     fontSize = animTextSize,

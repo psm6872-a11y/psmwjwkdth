@@ -1,7 +1,7 @@
 {
-  "tag_name": "v1.3.3",
-  "name": "v1.3.3",
-  "body": "v1.3.3: Implement delayed save success overlay and drawer member eviction UI fixes",
+  "tag_name": "v1.3.4",
+  "name": "v1.3.4",
+  "body": "v1.3.4: Increase step animation text size ratio to 0.12f",
   "draft": false,
   "prerelease": false
 }
