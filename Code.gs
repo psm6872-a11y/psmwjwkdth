@@ -1,17 +1,27 @@
 function doPost(e) {
-  var ss = SpreadsheetApp.openById("1BDM_cWNaFm19fAbLSAbh-N1u11geMuUi7gXz8kZ6-v0");
-  var templateSheet = ss.getSheetByName("포장이사");
   var data = JSON.parse(e.postData.contents);
   
-  // 날짜별 시트 이름 생성 (2026-06-09(1), (2)...)
+  // 월별 폴더 생성
+  var rootFolderName = "다날라 견적";
+  var monthFolderName = Utilities.formatDate(new Date(), "GMT+9", "yyyy년 MM월");
+  
+  var rootFolder = getOrCreateFolder(rootFolderName, DriveApp.getRootFolder());
+  var monthFolder = getOrCreateFolder(monthFolderName, rootFolder);
+  
+  // 템플릿 스프레드시트 복사
+  var templateSS = SpreadsheetApp.openById("1BDM_cWNaFm19fAbLSAbh-N1u11geMuUi7gXz8kZ6-v0");
+  var templateFile = DriveApp.getFileById(templateSS.getId());
+  
+  // 파일 이름 생성 (날짜 + 순번)
   var dateStr = data.estimateDate || Utilities.formatDate(new Date(), "GMT+9", "yyyy-MM-dd");
-  var sheetName = getNewSheetName(ss, dateStr);
+  var fileName = getNewFileName(monthFolder, dateStr);
   
-  // 포장이사 시트 복사
-  var newSheet = templateSheet.copyTo(ss);
-  newSheet.setName(sheetName);
+  // 파일 복사 후 월별 폴더로 이동
+  var newFile = templateFile.makeCopy(fileName, monthFolder);
+  var newSS = SpreadsheetApp.openById(newFile.getId());
+  var newSheet = newSS.getSheetByName("포장이사");
   
-  // 데이터 채워넣기
+  // 데이터 채워넣기 (기존 로직 동일)
   newSheet.getRange("B6").setValue(data.departure);
   newSheet.getRange("B7").setValue(data.destination);
   newSheet.getRange("J6").setValue(data.laddersStartFloor);
@@ -33,12 +43,12 @@ function doPost(e) {
   newSheet.getRange("J41").setValue(data.balance);
   newSheet.getRange("G46").setValue(data.customerName);
   
-  // 옵션비용 - 음수면 I38을 "할인"으로 변경
+  // 옵션비용
   var optionCostVal = parseFloat(data.optionCost) || 0;
   newSheet.getRange("J38").setValue(data.optionCost);
   newSheet.getRange("I38").setValue(optionCostVal < 0 ? "할인" : "옵션비용");
   
-  // 물품 내역 (줄바꿈으로 각 셀에 입력)
+  // 물품 내역
   newSheet.getRange("A13").setValue(data.roomItems?.["안방"] || "");
   newSheet.getRange("B13").setValue(data.roomItems?.["작은방1"] || "");
   newSheet.getRange("C13").setValue(data.roomItems?.["작은방2"] || "");
@@ -47,13 +57,27 @@ function doPost(e) {
   newSheet.getRange("F13").setValue(data.roomItems?.["주방"] || "");
   newSheet.getRange("G13").setValue(data.roomItems?.["그외"] || "");
   
-  return ContentService.createTextOutput(JSON.stringify({status: "success", sheetName: sheetName}))
-    .setMimeType(ContentService.MimeType.JSON);
+  // 저장된 파일 URL 반환
+  var fileUrl = "https://docs.google.com/spreadsheets/d/" + newFile.getId();
+  
+  return ContentService.createTextOutput(JSON.stringify({
+    status: "success", 
+    sheetName: fileName,
+    fileUrl: fileUrl
+  })).setMimeType(ContentService.MimeType.JSON);
 }
 
-function getNewSheetName(ss, dateStr) {
+function getOrCreateFolder(folderName, parentFolder) {
+  var folders = parentFolder.getFoldersByName(folderName);
+  if (folders.hasNext()) {
+    return folders.next();
+  }
+  return parentFolder.createFolder(folderName);
+}
+
+function getNewFileName(folder, dateStr) {
   var index = 1;
-  while (ss.getSheetByName(dateStr + "(" + index + ")")) {
+  while (folder.getFilesByName(dateStr + "(" + index + ")").hasNext()) {
     index++;
   }
   return dateStr + "(" + index + ")";
