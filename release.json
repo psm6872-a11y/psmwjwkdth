@@ -1,7 +1,7 @@
 {
-  "tag_name": "v1.3.4",
-  "name": "v1.3.4",
-  "body": "v1.3.4: Increase step animation text size ratio to 0.12f",
+  "tag_name": "v1.3.5",
+  "name": "v1.3.5",
+  "body": "v1.3.5: Increase minimum width of amount fields in Step3 table",
   "draft": false,
   "prerelease": false
 }
