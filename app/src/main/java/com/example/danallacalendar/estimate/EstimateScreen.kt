@@ -186,7 +186,8 @@ fun EstimateScreen(
             1 -> "견적을 시작합니다"
             2 -> "물품을 확인합니다. 확인할 공간을 선택해 주세요."
             3 -> "이사정보를 확인합니다."
-            4 -> "최종 견적서를 확인합니다"
+            4 -> "견적을 완료합니다."
+
             else -> ""
         }
         if (speakText.isNotEmpty()) {
@@ -267,6 +268,17 @@ fun EstimateScreen(
         }
     }
 
+    val onSaveEstimate = {
+        if (customerName.isBlank()) {
+            Toast.makeText(context, "고객명을 입력해주세요.", Toast.LENGTH_SHORT).show()
+            currentStep = 3
+        } else {
+            viewModel.saveEstimate { smsBody ->
+                Toast.makeText(context, "구글 시트 및 DB 저장 완료!", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
     if (currentStep == 1) {
         Step1StartScreen(
             onCategorySelected = { type ->
@@ -296,19 +308,21 @@ fun EstimateScreen(
             Scaffold(
                 containerColor = Color.Transparent,
                 topBar = {
-                    if (currentStep != 2 && currentStep != 3) {
+                    if (currentStep != 2 && currentStep != 3 && currentStep != 4) {
                         TopAppBar(
                             title = { 
-                                Text(
-                                    text = if (currentStep == 2 && activeSpaceForCargoInput != null) {
-                                        "${activeSpaceForCargoInput} 짐 선택"
-                                    } else {
-                                        "이사 견적서 작성 (${currentStep}/4)"
-                                    }, 
-                                    fontWeight = FontWeight.Bold, 
-                                    fontSize = 18.sp,
-                                    color = Color.White
-                                ) 
+                                if (currentStep != 4) {
+                                    Text(
+                                        text = if (currentStep == 2 && activeSpaceForCargoInput != null) {
+                                            "${activeSpaceForCargoInput} 짐 선택"
+                                        } else {
+                                            "이사 견적서 작성 (${currentStep}/4)"
+                                        }, 
+                                        fontWeight = FontWeight.Bold, 
+                                        fontSize = 18.sp,
+                                        color = Color.White
+                                    ) 
+                                }
                             },
                             navigationIcon = {
                                 IconButton(onClick = {
@@ -474,16 +488,7 @@ fun EstimateScreen(
                                     onPrint = {
                                         printEstimate(context, customerName, phoneNumber, moveDate, startTime, moveType, departure, destination, amount, viewModel.formatRoomItemsSummary(), memo, totalExpectedVolumeStr)
                                     },
-                                    onSave = {
-                                        if (customerName.isBlank()) {
-                                            Toast.makeText(context, "고객명을 입력해주세요.", Toast.LENGTH_SHORT).show()
-                                            currentStep = 3
-                                        } else {
-                                            viewModel.saveEstimate { smsBody ->
-                                                Toast.makeText(context, "구글 시트 및 DB 저장 완료!", Toast.LENGTH_SHORT).show()
-                                            }
-                                        }
-                                    },
+                                    onSave = onSaveEstimate,
                                     onSendSms = {
                                         viewModel.saveEstimate { smsBody ->
                                             val intent = Intent(Intent.ACTION_SENDTO).apply {
@@ -541,7 +546,20 @@ fun EstimateScreen(
                                     Text("다음")
                                 }
                             } else {
-                                Spacer(modifier = Modifier.weight(1f))
+                                Button(
+                                    onClick = {
+                                        onSaveEstimate()
+                                    },
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .height(48.dp),
+                                    shape = RoundedCornerShape(10.dp),
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = Color(0xFFE040FB)
+                                    )
+                                ) {
+                                    Text("완료")
+                                }
                             }
                         }
                     }
@@ -1057,14 +1075,7 @@ fun SpaceCard(
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
-                    Spacer(modifier = Modifier.height(1.dp)) // 행간 간격 3.dp -> 1.dp로 축소
-                    Text(
-                        text = if (itemCount > 0) "${itemCount}개 선택됨" else "비어 있음",
-                        fontSize = 13.sp,
-                        color = Color.White.copy(alpha = 0.7f),
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
+
                     if (!expectedVolume.isNullOrBlank()) {
                         Spacer(modifier = Modifier.height(1.dp)) // 행간 간격 2.dp -> 1.dp로 축소
                         Text(
@@ -2361,10 +2372,10 @@ fun Step3CustomerInfo(
     onOptionCostChange: (String) -> Unit,
     totalExpectedVolume: String
 ) {
-    val screenWidth = androidx.compose.ui.platform.LocalConfiguration.current.screenWidthDp.dp
+    val screenWidth = androidx.compose.ui.platform.LocalConfiguration.current.screenWidthDp
     val screenHeight = androidx.compose.ui.platform.LocalConfiguration.current.screenHeightDp.dp
-    val amountFieldWidth = screenWidth * (listOf(moveCost, optionCost, totalCost, deposit, balance)
-        .maxOf { it.length.coerceAtLeast(3) } * 0.025f)
+    val amountFieldWidth = (listOf(moveCost, optionCost, totalCost, deposit, balance)
+        .maxOf { it.length.coerceAtLeast(3) } * (screenWidth * 0.025f)).dp
 
     val textFieldColors = OutlinedTextFieldDefaults.colors(
         focusedTextColor = Color.White,
@@ -2669,7 +2680,7 @@ fun Step3CustomerInfo(
                                         textStyle = TextStyle(color = Color.White, fontSize = 15.sp, textAlign = TextAlign.End),
                                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                                         singleLine = true,
-                                        modifier = Modifier.width(screenWidth * 0.05f)
+                                        modifier = Modifier.width((screenWidth * 0.05f).dp)
                                     )
                                     Text("명   ", color = Color.White.copy(alpha = 0.6f), fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                                     Text("여", color = Color.White.copy(alpha = 0.6f), fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -2679,14 +2690,14 @@ fun Step3CustomerInfo(
                                         textStyle = TextStyle(color = Color.White, fontSize = 15.sp, textAlign = TextAlign.End),
                                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                                         singleLine = true,
-                                        modifier = Modifier.width(screenWidth * 0.05f)
+                                        modifier = Modifier.width((screenWidth * 0.05f).dp)
                                     )
                                     Text("명", color = Color.White.copy(alpha = 0.6f), fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                                 }
                             }
                         }
                         TableCell(
-                            label = "옵션비용",
+                            label = if ((optionCost.toLongOrNull() ?: 0L) < 0) "할인" else "옵션비용",
                             value = optionCost,
                             onValueChange = onOptionCostChange,
                             modifier = Modifier.weight(1f),
@@ -2913,6 +2924,15 @@ fun Step3CustomerInfo(
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true
                 )
+                OutlinedTextField(
+                    value = memo,
+                    onValueChange = { onMemoChange(it) },
+                    label = { Text("고객 요청 및 특이사항") },
+                    minLines = 3,
+                    maxLines = Int.MAX_VALUE,
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = textFieldColors
+                )
             }
         }
 
@@ -2920,12 +2940,12 @@ fun Step3CustomerInfo(
             val parts = startTime.split("시", "분").map { it.trim() }
             val currentHour = parts.getOrNull(0)?.toIntOrNull() ?: 7
             val currentMinute = parts.getOrNull(1)?.toIntOrNull() ?: 0
-
             var selectedHour by remember { mutableStateOf(currentHour) }
             var selectedMinute by remember { mutableStateOf(currentMinute) }
 
             AlertDialog(
                 onDismissRequest = { showTimeDialog = false },
+
                 confirmButton = {
                     TextButton(onClick = {
                         val formatted = String.format(Locale.KOREA, "%02d시 %02d분", selectedHour, selectedMinute)
@@ -2951,7 +2971,7 @@ fun Step3CustomerInfo(
                         WheelTimePicker(
                             initialHour = currentHour,
                             initialMinute = currentMinute,
-                            modifier = Modifier.width(screenWidth * 0.5f),
+                            modifier = Modifier.width((screenWidth * 0.5f).dp),
                             onTimeChanged = { hour, minute ->
                                 selectedHour = hour
                                 selectedMinute = minute
@@ -2993,47 +3013,113 @@ fun Step4PreviewAndActions(
             .verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        Card(modifier = Modifier.fillMaxWidth()) {
+        Spacer(modifier = Modifier.height(8.dp))
+
+        // Animated Text "견적을 완료합니다."
+        val letters = listOf("견", "적", "을", "완", "료", "합", "니", "다", ".")
+        val infiniteTransition = rememberInfiniteTransition(label = "BlinkTextStep4")
+
+        Row(
+            modifier = Modifier
+                .rotate(-4f)
+                .padding(vertical = 16.dp)
+                .align(Alignment.CenterHorizontally),
+            horizontalArrangement = Arrangement.Center,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            letters.forEachIndexed { index, char ->
+                val hue by infiniteTransition.animateFloat(
+                    initialValue = index * 40f,
+                    targetValue = index * 40f + 360f,
+                    animationSpec = infiniteRepeatable(
+                        animation = tween(durationMillis = 3000, easing = LinearEasing),
+                        repeatMode = RepeatMode.Restart
+                    ),
+                    label = "hue_step4_$index"
+                )
+
+                val alpha by infiniteTransition.animateFloat(
+                    initialValue = 0.4f,
+                    targetValue = 1.0f,
+                    animationSpec = infiniteRepeatable(
+                        animation = tween(durationMillis = 800, delayMillis = index * 50, easing = LinearEasing),
+                        repeatMode = RepeatMode.Reverse
+                    ),
+                    label = "alpha_step4_$index"
+                )
+
+                val yOffset = -(index * 2).dp
+                val animatedColor = Color.hsv(hue % 360f, 0.8f, 1.0f)
+
+                Text(
+                    text = char,
+                    fontSize = 40.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = animatedColor,
+                    modifier = Modifier
+                        .offset(y = yOffset)
+                        .alpha(alpha)
+                )
+
+                if (char == "을") {
+                    Spacer(modifier = Modifier.width(12.dp))
+                }
+            }
+        }
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(
+                containerColor = Color(0xFF1E0F3D).copy(alpha = 0.85f)
+            ),
+            border = BorderStroke(1.dp, Color.White.copy(alpha = 0.12f)),
+            shape = RoundedCornerShape(16.dp)
+        ) {
             Column(
                 modifier = Modifier.padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                Text("최종 견적서 요약", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
-                Divider()
+                Text("견적 요약", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color(0xFFE040FB))
+                HorizontalDivider(color = Color.White.copy(alpha = 0.3f))
 
                 PreviewRow(label = "이사 종류", value = moveType)
-                PreviewRow(label = "고객명", value = customerName)
-                PreviewRow(label = "전화번호", value = phoneNumber)
-                PreviewRow(label = "이사 날짜", value = "$moveDate ${if (startTime.isNotBlank()) "($startTime)" else ""}")
-                PreviewRow(label = "출발지", value = departure)
-                PreviewRow(label = "도착지", value = destination)
-                if (totalExpectedVolume.isNotBlank()) {
-                    PreviewRow(label = "총 예상물량", value = "${totalExpectedVolume}t", valueColor = Color(0xFFE040FB), isBold = true)
-                }
-                PreviewRow(label = "견적 금액", value = "${formattedAmount}원", valueColor = MaterialTheme.colorScheme.primary, isBold = true)
-
+                HorizontalDivider(color = Color.White.copy(alpha = 0.1f))
+                PreviewRow(label = "이사 날짜", value = moveDate)
+                HorizontalDivider(color = Color.White.copy(alpha = 0.1f))
+                PreviewRow(label = "시작 시간", value = startTime)
+                HorizontalDivider(color = Color.White.copy(alpha = 0.1f))
+                PreviewRow(label = "이사 물량", value = if (totalExpectedVolume.isNotBlank()) "${totalExpectedVolume}t" else "")
+                HorizontalDivider(color = Color.White.copy(alpha = 0.3f))
+                PreviewRow(label = "이사 비용", value = if (amount.isNotBlank()) "${formattedAmount}원" else "", valueColor = Color(0xFFE040FB), isBold = true)
+                
                 if (roomItemsSummary.isNotBlank()) {
-                    Divider(modifier = Modifier.padding(vertical = 4.dp))
-                    Text("공간별 짐 요약", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                    HorizontalDivider(color = Color.White.copy(alpha = 0.1f))
+                    Text("공간별 짐 요약", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = Color.White)
                     Text(
                         text = roomItemsSummary,
                         fontSize = 14.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        color = Color.White.copy(alpha = 0.7f),
                         lineHeight = 20.sp
                     )
                 }
 
                 if (memo.isNotBlank()) {
-                    Divider(modifier = Modifier.padding(vertical = 4.dp))
-                    Text("메모", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                    HorizontalDivider(color = Color.White.copy(alpha = 0.1f))
+                    Text("메모", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = Color.White)
                     Text(
                         text = memo,
                         fontSize = 14.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = Color.White.copy(alpha = 0.7f)
                     )
                 }
             }
         }
+
+        Text(
+            text = " 상세 견적서는 별도로 첨부해 드립니다.",
+            fontSize = 17.sp,
+            color = Color.White.copy(alpha = 0.6f),
+            modifier = Modifier.padding(horizontal = 4.dp)
+        )
 
         Spacer(modifier = Modifier.height(16.dp))
 
@@ -3053,29 +3139,15 @@ fun Step4PreviewAndActions(
             }
 
             Button(
-                onClick = onSave,
+                onClick = onSendSms,
                 modifier = Modifier
                     .weight(1f)
                     .height(56.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.tertiary),
                 shape = RoundedCornerShape(12.dp)
             ) {
-                if (saveState is SaveState.Loading) {
-                    CircularProgressIndicator(color = Color.White, modifier = Modifier.size(24.dp))
-                } else {
-                    Text("저장")
-                }
+                Text("문자 전송", fontWeight = FontWeight.Bold)
             }
-        }
-
-        Button(
-            onClick = onSendSms,
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(56.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.tertiary),
-            shape = RoundedCornerShape(12.dp)
-        ) {
-            Text("문자 전송", fontWeight = FontWeight.Bold, fontSize = 16.sp)
         }
     }
 }
@@ -3084,14 +3156,14 @@ fun Step4PreviewAndActions(
 fun PreviewRow(
     label: String,
     value: String,
-    valueColor: Color = Color.Unspecified,
+    valueColor: Color = Color.White,
     isBold: Boolean = false
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        Text(label, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 14.sp)
+        Text(label, color = Color.White.copy(alpha = 0.7f), fontSize = 14.sp)
         Text(
             text = value.ifBlank { "입력 안 됨" },
             color = if (value.isBlank()) MaterialTheme.colorScheme.error else valueColor,
