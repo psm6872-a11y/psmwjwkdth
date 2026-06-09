@@ -113,7 +113,10 @@ class CalendarViewModel @Inject constructor(
     }
 
     val deviceUUID = userPreferences.getDeviceUUID()
-    val roomCode = userPreferences.getLastRoomCode()
+
+    private val _roomCodeState = MutableStateFlow(userPreferences.getLastRoomCode())
+    val roomCode: String
+        get() = _roomCodeState.value
 
     private val _isLoggedIn = MutableStateFlow(userPreferences.getLastRoomCode().isNotEmpty())
     val isLoggedIn = _isLoggedIn.asStateFlow()
@@ -124,9 +127,44 @@ class CalendarViewModel @Inject constructor(
     private val _userName = MutableStateFlow(userPreferences.getNickname())
     val userName = _userName.asStateFlow()
 
+    private var syncJob: kotlinx.coroutines.Job? = null
+
+    private fun startSync(code: String) {
+        syncJob?.cancel()
+        if (code.isEmpty()) return
+        
+        syncJob = viewModelScope.launch {
+            val sharedCatId = getOrCreateSharedCategory()
+            repository.registerMemberInFirestore(code)
+            
+            // 1. 이벤트 실시간 동기화
+            launch {
+                repository.startRealtimeSync(code, sharedCatId)
+                    .catch { e -> android.util.Log.e("SyncError", "Sync failure", e) }
+                    .collect()
+            }
+
+            // 2. 마감도장 실시간 동기화
+            launch {
+                repository.startDeadlineRealtimeSync(code)
+                    .catch { e -> android.util.Log.e("SyncError", "Deadline sync failure", e) }
+                    .collect()
+            }
+        }
+    }
+
+    fun loginToRoom(code: String) {
+        _roomCodeState.value = code
+        _isLoggedIn.value = true
+        _userName.value = userPreferences.getNickname()
+        startSync(code)
+    }
+
     fun logout() {
         userPreferences.setLastRoomCode("")
+        _roomCodeState.value = ""
         _isLoggedIn.value = false
+        syncJob?.cancel()
     }
 
     suspend fun getOrCreateSharedCategory(): Int {
@@ -187,23 +225,9 @@ class CalendarViewModel @Inject constructor(
             }
 
             // Start real-time Firestore sync
-            val sharedCatId = getOrCreateSharedCategory()
-            if (roomCode.isNotEmpty()) {
-                repository.registerMemberInFirestore(roomCode)
-                
-                // 1. 이벤트 실시간 동기화
-                launch {
-                    repository.startRealtimeSync(roomCode, sharedCatId)
-                        .catch { e -> android.util.Log.e("SyncError", "Sync failure", e) }
-                        .collect()
-                }
-
-                // 2. 마감도장 실시간 동기화
-                launch {
-                    repository.startDeadlineRealtimeSync(roomCode)
-                        .catch { e -> android.util.Log.e("SyncError", "Deadline sync failure", e) }
-                        .collect()
-                }
+            val initialRoomCode = _roomCodeState.value
+            if (initialRoomCode.isNotEmpty()) {
+                startSync(initialRoomCode)
             }
         }
 

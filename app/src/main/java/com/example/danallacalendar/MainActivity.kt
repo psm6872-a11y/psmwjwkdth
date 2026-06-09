@@ -87,6 +87,7 @@ class MainActivity : ComponentActivity() {
                     val code = uri.getQueryParameter("code")
                     if (!code.isNullOrBlank()) {
                         userPreferences.setLastRoomCode(code)
+                        calendarViewModel.loginToRoom(code)
                     }
                 } else if (uri.host == "view") {
                     val dateMillisStr = uri.getQueryParameter("dateMillis")
@@ -131,10 +132,14 @@ fun AppNavigation(userPreferences: UserPreferences) {
         }
 
         composable("room") {
+            val activity = LocalContext.current as ComponentActivity
+            val calendarViewModel: CalendarViewModel = hiltViewModel(activity)
             val viewModel: RoomViewModel = hiltViewModel()
             RoomScreen(
                 viewModel = viewModel,
                 onNavigateToCalendar = {
+                    val code = userPreferences.getLastRoomCode()
+                    calendarViewModel.loginToRoom(code)
                     navController.navigate("calendar") {
                         popUpTo("room") { inclusive = true }
                     }
