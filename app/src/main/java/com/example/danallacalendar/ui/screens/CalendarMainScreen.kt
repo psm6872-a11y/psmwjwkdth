@@ -600,6 +600,10 @@ fun CalendarGridSection(
     onWeekSelected: (Long) -> Unit,
     onCollapseToggle: () -> Unit
 ) {
+    val configuration = androidx.compose.ui.platform.LocalConfiguration.current
+    val screenWidth = configuration.screenWidthDp.dp
+    val screenHeight = configuration.screenHeightDp.dp
+
     LaunchedEffect(monthlyEvents) {
         android.util.Log.d("CalendarDebug", "monthlyEvents size: ${monthlyEvents.size}")
         monthlyEvents.forEach { event ->
@@ -795,7 +799,7 @@ fun CalendarGridSection(
                                 Row(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .height(44.dp)
+                                        .height(screenHeight * 0.06f)
                                 ) {
                                     for (c in 0 until 7) {
                                         val dayIndex = r * 7 + c
@@ -828,7 +832,7 @@ fun CalendarGridSection(
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .height(44.dp)
+                                    .height(screenHeight * 0.06f)
                             ) {
                                 for (c in 0 until 7) {
                                     val day = pageDays[c]
@@ -862,6 +866,10 @@ fun CalendarDayCell(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val configuration = androidx.compose.ui.platform.LocalConfiguration.current
+    val screenWidth = configuration.screenWidthDp.dp
+    val screenHeight = configuration.screenHeightDp.dp
+
     val calendar = Calendar.getInstance().apply { timeInMillis = day.dateInMillis }
     val isSunday = day.dayOfWeek == Calendar.SUNDAY
     val isSaturday = day.dayOfWeek == Calendar.SATURDAY
@@ -883,7 +891,7 @@ fun CalendarDayCell(
         // Date circle highlight wrapper Box for SonEopNeunMark alignment (centered in day cell)
         Box(
             modifier = Modifier
-                .size(28.dp)
+                .size(screenWidth * 0.07f)
                 .align(Alignment.Center),
             contentAlignment = Alignment.Center
         ) {
@@ -1175,6 +1183,10 @@ fun EventItemCard(
     onDelete: () -> Unit,
     onToggleComplete: () -> Unit
 ) {
+    val configuration = androidx.compose.ui.platform.LocalConfiguration.current
+    val screenWidth = configuration.screenWidthDp.dp
+    val screenHeight = configuration.screenHeightDp.dp
+
     val colorHex = event.colorHex ?: category?.colorHex ?: "#1c62f2"
     val catColor = Color(android.graphics.Color.parseColor(colorHex))
 
@@ -1215,7 +1227,7 @@ fun EventItemCard(
                 if (!event.isAllDay) {
                     // 시간 설정 일정의 경우: 제일 좌측에 24시간제 시작 시간만 표시
                     Box(
-                        modifier = Modifier.width(48.dp),
+                        modifier = Modifier.width(screenWidth * 0.12f),
                         contentAlignment = Alignment.CenterStart
                     ) {
                         Text(
