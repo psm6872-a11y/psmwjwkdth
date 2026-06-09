@@ -208,6 +208,7 @@ fun EstimateScreen(
     val startTime by viewModel.startTime.collectAsStateWithLifecycle()
     val googleSheetsUrl by viewModel.googleSheetsUrl.collectAsStateWithLifecycle()
     val saveState by viewModel.saveState.collectAsStateWithLifecycle()
+    var showSuccessOverlay by remember { mutableStateOf(false) }
     val roomItems by viewModel.roomItems.collectAsStateWithLifecycle()
     val visitDate by viewModel.visitDate.collectAsStateWithLifecycle()
     val moveInfo by viewModel.moveInfo.collectAsStateWithLifecycle()
@@ -257,8 +258,11 @@ fun EstimateScreen(
     LaunchedEffect(saveState) {
         when (saveState) {
             is SaveState.Success -> {
-                Toast.makeText(context, "견적서가 저장되었습니다.", Toast.LENGTH_SHORT).show()
+                showSuccessOverlay = true
+                delay(2000)
+                showSuccessOverlay = false
                 viewModel.resetSaveState()
+                onNavigateBack()
             }
             is SaveState.Error -> {
                 Toast.makeText(context, "오류: ${(saveState as SaveState.Error).message}", Toast.LENGTH_LONG).show()
@@ -569,6 +573,30 @@ fun EstimateScreen(
             }
         }
     }
+    }
+
+    if (showSuccessOverlay) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.Black.copy(alpha = 0.7f)),
+            contentAlignment = Alignment.Center
+        ) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(
+                    "견적이 완료 되었습니다.",
+                    fontSize = 24.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    "견적서가 자동저장 되었습니다.",
+                    fontSize = 18.sp,
+                    color = Color.White.copy(alpha = 0.8f)
+                )
+            }
+        }
     }
 
     if (showTtsSettings) {
