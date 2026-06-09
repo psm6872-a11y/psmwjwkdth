@@ -49,9 +49,36 @@ fun MemberPanel(
     visible: Boolean,
     members: List<Member>,
     currentDeviceUUID: String,
+    isCreator: Boolean,
+    onRemoveMember: (String) -> Unit,
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    var memberToRemove by remember { mutableStateOf<Member?>(null) }
+
+    if (memberToRemove != null) {
+        AlertDialog(
+            onDismissRequest = { memberToRemove = null },
+            title = { Text("멤버 내보내기") },
+            text = { Text("${memberToRemove?.nickname}님을 내보내시겠습니까?") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        memberToRemove?.let { onRemoveMember(it.deviceUUID) }
+                        memberToRemove = null
+                    }
+                ) {
+                    Text("확인")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { memberToRemove = null }) {
+                    Text("취소")
+                }
+            }
+        )
+    }
+
     AnimatedVisibility(
         visible = visible,
         enter = fadeIn(animationSpec = tween(300)),
@@ -129,49 +156,67 @@ fun MemberPanel(
 
                                     Row(
                                         verticalAlignment = Alignment.CenterVertically,
-                                        modifier = Modifier.fillMaxWidth()
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween
                                     ) {
-                                        // Avatar
-                                        Box(
-                                            contentAlignment = Alignment.Center,
-                                            modifier = Modifier
-                                                .size(40.dp)
-                                                .clip(CircleShape)
-                                                .background(avatarColor)
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            modifier = Modifier.weight(1f)
                                         ) {
-                                            Text(
-                                                text = firstChar,
-                                                color = Color.White,
-                                                fontSize = 16.sp,
-                                                fontWeight = FontWeight.Bold
-                                            )
-                                        }
-
-                                        Spacer(modifier = Modifier.width(12.dp))
-
-                                        // Info
-                                        Column {
-                                            Text(
-                                                text = displayName,
-                                                fontSize = 15.sp,
-                                                fontWeight = if (isMe) FontWeight.Bold else FontWeight.Medium,
-                                                color = MaterialTheme.colorScheme.onSurface
-                                            )
-                                            Spacer(modifier = Modifier.height(2.dp))
-                                            Row(
-                                                verticalAlignment = Alignment.CenterVertically
+                                            // Avatar
+                                            Box(
+                                                contentAlignment = Alignment.Center,
+                                                modifier = Modifier
+                                                    .size(40.dp)
+                                                    .clip(CircleShape)
+                                                    .background(avatarColor)
                                             ) {
                                                 Text(
-                                                    text = "참여중",
-                                                    fontSize = 12.sp,
-                                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                                    text = firstChar,
+                                                    color = Color.White,
+                                                    fontSize = 16.sp,
+                                                    fontWeight = FontWeight.Bold
                                                 )
-                                                Spacer(modifier = Modifier.width(4.dp))
-                                                Box(
-                                                    modifier = Modifier
-                                                        .size(6.dp)
-                                                        .clip(CircleShape)
-                                                        .background(Color(0xFF34C759)) // Green dot
+                                            }
+
+                                            Spacer(modifier = Modifier.width(12.dp))
+
+                                            // Info
+                                            Column {
+                                                Text(
+                                                    text = displayName,
+                                                    fontSize = 15.sp,
+                                                    fontWeight = if (isMe) FontWeight.Bold else FontWeight.Medium,
+                                                    color = MaterialTheme.colorScheme.onSurface
+                                                )
+                                                Spacer(modifier = Modifier.height(2.dp))
+                                                Row(
+                                                    verticalAlignment = Alignment.CenterVertically
+                                                ) {
+                                                    Text(
+                                                        text = "참여중",
+                                                        fontSize = 12.sp,
+                                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                                    )
+                                                    Spacer(modifier = Modifier.width(4.dp))
+                                                    Box(
+                                                        modifier = Modifier
+                                                            .size(6.dp)
+                                                            .clip(CircleShape)
+                                                            .background(Color(0xFF34C759)) // Green dot
+                                                    )
+                                                }
+                                            }
+                                        }
+
+                                        if (isCreator && !isMe) {
+                                            IconButton(
+                                                onClick = { memberToRemove = member }
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Default.Close,
+                                                    contentDescription = "내보내기",
+                                                    tint = MaterialTheme.colorScheme.error
                                                 )
                                             }
                                         }

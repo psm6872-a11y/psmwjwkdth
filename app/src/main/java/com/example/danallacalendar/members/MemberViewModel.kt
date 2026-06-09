@@ -21,6 +21,9 @@ class MemberViewModel @Inject constructor(
     private val _members = MutableStateFlow<List<Member>>(emptyList())
     val members: StateFlow<List<Member>> = _members.asStateFlow()
 
+    private val _isCreator = MutableStateFlow(false)
+    val isCreator: StateFlow<Boolean> = _isCreator.asStateFlow()
+
     var currentRoomCode: String = ""
         private set
 
@@ -29,6 +32,7 @@ class MemberViewModel @Inject constructor(
         currentRoomCode = roomCode
         registerCurrentUser()
         observeMembers(roomCode)
+        observeCreator(roomCode)
     }
 
     fun registerCurrentUser() {
@@ -42,6 +46,26 @@ class MemberViewModel @Inject constructor(
         viewModelScope.launch {
             memberRepository.getMembersFlow(roomCode).collect { memberList ->
                 _members.value = memberList
+            }
+        }
+    }
+
+    private fun observeCreator(roomCode: String) {
+        viewModelScope.launch {
+            memberRepository.getRoomCreatorFlow(roomCode).collect { creatorUUID ->
+                _isCreator.value = (creatorUUID != null && creatorUUID == deviceUUID)
+            }
+        }
+    }
+
+    fun removeMember(targetDeviceUUID: String) {
+        if (currentRoomCode.isNotEmpty() && targetDeviceUUID.isNotEmpty()) {
+            viewModelScope.launch {
+                try {
+                    memberRepository.removeMember(currentRoomCode, targetDeviceUUID)
+                } catch (e: Exception) {
+                    android.util.Log.e("MemberViewModel", "Failed to remove member", e)
+                }
             }
         }
     }

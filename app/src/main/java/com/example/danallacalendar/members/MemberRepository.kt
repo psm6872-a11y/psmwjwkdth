@@ -6,6 +6,7 @@ import com.google.firebase.firestore.Query
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -80,5 +81,38 @@ class MemberRepository @Inject constructor(
                 }
             }
         awaitClose { listener.remove() }
+    }
+
+    fun getRoomCreatorFlow(roomCode: String): Flow<String?> = callbackFlow {
+        if (roomCode.isBlank()) {
+            trySend(null)
+            close()
+            return@callbackFlow
+        }
+        val listener = firestore.collection("rooms")
+            .document(roomCode)
+            .collection("info")
+            .document("details")
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    close(error)
+                    return@addSnapshotListener
+                }
+                if (snapshot != null && snapshot.exists()) {
+                    trySend(snapshot.getString("createdBy"))
+                } else {
+                    trySend(null)
+                }
+            }
+        awaitClose { listener.remove() }
+    }
+
+    suspend fun removeMember(roomCode: String, deviceUUID: String) {
+        firestore.collection("rooms")
+            .document(roomCode)
+            .collection("members")
+            .document(deviceUUID)
+            .delete()
+            .await()
     }
 }
