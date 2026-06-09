@@ -68,13 +68,14 @@ fun DrawerContent(
     currentDeviceUUID: String,
     onLogoutClick: () -> Unit,
     onToggleCategory: (CalendarCategory) -> Unit,
-    onImportClick: () -> Unit,
+    @Suppress("UNUSED_PARAMETER") onImportClick: () -> Unit,
     onShareAppClick: () -> Unit,
     onUpdateClick: () -> Unit,
     onCloseClick: () -> Unit,
     onApkClick: () -> Unit,
-    isCreator: Boolean = false,
-    onRemoveMember: (String) -> Unit = {},
+    onBackupClick: () -> Unit,
+    isCreator: Boolean,
+    onRemoveMember: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
