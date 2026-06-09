@@ -107,6 +107,7 @@ fun CalendarMainScreen(
 
     val memberViewModel: MemberViewModel = hiltViewModel()
     val members by memberViewModel.members.collectAsStateWithLifecycle()
+    val isCreator by memberViewModel.isCreator.collectAsStateWithLifecycle()
 
     LaunchedEffect(isLoggedIn) {
         if (!isLoggedIn) {
@@ -234,6 +235,8 @@ fun CalendarMainScreen(
                     roomCode = viewModel.roomCode,
                     members = members,
                     currentDeviceUUID = memberViewModel.deviceUUID,
+                    isCreator = isCreator,
+                    onRemoveMember = { memberViewModel.removeMember(it) },
                     onLogoutClick = { viewModel.logout() },
                     onToggleCategory = { viewModel.toggleCategoryVisibility(it) },
                     onImportClick = {

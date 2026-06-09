@@ -70,7 +70,8 @@ fun DrawerContent(
     onUpdateClick: () -> Unit,
     onCloseClick: () -> Unit,
     onApkClick: () -> Unit,
-    onBackupClick: () -> Unit,
+    isCreator: Boolean = false,
+    onRemoveMember: (String) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -81,6 +82,31 @@ fun DrawerContent(
         } catch (e: Exception) {
             "1.0.0"
         }
+    }
+    
+    var memberToRemove by remember { mutableStateOf<Member?>(null) }
+    
+    if (memberToRemove != null) {
+        AlertDialog(
+            onDismissRequest = { memberToRemove = null },
+            title = { Text("멤버 내보내기") },
+            text = { Text("${memberToRemove?.nickname}님을 내보내시겠습니까?") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        memberToRemove?.let { onRemoveMember(it.deviceUUID) }
+                        memberToRemove = null
+                    }
+                ) {
+                    Text("확인")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { memberToRemove = null }) {
+                    Text("취소")
+                }
+            }
+        )
     }
 
     val grouped = categories
@@ -320,44 +346,64 @@ fun DrawerContent(
                     val displayName = if (isMe) "${member.nickname} (나)" else member.nickname
                     val firstChar = member.nickname.firstOrNull()?.toString() ?: "?"
                     val avatarColor = getAvatarColor(member.nickname)
-
+ 
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        // Avatar
-                        Box(
-                            contentAlignment = Alignment.Center,
-                            modifier = Modifier
-                                .size(32.dp)
-                                .clip(CircleShape)
-                                .background(avatarColor)
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.weight(1f)
                         ) {
-                            Text(
-                                text = firstChar,
-                                color = Color.White,
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-
-                        Spacer(modifier = Modifier.width(12.dp))
-
-                        // Info
-                        Column {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
+                            // Avatar
+                            Box(
+                                contentAlignment = Alignment.Center,
+                                modifier = Modifier
+                                    .size(32.dp)
+                                    .clip(CircleShape)
+                                    .background(avatarColor)
+                            ) {
                                 Text(
-                                    text = displayName,
-                                    fontSize = 14.sp,
-                                    fontWeight = if (isMe) FontWeight.Bold else FontWeight.Medium,
-                                    color = MaterialTheme.colorScheme.onSurface
+                                    text = firstChar,
+                                    color = Color.White,
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Bold
                                 )
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Box(
-                                    modifier = Modifier
-                                        .size(5.dp)
-                                        .clip(CircleShape)
-                                        .background(Color(0xFF34C759)) // Green dot
+                            }
+ 
+                            Spacer(modifier = Modifier.width(12.dp))
+ 
+                            // Info
+                            Column {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text(
+                                        text = displayName,
+                                        fontSize = 14.sp,
+                                        fontWeight = if (isMe) FontWeight.Bold else FontWeight.Medium,
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Box(
+                                        modifier = Modifier
+                                            .size(5.dp)
+                                            .clip(CircleShape)
+                                            .background(Color(0xFF34C759)) // Green dot
+                                    )
+                                }
+                            }
+                        }
+                        
+                        if (isCreator && !isMe) {
+                            IconButton(
+                                onClick = { memberToRemove = member },
+                                modifier = Modifier.size(24.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Close,
+                                    contentDescription = "내보내기",
+                                    tint = MaterialTheme.colorScheme.error,
+                                    modifier = Modifier.size(16.dp)
                                 )
                             }
                         }
