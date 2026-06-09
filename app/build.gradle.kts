@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
   alias(libs.plugins.android.application)
   alias(libs.plugins.kotlin.android)
@@ -15,12 +17,14 @@ android {
         applicationId = "com.example.danallacalendar"
         minSdk = 24
         targetSdk = 34
-        versionCode = 152
-        versionName = "1.3.6"
-        val localProperties = java.util.Properties()
+        versionCode = 153
+        versionName = "1.3.7"
+        val localProperties = Properties()
         val localPropertiesFile = rootProject.file("local.properties")
         if (localPropertiesFile.exists()) {
-            localPropertiesFile.inputStream().use { localProperties.load(it) }
+            localPropertiesFile.inputStream().use { stream: java.io.InputStream ->
+                localProperties.load(stream)
+            }
         }
         val spreadsheetUrl = localProperties.getProperty("SPREADSHEET_WEB_APP_URL")
             ?: System.getenv("SPREADSHEET_WEB_APP_URL")
