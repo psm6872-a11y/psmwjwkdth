@@ -1,7 +1,7 @@
 {
-  "tag_name": "v1.3.8",
-  "name": "v1.3.8",
-  "body": "v1.3.8: Increase OkHttp client timeouts to 60s and fix doPost logging in Apps Script",
+  "tag_name": "v1.3.9",
+  "name": "v1.3.9",
+  "body": "v1.3.9: Fix shared calendar join/create redirect loop and sync initialization bug",
   "draft": false,
   "prerelease": false
 }
