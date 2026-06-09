@@ -1180,6 +1180,7 @@ fun Step2ItemSelection(
     var itemPendingOptions by remember { mutableStateOf<PredefinedItem?>(null) }
     var isSecondBubble by remember { mutableStateOf(false) }
     var isAirconBrandBubble by remember { mutableStateOf(false) }
+    var isTvSizeBubble by remember { mutableStateOf(false) }
     var selectedFirstOption by remember { mutableStateOf<String?>(null) }
     var showDirectInputDialog by remember { mutableStateOf(false) }
     var directInputText by remember { mutableStateOf("") }
@@ -1672,6 +1673,7 @@ fun Step2ItemSelection(
                     itemPendingOptions = null
                     isSecondBubble = false
                     isAirconBrandBubble = false
+                    isTvSizeBubble = false
                     selectedFirstOption = null
                 }
         ) {
@@ -1735,6 +1737,7 @@ fun Step2ItemSelection(
                         Text(
                             text = when {
                                 isAirconBrandBubble -> "${itemPendingOptions!!.name} 제조사 선택"
+                                isTvSizeBubble -> "${itemPendingOptions!!.name} 크기 선택"
                                 isSecondBubble -> "${itemPendingOptions!!.name} 제외 옵션"
                                 else -> "${itemPendingOptions!!.name} 선택"
                             },
@@ -1746,7 +1749,7 @@ fun Step2ItemSelection(
 
                     Spacer(modifier = Modifier.height(12.dp))
 
-                    if (!isSecondBubble && !isAirconBrandBubble) {
+                    if (!isSecondBubble && !isAirconBrandBubble && !isTvSizeBubble) {
                         // 1차 말풍선
                         val hasOptions = itemPendingOptions!!.options.isNotEmpty()
                         if (hasOptions) {
@@ -1761,6 +1764,11 @@ fun Step2ItemSelection(
                                                 onUpdateCountTts("${option} 선택")
                                                 selectedFirstOption = option
                                                 isAirconBrandBubble = true
+                                                bubbleHeightPx = 0f // 높이 재계산 유도
+                                            } else if (itemPendingOptions!!.name == "TV") {
+                                                onUpdateCountTts("${option} 선택")
+                                                selectedFirstOption = option
+                                                isTvSizeBubble = true
                                                 bubbleHeightPx = 0f // 높이 재계산 유도
                                             } else {
                                                 val displayName = "${itemPendingOptions!!.name} ($option)"
@@ -1902,6 +1910,46 @@ fun Step2ItemSelection(
                                 }
                             }
                         }
+                    } else if (isTvSizeBubble) {
+                        // TV 크기 2차 말풍선: 65"이하 / 75" / 85"이상
+                        val sizes = listOf("65\"이하", "75\"", "85\"이상")
+                        sizes.forEach { size ->
+                            Card(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 3.dp)
+                                    .clickable {
+                                        val displayName = "${itemPendingOptions!!.name} (${selectedFirstOption!!}-$size)"
+                                        val currentCount = roomItems[spaceName]?.get(displayName) ?: 0
+                                        onUpdateCount(spaceName, displayName, currentCount + 1)
+                                        onUpdateCountTts("${displayName} 추가")
+                                        toastMessage = "${displayName}이 추가되었습니다."
+                                        spawnFlyingParticle(itemPendingOptions!!)
+                                        itemPendingOptions = null
+                                        isTvSizeBubble = false
+                                        selectedFirstOption = null
+                                    },
+                                colors = CardDefaults.cardColors(
+                                    containerColor = Color.White.copy(alpha = 0.1f)
+                                ),
+                                shape = RoundedCornerShape(8.dp),
+                                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.05f))
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = 10.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = size,
+                                        fontSize = 14.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = Color.White
+                                    )
+                                }
+                            }
+                        }
                     } else {
                         // 2차 말풍선: 폐기 / 제자리 / 1층
                         val excludeOptions = listOf("폐기", "제자리", "1층")
@@ -1951,6 +1999,7 @@ fun Step2ItemSelection(
                             itemPendingOptions = null
                             isSecondBubble = false
                             isAirconBrandBubble = false
+                            isTvSizeBubble = false
                             selectedFirstOption = null
                         },
                         modifier = Modifier.align(Alignment.End),
@@ -2213,7 +2262,7 @@ private val spaceItemsMap = mapOf(
     ),
     "거실" to listOf(
         PredefinedItem("소파", R.drawable.ic_sofa, listOf("2인", "3인", "L형")),
-        PredefinedItem("TV", R.drawable.ic_tv, listOf("65\"이하", "75\"", "85\"이상")),
+        PredefinedItem("TV", R.drawable.ic_tv, listOf("스탠드", "벽걸이")),
         PredefinedItem("TV장", R.drawable.ic_tv_cabinet),
         PredefinedItem("에어컨", R.drawable.ic_air_conditioner, listOf("2in1", "스탠드", "벽걸이")),
         PredefinedItem("장식장", R.drawable.ic_cabinet),
