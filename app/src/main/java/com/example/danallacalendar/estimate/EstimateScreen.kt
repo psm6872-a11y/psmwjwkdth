@@ -558,8 +558,9 @@ fun EstimateScreen(
                                         containerColor = Color(0xFFE040FB)
                                     )
                                 ) {
-                                    Text("완료")
+                                    Text("저장 및 완료")
                                 }
+
                             }
                         }
                     }
