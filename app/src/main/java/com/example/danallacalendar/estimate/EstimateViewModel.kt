@@ -240,7 +240,8 @@ class EstimateViewModel @Inject constructor(
                         .build()
                     client.newCall(request).execute().use { response ->
                         if (!response.isSuccessful) {
-                            throw java.io.IOException("스프레드시트 전송 실패: ${response.code}")
+                            val errorBody = response.body?.string() ?: ""
+                            throw java.io.IOException("스프레드시트 전송 실패: ${response.code}, body: $errorBody")
                         }
                     }
                 }
@@ -270,7 +271,8 @@ class EstimateViewModel @Inject constructor(
                     onCompleted(smsBody)
                 }
             } catch (e: Exception) {
-                _saveState.value = SaveState.Error(e.message ?: "저장 실패")
+                android.util.Log.e("EstimateViewModel", "saveEstimate failed with exception details", e)
+                _saveState.value = SaveState.Error(e.toString())
             }
         }
     }
