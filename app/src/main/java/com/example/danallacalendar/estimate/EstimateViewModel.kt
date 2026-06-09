@@ -12,6 +12,9 @@ import java.text.NumberFormat
 import java.text.SimpleDateFormat
 import java.util.Locale
 import javax.inject.Inject
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.RequestBody.Companion.toRequestBody
+import org.json.JSONObject
 
 sealed class SaveState {
     object Idle : SaveState()
@@ -192,8 +195,55 @@ class EstimateViewModel @Inject constructor(
                 val savedId = repository.saveToFirestore(estimate)
                 val finalEstimate = estimate.copy(id = savedId)
 
-                // 2. Save to Google Sheets
-                autoSaveToGoogleSheets()
+                // 2. Apps Script POST payload formatting
+                val roomItemsFormatted = roomItems.value.mapValues { (_, items) ->
+                    items.entries.joinToString("\n") { (item, count) ->
+                        if (count > 1) "$item x$count" else item
+                    }
+                }
+                
+                val payload = JSONObject().apply {
+                    put("customerName", customerName.value)
+                    put("phoneNumber", phoneNumber.value)
+                    put("departure", departure.value)
+                    put("destination", destination.value)
+                    put("moveDate", moveDate.value)
+                    put("startTime", startTime.value)
+                    put("moveType", moveType.value)
+                    put("estimateDate", estimateDate.value)
+                    put("totalVolume", totalVolume.value)
+                    put("workersM", workersM.value)
+                    put("workersF", workersF.value)
+                    put("laddersStartFloor", laddersStartFloor.value)
+                    put("laddersStartCost", laddersStartCost.value)
+                    put("laddersEndFloor", laddersEndFloor.value)
+                    put("laddersEndCost", laddersEndCost.value)
+                    put("extraTruck", extraTruck.value)
+                    put("moveCost", moveCost.value)
+                    put("optionCost", optionCost.value)
+                    put("totalCost", totalCost.value)
+                    put("deposit", deposit.value)
+                    put("balance", balance.value)
+                    put("memo", memo.value)
+                    put("roomItems", JSONObject(roomItemsFormatted))
+                }
+
+                // OkHttp POST request for Apps Script
+                val url = BuildConfig.SPREADSHEET_WEB_APP_URL
+                if (url.isNotBlank()) {
+                    val client = okhttp3.OkHttpClient()
+                    val mediaType = "application/json; charset=utf-8".toMediaType()
+                    val body = payload.toString().toRequestBody(mediaType)
+                    val request = okhttp3.Request.Builder()
+                        .url(url)
+                        .post(body)
+                        .build()
+                    client.newCall(request).execute().use { response ->
+                        if (!response.isSuccessful) {
+                            throw java.io.IOException("스프레드시트 전송 실패: ${response.code}")
+                        }
+                    }
+                }
 
                 _saveState.value = SaveState.Success
                 
@@ -220,7 +270,7 @@ class EstimateViewModel @Inject constructor(
                     onCompleted(smsBody)
                 }
             } catch (e: Exception) {
-                _saveState.value = SaveState.Error(e.message ?: "알 수 없는 오류가 발생했습니다.")
+                _saveState.value = SaveState.Error(e.message ?: "저장 실패")
             }
         }
     }
