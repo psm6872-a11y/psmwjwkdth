@@ -26,6 +26,7 @@ function doPost(e) {
   newSheet.getRange("B7").setValue(data.destination);
   newSheet.getRange("J6").setValue(data.laddersStartFloor);
   newSheet.getRange("J7").setValue(data.laddersEndFloor);
+  newSheet.getRange("B8").setValue(data.visitDate);  // 방문날짜
   newSheet.getRange("C8").setValue(data.estimateDate);
   newSheet.getRange("F8").setValue(data.moveDate);
   newSheet.getRange("J8").setValue(data.startTime);
