@@ -651,6 +651,9 @@ fun Step1StartScreen(
     onBack: () -> Unit,
     onSettingClick: () -> Unit
 ) {
+    val screenWidth = androidx.compose.ui.platform.LocalConfiguration.current.screenWidthDp.dp
+    val screenHeight = androidx.compose.ui.platform.LocalConfiguration.current.screenHeightDp.dp
+
     val gradientBrush = Brush.verticalGradient(
         colors = listOf(
             Color(0xFF2D1B69),
@@ -663,11 +666,11 @@ fun Step1StartScreen(
             .background(gradientBrush)
             .padding(horizontal = 24.dp)
     ) {
-        // 뒤로가기 버튼 및 캘린더 버튼 추가
+        // 뒤로가기 버튼 및 캘린더 버튼 추가 (상단 배치)
         Row(
             modifier = Modifier
                 .align(Alignment.TopStart)
-                .padding(top = 40.dp),
+                .padding(top = screenHeight * 0.04f),
             verticalAlignment = Alignment.CenterVertically
         ) {
             IconButton(
@@ -687,17 +690,19 @@ fun Step1StartScreen(
                     text = "캘린더",
                     color = Color.White,
                     fontSize = 16.sp,
-                    fontWeight = FontWeight.Medium
+                    fontWeight = FontWeight.Medium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
             }
         }
 
-        // 설정 버튼 추가
+        // 설정 버튼 추가 (상단 배치)
         IconButton(
             onClick = onSettingClick,
             modifier = Modifier
                 .align(Alignment.TopEnd)
-                .padding(top = 40.dp, end = 8.dp)
+                .padding(top = screenHeight * 0.04f, end = 8.dp)
         ) {
             Icon(
                 imageVector = Icons.Default.Settings,
@@ -706,123 +711,125 @@ fun Step1StartScreen(
             )
         }
 
-        // 타이틀은 상단에서 약간 내려서 배치
+        // 전체 공간을 비례하여 차지하는 Column 레이아웃
         Column(
             modifier = Modifier
-                .align(Alignment.TopCenter)
-                .padding(top = 0.dp),
+                .fillMaxSize()
+                .padding(top = screenHeight * 0.10f, bottom = screenHeight * 0.02f),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // 미니카 이미지
-            Image(
-                painter = painterResource(R.drawable.mini_car_final),
-                contentDescription = "Mini Car",
-                modifier = Modifier.size(260.dp)
-                    .offset(y = 10.dp)
-            )
-
-            Spacer(modifier = Modifier.height(0.dp))
-
-            // Directed by 텍스트
-            Text(
-                text = "Directed by 다날라 익스프레스",
-                fontSize = 15.sp,
-                color = Color.White,
-                        modifier = Modifier.offset(y = (-55).dp)
-            )
-
-            Spacer(modifier = Modifier.height(0.dp))
-
             val letters = listOf(
                 "견", "적", "을", "시", "작", "합", "니", "다", "."
             )
-
             val infiniteTransition = rememberInfiniteTransition(label = "BlinkText")
 
-            Row(
-                modifier = Modifier
-                    .rotate(-4f)
-                    .offset(y = (-8).dp),
-                horizontalArrangement = Arrangement.Center,
-                verticalAlignment = Alignment.CenterVertically
+            // 상단 부분: 미니카 이미지 및 텍스트 타이틀 (전체 높이의 55% 비중)
+            Column(
+                modifier = Modifier.weight(1.0f),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Top
             ) {
-                letters.forEachIndexed { index, char ->
-                    // 색상 애니메이션 (hue가 0~360도로 순환)
-                    val hue by infiniteTransition.animateFloat(
-                        initialValue = index * 40f,
-                        targetValue = index * 40f + 360f,
-                        animationSpec = infiniteRepeatable(
-                            animation = tween(durationMillis = 3000, easing = LinearEasing),
-                            repeatMode = RepeatMode.Restart
-                        ),
-                        label = "hue_$index"
-                    )
+                // 미니카 이미지 (너비 비율에 반응)
+                Image(
+                    painter = painterResource(R.drawable.mini_car_final),
+                    contentDescription = "Mini Car",
+                    modifier = Modifier
+                        .fillMaxWidth(0.65f)
+                        .aspectRatio(1.2f)
+                )
 
-                    // 점멸 애니메이션 (alpha가 0.4~1.0으로 변화)
-                    val alpha by infiniteTransition.animateFloat(
-                        initialValue = 0.4f,
-                        targetValue = 1.0f,
-                        animationSpec = infiniteRepeatable(
-                            animation = tween(durationMillis = 800, delayMillis = index * 50, easing = LinearEasing),
-                            repeatMode = RepeatMode.Reverse
-                        ),
-                        label = "alpha_$index"
-                    )
+                // Directed by 텍스트 (위치 조정을 위해 작은 음수 패딩 적용)
+                Text(
+                    text = "Directed by 다날라 익스프레스",
+                    fontSize = 15.sp,
+                    color = Color.White,
+                    modifier = Modifier.offset(y = -screenHeight * 0.035f),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
 
-                    // 뒤로 갈수록 글자가 위로 올라가는 효과 (y offset 증가)
-                    val yOffset = -(index * 2).dp
+                // 점멸 애니메이션 타이틀
+                Row(
+                    modifier = Modifier
+                        .rotate(-4f)
+                        .offset(y = -screenHeight * 0.012f),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    letters.forEachIndexed { index, char ->
+                        val hue by infiniteTransition.animateFloat(
+                            initialValue = index * 40f,
+                            targetValue = index * 40f + 360f,
+                            animationSpec = infiniteRepeatable(
+                                animation = tween(durationMillis = 3000, easing = LinearEasing),
+                                repeatMode = RepeatMode.Restart
+                            ),
+                            label = "hue_$index"
+                        )
 
-                    // HSV를 RGB로 변환하여 색상 생성
-                    val animatedColor = Color.hsv(hue % 360f, 0.8f, 1.0f)
+                        val alpha by infiniteTransition.animateFloat(
+                            initialValue = 0.4f,
+                            targetValue = 1.0f,
+                            animationSpec = infiniteRepeatable(
+                                animation = tween(durationMillis = 800, delayMillis = index * 50, easing = LinearEasing),
+                                repeatMode = RepeatMode.Reverse
+                            ),
+                            label = "alpha_$index"
+                        )
 
-                    Text(
-                        text = char,
-                        fontSize = 40.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = animatedColor,
-                        modifier = Modifier
-                            .offset(y = yOffset)
-                            .alpha(alpha)
-                    )
+                        val yOffset = -screenHeight * (index * 0.0025f)
+                        val animatedColor = Color.hsv(hue % 360f, 0.8f, 1.0f)
 
-                    // "을" 다음에 공백 삽입
-                    if (char == "을") {
-                        Spacer(modifier = Modifier.width(12.dp))
+                        Text(
+                            text = char,
+                            fontSize = 40.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = animatedColor,
+                            modifier = Modifier
+                                .offset(y = yOffset)
+                                .alpha(alpha)
+                        )
+
+                        if (char == "을") {
+                            Spacer(modifier = Modifier.width(12.dp))
+                        }
                     }
                 }
             }
-        }
 
-        // 카테고리 버튼들은 중앙에서 아래로 더 내려서 배치
-        Column(
-            modifier = Modifier
-                .align(Alignment.Center)
-                .offset(y = 110.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
-        ) {
-            val categories = listOf(
-                Triple("포장이사", Brush.horizontalGradient(listOf(Color(0xFFFF5252), Color(0xFFFF1744))), Color.White),
-                Triple("보관이사", Brush.horizontalGradient(listOf(Color(0xFF00E5FF), Color(0xFF00B0FF))), Color.White),
-                Triple("사무실이사", Brush.horizontalGradient(listOf(Color(0xFF00E676), Color(0xFF00C853))), Color.White)
-            )
+            // 하단 부분: 카테고리 버튼들 (전체 높이의 45% 비중)
+            Column(
+                modifier = Modifier
+                    .weight(1.0f)
+                    .offset(y = -screenHeight * 0.05f),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Top
+            ) {
+                val categories = listOf(
+                    Triple("포장이사", Brush.horizontalGradient(listOf(Color(0xFFFF5252), Color(0xFFFF1744))), Color.White),
+                    Triple("보관이사", Brush.horizontalGradient(listOf(Color(0xFF00E5FF), Color(0xFF00B0FF))), Color.White),
+                    Triple("사무실이사", Brush.horizontalGradient(listOf(Color(0xFF00E676), Color(0xFF00C853))), Color.White)
+                )
 
-            categories.forEach { (category, brush, textColor) ->
-                Box(
-                    modifier = Modifier
-                        .width(240.dp)
-                        .padding(vertical = 8.dp)
-                        .height(60.dp)
-                        .background(brush, shape = RoundedCornerShape(16.dp))
-                        .clickable { onCategorySelected(category) },
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = category,
-                        fontSize = 20.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = textColor
-                    )
+                categories.forEach { (category, brush, textColor) ->
+                    Box(
+                        modifier = Modifier
+                            .width(screenWidth * 0.65f)   // 화면 너비의 65%
+                            .padding(vertical = 8.dp)
+                            .height(screenHeight * 0.09f) // 화면 높이의 9%
+                            .background(brush, shape = RoundedCornerShape(16.dp))
+                            .clickable { onCategorySelected(category) },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = category,
+                            fontSize = 20.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = textColor,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
                 }
             }
         }
@@ -946,7 +953,9 @@ fun Step2SpaceSelection(
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Bold,
                 color = Color.White,
-                modifier = Modifier.padding(horizontal = 4.dp)
+                modifier = Modifier.padding(horizontal = 4.dp),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
             )
 
             Column(
@@ -1001,6 +1010,8 @@ fun SpaceCard(
     onClick: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val screenWidth = androidx.compose.ui.platform.LocalConfiguration.current.screenWidthDp.dp
+    val screenHeight = androidx.compose.ui.platform.LocalConfiguration.current.screenHeightDp.dp
     val itemCount = roomItems[space]?.values?.sum() ?: 0
     val isCompleted = completedSpaces.contains(space) || itemCount > 0
 
@@ -1008,7 +1019,7 @@ fun SpaceCard(
 
     Card(
         modifier = modifier
-            .height(90.dp)
+            .height(screenHeight * 0.13f)
             .clickable { onClick(space) },
         colors = CardDefaults.cardColors(
             containerColor = if (isCompleted) {
@@ -1042,13 +1053,17 @@ fun SpaceCard(
                         text = space,
                         fontSize = 15.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color.White
+                        color = Color.White,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
                     Spacer(modifier = Modifier.height(1.dp)) // 행간 간격 3.dp -> 1.dp로 축소
                     Text(
                         text = if (itemCount > 0) "${itemCount}개 선택됨" else "비어 있음",
                         fontSize = 13.sp,
-                        color = Color.White.copy(alpha = 0.7f)
+                        color = Color.White.copy(alpha = 0.7f),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
                     if (!expectedVolume.isNullOrBlank()) {
                         Spacer(modifier = Modifier.height(1.dp)) // 행간 간격 2.dp -> 1.dp로 축소
@@ -1056,8 +1071,12 @@ fun SpaceCard(
                             text = "예상: ${expectedVolume}t",
                             fontSize = 12.sp,
                             color = Color(0xFFE040FB),
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
+                    } else {
+                        Spacer(modifier = Modifier.height(18.dp)) // 예상물량 텍스트 높이와 동일한 높이의 Spacer 플레이스홀더
                     }
                 }
 
@@ -1088,7 +1107,7 @@ fun SpaceCard(
             // Right Emoji Area
             Box(
                 modifier = Modifier
-                    .width(56.dp)
+                    .width(screenWidth * 0.15f)
                     .fillMaxHeight(),
                 contentAlignment = Alignment.Center
             ) {
@@ -1276,7 +1295,9 @@ fun Step2ItemSelection(
                     text = "${spaceName}의 물품 선택 (두개는 두번선택)",
                     fontSize = 15.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color.White
+                    color = Color.White,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
 
                 chunkedItems.forEach { rowItems ->
@@ -1399,7 +1420,9 @@ fun Step2ItemSelection(
                                 text = "선택된 물품 목록 ($totalCount)",
                                 fontSize = 15.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = Color.White
+                                color = Color.White,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
                             )
 
                             Icon(
@@ -1443,7 +1466,9 @@ fun Step2ItemSelection(
                                             text = itemWithOption,
                                             fontSize = 14.sp,
                                             fontWeight = FontWeight.Medium,
-                                            color = Color.White
+                                            color = Color.White,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
                                         )
                                         Row(
                                             verticalAlignment = Alignment.CenterVertically
@@ -1553,7 +1578,8 @@ fun Step2ItemSelection(
                     },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(48.dp),
+                        .heightIn(min = 48.dp)
+                        .wrapContentHeight(),
                     shape = RoundedCornerShape(12.dp),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = Color(0xFFAB47BC),
@@ -1999,11 +2025,12 @@ fun ItemSelectCard(
     onClick: (androidx.compose.ui.layout.LayoutCoordinates) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val screenHeight = androidx.compose.ui.platform.LocalConfiguration.current.screenHeightDp.dp
     var coordinates by remember { mutableStateOf<androidx.compose.ui.layout.LayoutCoordinates?>(null) }
 
     Column(
         modifier = modifier
-            .height(90.dp)
+            .height(screenHeight * 0.13f)
             .onGloballyPositioned { coordinates = it }
             .clickable {
                 val coords = coordinates
@@ -2025,7 +2052,9 @@ fun ItemSelectCard(
             text = item.name,
             fontSize = 12.sp,
             fontWeight = FontWeight.Medium,
-            color = Color.White
+            color = Color.White,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
         )
     }
 }
@@ -2207,9 +2236,9 @@ fun TableCell(
 ) {
     Box(
         modifier = modifier
-            .height(64.dp)
+            .wrapContentHeight()
             .border(0.5.dp, Color.White.copy(alpha = 0.2f))
-            .padding(horizontal = 8.dp, vertical = 4.dp)
+            .padding(horizontal = 8.dp, vertical = 8.dp)
     ) {
         if (!isEmpty) {
             Column {
@@ -2217,7 +2246,9 @@ fun TableCell(
                     text = label,
                     fontSize = 13.sp,
                     color = Color(0xFFCE93D8),
-                    fontWeight = FontWeight.Medium
+                    fontWeight = FontWeight.Medium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
@@ -2245,7 +2276,7 @@ fun TableCell(
                         modifier = if (textFieldModifier != Modifier) {
                             textFieldModifier
                         } else {
-                            if (!prefix.isNullOrEmpty()) Modifier.width((value.length.coerceAtLeast(3) * 10).dp) else (if (suffix.isNullOrEmpty()) Modifier.fillMaxWidth() else Modifier.weight(1f))
+                            if (suffix.isNullOrEmpty() && prefix.isNullOrEmpty()) Modifier.fillMaxWidth() else Modifier.weight(1f)
                         },
                         decorationBox = { inner ->
                             Box(modifier = Modifier.fillMaxWidth()) {
@@ -2330,8 +2361,11 @@ fun Step3CustomerInfo(
     onOptionCostChange: (String) -> Unit,
     totalExpectedVolume: String
 ) {
-    val amountFieldWidth = listOf(moveCost, optionCost, totalCost, deposit, balance)
-        .maxOf { it.length.coerceAtLeast(3) } * 10
+    val screenWidth = androidx.compose.ui.platform.LocalConfiguration.current.screenWidthDp.dp
+    val screenHeight = androidx.compose.ui.platform.LocalConfiguration.current.screenHeightDp.dp
+    val amountFieldWidth = screenWidth * (listOf(moveCost, optionCost, totalCost, deposit, balance)
+        .maxOf { it.length.coerceAtLeast(3) } * 0.025f)
+
     val textFieldColors = OutlinedTextFieldDefaults.colors(
         focusedTextColor = Color.White,
         unfocusedTextColor = Color.White,
@@ -2427,12 +2461,18 @@ fun Step3CustomerInfo(
                 modifier = Modifier.padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                Text("📅 이사 일정 및 장소", fontWeight = FontWeight.Bold, color = Color(0xFFE040FB))
+                Text(
+                    text = "📅 이사 일정 및 장소",
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFFE040FB),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
                 OutlinedTextField(
                     value = visitDate,
                     onValueChange = {},
                     readOnly = true,
-                    label = { Text("방문 날짜") },
+                    label = { Text("방문 날짜", maxLines = 1, overflow = TextOverflow.Ellipsis) },
                     trailingIcon = {
                         Icon(Icons.Default.DateRange, contentDescription = "Select Visit Date", modifier = Modifier.clickable { onSelectVisitDate() })
                     },
@@ -2443,7 +2483,7 @@ fun Step3CustomerInfo(
                     value = moveDate,
                     onValueChange = {},
                     readOnly = true,
-                    label = { Text("이사 날짜") },
+                    label = { Text("이사 날짜", maxLines = 1, overflow = TextOverflow.Ellipsis) },
                     trailingIcon = {
                         Icon(Icons.Default.DateRange, contentDescription = "Select Date", modifier = Modifier.clickable { onSelectMoveDate() })
                     },
@@ -2455,8 +2495,8 @@ fun Step3CustomerInfo(
                         value = startTime,
                         onValueChange = {},
                         readOnly = true,
-                        label = { Text("시작 시간") },
-                        placeholder = { Text("선택 안 됨") },
+                        label = { Text("시작 시간", maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                        placeholder = { Text("선택 안 됨", maxLines = 1, overflow = TextOverflow.Ellipsis) },
                         trailingIcon = {
                             Icon(Icons.Default.DateRange, contentDescription = "Select Time")
                         },
@@ -2476,7 +2516,7 @@ fun Step3CustomerInfo(
                         value = moveInfo,
                         onValueChange = {},
                         readOnly = true,
-                        label = { Text("이사 종류") },
+                        label = { Text("이사 종류", maxLines = 1, overflow = TextOverflow.Ellipsis) },
                         trailingIcon = {
                             Icon(
                                 imageVector = Icons.Default.KeyboardArrowDown,
@@ -2497,7 +2537,8 @@ fun Step3CustomerInfo(
                         expanded = moveInfoExpanded,
                         onDismissRequest = { moveInfoExpanded = false },
                         modifier = Modifier
-                            .width(180.dp)
+                            .widthIn(min = 180.dp)
+                            .fillMaxWidth(0.5f)
                             .background(
                                 color = Color(0xFF2D1B69),
                                 shape = RoundedCornerShape(12.dp)
@@ -2512,7 +2553,9 @@ fun Step3CustomerInfo(
                                         text = option,
                                         color = Color.White,
                                         fontSize = 15.sp,
-                                        fontWeight = FontWeight.Medium
+                                        fontWeight = FontWeight.Medium,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
                                     )
                                 },
                                 onClick = {
@@ -2534,7 +2577,7 @@ fun Step3CustomerInfo(
                 OutlinedTextField(
                     value = departure,
                     onValueChange = onDepartureChange,
-                    label = { Text("출발지") },
+                    label = { Text("출발지", maxLines = 1, overflow = TextOverflow.Ellipsis) },
                     colors = textFieldColors,
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true
@@ -2542,7 +2585,7 @@ fun Step3CustomerInfo(
                 OutlinedTextField(
                     value = destination,
                     onValueChange = onDestinationChange,
-                    label = { Text("도착지") },
+                    label = { Text("도착지", maxLines = 1, overflow = TextOverflow.Ellipsis) },
                     colors = textFieldColors,
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true
@@ -2563,7 +2606,13 @@ fun Step3CustomerInfo(
                 modifier = Modifier.padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                Text("💰 견적 정보", fontWeight = FontWeight.Bold, color = Color(0xFFE040FB))
+                Text(
+                    text = "💰 견적 정보",
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFFE040FB),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
                 
                 Column(
                     modifier = Modifier
@@ -2587,7 +2636,7 @@ fun Step3CustomerInfo(
                             modifier = Modifier.weight(1f),
                             prefix = "₩ ",
                             suffix = " 만원",
-                            textFieldModifier = Modifier.width(amountFieldWidth.dp)
+                            textFieldModifier = Modifier.width(amountFieldWidth)
                         )
                     }
                     // Row 2: 작업인원 / 옵션비용
@@ -2595,42 +2644,44 @@ fun Step3CustomerInfo(
                         Box(
                             modifier = Modifier
                                 .weight(1f)
-                                .height(64.dp)
+                                .wrapContentHeight()
                                 .border(0.5.dp, Color.White.copy(alpha = 0.2f))
-                                .padding(horizontal = 8.dp, vertical = 4.dp)
+                                .padding(horizontal = 8.dp, vertical = 8.dp)
                         ) {
                             Column {
                                 Text(
                                     "작업인원",
                                     fontSize = 13.sp,
                                     color = Color(0xFFCE93D8),
-                                    fontWeight = FontWeight.Medium
+                                    fontWeight = FontWeight.Medium,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
                                 )
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
                                     verticalAlignment = Alignment.CenterVertically,
                                     horizontalArrangement = Arrangement.End
                                 ) {
-                                    Text("남자 ", color = Color.White.copy(alpha = 0.6f), fontSize = 13.sp)
+                                    Text("남", color = Color.White.copy(alpha = 0.6f), fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                                     BasicTextField(
                                         value = workersM,
                                         onValueChange = onWorkersMChange,
                                         textStyle = TextStyle(color = Color.White, fontSize = 15.sp, textAlign = TextAlign.End),
                                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                                         singleLine = true,
-                                        modifier = Modifier.width(15.dp)
+                                        modifier = Modifier.width(screenWidth * 0.05f)
                                     )
-                                    Text(" 명   ", color = Color.White.copy(alpha = 0.6f), fontSize = 13.sp)
-                                    Text("여자 ", color = Color.White.copy(alpha = 0.6f), fontSize = 13.sp)
+                                    Text("명   ", color = Color.White.copy(alpha = 0.6f), fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                    Text("여", color = Color.White.copy(alpha = 0.6f), fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                                     BasicTextField(
                                         value = workersF,
                                         onValueChange = onWorkersFChange,
                                         textStyle = TextStyle(color = Color.White, fontSize = 15.sp, textAlign = TextAlign.End),
                                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                                         singleLine = true,
-                                        modifier = Modifier.width(10.dp)
+                                        modifier = Modifier.width(screenWidth * 0.05f)
                                     )
-                                    Text(" 명", color = Color.White.copy(alpha = 0.6f), fontSize = 13.sp)
+                                    Text("명", color = Color.White.copy(alpha = 0.6f), fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                                 }
                             }
                         }
@@ -2641,7 +2692,7 @@ fun Step3CustomerInfo(
                             modifier = Modifier.weight(1f),
                             prefix = "₩ ",
                             suffix = " 만원",
-                            textFieldModifier = Modifier.width(amountFieldWidth.dp)
+                            textFieldModifier = Modifier.width(amountFieldWidth)
                         )
                     }
                     // Row 3: 출발지사다리 / 총비용
@@ -2649,16 +2700,18 @@ fun Step3CustomerInfo(
                         Box(
                             modifier = Modifier
                                 .weight(1f)
-                                .height(64.dp)
+                                .wrapContentHeight()
                                 .border(0.5.dp, Color.White.copy(alpha = 0.2f))
-                                .padding(horizontal = 8.dp, vertical = 4.dp)
+                                .padding(horizontal = 8.dp, vertical = 8.dp)
                         ) {
                             Column {
                                 Text(
                                     text = "출발지사다리",
                                     fontSize = 13.sp,
                                     color = Color(0xFFCE93D8),
-                                    fontWeight = FontWeight.Medium
+                                    fontWeight = FontWeight.Medium,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
                                 )
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     BasicTextField(
@@ -2718,7 +2771,7 @@ fun Step3CustomerInfo(
                             modifier = Modifier.weight(1f),
                             prefix = "₩ ",
                             suffix = " 만원",
-                            textFieldModifier = Modifier.width(amountFieldWidth.dp)
+                            textFieldModifier = Modifier.width(amountFieldWidth)
                         )
                     }
                     // Row 4: 도착지사다리 / 계약금
@@ -2726,16 +2779,18 @@ fun Step3CustomerInfo(
                         Box(
                             modifier = Modifier
                                 .weight(1f)
-                                .height(64.dp)
+                                .wrapContentHeight()
                                 .border(0.5.dp, Color.White.copy(alpha = 0.2f))
-                                .padding(horizontal = 8.dp, vertical = 4.dp)
+                                .padding(horizontal = 8.dp, vertical = 8.dp)
                         ) {
                             Column {
                                 Text(
                                     text = "도착지사다리",
                                     fontSize = 13.sp,
                                     color = Color(0xFFCE93D8),
-                                    fontWeight = FontWeight.Medium
+                                    fontWeight = FontWeight.Medium,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
                                 )
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     BasicTextField(
@@ -2795,7 +2850,7 @@ fun Step3CustomerInfo(
                             modifier = Modifier.weight(1f),
                             prefix = "₩ ",
                             suffix = " 만원",
-                            textFieldModifier = Modifier.width(amountFieldWidth.dp)
+                            textFieldModifier = Modifier.width(amountFieldWidth)
                         )
                     }
                     // Row 5: 1T 추가시 / 잔금
@@ -2814,7 +2869,7 @@ fun Step3CustomerInfo(
                             modifier = Modifier.weight(1f),
                             prefix = "₩ ",
                             suffix = " 만원",
-                            textFieldModifier = Modifier.width(amountFieldWidth.dp)
+                            textFieldModifier = Modifier.width(amountFieldWidth)
                         )
                     }
                 }
@@ -2834,11 +2889,17 @@ fun Step3CustomerInfo(
                 modifier = Modifier.padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                Text("👤 고객 연락처", fontWeight = FontWeight.Bold, color = Color(0xFFE040FB))
+                Text(
+                    text = "👤 고객 연락처",
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFFE040FB),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
                 OutlinedTextField(
                     value = phoneNumber,
                     onValueChange = onPhoneNumberChange,
-                    label = { Text("전화번호") },
+                    label = { Text("전화번호", maxLines = 1, overflow = TextOverflow.Ellipsis) },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
                     colors = textFieldColors,
                     modifier = Modifier.fillMaxWidth(),
@@ -2847,7 +2908,7 @@ fun Step3CustomerInfo(
                 OutlinedTextField(
                     value = customerName,
                     onValueChange = onCustomerNameChange,
-                    label = { Text("성명 또는 회사명(계약금 입금자명)") },
+                    label = { Text("성명 또는 회사명(계약금 입금자명)", maxLines = 1, overflow = TextOverflow.Ellipsis) },
                     colors = textFieldColors,
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true
@@ -2871,15 +2932,15 @@ fun Step3CustomerInfo(
                         onSelectStartTime(formatted)
                         showTimeDialog = false
                     }) {
-                        Text("선택", fontWeight = FontWeight.Bold)
+                        Text("선택", fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }
                 },
                 dismissButton = {
                     TextButton(onClick = { showTimeDialog = false }) {
-                        Text("취소")
+                        Text("취소", maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }
                 },
-                title = { Text("시작 시간 선택") },
+                title = { Text("시작 시간 선택", maxLines = 1, overflow = TextOverflow.Ellipsis) },
                 text = {
                     Box(
                         modifier = Modifier
@@ -2890,7 +2951,7 @@ fun Step3CustomerInfo(
                         WheelTimePicker(
                             initialHour = currentHour,
                             initialMinute = currentMinute,
-                            modifier = Modifier.width(180.dp),
+                            modifier = Modifier.width(screenWidth * 0.5f),
                             onTimeChanged = { hour, minute ->
                                 selectedHour = hour
                                 selectedMinute = minute
