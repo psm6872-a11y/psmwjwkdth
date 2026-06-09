@@ -58,6 +58,47 @@ function doPost(e) {
   newSheet.getRange("F13").setValue(data.roomItems?.["주방"] || "");
   newSheet.getRange("G13").setValue(data.roomItems?.["그외"] || "");
   
+  // 제외 옵션
+  // roomItems에서 제외 항목 추출
+  var excludeItems = {};
+  Object.keys(data.roomItems || {}).forEach(function(room) {
+    var items = data.roomItems[room];
+    if (items) {
+      items.split("\n").forEach(function(item) {
+        if (item.includes("제외-폐기")) excludeItems["폐기"] = (excludeItems["폐기"] || "") + item.replace("(제외-폐기)", "").trim() + "\n";
+        if (item.includes("제외-제자리")) excludeItems["제자리"] = (excludeItems["제자리"] || "") + item.replace("(제외-제자리)", "").trim() + "\n";
+        if (item.includes("제외-1층")) excludeItems["1층"] = (excludeItems["1층"] || "") + item.replace("(제외-1층)", "").trim() + "\n";
+      });
+    }
+  });
+  newSheet.getRange("K13").setValue(excludeItems["폐기"] || "");
+  newSheet.getRange("I13").setValue(excludeItems["제자리"] || "");
+  newSheet.getRange("J13").setValue(excludeItems["1층"] || "");
+  
+  // 특수 항목
+  // 전체 roomItems에서 특수 항목 추출
+  var allItems = Object.values(data.roomItems || {}).join("\n");
+  
+  // 장농 분해형
+  var jangItem = allItems.split("\n").filter(function(i) { return i.includes("장농") && i.includes("분해형"); }).join("\n");
+  newSheet.getRange("J25").setValue(jangItem);
+  
+  // 세탁기/건조기 일체형
+  var washItem = allItems.split("\n").filter(function(i) { return (i.includes("세탁기") || i.includes("건조기")) && i.includes("일체형"); }).join("\n");
+  newSheet.getRange("F25").setValue(washItem);
+  
+  // 에어컨
+  var airconItem = allItems.split("\n").filter(function(i) { return i.includes("에어컨"); }).join("\n");
+  newSheet.getRange("B25").setValue(airconItem);
+  
+  // TV 벽걸이
+  var tvItem = allItems.split("\n").filter(function(i) { return i.includes("TV") && i.includes("벽걸이"); }).join("\n");
+  newSheet.getRange("B26").setValue(tvItem);
+  
+  // 식기세척기 매립형
+  var dishItem = allItems.split("\n").filter(function(i) { return i.includes("식기세척기") && i.includes("매립형"); }).join("\n");
+  newSheet.getRange("F26").setValue(dishItem);
+  
   // 저장된 파일 URL 반환
   var fileUrl = "https://docs.google.com/spreadsheets/d/" + newFile.getId();
   
