@@ -243,22 +243,11 @@ fun CalendarMainScreen(
                     onShareAppClick = {
                         scope.launch { drawerState.close() }
                         try {
-                            val apkFile = java.io.File(context.applicationInfo.sourceDir)
-                            val apkUri = androidx.core.content.FileProvider.getUriForFile(
-                                context,
-                                "com.example.danallacalendar.fileprovider",
-                                apkFile
-                            )
-                            val intent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
-                                type = "application/vnd.android.package-archive"
-                                putExtra(android.content.Intent.EXTRA_STREAM, apkUri)
-                                putExtra(
-                                    android.content.Intent.EXTRA_TEXT, 
-                                    "다날라 캘린더 앱 설치 파일입니다. 다운로드 후 설치해 보세요! (GitHub: https://github.com/psm6872-a11y/psmwjwkdth)"
-                                )
-                                addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                            val shareIntent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+                                type = "text/plain"
+                                putExtra(android.content.Intent.EXTRA_TEXT, "다날라 캘린더 앱을 설치해보세요!\n다운로드: https://github.com/psm6872-a11y/psmwjwkdth/releases/latest")
                             }
-                            context.startActivity(android.content.Intent.createChooser(intent, "앱 공유하기"))
+                            context.startActivity(android.content.Intent.createChooser(shareIntent, "공유하기"))
                         } catch (e: Exception) {
                             Toast.makeText(context, "앱 공유 실패: ${e.localizedMessage}", Toast.LENGTH_LONG).show()
                         }
