@@ -1,7 +1,7 @@
 {
-  "tag_name": "v1.3.5",
-  "name": "v1.3.5",
-  "body": "v1.3.5: Increase minimum width of amount fields in Step3 table",
+  "tag_name": "v1.3.6",
+  "name": "v1.3.6",
+  "body": "v1.3.6: Update build version settings",
   "draft": false,
   "prerelease": false
 }
