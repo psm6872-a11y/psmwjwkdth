@@ -2376,8 +2376,12 @@ fun Step3CustomerInfo(
 ) {
     val screenWidth = androidx.compose.ui.platform.LocalConfiguration.current.screenWidthDp
     val screenHeight = androidx.compose.ui.platform.LocalConfiguration.current.screenHeightDp.dp
-    val amountFieldWidth = (listOf(moveCost, optionCost, totalCost, deposit, balance)
-        .maxOf { it.length.coerceAtLeast(3) } * (screenWidth * 0.025f)).dp
+    val amountFieldWidth by remember(moveCost, optionCost, totalCost, deposit, balance) {
+        derivedStateOf {
+            (listOf(moveCost, optionCost, totalCost, deposit, balance)
+                .maxOf { it.length.coerceAtLeast(3) } * 10).dp
+        }
+    }
 
     val textFieldColors = OutlinedTextFieldDefaults.colors(
         focusedTextColor = Color.White,
