@@ -481,6 +481,7 @@ fun EstimateScreen(
                                     moveType = moveType,
                                     startTime = startTime,
                                     amount = amount,
+                                    totalCost = totalCost,
                                     memo = memo,
                                     roomItemsSummary = viewModel.formatRoomItemsSummary(),
                                     saveState = saveState,
@@ -2995,6 +2996,7 @@ fun Step4PreviewAndActions(
     moveType: String,
     startTime: String,
     amount: String,
+    totalCost: String,
     memo: String,
     roomItemsSummary: String,
     saveState: SaveState,
@@ -3090,18 +3092,7 @@ fun Step4PreviewAndActions(
                 HorizontalDivider(color = Color.White.copy(alpha = 0.1f))
                 PreviewRow(label = "이사 물량", value = if (totalExpectedVolume.isNotBlank()) "${totalExpectedVolume}t" else "")
                 HorizontalDivider(color = Color.White.copy(alpha = 0.3f))
-                PreviewRow(label = "이사 비용", value = if (amount.isNotBlank()) "${formattedAmount}원" else "", valueColor = Color(0xFFE040FB), isBold = true)
-                
-                if (roomItemsSummary.isNotBlank()) {
-                    HorizontalDivider(color = Color.White.copy(alpha = 0.1f))
-                    Text("공간별 짐 요약", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = Color.White)
-                    Text(
-                        text = roomItemsSummary,
-                        fontSize = 14.sp,
-                        color = Color.White.copy(alpha = 0.7f),
-                        lineHeight = 20.sp
-                    )
-                }
+                PreviewRow(label = "이사 비용", value = if (totalCost.isNotBlank()) "${totalCost}만원" else "", valueColor = Color(0xFFE040FB), isBold = true)
 
                 if (memo.isNotBlank()) {
                     HorizontalDivider(color = Color.White.copy(alpha = 0.1f))
