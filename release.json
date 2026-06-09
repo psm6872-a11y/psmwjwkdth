@@ -1,7 +1,7 @@
 {
-  "tag_name": "v1.3.2",
-  "name": "v1.3.2",
-  "body": "v1.3.2: Add TV double bubble options and enhance Google Sheets cell mapping",
+  "tag_name": "v1.3.3",
+  "name": "v1.3.3",
+  "body": "v1.3.3: Implement delayed save success overlay and drawer member eviction UI fixes",
   "draft": false,
   "prerelease": false
 }
