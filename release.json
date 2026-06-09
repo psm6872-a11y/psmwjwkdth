@@ -1,7 +1,7 @@
 {
-  "tag_name": "v1.3.1",
-  "name": "v1.3.1",
-  "body": "v1.3.1: Add calendar event sorting & Google Drive monthly folder auto-generation with estimate visit date",
+  "tag_name": "v1.3.2",
+  "name": "v1.3.2",
+  "body": "v1.3.2: Add TV double bubble options and enhance Google Sheets cell mapping",
   "draft": false,
   "prerelease": false
 }
