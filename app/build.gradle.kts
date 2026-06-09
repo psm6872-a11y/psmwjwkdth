@@ -17,7 +17,14 @@ android {
         targetSdk = 34
         versionCode = 150
         versionName = "1.3.4"
-        val spreadsheetUrl = System.getenv("SPREADSHEET_WEB_APP_URL") ?: ""
+        val localProperties = java.util.Properties()
+        val localPropertiesFile = rootProject.file("local.properties")
+        if (localPropertiesFile.exists()) {
+            localPropertiesFile.inputStream().use { localProperties.load(it) }
+        }
+        val spreadsheetUrl = localProperties.getProperty("SPREADSHEET_WEB_APP_URL")
+            ?: System.getenv("SPREADSHEET_WEB_APP_URL")
+            ?: ""
         buildConfigField("String", "SPREADSHEET_WEB_APP_URL", "\"$spreadsheetUrl\"")
     }
 
