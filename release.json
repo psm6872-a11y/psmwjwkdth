@@ -1,7 +1,7 @@
 {
-  "tag_name": "v1.3.7",
-  "name": "v1.3.7",
-  "body": "v1.3.7: Fix local.properties InputStream type compilation error in build.gradle.kts",
+  "tag_name": "v1.3.8",
+  "name": "v1.3.8",
+  "body": "v1.3.8: Increase OkHttp client timeouts to 60s and fix doPost logging in Apps Script",
   "draft": false,
   "prerelease": false
 }

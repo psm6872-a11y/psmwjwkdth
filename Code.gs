@@ -1,4 +1,5 @@
 function doPost(e) {
+  Logger.log("doPost 진입");
   var data = JSON.parse(e.postData.contents);
   
   // 월별 폴더 생성

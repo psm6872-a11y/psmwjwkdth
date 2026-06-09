@@ -166,6 +166,7 @@ class EstimateViewModel @Inject constructor(
     }
 
     fun saveEstimate(onCompleted: (smsBody: String) -> Unit) {
+        android.util.Log.d("EstimateViewModel", "[LOG] saveEstimate function entered")
         val amt = amount.value.toLongOrNull() ?: 0L
         val formattedCargo = formatRoomItemsSummary()
         val combinedMemo = if (formattedCargo.isNotBlank()) {
@@ -232,20 +233,32 @@ class EstimateViewModel @Inject constructor(
 
                 // OkHttp POST request for Apps Script
                 val url = BuildConfig.SPREADSHEET_WEB_APP_URL
+                android.util.Log.d("EstimateViewModel", "[LOG] SPREADSHEET_WEB_APP_URL value: '$url'")
                 if (url.isNotBlank()) {
-                    val client = okhttp3.OkHttpClient()
+                    val client = okhttp3.OkHttpClient.Builder()
+                        .followRedirects(true)
+                        .followSslRedirects(true)
+                        .connectTimeout(60, java.util.concurrent.TimeUnit.SECONDS)
+                        .readTimeout(60, java.util.concurrent.TimeUnit.SECONDS)
+                        .writeTimeout(60, java.util.concurrent.TimeUnit.SECONDS)
+                        .build()
                     val mediaType = "application/json; charset=utf-8".toMediaType()
                     val body = payload.toString().toRequestBody(mediaType)
                     val request = okhttp3.Request.Builder()
                         .url(url)
                         .post(body)
                         .build()
+                    android.util.Log.d("EstimateViewModel", "[LOG] Sending POST request to URL...")
                     client.newCall(request).execute().use { response ->
+                        android.util.Log.d("EstimateViewModel", "[LOG] POST response code: ${response.code}")
+                        val responseBody = response.body?.string() ?: ""
+                        android.util.Log.d("EstimateViewModel", "Response Body: $responseBody")
                         if (!response.isSuccessful) {
-                            val errorBody = response.body?.string() ?: ""
-                            throw java.io.IOException("스프레드시트 전송 실패: ${response.code}, body: $errorBody")
+                            throw java.io.IOException("스프레드시트 전송 실패: ${response.code}, body: $responseBody")
                         }
                     }
+                } else {
+                    android.util.Log.w("EstimateViewModel", "[LOG] URL is blank, skipping POST request")
                 }
 
                 _saveState.value = SaveState.Success
@@ -273,7 +286,7 @@ class EstimateViewModel @Inject constructor(
                     onCompleted(smsBody)
                 }
             } catch (e: Exception) {
-                android.util.Log.e("EstimateViewModel", "saveEstimate failed with exception details", e)
+                android.util.Log.e("EstimateViewModel", "[LOG] Exception occurred during saveEstimate", e)
                 _saveState.value = SaveState.Error(e.toString())
             }
         }
