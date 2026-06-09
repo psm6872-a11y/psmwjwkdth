@@ -2379,7 +2379,7 @@ fun Step3CustomerInfo(
     val amountFieldWidth by remember(moveCost, optionCost, totalCost, deposit, balance) {
         derivedStateOf {
             (listOf(moveCost, optionCost, totalCost, deposit, balance)
-                .maxOf { it.length.coerceAtLeast(3) } * 10).dp
+                .maxOf { it.length.coerceAtLeast(3) } * (screenWidth * 0.025f)).dp
         }
     }
 
