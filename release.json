@@ -1,7 +1,7 @@
 {
-  "tag_name": "v1.3.9",
-  "name": "v1.3.9",
-  "body": "v1.3.9: Fix shared calendar join/create redirect loop and sync initialization bug",
+  "tag_name": "v1.3.10",
+  "name": "v1.3.10",
+  "body": "v1.3.10: Add visitDate to Apps Script POST request payload",
   "draft": false,
   "prerelease": false
 }

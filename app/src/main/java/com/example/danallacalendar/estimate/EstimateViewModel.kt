@@ -210,6 +210,7 @@ class EstimateViewModel @Inject constructor(
                     put("phoneNumber", phoneNumber.value)
                     put("departure", departure.value)
                     put("destination", destination.value)
+                    put("visitDate", visitDate.value)
                     put("moveDate", moveDate.value)
                     put("startTime", startTime.value)
                     put("moveType", moveType.value)
