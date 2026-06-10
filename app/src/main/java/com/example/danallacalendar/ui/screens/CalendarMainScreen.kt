@@ -1231,7 +1231,7 @@ fun EventItemCard(
                     .fillMaxWidth()
                     .padding(
                         start = 10.dp, 
-                        end = 16.dp, 
+                        end = 6.dp, 
                         top = if (event.isAllDay) (screenHeight * 0.02f) else 10.dp, 
                         bottom = if (event.isAllDay) (screenHeight * 0.02f) else 10.dp
                     ),
