@@ -1,7 +1,7 @@
 {
-  "tag_name": "v1.3.15",
-  "name": "v1.3.15",
-  "body": "v1.3.15: Set default move type to B9 and clear background color for A13 (안방) cell in Code.gs",
+  "tag_name": "v1.3.16",
+  "name": "v1.3.16",
+  "body": "v1.3.16: Update Google Sheets Web App URL with the new GAS deployment",
   "draft": false,
   "prerelease": false
 }
