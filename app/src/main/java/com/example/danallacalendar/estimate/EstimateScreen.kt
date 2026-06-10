@@ -813,21 +813,22 @@ fun Step1StartScreen(
                         .aspectRatio(1.2f)
                 )
 
-                // Directed by 텍스트 (위치 조정을 위해 작은 음수 패딩 적용)
+                // Directed by 텍스트 (고정 패딩을 주어 겹침 방지)
                 Text(
                     text = "Directed by 다날라 익스프레스",
                     fontSize = 15.sp,
                     color = Color.White,
-                    modifier = Modifier.offset(y = -screenHeight * 0.045f),
+                    modifier = Modifier.padding(top = 8.dp),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
 
+                Spacer(modifier = Modifier.height(12.dp))
+
                 // 점멸 애니메이션 타이틀
                 Row(
                     modifier = Modifier
-                        .rotate(-4f)
-                        .offset(y = -screenHeight * -0.022f),
+                        .rotate(-4f),
                     horizontalArrangement = Arrangement.Center,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -852,11 +853,14 @@ fun Step1StartScreen(
                             label = "alpha_$index"
                         )
 
-                        val yOffset = -screenHeight * (index * 0.0025f)
+                        // screenHeight 비례 대신 고정 dp 계단식 오프셋
+                        val yOffset = -(index * 2).dp
                         val animatedColor = Color.hsv(hue % 360f, 0.8f, 1.0f)
 
-                        val screenWidth = androidx.compose.ui.platform.LocalConfiguration.current.screenWidthDp
-                        val animTextSize = (screenWidth * 0.105f).sp
+                        val screenWidthDp = androidx.compose.ui.platform.LocalConfiguration.current.screenWidthDp
+                        // 가로 너비가 아무리 넓어져도 최대 400dp 기준으로만 폰트 크기 계산 (태블릿 글자 폭등 방지)
+                        val baseWidth = minOf(screenWidthDp, 400)
+                        val animTextSize = (baseWidth * 0.105f).sp
                         Text(
                             text = char,
                             fontSize = animTextSize,
@@ -878,7 +882,7 @@ fun Step1StartScreen(
             Column(
                 modifier = Modifier
                     .weight(1.0f)
-                    .offset(y = -screenHeight * 0.05f),
+                    .padding(top = 16.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Top
             ) {
@@ -888,12 +892,17 @@ fun Step1StartScreen(
                     Triple("사무실이사", Brush.horizontalGradient(listOf(Color(0xFF00E676), Color(0xFF00C853))), Color.White)
                 )
 
+                val screenWidthDp = androidx.compose.ui.platform.LocalConfiguration.current.screenWidthDp
+                val screenHeightDp = androidx.compose.ui.platform.LocalConfiguration.current.screenHeightDp
+
                 categories.forEach { (category, brush, textColor) ->
                     Box(
                         modifier = Modifier
-                            .width(screenWidth * 0.65f)   // 화면 너비의 65%
+                            .widthIn(max = 320.dp) // 태블릿 가로 폭 상한 지정
+                            .fillMaxWidth(0.65f)
                             .padding(vertical = 8.dp)
-                            .height(screenHeight * 0.09f) // 화면 높이의 9%
+                            .heightIn(max = 60.dp) // 태블릿 세로 높이 상한 지정
+                            .height((screenHeightDp * 0.09f).dp)
                             .background(brush, shape = RoundedCornerShape(16.dp))
                             .clickable { onCategorySelected(category) },
                         contentAlignment = Alignment.Center
