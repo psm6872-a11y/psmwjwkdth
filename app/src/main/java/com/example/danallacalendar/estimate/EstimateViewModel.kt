@@ -214,6 +214,7 @@ class EstimateViewModel @Inject constructor(
                     put("moveDate", moveDate.value)
                     put("startTime", startTime.value)
                     put("moveType", moveType.value)
+                    put("moveInfo", moveInfo.value)
                     put("estimateDate", estimateDate.value)
                     put("totalVolume", totalVolume.value)
                     put("workersM", workersM.value)

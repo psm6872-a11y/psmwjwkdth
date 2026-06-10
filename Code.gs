@@ -20,20 +20,20 @@ function doPost(e) {
   // 파일 복사 후 월별 폴더로 이동
   var newFile = templateFile.makeCopy(fileName, monthFolder);
   var newSS = SpreadsheetApp.openById(newFile.getId());
-  var newSheet = newSS.getSheetByName("포장이사");
+  var newSheet = newSS.getSheetByName(data.moveType);
   
   // 데이터 채워넣기 (기존 로직 동일)
-  newSheet.getRange("B6").setValue(data.departure);
-  newSheet.getRange("B7").setValue(data.destination);
-  newSheet.getRange("J6").setValue(data.laddersStartFloor);
-  newSheet.getRange("J7").setValue(data.laddersEndFloor);
-  newSheet.getRange("B8").setValue(data.visitDate);  // 방문날짜
-  newSheet.getRange("C8").setValue(data.estimateDate);
-  newSheet.getRange("F8").setValue(data.moveDate);
-  newSheet.getRange("J8").setValue(data.startTime);
-  newSheet.getRange("C9").setValue(data.moveType);
-  newSheet.getRange("G9").setValue(data.phoneNumber);
-  newSheet.getRange("A38").setValue(data.memo);
+  newSheet.getRange("B6").setValue(String(data.departure));
+  newSheet.getRange("B7").setValue(String(data.destination));
+  newSheet.getRange("J6").setValue(String(data.laddersStartFloor));
+  newSheet.getRange("J7").setValue(String(data.laddersEndFloor));
+  newSheet.getRange("B8").setValue(String(data.visitDate));  // 방문날짜
+  newSheet.getRange("C8").setValue(String(data.estimateDate));
+  newSheet.getRange("F8").setValue(String(data.moveDate));
+  newSheet.getRange("J8").setValue(String(data.startTime));
+  newSheet.getRange("B9").setValue(String(data.moveInfo));
+  newSheet.getRange("G9").setValue(String(data.phoneNumber));
+  newSheet.getRange("A38").setValue(String(data.memo));
   newSheet.getRange("G37").setValue(data.totalVolume + "톤");
   newSheet.getRange("J37").setValue(data.moveCost);
   newSheet.getRange("G38").setValue("남" + data.workersM + " 여" + data.workersF);
@@ -66,9 +66,9 @@ function doPost(e) {
     var items = data.roomItems[room];
     if (items) {
       items.split("\n").forEach(function(item) {
-        if (item.includes("제외-폐기")) excludeItems["폐기"] = (excludeItems["폐기"] || "") + item.replace("(제외-폐기)", "").trim() + "\n";
-        if (item.includes("제외-제자리")) excludeItems["제자리"] = (excludeItems["제자리"] || "") + item.replace("(제외-제자리)", "").trim() + "\n";
-        if (item.includes("제외-1층")) excludeItems["1층"] = (excludeItems["1층"] || "") + item.replace("(제외-1층)", "").trim() + "\n";
+        if (item.includes("(폐기)")) excludeItems["폐기"] = (excludeItems["폐기"] || "") + item.replace("(폐기)", "").trim() + "\n";
+        if (item.includes("(제자리)")) excludeItems["제자리"] = (excludeItems["제자리"] || "") + item.replace("(제자리)", "").trim() + "\n";
+        if (item.includes("(1층)")) excludeItems["1층"] = (excludeItems["1층"] || "") + item.replace("(1층)", "").trim() + "\n";
       });
     }
   });

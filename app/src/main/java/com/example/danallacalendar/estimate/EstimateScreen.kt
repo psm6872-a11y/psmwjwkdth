@@ -1992,7 +1992,7 @@ fun Step2ItemSelection(
                                     .fillMaxWidth()
                                     .padding(vertical = 3.dp)
                                     .clickable {
-                                        val displayName = "${itemPendingOptions!!.name} (제외-$option)"
+                                        val displayName = "${itemPendingOptions!!.name} ($option)"
                                         val currentCount = roomItems[spaceName]?.get(displayName) ?: 0
                                         onUpdateCount(spaceName, displayName, currentCount + 1)
                                         onUpdateCountTts("${displayName} 추가")
