@@ -71,7 +71,7 @@ val calendarColors = listOf(
 fun AddEditEventScreen(
     eventId: Int?,
     onNavigateBack: () -> Unit,
-    onNavigateToEstimate: () -> Unit,
+    onNavigateToEstimate: (moveDate: String, departure: String, destination: String, phone: String) -> Unit,
     viewModel: CalendarViewModel,
     modifier: Modifier = Modifier
 ) {
@@ -244,7 +244,40 @@ fun AddEditEventScreen(
                                 .clip(RoundedCornerShape(6.dp))
                                 .background(Color(0xFFF3E5F5))
                                 .border(1.dp, Color(0xFFAB47BC), RoundedCornerShape(6.dp))
-                                .clickable { onNavigateToEstimate() }
+                                .clickable {
+                                    // 1. 일정 제목 첫줄이 07-22 같은 날짜 형식(MM-dd)이면 스텝3 이사날짜에 자동입력
+                                    val firstLine = title.lineSequence().firstOrNull()?.trim() ?: ""
+                                    val isDatePattern = firstLine.matches(Regex("""^\d{2}-\d{2}$"""))
+                                    val resolvedMoveDate = if (isDatePattern) {
+                                        val currentYear = java.util.Calendar.getInstance().get(java.util.Calendar.YEAR)
+                                        "$currentYear-$firstLine"
+                                    } else {
+                                        ""
+                                    }
+
+                                    // 2. 일정의 출발지 주소 + 동/호수 이어붙여서 스텝3 출발지에 자동입력
+                                    val resolvedDeparture = buildString {
+                                        append(location)
+                                        if (location1b.isNotBlank()) {
+                                            if (isNotEmpty() && !endsWith(" ")) append(" ")
+                                            append(location1b)
+                                        }
+                                    }.trim()
+
+                                    // 3. 일정의 도착지 주소 + 동/호수 이어붙여서 스텝3 도착지에 자동입력
+                                    val resolvedDestination = buildString {
+                                        append(location2)
+                                        if (location2b.isNotBlank()) {
+                                            if (isNotEmpty() && !endsWith(" ")) append(" ")
+                                            append(location2b)
+                                        }
+                                    }.trim()
+
+                                    // 4. 일정의 전화번호를 스텝3 연락처에 자동입력
+                                    val resolvedPhone = notesList.firstOrNull { it.isNotBlank() } ?: ""
+
+                                    onNavigateToEstimate(resolvedMoveDate, resolvedDeparture, resolvedDestination, resolvedPhone)
+                                }
                                 .padding(horizontal = 8.dp),
                             contentAlignment = Alignment.Center
                         ) {

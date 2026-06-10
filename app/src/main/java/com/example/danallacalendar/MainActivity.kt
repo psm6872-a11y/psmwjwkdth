@@ -112,7 +112,31 @@ fun AppNavigation(userPreferences: UserPreferences) {
                        else "calendar"
 
     NavHost(navController = navController, startDestination = initialRoute) {
-        composable("estimate") {
+        composable(
+            route = "estimate?moveDate={moveDate}&departure={departure}&destination={destination}&phone={phone}",
+            arguments = listOf(
+                navArgument("moveDate") {
+                    type = NavType.StringType
+                    nullable = true
+                    defaultValue = null
+                },
+                navArgument("departure") {
+                    type = NavType.StringType
+                    nullable = true
+                    defaultValue = null
+                },
+                navArgument("destination") {
+                    type = NavType.StringType
+                    nullable = true
+                    defaultValue = null
+                },
+                navArgument("phone") {
+                    type = NavType.StringType
+                    nullable = true
+                    defaultValue = null
+                }
+            )
+        ) { backStackEntry ->
             val viewModel: com.example.danallacalendar.estimate.EstimateViewModel = hiltViewModel()
             com.example.danallacalendar.estimate.EstimateScreen(
                 viewModel = viewModel,
@@ -208,8 +232,12 @@ fun AppNavigation(userPreferences: UserPreferences) {
                 onNavigateBack = {
                     navController.popBackStack()
                 },
-                onNavigateToEstimate = {
-                    navController.navigate("estimate")
+                onNavigateToEstimate = { moveDate, departure, destination, phone ->
+                    val encDate = java.net.URLEncoder.encode(moveDate, "UTF-8")
+                    val encDep = java.net.URLEncoder.encode(departure, "UTF-8")
+                    val encDest = java.net.URLEncoder.encode(destination, "UTF-8")
+                    val encPhone = java.net.URLEncoder.encode(phone, "UTF-8")
+                    navController.navigate("estimate?moveDate=$encDate&departure=$encDep&destination=$encDest&phone=$encPhone")
                 },
                 viewModel = viewModel
             )

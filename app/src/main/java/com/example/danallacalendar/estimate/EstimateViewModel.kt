@@ -3,6 +3,7 @@ package com.example.danallacalendar.estimate
 import com.example.danallacalendar.BuildConfig
 import com.example.danallacalendar.data.EstimatePdf
 import com.example.danallacalendar.data.EstimatePdfDao
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -28,7 +29,8 @@ sealed class SaveState {
 @HiltViewModel
 class EstimateViewModel @Inject constructor(
     private val repository: EstimateRepository,
-    private val estimatePdfDao: EstimatePdfDao
+    private val estimatePdfDao: EstimatePdfDao,
+    private val savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
     // Form fields
@@ -75,6 +77,29 @@ class EstimateViewModel @Inject constructor(
         val today = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(java.util.Date())
         estimateDate.value = today
         googleSheetsUrl.value = BuildConfig.SPREADSHEET_WEB_APP_URL
+
+        // 캘린더 일정 연동 인자 파싱 및 바인딩
+        try {
+            val argMoveDate = savedStateHandle.get<String>("moveDate")?.let { java.net.URLDecoder.decode(it, "UTF-8") }
+            val argDeparture = savedStateHandle.get<String>("departure")?.let { java.net.URLDecoder.decode(it, "UTF-8") }
+            val argDestination = savedStateHandle.get<String>("destination")?.let { java.net.URLDecoder.decode(it, "UTF-8") }
+            val argPhone = savedStateHandle.get<String>("phone")?.let { java.net.URLDecoder.decode(it, "UTF-8") }
+
+            if (!argMoveDate.isNullOrBlank()) {
+                moveDate.value = argMoveDate
+            }
+            if (!argDeparture.isNullOrBlank()) {
+                departure.value = argDeparture
+            }
+            if (!argDestination.isNullOrBlank()) {
+                destination.value = argDestination
+            }
+            if (!argPhone.isNullOrBlank()) {
+                phoneNumber.value = argPhone
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("EstimateViewModel", "Error decoding navigation arguments", e)
+        }
     }
 
     fun updateItemCount(space: String, item: String, count: Int) {
