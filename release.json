@@ -1,7 +1,7 @@
 {
-  "tag_name": "v1.3.19",
-  "name": "v1.3.19",
-  "body": "v1.3.19: Add PDF export, local storage (Documents/다날라 익스프레스/), Room DB catalog, and EstimateListScreen integration with PDF viewer",
+  "tag_name": "v1.3.20",
+  "name": "v1.3.20",
+  "body": "v1.3.20: Cap title anim sizes for Steps 2, 3, 4 and amount field widths in Step 3 to fix tablet layout overlaps",
   "draft": false,
   "prerelease": false
 }
