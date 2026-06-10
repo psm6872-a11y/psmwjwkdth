@@ -9,18 +9,66 @@ function doPost(e) {
   var rootFolder = getOrCreateFolder(rootFolderName, DriveApp.getRootFolder());
   var monthFolder = getOrCreateFolder(monthFolderName, rootFolder);
   
-  // 템플릿 스프레드시트 복사
+  // 템플릿 스프레드시트 열기
   var templateSS = SpreadsheetApp.openById("1BDM_cWNaFm19fAbLSAbh-N1u11geMuUi7gXz8kZ6-v0");
   var templateFile = DriveApp.getFileById(templateSS.getId());
   
-  // 파일 이름 생성 (날짜 + 순번)
-  var dateStr = data.estimateDate || Utilities.formatDate(new Date(), "GMT+9", "yyyy-MM-dd");
-  var fileName = getNewFileName(monthFolder, dateStr);
+  // 월별 파일 이름 (예: "2026년 06월")
+  var spreadsheetName = monthFolderName;
   
-  // 파일 복사 후 월별 폴더로 이동
-  var newFile = templateFile.makeCopy(fileName, monthFolder);
-  var newSS = SpreadsheetApp.openById(newFile.getId());
-  var newSheet = newSS.getSheetByName(data.moveType);
+  // 월별 파일이 해당 폴더에 존재하는지 확인
+  var files = monthFolder.getFilesByName(spreadsheetName);
+  var destSS;
+  var isNewFile = false;
+  if (files.hasNext()) {
+    var file = files.next();
+    destSS = SpreadsheetApp.openById(file.getId());
+  } else {
+    // 월별 파일이 없으면 템플릿 복사해서 생성
+    var newFile = templateFile.makeCopy(spreadsheetName, monthFolder);
+    destSS = SpreadsheetApp.openById(newFile.getId());
+    isNewFile = true;
+  }
+  
+  // 시트 이름 생성 (날짜 + 순번, 예: 06-10(1))
+  var dateStr = data.estimateDate || Utilities.formatDate(new Date(), "GMT+9", "yyyy-MM-dd");
+  var dateParts = dateStr.split("-");
+  var monthDayStr = "견적";
+  if (dateParts.length >= 3) {
+    monthDayStr = dateParts[1] + "-" + dateParts[2];
+  } else {
+    monthDayStr = Utilities.formatDate(new Date(), "GMT+9", "MM-dd");
+  }
+  
+  var index = 1;
+  while (destSS.getSheetByName(monthDayStr + "(" + index + ")") !== null) {
+    index++;
+  }
+  var sheetName = monthDayStr + "(" + index + ")";
+  
+  // 템플릿 스프레드시트에서 data.moveType에 해당하는 시트를 복사해서 추가
+  var templateSheet = templateSS.getSheetByName(data.moveType);
+  if (!templateSheet) {
+    // 예외 상황
+    templateSheet = templateSS.getSheets()[0];
+  }
+  var newSheet = templateSheet.copyTo(destSS);
+  newSheet.setName(sheetName);
+  newSheet.showSheet();
+  
+  // 새로 생성된 파일인 경우 기존 템플릿 복사 시 같이 들어온 불필요한 기본 탭들을 삭제
+  if (isNewFile) {
+    var sheets = destSS.getSheets();
+    sheets.forEach(function(sh) {
+      if (sh.getName() !== sheetName) {
+        try {
+          destSS.deleteSheet(sh);
+        } catch(err) {
+          Logger.log("기본 시트 삭제 에러: " + err.message);
+        }
+      }
+    });
+  }
   
   // 데이터 채워넣기 (기존 로직 동일)
   newSheet.getRange("B6").setValue(String(data.departure));
@@ -109,12 +157,12 @@ function doPost(e) {
   var dishItem = allItems.split("\n").filter(function(i) { return i.includes("식기세척기") && i.includes("매립형"); }).join("\n");
   newSheet.getRange("F26").setValue(dishItem);
   
-  // 저장된 파일 URL 반환
-  var fileUrl = "https://docs.google.com/spreadsheets/d/" + newFile.getId();
+  // 저장된 파일 URL 반환 (해당 시트로 바로 이동하는 gid 쿼리 추가)
+  var fileUrl = "https://docs.google.com/spreadsheets/d/" + destSS.getId() + "/edit#gid=" + newSheet.getSheetId();
   
   return ContentService.createTextOutput(JSON.stringify({
     status: "success", 
-    sheetName: fileName,
+    sheetName: sheetName,
     fileUrl: fileUrl
   })).setMimeType(ContentService.MimeType.JSON);
 }

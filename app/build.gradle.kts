@@ -17,8 +17,8 @@ android {
         applicationId = "com.example.danallacalendar"
         minSdk = 24
         targetSdk = 34
-        versionCode = 163
-        versionName = "1.3.17"
+        versionCode = 164
+        versionName = "1.3.18"
         val localProperties = Properties()
         val localPropertiesFile = rootProject.file("local.properties")
         if (localPropertiesFile.exists()) {
