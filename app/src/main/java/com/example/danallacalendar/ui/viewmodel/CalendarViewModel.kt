@@ -452,6 +452,8 @@ class CalendarViewModel @Inject constructor(
         }
     }
 
+    suspend fun getEventById(id: Int): Event? = repository.getEventById(id)
+
     fun addEvent(event: Event) {
         viewModelScope.launch {
             val sharedId = getOrCreateSharedCategory()

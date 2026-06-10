@@ -153,9 +153,9 @@ fun AddEditEventScreen(
 
     // Load event if editing
     var isLoaded by remember { mutableStateOf(false) }
-    LaunchedEffect(eventId, isLoaded, viewModel.monthlyEvents.value) {
-        if (eventId != null && !isLoaded) {
-            val event = viewModel.monthlyEvents.value.find { it.id == eventId }
+    LaunchedEffect(eventId, categories) {
+        if (eventId != null && !isLoaded && categories.isNotEmpty()) {
+            val event = viewModel.getEventById(eventId)
             if (event != null) {
                 title = event.title
                 isAllDay = event.isAllDay
