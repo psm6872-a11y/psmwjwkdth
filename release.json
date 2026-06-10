@@ -1,7 +1,7 @@
 {
-  "tag_name": "v1.3.10",
-  "name": "v1.3.10",
-  "body": "v1.3.10: Add visitDate to Apps Script POST request payload",
+  "tag_name": "v1.3.11",
+  "name": "v1.3.11",
+  "body": "v1.3.11: Remove spaces from room names and prevent duplicate estimate submissions in Step 4",
   "draft": false,
   "prerelease": false
 }

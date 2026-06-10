@@ -117,6 +117,7 @@ fun EstimateScreen(
         }
     }
     var currentStep by remember { mutableStateOf(1) }
+    var hasSaved by remember { mutableStateOf(false) }
     var activeSpaceForCargoInput by remember { mutableStateOf<String?>(null) }
     var completedSpaces by remember { mutableStateOf(setOf<String>()) }
     var spaceExpectedVolumes by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
@@ -553,8 +554,12 @@ fun EstimateScreen(
                             } else {
                                 Button(
                                     onClick = {
+                                        if (customerName.isNotBlank()) {
+                                            hasSaved = true
+                                        }
                                         onSaveEstimate()
                                     },
+                                    enabled = !hasSaved && saveState !is SaveState.Loading && saveState !is SaveState.Success,
                                     modifier = Modifier
                                         .weight(1f)
                                         .height(48.dp),
@@ -791,7 +796,7 @@ fun Step1StartScreen(
                     text = "Directed by 다날라 익스프레스",
                     fontSize = 15.sp,
                     color = Color.White,
-                    modifier = Modifier.offset(y = -screenHeight * 0.035f),
+                    modifier = Modifier.offset(y = -screenHeight * 0.045f),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
@@ -800,7 +805,7 @@ fun Step1StartScreen(
                 Row(
                     modifier = Modifier
                         .rotate(-4f)
-                        .offset(y = -screenHeight * 0.012f),
+                        .offset(y = -screenHeight * -0.022f),
                     horizontalArrangement = Arrangement.Center,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -829,7 +834,7 @@ fun Step1StartScreen(
                         val animatedColor = Color.hsv(hue % 360f, 0.8f, 1.0f)
 
                         val screenWidth = androidx.compose.ui.platform.LocalConfiguration.current.screenWidthDp
-                        val animTextSize = (screenWidth * 0.12f).sp
+                        val animTextSize = (screenWidth * 0.105f).sp
                         Text(
                             text = char,
                             fontSize = animTextSize,
@@ -977,7 +982,7 @@ fun Step2SpaceSelection(
                 val animatedColor = Color.hsv(hue % 360f, 0.8f, 1.0f)
 
                 val screenWidth = androidx.compose.ui.platform.LocalConfiguration.current.screenWidthDp
-                val animTextSize = (screenWidth * 0.12f).sp
+                val animTextSize = (screenWidth * 0.10f).sp
                 Text(
                     text = char,
                     fontSize = animTextSize,
@@ -1015,8 +1020,8 @@ fun Step2SpaceSelection(
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 val spacePairs = listOf(
-                    Pair("안방", "작은방 1"),
-                    Pair("작은방 2", "입구방"),
+                    Pair("안방", "작은방1"),
+                    Pair("작은방2", "입구방"),
                     Pair("거실", "주방"),
                     Pair("그외", null)
                 )
@@ -1165,11 +1170,11 @@ fun SpaceCard(
                             Text(text = "🌙", fontSize = 28.sp)
                             Text(text = "💤", fontSize = 28.sp)
                         }
-                        "작은방 1" -> {
+                        "작은방1" -> {
                             Text(text = "📚", fontSize = 28.sp)
                             Text(text = "✏️", fontSize = 28.sp)
                         }
-                        "작은방 2" -> {
+                        "작은방2" -> {
                             Text(text = "📚", fontSize = 28.sp)
                             Text(text = "✏️", fontSize = 28.sp)
                         }
@@ -2255,7 +2260,7 @@ private val spaceItemsMap = mapOf(
         PredefinedItem("장농", R.drawable.ic_wardrobe, listOf("1칸", "2칸", "3칸", "분해형")),
         PredefinedItem("직접입력", R.drawable.ic_add)
     ),
-    "작은방 1" to listOf(
+    "작은방1" to listOf(
         PredefinedItem("침대", R.drawable.ic_bed, listOf("싱글", "더블", "킹")),
         PredefinedItem("화장대", R.drawable.ic_dressing_table),
         PredefinedItem("서랍장", R.drawable.ic_drawers),
@@ -2266,7 +2271,7 @@ private val spaceItemsMap = mapOf(
         PredefinedItem("장농", R.drawable.ic_wardrobe, listOf("1칸", "2칸", "3칸", "분해형")),
         PredefinedItem("직접입력", R.drawable.ic_add)
     ),
-    "작은방 2" to listOf(
+    "작은방2" to listOf(
         PredefinedItem("침대", R.drawable.ic_bed, listOf("싱글", "더블", "킹")),
         PredefinedItem("화장대", R.drawable.ic_dressing_table),
         PredefinedItem("서랍장", R.drawable.ic_drawers),
@@ -2533,7 +2538,7 @@ fun Step3CustomerInfo(
                 val animatedColor = Color.hsv(hue % 360f, 0.8f, 1.0f)
 
                 val screenWidth = androidx.compose.ui.platform.LocalConfiguration.current.screenWidthDp
-                val animTextSize = (screenWidth * 0.12f).sp
+                val animTextSize = (screenWidth * 0.09f).sp
                 Text(
                     text = char,
                     fontSize = animTextSize,
@@ -3144,7 +3149,7 @@ fun Step4PreviewAndActions(
                 val animatedColor = Color.hsv(hue % 360f, 0.8f, 1.0f)
 
                 val screenWidth = androidx.compose.ui.platform.LocalConfiguration.current.screenWidthDp
-                val animTextSize = (screenWidth * 0.12f).sp
+                val animTextSize = (screenWidth * 0.11f).sp
                 Text(
                     text = char,
                     fontSize = animTextSize,
