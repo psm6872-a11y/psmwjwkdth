@@ -1229,27 +1229,16 @@ fun EventItemCard(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(start = 10.dp, end = 16.dp, top = if (event.isAllDay) 15.dp else 10.dp, bottom = if (event.isAllDay) 15.dp else 10.dp),
+                    .padding(
+                        start = 10.dp, 
+                        end = 16.dp, 
+                        top = if (event.isAllDay) (screenHeight * 0.02f) else 10.dp, 
+                        bottom = if (event.isAllDay) (screenHeight * 0.02f) else 10.dp
+                    ),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 if (!event.isAllDay) {
-                    // 시간 설정 일정의 경우: 제일 좌측에 24시간제 시작 시간만 표시
-                    Box(
-                        modifier = Modifier.width(screenWidth * 0.12f),
-                        contentAlignment = Alignment.CenterStart
-                    ) {
-                        Text(
-                            text = startStr,
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = contentColor,
-                            maxLines = 1,
-                            softWrap = false
-                        )
-                    }
-                    Spacer(modifier = Modifier.width(4.dp))
-                    
-                    // Category Color Bar indicator (시간 일정만 노출)
+                    // Category Color Bar indicator (시간 일정만 노출, 맨 왼쪽에 배치)
                     Box(
                         modifier = Modifier
                             .width(4.dp)
@@ -1257,10 +1246,10 @@ fun EventItemCard(
                             .clip(RoundedCornerShape(2.dp))
                             .background(catColor.copy(alpha = if (event.isCompleted) 0.5f else 1f))
                     )
-                    
                     Spacer(modifier = Modifier.width(10.dp))
                 }
 
+                // 일정 제목 Column (남은 가로 공간을 채움)
                 Column(modifier = Modifier.weight(1f)) {
                     val titleFirstLine = event.title.lineSequence().firstOrNull()?.trim() ?: ""
                     val startLocation = event.location.split("|||").getOrNull(0)?.trim() ?: ""
@@ -1283,6 +1272,24 @@ fun EventItemCard(
                 }
 
                 Spacer(modifier = Modifier.width(8.dp))
+
+                if (!event.isAllDay) {
+                    // 시간 설정 일정의 경우: 제목 텍스트의 우측에 시간 표시 배치
+                    Box(
+                        modifier = Modifier.width(screenWidth * 0.12f),
+                        contentAlignment = Alignment.CenterEnd
+                    ) {
+                        Text(
+                            text = startStr,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = contentColor,
+                            maxLines = 1,
+                            softWrap = false
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(8.dp))
+                }
 
                 // 완료 토글 버튼
                 if (event.isCompleted) {
