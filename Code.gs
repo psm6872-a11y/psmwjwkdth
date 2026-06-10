@@ -31,7 +31,7 @@ function doPost(e) {
   newSheet.getRange("C8").setValue(String(data.estimateDate));
   newSheet.getRange("F8").setValue(String(data.moveDate));
   newSheet.getRange("J8").setValue(String(data.startTime));
-  newSheet.getRange("B9").setValue(String(data.moveInfo));
+  newSheet.getRange("B9").setValue(String(data.moveInfo || "포장이사"));
   newSheet.getRange("G9").setValue(String(data.phoneNumber));
   newSheet.getRange("A38").setValue(String(data.memo));
   newSheet.getRange("G37").setValue(data.totalVolume + "톤");
@@ -52,6 +52,7 @@ function doPost(e) {
   
   // 물품 내역
   newSheet.getRange("A13").setValue(data.roomItems?.["안방"] || "");
+  newSheet.getRange("A13").setBackground(null);
   newSheet.getRange("B13").setValue(data.roomItems?.["작은방1"] || "");
   newSheet.getRange("C13").setValue(data.roomItems?.["작은방2"] || "");
   newSheet.getRange("D13").setValue(data.roomItems?.["입구방"] || "");

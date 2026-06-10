@@ -1,7 +1,7 @@
 {
-  "tag_name": "v1.3.14",
-  "name": "v1.3.14",
-  "body": "v1.3.14: Fix event duplication and double-delete bugs when editing calendar events",
+  "tag_name": "v1.3.15",
+  "name": "v1.3.15",
+  "body": "v1.3.15: Set default move type to B9 and clear background color for A13 (안방) cell in Code.gs",
   "draft": false,
   "prerelease": false
 }
