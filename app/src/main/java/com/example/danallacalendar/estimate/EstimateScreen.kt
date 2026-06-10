@@ -119,6 +119,7 @@ fun EstimateScreen(
     var currentStep by remember { mutableStateOf(1) }
     var hasSaved by remember { mutableStateOf(false) }
     var activeSpaceForCargoInput by remember { mutableStateOf<String?>(null) }
+    var smsSendOption by remember { mutableStateOf("발송") }
     var completedSpaces by remember { mutableStateOf(setOf<String>()) }
     var spaceExpectedVolumes by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
     val totalVol = spaceExpectedVolumes.values.mapNotNull { it.toDoubleOrNull() }.sum()
@@ -278,8 +279,34 @@ fun EstimateScreen(
             Toast.makeText(context, "고객명을 입력해주세요.", Toast.LENGTH_SHORT).show()
             currentStep = 3
         } else {
-            viewModel.saveEstimate { smsBody ->
+            viewModel.saveEstimate { smsBody, pdfPath ->
                 Toast.makeText(context, "구글 시트 및 DB 저장 완료!", Toast.LENGTH_SHORT).show()
+                if (smsSendOption == "발송") {
+                    val intent = Intent(Intent.ACTION_SEND).apply {
+                        putExtra("address", phoneNumber)
+                        type = "application/pdf"
+                        putExtra(Intent.EXTRA_TEXT, smsBody)
+                        putExtra("sms_body", smsBody)
+                        
+                        if (pdfPath != null) {
+                            val file = java.io.File(pdfPath)
+                            if (file.exists()) {
+                                val fileUri: Uri = androidx.core.content.FileProvider.getUriForFile(
+                                    context,
+                                    "${context.packageName}.fileprovider",
+                                    file
+                                )
+                                putExtra(Intent.EXTRA_STREAM, fileUri)
+                                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                            }
+                        }
+                    }
+                    try {
+                        context.startActivity(intent)
+                    } catch (e: Exception) {
+                        Toast.makeText(context, "MMS 앱을 실행할 수 없습니다.", Toast.LENGTH_SHORT).show()
+                    }
+                }
             }
         }
     }
@@ -494,20 +521,8 @@ fun EstimateScreen(
                                     onPrint = {
                                         printEstimate(context, customerName, phoneNumber, moveDate, startTime, moveType, departure, destination, amount, viewModel.formatRoomItemsSummary(), memo, totalExpectedVolumeStr)
                                     },
-                                    onSave = onSaveEstimate,
-                                    onSendSms = {
-                                        viewModel.saveEstimate { smsBody ->
-                                            val intent = Intent(Intent.ACTION_SENDTO).apply {
-                                                data = Uri.parse("smsto:${phoneNumber}")
-                                                putExtra("sms_body", smsBody)
-                                            }
-                                            try {
-                                                context.startActivity(intent)
-                                            } catch (e: Exception) {
-                                                Toast.makeText(context, "문자 앱을 실행할 수 없습니다.", Toast.LENGTH_SHORT).show()
-                                            }
-                                        }
-                                    }
+                                    smsSendOption = smsSendOption,
+                                    onSmsSendOptionChange = { smsSendOption = it }
                                 )
                             }
                         }
@@ -3132,8 +3147,8 @@ fun Step4PreviewAndActions(
     saveState: SaveState,
     totalExpectedVolume: String,
     onPrint: () -> Unit,
-    onSave: () -> Unit,
-    onSendSms: () -> Unit
+    smsSendOption: String,
+    onSmsSendOptionChange: (String) -> Unit
 ) {
     val formattedAmount = remember(amount) {
         val amt = amount.toLongOrNull() ?: 0L
@@ -3263,15 +3278,74 @@ fun Step4PreviewAndActions(
                 Text("프린터 출력")
             }
 
-            Button(
-                onClick = onSendSms,
+            Surface(
                 modifier = Modifier
-                    .weight(1f)
+                    .weight(1.2f)
                     .height(56.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.tertiary),
-                shape = RoundedCornerShape(12.dp)
+                shape = RoundedCornerShape(12.dp),
+                color = Color(0xFF1E0F3D).copy(alpha = 0.5f),
+                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.15f))
             ) {
-                Text("문자 전송", fontWeight = FontWeight.Bold)
+                Row(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = 12.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "견적서 문자",
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White
+                    )
+                    
+                    var dropdownExpanded by remember { mutableStateOf(false) }
+                    
+                    Box(modifier = Modifier.wrapContentSize()) {
+                        Row(
+                            modifier = Modifier
+                                .clickable { dropdownExpanded = true }
+                                .padding(vertical = 8.dp, horizontal = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Text(
+                                text = smsSendOption,
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = if (smsSendOption == "발송") Color(0xFFE040FB) else Color.LightGray
+                            )
+                            Icon(
+                                imageVector = Icons.Default.KeyboardArrowDown,
+                                contentDescription = "옵션 선택",
+                                tint = Color.White,
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
+                        
+                        DropdownMenu(
+                            expanded = dropdownExpanded,
+                            onDismissRequest = { dropdownExpanded = false },
+                            modifier = Modifier.background(Color(0xFF1E0F3D))
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text("발송", color = Color.White, fontWeight = FontWeight.Bold) },
+                                onClick = {
+                                    onSmsSendOptionChange("발송")
+                                    dropdownExpanded = false
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("미발송", color = Color.LightGray) },
+                                onClick = {
+                                    onSmsSendOptionChange("미발송")
+                                    dropdownExpanded = false
+                                }
+                            )
+                        }
+                    }
+                }
             }
         }
     }

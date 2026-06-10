@@ -193,7 +193,7 @@ class EstimateViewModel @Inject constructor(
         }
     }
 
-    fun saveEstimate(onCompleted: (smsBody: String) -> Unit) {
+    fun saveEstimate(onCompleted: (smsBody: String, pdfPath: String?) -> Unit) {
         android.util.Log.d("EstimateViewModel", "[LOG] saveEstimate function entered")
         val amt = amount.value.toLongOrNull() ?: 0L
         val formattedCargo = formatRoomItemsSummary()
@@ -221,6 +221,7 @@ class EstimateViewModel @Inject constructor(
         _saveState.value = SaveState.Loading
 
         viewModelScope.launch(Dispatchers.IO) {
+            var savedPdfPath: String? = null
             try {
                 // 1. Save to Firestore
                 val savedId = repository.saveToFirestore(estimate)
@@ -262,7 +263,7 @@ class EstimateViewModel @Inject constructor(
                 }
 
                 // OkHttp POST request for Apps Script
-                val url = BuildConfig.SPREADSHEET_WEB_APP_URL
+                val url = googleSheetsUrl.value.ifBlank { BuildConfig.SPREADSHEET_WEB_APP_URL }
                 android.util.Log.d("EstimateViewModel", "[LOG] SPREADSHEET_WEB_APP_URL value: '$url'")
                 if (url.isNotBlank()) {
                     val client = okhttp3.OkHttpClient.Builder()
@@ -315,6 +316,7 @@ class EstimateViewModel @Inject constructor(
                                     filePath = pdfFile.absolutePath
                                 )
                                 estimatePdfDao.insertPdf(estimatePdf)
+                                savedPdfPath = pdfFile.absolutePath
                                 android.util.Log.d("EstimateViewModel", "PDF Saved and Room Inserted: ${pdfFile.absolutePath}")
                             }
                         } catch (pdfEx: Exception) {
@@ -347,7 +349,7 @@ class EstimateViewModel @Inject constructor(
                 """.trimIndent()
 
                 viewModelScope.launch(Dispatchers.Main) {
-                    onCompleted(smsBody)
+                    onCompleted(smsBody, savedPdfPath)
                 }
             } catch (e: Exception) {
                 android.util.Log.e("EstimateViewModel", "[LOG] Exception occurred during saveEstimate", e)

@@ -899,7 +899,7 @@ fun CalendarDayCell(
         // Date circle highlight wrapper Box for SonEopNeunMark alignment (centered in day cell)
         Box(
             modifier = Modifier
-                .size(screenWidth * 0.07f)
+                .size(minOf(screenWidth, 400.dp) * 0.07f)
                 .align(Alignment.Center),
             contentAlignment = Alignment.Center
         ) {
@@ -1240,7 +1240,7 @@ fun EventItemCard(
                 if (!event.isAllDay) {
                     // 시간 설정 일정의 경우: 제일 좌측에 24시간제 시작 시간 표시
                     Box(
-                        modifier = Modifier.width(screenWidth * 0.12f),
+                        modifier = Modifier.width(minOf(screenWidth, 400.dp) * 0.12f),
                         contentAlignment = Alignment.CenterStart
                     ) {
                         Text(
