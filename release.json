@@ -1,7 +1,7 @@
 {
-  "tag_name": "v1.3.18",
-  "name": "v1.3.18",
-  "body": "v1.3.18: Restructure Google Sheets integration to monthly files with estimate sheets and direct gid links",
+  "tag_name": "v1.3.19",
+  "name": "v1.3.19",
+  "body": "v1.3.19: Add PDF export, local storage (Documents/다날라 익스프레스/), Room DB catalog, and EstimateListScreen integration with PDF viewer",
   "draft": false,
   "prerelease": false
 }

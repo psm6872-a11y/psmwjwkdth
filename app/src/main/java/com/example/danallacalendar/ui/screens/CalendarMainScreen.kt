@@ -89,6 +89,7 @@ fun CalendarMainScreen(
     onNavigateToSearch: () -> Unit,
     onNavigateToBackup: () -> Unit,
     onNavigateToEstimate: () -> Unit,
+    onNavigateToEstimateList: () -> Unit,
     onExitRoom: () -> Unit,
     viewModel: CalendarViewModel,
     modifier: Modifier = Modifier
@@ -258,6 +259,10 @@ fun CalendarMainScreen(
                     onUpdateClick = {
                         scope.launch { drawerState.close() }
                         viewModel.checkUpdateManually()
+                    },
+                    onEstimateListClick = {
+                        scope.launch { drawerState.close() }
+                        onNavigateToEstimateList()
                     },
                     onCloseClick = {
                         scope.launch { drawerState.close() }

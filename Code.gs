@@ -160,10 +160,27 @@ function doPost(e) {
   // 저장된 파일 URL 반환 (해당 시트로 바로 이동하는 gid 쿼리 추가)
   var fileUrl = "https://docs.google.com/spreadsheets/d/" + destSS.getId() + "/edit#gid=" + newSheet.getSheetId();
   
+  // PDF 생성 및 base64 인코딩
+  var pdfBase64 = "";
+  try {
+    var pdfUrl = "https://docs.google.com/spreadsheets/d/" + destSS.getId() + "/export?exportFormat=pdf&format=pdf&gid=" + newSheet.getSheetId();
+    var pdfResponse = UrlFetchApp.fetch(pdfUrl, {
+      headers: {
+        'Authorization': 'Bearer ' + ScriptApp.getOAuthToken(),
+        'MuteHttpExceptions': true
+      }
+    });
+    var pdfBlob = pdfResponse.getBlob();
+    pdfBase64 = Utilities.base64Encode(pdfBlob.getBytes());
+  } catch (pdfErr) {
+    Logger.log("PDF 생성 중 에러 발생: " + pdfErr.message);
+  }
+  
   return ContentService.createTextOutput(JSON.stringify({
     status: "success", 
     sheetName: sheetName,
-    fileUrl: fileUrl
+    fileUrl: fileUrl,
+    pdfBase64: pdfBase64
   })).setMimeType(ContentService.MimeType.JSON);
 }
 

@@ -3,6 +3,7 @@ package com.example.danallacalendar.di
 import android.content.Context
 import com.example.danallacalendar.data.CalendarDatabase
 import com.example.danallacalendar.data.EventDao
+import com.example.danallacalendar.data.EstimatePdfDao
 import com.example.danallacalendar.data.local.UserPreferences
 import com.example.danallacalendar.data.repository.CalendarRepository
 import com.google.firebase.firestore.FirebaseFirestore
@@ -50,6 +51,12 @@ object AppModule {
     @Singleton
     fun provideEventDao(database: CalendarDatabase): EventDao {
         return database.eventDao()
+    }
+
+    @Provides
+    @Singleton
+    fun provideEstimatePdfDao(database: CalendarDatabase): EstimatePdfDao {
+        return database.estimatePdfDao()
     }
 
     @Provides

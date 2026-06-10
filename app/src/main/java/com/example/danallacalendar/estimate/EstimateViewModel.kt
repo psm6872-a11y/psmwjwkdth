@@ -1,6 +1,8 @@
 package com.example.danallacalendar.estimate
 
 import com.example.danallacalendar.BuildConfig
+import com.example.danallacalendar.data.EstimatePdf
+import com.example.danallacalendar.data.EstimatePdfDao
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -25,7 +27,8 @@ sealed class SaveState {
 
 @HiltViewModel
 class EstimateViewModel @Inject constructor(
-    private val repository: EstimateRepository
+    private val repository: EstimateRepository,
+    private val estimatePdfDao: EstimatePdfDao
 ) : ViewModel() {
 
     // Form fields
@@ -257,6 +260,40 @@ class EstimateViewModel @Inject constructor(
                         android.util.Log.d("EstimateViewModel", "Response Body: $responseBody")
                         if (!response.isSuccessful) {
                             throw java.io.IOException("스프레드시트 전송 실패: ${response.code}, body: $responseBody")
+                        }
+                        
+                        try {
+                            val jsonObj = org.json.JSONObject(responseBody)
+                            val pdfBase64 = jsonObj.optString("pdfBase64", "")
+                            if (pdfBase64.isNotBlank()) {
+                                val dateParts = moveDate.value.split("-")
+                                val monthDay = if (dateParts.size >= 3) "${dateParts[1]}-${dateParts[2]}" else "00-00"
+                                val rawPhone = phoneNumber.value.replace("-", "").trim()
+                                val last4 = if (rawPhone.length >= 4) rawPhone.takeLast(4) else "0000"
+                                val fileName = "${monthDay}_$last4.pdf"
+
+                                val documentsDir = android.os.Environment.getExternalStoragePublicDirectory(android.os.Environment.DIRECTORY_DOCUMENTS)
+                                val targetDir = java.io.File(documentsDir, "다날라 익스프레스")
+                                if (!targetDir.exists()) {
+                                    targetDir.mkdirs()
+                                }
+                                val pdfFile = java.io.File(targetDir, fileName)
+
+                                val pdfBytes = android.util.Base64.decode(pdfBase64, android.util.Base64.DEFAULT)
+                                java.io.FileOutputStream(pdfFile).use { fos ->
+                                    fos.write(pdfBytes)
+                                }
+
+                                val estimatePdf = EstimatePdf(
+                                    date = monthDay,
+                                    fileName = fileName,
+                                    filePath = pdfFile.absolutePath
+                                )
+                                estimatePdfDao.insertPdf(estimatePdf)
+                                android.util.Log.d("EstimateViewModel", "PDF Saved and Room Inserted: ${pdfFile.absolutePath}")
+                            }
+                        } catch (pdfEx: Exception) {
+                            android.util.Log.e("EstimateViewModel", "PDF Save or DB Insert failed", pdfEx)
                         }
                     }
                 } else {

@@ -39,6 +39,7 @@ import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.SystemUpdate
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.CloudUpload
+import androidx.compose.material.icons.filled.List
 
 private fun getAvatarColor(nickname: String): Color {
     val colors = listOf(
@@ -71,6 +72,7 @@ fun DrawerContent(
     @Suppress("UNUSED_PARAMETER") onImportClick: () -> Unit,
     onShareAppClick: () -> Unit,
     onUpdateClick: () -> Unit,
+    onEstimateListClick: () -> Unit,
     onCloseClick: () -> Unit,
     onApkClick: () -> Unit,
     onBackupClick: () -> Unit,
@@ -179,6 +181,32 @@ fun DrawerContent(
                 fontSize = 13.sp,
                 color = MaterialTheme.colorScheme.primary.copy(alpha = 0.8f),
                 fontWeight = FontWeight.Medium
+            )
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(MaterialTheme.shapes.medium)
+                .clickable { onEstimateListClick() }
+                .background(MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.4f))
+                .padding(vertical = 12.dp, horizontal = 12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = Icons.Default.List,
+                contentDescription = "견적 목록",
+                tint = MaterialTheme.colorScheme.secondary,
+                modifier = Modifier.size(24.dp)
+            )
+            Spacer(modifier = Modifier.width(16.dp))
+            Text(
+                text = "견적 목록",
+                fontSize = 15.sp,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.secondary
             )
         }
 

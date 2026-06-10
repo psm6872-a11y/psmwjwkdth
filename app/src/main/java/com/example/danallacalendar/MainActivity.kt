@@ -31,6 +31,7 @@ import com.example.danallacalendar.ui.nickname.NicknameViewModel
 import com.example.danallacalendar.ui.room.RoomScreen
 import com.example.danallacalendar.ui.room.RoomViewModel
 import com.example.danallacalendar.backup.BackupScreen
+import com.example.danallacalendar.estimate.EstimateListScreen
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
 
@@ -170,12 +171,21 @@ fun AppNavigation(userPreferences: UserPreferences) {
                 onNavigateToEstimate = {
                     navController.navigate("estimate")
                 },
+                onNavigateToEstimateList = {
+                    navController.navigate("estimate_list")
+                },
                 onExitRoom = {
                     userPreferences.setLastRoomCode("")
                     navController.navigate("room") {
                         popUpTo("calendar") { inclusive = true }
                     }
                 }
+            )
+        }
+
+        composable("estimate_list") {
+            EstimateListScreen(
+                onNavigateBack = { navController.popBackStack() }
             )
         }
 
