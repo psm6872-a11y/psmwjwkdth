@@ -1,7 +1,7 @@
 {
-  "tag_name": "v1.3.16",
-  "name": "v1.3.16",
-  "body": "v1.3.16: Update Google Sheets Web App URL with the new GAS deployment",
+  "tag_name": "v1.3.17",
+  "name": "v1.3.17",
+  "body": "v1.3.17: Format won-man values in sheet and add TV predefined item to bedroom (안방)",
   "draft": false,
   "prerelease": false
 }

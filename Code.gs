@@ -35,19 +35,19 @@ function doPost(e) {
   newSheet.getRange("G9").setValue(String(data.phoneNumber));
   newSheet.getRange("A38").setValue(String(data.memo));
   newSheet.getRange("G37").setValue(data.totalVolume + "톤");
-  newSheet.getRange("J37").setValue(data.moveCost);
+  newSheet.getRange("J37").setValue(formatWonMan(data.moveCost));
   newSheet.getRange("G38").setValue("남" + data.workersM + " 여" + data.workersF);
-  newSheet.getRange("G39").setValue(data.extraTruck);
-  newSheet.getRange("J39").setValue(data.totalCost);
+  newSheet.getRange("G39").setValue(formatWonMan(data.extraTruck));
+  newSheet.getRange("J39").setValue(formatWonMan(data.totalCost));
   newSheet.getRange("G40").setValue(data.laddersStartFloor + "층 / " + data.laddersStartCost + "만원");
   newSheet.getRange("G41").setValue(data.laddersEndFloor + "층 / " + data.laddersEndCost + "만원");
-  newSheet.getRange("J40").setValue(data.deposit);
-  newSheet.getRange("J41").setValue(data.balance);
+  newSheet.getRange("J40").setValue(formatWonMan(data.deposit));
+  newSheet.getRange("J41").setValue(formatWonMan(data.balance));
   newSheet.getRange("G46").setValue(data.customerName);
   
   // 옵션비용
   var optionCostVal = parseFloat(data.optionCost) || 0;
-  newSheet.getRange("J38").setValue(data.optionCost);
+  newSheet.getRange("J38").setValue(formatWonMan(data.optionCost));
   newSheet.getRange("I38").setValue(optionCostVal < 0 ? "할인" : "옵션비용");
   
   // 물품 내역
@@ -93,9 +93,17 @@ function doPost(e) {
   var airconItem = allItems.split("\n").filter(function(i) { return i.includes("에어컨"); }).join("\n");
   newSheet.getRange("B25").setValue(airconItem);
   
-  // TV 벽걸이
-  var tvItem = allItems.split("\n").filter(function(i) { return i.includes("TV") && i.includes("벽걸이"); }).join("\n");
-  newSheet.getRange("B26").setValue(tvItem);
+  // TV 벽걸이 (85"이상 제외)
+  var tvWallItem = allItems.split("\n").filter(function(i) {
+    return i.includes("TV") && i.includes("벽걸이") && !i.includes("85\"") && !i.includes("(폐기)") && !i.includes("(제자리)") && !i.includes("(1층)");
+  }).join("\n");
+  newSheet.getRange("B26").setValue(tvWallItem);
+
+  // TV 85"이상 (공통)
+  var tv85Item = allItems.split("\n").filter(function(i) {
+    return i.includes("TV") && i.includes("85\"") && !i.includes("(폐기)") && !i.includes("(제자리)") && !i.includes("(1층)");
+  }).join("\n");
+  newSheet.getRange("F27").setValue(tv85Item);
   
   // 식기세척기 매립형
   var dishItem = allItems.split("\n").filter(function(i) { return i.includes("식기세척기") && i.includes("매립형"); }).join("\n");
@@ -135,4 +143,19 @@ function deleteTestSheets() {
       ss.deleteSheet(sheet);
     }
   });
+}
+
+function formatWonMan(val) {
+  if (val === undefined || val === null || String(val).trim() === "") {
+    return "";
+  }
+  var s = String(val).trim();
+  // 중복 방지
+  if (s.indexOf("₩") === 0) {
+    s = s.substring(1);
+  }
+  if (s.endsWith("만원")) {
+    s = s.substring(0, s.length - 2);
+  }
+  return "₩" + s + "만원";
 }

@@ -2280,6 +2280,7 @@ private val spaceItemsMap = mapOf(
         PredefinedItem("책장", R.drawable.ic_bookshelf, listOf("3x3", "3x5")),
         PredefinedItem("책상", R.drawable.ic_desk, listOf("일반형", "책장형")),
         PredefinedItem("장농", R.drawable.ic_wardrobe, listOf("1칸", "2칸", "3칸", "분해형")),
+        PredefinedItem("TV", R.drawable.ic_tv, listOf("스탠드", "벽걸이")),
         PredefinedItem("직접입력", R.drawable.ic_add)
     ),
     "작은방1" to listOf(
