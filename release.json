@@ -1,7 +1,7 @@
 {
-  "tag_name": "v1.3.12",
-  "name": "v1.3.12",
-  "body": "v1.3.12: Separate Step 1 and Step 3 move type logic and write Step 3 moveType to cell B9",
+  "tag_name": "v1.3.13",
+  "name": "v1.3.13",
+  "body": "v1.3.13: Show saving indicator overlay when tapping save button in estimate screen",
   "draft": false,
   "prerelease": false
 }

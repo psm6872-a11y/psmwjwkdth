@@ -568,7 +568,7 @@ fun EstimateScreen(
                                         containerColor = Color(0xFFE040FB)
                                     )
                                 ) {
-                                    Text("저장 및 완료")
+                                    Text(if (hasSaved || saveState is SaveState.Loading) "저장 중입니다" else "저장 및 완료")
                                 }
 
                             }
@@ -578,6 +578,28 @@ fun EstimateScreen(
             }
         }
     }
+    }
+
+    if (saveState is SaveState.Loading) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.Black.copy(alpha = 0.7f)),
+            contentAlignment = Alignment.Center
+        ) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                androidx.compose.material3.CircularProgressIndicator(
+                    color = Color(0xFFE040FB)
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+                Text(
+                    "저장 중입니다.",
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White
+                )
+            }
+        }
     }
 
     if (showSuccessOverlay) {
