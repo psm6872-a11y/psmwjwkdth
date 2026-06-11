@@ -193,7 +193,7 @@ class EstimateViewModel @Inject constructor(
         }
     }
 
-    fun saveEstimate(onCompleted: (smsBody: String, pdfPath: String?) -> Unit) {
+    fun saveEstimate(context: android.content.Context, onCompleted: (smsBody: String, pdfPath: String?) -> Unit) {
         android.util.Log.d("EstimateViewModel", "[LOG] saveEstimate function entered")
         val amt = amount.value.toLongOrNull() ?: 0L
         val formattedCargo = formatRoomItemsSummary()
@@ -291,6 +291,11 @@ class EstimateViewModel @Inject constructor(
                         try {
                             val jsonObj = org.json.JSONObject(responseBody)
                             val pdfBase64 = jsonObj.optString("pdfBase64", "")
+                            val pdfFileId = jsonObj.optString("pdfFileId", "")
+                            val debugInfo = jsonObj.optJSONObject("debugInfo")
+                            if (debugInfo != null) {
+                                android.util.Log.d("EstimateViewModel", "Sheet Debug Info (B9 diagnosis): $debugInfo")
+                            }
                             if (pdfBase64.isNotBlank()) {
                                 val dateParts = moveDate.value.split("-")
                                 val monthDay = if (dateParts.size >= 3) "${dateParts[1]}-${dateParts[2]}" else "00-00"
@@ -298,26 +303,33 @@ class EstimateViewModel @Inject constructor(
                                 val last4 = if (rawPhone.length >= 4) rawPhone.takeLast(4) else "0000"
                                 val fileName = "${monthDay}_$last4.pdf"
 
-                                val documentsDir = android.os.Environment.getExternalStoragePublicDirectory(android.os.Environment.DIRECTORY_DOCUMENTS)
-                                val targetDir = java.io.File(documentsDir, "다날라 익스프레스")
-                                if (!targetDir.exists()) {
-                                    targetDir.mkdirs()
+                                // MMS 첨부용 로컬 임시 캐시 디렉터리에 저장
+                                val tempDir = java.io.File(context.cacheDir, "danalla_temp")
+                                if (!tempDir.exists()) {
+                                    tempDir.mkdirs()
                                 }
-                                val pdfFile = java.io.File(targetDir, fileName)
+                                try {
+                                    tempDir.listFiles()?.forEach { it.delete() }
+                                } catch (e: Exception) {
+                                    android.util.Log.e("EstimateViewModel", "Failed to clean temp directory", e)
+                                }
+
+                                val pdfFile = java.io.File(tempDir, fileName)
 
                                 val pdfBytes = android.util.Base64.decode(pdfBase64, android.util.Base64.DEFAULT)
                                 java.io.FileOutputStream(pdfFile).use { fos ->
                                     fos.write(pdfBytes)
                                 }
 
+                                // DB에는 구글 드라이브 파일 ID를 저장
                                 val estimatePdf = EstimatePdf(
                                     date = monthDay,
                                     fileName = fileName,
-                                    filePath = pdfFile.absolutePath
+                                    filePath = pdfFileId
                                 )
                                 estimatePdfDao.insertPdf(estimatePdf)
                                 savedPdfPath = pdfFile.absolutePath
-                                android.util.Log.d("EstimateViewModel", "PDF Saved and Room Inserted: ${pdfFile.absolutePath}")
+                                android.util.Log.d("EstimateViewModel", "PDF Cached at: ${pdfFile.absolutePath}, Drive File ID: $pdfFileId")
                             }
                         } catch (pdfEx: Exception) {
                             android.util.Log.e("EstimateViewModel", "PDF Save or DB Insert failed", pdfEx)

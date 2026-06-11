@@ -2,6 +2,8 @@ package com.example.danallacalendar.estimate
 
 import android.content.Context
 import android.content.Intent
+import android.webkit.WebView
+import android.webkit.WebViewClient
 import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -13,9 +15,13 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.PictureAsPdf
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -23,6 +29,9 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.viewinterop.AndroidView
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.core.content.FileProvider
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -37,26 +46,38 @@ fun EstimateListScreen(
 ) {
     val context = LocalContext.current
     val pdfList by viewModel.pdfList.collectAsStateWithLifecycle()
+    var activePdfDriveUrl by remember { mutableStateOf<String?>(null) }
 
     fun openPdfFile(pdf: EstimatePdf) {
-        val file = File(pdf.filePath)
-        if (!file.exists()) {
-            Toast.makeText(context, "파일이 스마트폰에 존재하지 않습니다.\n경로: ${pdf.filePath}", Toast.LENGTH_LONG).show()
-            return
-        }
+        val isLocalFile = pdf.filePath.startsWith("/") || pdf.filePath.contains(":") || pdf.filePath.endsWith(".pdf")
 
-        try {
-            val authority = "${context.packageName}.fileprovider"
-            val uri = FileProvider.getUriForFile(context, authority, file)
-            
-            val intent = Intent(Intent.ACTION_VIEW).apply {
-                setDataAndType(uri, "application/pdf")
-                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        if (isLocalFile) {
+            val file = File(pdf.filePath)
+            if (!file.exists()) {
+                Toast.makeText(context, "파일이 스마트폰에 존재하지 않습니다.\n경로: ${pdf.filePath}", Toast.LENGTH_LONG).show()
+                return
             }
-            context.startActivity(Intent.createChooser(intent, "PDF 열기"))
-        } catch (e: Exception) {
-            Toast.makeText(context, "PDF를 열 수 있는 앱을 찾을 수 없습니다: ${e.localizedMessage}", Toast.LENGTH_LONG).show()
+
+            try {
+                val authority = "${context.packageName}.fileprovider"
+                val uri = FileProvider.getUriForFile(context, authority, file)
+                
+                val intent = Intent(Intent.ACTION_VIEW).apply {
+                    setDataAndType(uri, "application/pdf")
+                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
+                context.startActivity(Intent.createChooser(intent, "PDF 열기"))
+            } catch (e: Exception) {
+                Toast.makeText(context, "PDF를 열 수 있는 앱을 찾을 수 없습니다: ${e.localizedMessage}", Toast.LENGTH_LONG).show()
+            }
+        } else {
+            val fileId = pdf.filePath
+            if (fileId.isBlank()) {
+                Toast.makeText(context, "구글 드라이브 파일 ID가 존재하지 않습니다.", Toast.LENGTH_SHORT).show()
+                return
+            }
+            activePdfDriveUrl = "https://drive.google.com/file/d/$fileId/preview"
         }
     }
 
@@ -121,6 +142,12 @@ fun EstimateListScreen(
                     }
                 }
             }
+            activePdfDriveUrl?.let { url ->
+                DrivePdfViewerDialog(
+                    url = url,
+                    onDismiss = { activePdfDriveUrl = null }
+                )
+            }
         }
     }
 }
@@ -178,6 +205,64 @@ fun PdfItemCard(
                     imageVector = Icons.Default.Delete,
                     contentDescription = "삭제",
                     tint = Color.Red.copy(alpha = 0.8f)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun DrivePdfViewerDialog(
+    url: String,
+    onDismiss: () -> Unit
+) {
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false)
+    ) {
+        Surface(
+            modifier = Modifier.fillMaxSize(),
+            color = Color(0xFF0F0825)
+        ) {
+            Column(modifier = Modifier.fillMaxSize()) {
+                // 상단바
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(56.dp)
+                        .background(Color(0xFF1E1045))
+                        .padding(horizontal = 16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    IconButton(onClick = onDismiss) {
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            tint = Color.White,
+                            contentDescription = "닫기"
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(16.dp))
+                    Text(
+                        text = "견적서 뷰어",
+                        color = Color.White,
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+                
+                // WebView
+                AndroidView(
+                    factory = { context ->
+                        WebView(context).apply {
+                            webViewClient = WebViewClient()
+                            settings.javaScriptEnabled = true
+                            settings.domStorageEnabled = true
+                            settings.useWideViewPort = true
+                            settings.loadWithOverviewMode = true
+                            loadUrl(url)
+                        }
+                    },
+                    modifier = Modifier.fillMaxSize()
                 )
             }
         }

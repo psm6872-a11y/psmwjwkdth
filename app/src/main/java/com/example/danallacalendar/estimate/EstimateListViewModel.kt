@@ -28,11 +28,14 @@ class EstimateListViewModel @Inject constructor(
             // Room DB에서 삭제
             estimatePdfDao.deletePdf(pdf.id)
             
-            // 로컬 파일 시스템에서도 삭제
+            // 로컬 파일 시스템에서도 삭제 (로컬 절대 경로 형식일 때만 시도)
             try {
-                val file = java.io.File(pdf.filePath)
-                if (file.exists()) {
-                    file.delete()
+                val isLocalFile = pdf.filePath.startsWith("/") || pdf.filePath.contains(":") || pdf.filePath.endsWith(".pdf")
+                if (isLocalFile) {
+                    val file = java.io.File(pdf.filePath)
+                    if (file.exists()) {
+                        file.delete()
+                    }
                 }
             } catch (e: Exception) {
                 android.util.Log.e("EstimateListViewModel", "Failed to delete file: ${pdf.filePath}", e)

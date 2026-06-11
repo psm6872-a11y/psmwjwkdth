@@ -83,24 +83,23 @@ function doPost(e) {
   newSheet.getRange("G9").setValue(String(data.phoneNumber));
   newSheet.getRange("A38").setValue(String(data.memo));
   newSheet.getRange("G37").setValue(data.totalVolume + "톤");
-  newSheet.getRange("J37").setValue(formatWonMan(data.moveCost));
+  newSheet.getRange("J37").setNumberFormat("@").setValue(formatWonMan(data.moveCost));
   newSheet.getRange("G38").setValue("남" + data.workersM + " 여" + data.workersF);
   newSheet.getRange("G39").setValue(formatWonMan(data.extraTruck));
-  newSheet.getRange("J39").setValue(formatWonMan(data.totalCost));
+  newSheet.getRange("J39").setNumberFormat("@").setValue(formatWonMan(data.totalCost));
   newSheet.getRange("G40").setValue(data.laddersStartFloor + "층 / " + data.laddersStartCost + "만원");
   newSheet.getRange("G41").setValue(data.laddersEndFloor + "층 / " + data.laddersEndCost + "만원");
-  newSheet.getRange("J40").setValue(formatWonMan(data.deposit));
-  newSheet.getRange("J41").setValue(formatWonMan(data.balance));
+  newSheet.getRange("J40").setNumberFormat("@").setValue(formatWonMan(data.deposit));
+  newSheet.getRange("J41").setNumberFormat("@").setValue(formatWonMan(data.balance));
   newSheet.getRange("G46").setValue(data.customerName);
   
   // 옵션비용
   var optionCostVal = parseFloat(data.optionCost) || 0;
-  newSheet.getRange("J38").setValue(formatWonMan(data.optionCost));
+  newSheet.getRange("J38").setNumberFormat("@").setValue(formatWonMan(data.optionCost));
   newSheet.getRange("I38").setValue(optionCostVal < 0 ? "할인" : "옵션비용");
-  
   // 물품 내역
+  newSheet.getRange("A13:G13").setBackground("#ffffff");
   newSheet.getRange("A13").setValue(data.roomItems?.["안방"] || "");
-  newSheet.getRange("A13").setBackground(null);
   newSheet.getRange("B13").setValue(data.roomItems?.["작은방1"] || "");
   newSheet.getRange("C13").setValue(data.roomItems?.["작은방2"] || "");
   newSheet.getRange("D13").setValue(data.roomItems?.["입구방"] || "");
@@ -160,8 +159,9 @@ function doPost(e) {
   // 저장된 파일 URL 반환 (해당 시트로 바로 이동하는 gid 쿼리 추가)
   var fileUrl = "https://docs.google.com/spreadsheets/d/" + destSS.getId() + "/edit#gid=" + newSheet.getSheetId();
   
-  // PDF 생성 및 base64 인코딩
+  // PDF 생성 및 base64 인코딩 & 구글 드라이브 영구 저장
   var pdfBase64 = "";
+  var pdfFileId = "";
   try {
     var pdfUrl = "https://docs.google.com/spreadsheets/d/" + destSS.getId() + "/export?exportFormat=pdf&format=pdf&gid=" + newSheet.getSheetId();
     var pdfResponse = UrlFetchApp.fetch(pdfUrl, {
@@ -172,15 +172,43 @@ function doPost(e) {
     });
     var pdfBlob = pdfResponse.getBlob();
     pdfBase64 = Utilities.base64Encode(pdfBlob.getBytes());
+    
+    // 구글 드라이브 영구 저장
+    var pdfRootFolderName = "다날라 견적서pdf";
+    var pdfRootFolder = getOrCreateFolder(pdfRootFolderName, DriveApp.getRootFolder());
+    var pdfMonthFolder = getOrCreateFolder(monthFolderName, pdfRootFolder);
+    
+    var pdfFileName = sheetName + (data.customerName ? "_" + data.customerName : "") + ".pdf";
+    var pdfFile = pdfMonthFolder.createFile(pdfBlob);
+    pdfFile.setName(pdfFileName);
+    
+    // 링크가 있는 모든 사용자에게 뷰어 권한 허용
+    pdfFile.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+    pdfFileId = pdfFile.getId();
   } catch (pdfErr) {
-    Logger.log("PDF 생성 중 에러 발생: " + pdfErr.message);
+    Logger.log("PDF 생성 및 저장 중 에러 발생: " + pdfErr.message);
+  }
+
+  // 디버깅 정보 수집
+  var debugInfo = {};
+  try {
+    debugInfo.b9_merged = newSheet.getRange("B9").isPartOfMerge();
+    debugInfo.b9_val = String(newSheet.getRange("B9").getValue());
+    debugInfo.a9_val = String(newSheet.getRange("A9").getValue());
+    debugInfo.c9_val = String(newSheet.getRange("C9").getValue());
+    debugInfo.b10_val = String(newSheet.getRange("B10").getValue());
+    debugInfo.b8_val = String(newSheet.getRange("B8").getValue());
+  } catch (debugErr) {
+    debugInfo.error = debugErr.message;
   }
   
   return ContentService.createTextOutput(JSON.stringify({
     status: "success", 
     sheetName: sheetName,
     fileUrl: fileUrl,
-    pdfBase64: pdfBase64
+    pdfBase64: pdfBase64,
+    pdfFileId: pdfFileId,
+    debugInfo: debugInfo
   })).setMimeType(ContentService.MimeType.JSON);
 }
 
