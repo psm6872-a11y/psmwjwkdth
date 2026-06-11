@@ -1049,6 +1049,7 @@ fun CalendarDayCell(
 
         // 마감 도장 오버레이 (투명 PNG 사용)
         if (isDeadline) {
+            val stampAlpha = if (day.isCurrentMonth) 0.85f else 0.3f
             Image(
                 painter = painterResource(id = R.drawable.ic_magam_stamp),
                 contentDescription = "마감",
@@ -1059,7 +1060,7 @@ fun CalendarDayCell(
                         scaleX = 0.8f,
                         scaleY = 0.8f
                     )
-                    .alpha(0.85f)
+                    .alpha(stampAlpha)
             )
         }
     }
