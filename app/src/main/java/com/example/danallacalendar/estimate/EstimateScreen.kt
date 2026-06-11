@@ -503,39 +503,67 @@ fun EstimateScreen(
                                         printEstimate(context, customerName, phoneNumber, moveDate, startTime, moveType, departure, destination, amount, viewModel.formatRoomItemsSummary(), memo, totalExpectedVolumeStr)
                                     },
                                     onSendSms = {
-                                        if (savedSmsBody.isNotBlank()) {
-                                            val intent = Intent(Intent.ACTION_SEND).apply {
-                                                type = "application/pdf"
-                                                data = Uri.parse("smsto:$phoneNumber")
-                                                putExtra("address", phoneNumber)
-                                                putExtra("phone", phoneNumber)
-                                                putExtra("phone_number", phoneNumber)
-                                                putExtra("recipients", phoneNumber)
-                                                putExtra(Intent.EXTRA_TEXT, savedSmsBody)
-                                                putExtra("sms_body", savedSmsBody)
-                                                
-                                                if (savedPdfPath != null) {
-                                                    val file = java.io.File(savedPdfPath!!)
-                                                    if (file.exists()) {
-                                                        val fileUri = androidx.core.content.FileProvider.getUriForFile(
-                                                            context,
-                                                            "${context.packageName}.fileprovider",
-                                                            file
-                                                        )
-                                                        putExtra(Intent.EXTRA_STREAM, fileUri)
-                                                        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                                        if (savedSmsBody.isNotBlank() && savedPdfPath != null) {
+                                            val jpgFile = java.io.File(savedPdfPath!!)
+                                            if (jpgFile.exists()) {
+                                                val fileUri = androidx.core.content.FileProvider.getUriForFile(
+                                                    context,
+                                                    "${context.packageName}.fileprovider",
+                                                    jpgFile
+                                                )
+                                                val mimeType = if (savedPdfPath!!.endsWith(".jpg", ignoreCase = true)) "image/jpeg" else "application/pdf"
+                                                val intent = Intent(Intent.ACTION_SEND).apply {
+                                                    type = mimeType
+                                                    putExtra("address", phoneNumber)
+                                                    putExtra("phone", phoneNumber)
+                                                    putExtra("recipients", phoneNumber)
+                                                    putExtra(Intent.EXTRA_TEXT, savedSmsBody)
+                                                    putExtra("sms_body", savedSmsBody)
+                                                    putExtra(Intent.EXTRA_STREAM, fileUri)
+                                                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                                                }
+                                                try {
+                                                    context.startActivity(Intent.createChooser(intent, "견적서 전송"))
+                                                } catch (e: Exception) {
+                                                    // 공유 앱이 없을 경우 SMS만 발송
+                                                    try {
+                                                        val smsIntent = Intent(Intent.ACTION_SENDTO).apply {
+                                                            data = Uri.parse("smsto:$phoneNumber")
+                                                            putExtra("sms_body", savedSmsBody)
+                                                        }
+                                                        context.startActivity(smsIntent)
+                                                    } catch (ex: Exception) {
+                                                        Toast.makeText(context, "앱을 실행할 수 없습니다.", Toast.LENGTH_SHORT).show()
                                                     }
                                                 }
+                                            } else {
+                                                // 파일 없으면 SMS 텍스트만 발송
+                                                try {
+                                                    val smsIntent = Intent(Intent.ACTION_SENDTO).apply {
+                                                        data = Uri.parse("smsto:$phoneNumber")
+                                                        putExtra("sms_body", savedSmsBody)
+                                                    }
+                                                    context.startActivity(smsIntent)
+                                                } catch (e: Exception) {
+                                                    Toast.makeText(context, "문자 앱을 실행할 수 없습니다.", Toast.LENGTH_SHORT).show()
+                                                }
                                             }
+                                        } else if (savedSmsBody.isNotBlank()) {
+                                            // JPG 없으면 SMS 텍스트만
                                             try {
-                                                context.startActivity(intent)
+                                                val smsIntent = Intent(Intent.ACTION_SENDTO).apply {
+                                                    data = Uri.parse("smsto:$phoneNumber")
+                                                    putExtra("sms_body", savedSmsBody)
+                                                }
+                                                context.startActivity(smsIntent)
                                             } catch (e: Exception) {
-                                                Toast.makeText(context, "MMS 앱을 실행할 수 없습니다.", Toast.LENGTH_SHORT).show()
+                                                Toast.makeText(context, "저장된 견적서 정보가 없습니다.", Toast.LENGTH_SHORT).show()
                                             }
                                         } else {
                                             Toast.makeText(context, "저장된 견적서 정보가 없습니다.", Toast.LENGTH_SHORT).show()
                                         }
                                     }
+
                                 )
                             }
                         }

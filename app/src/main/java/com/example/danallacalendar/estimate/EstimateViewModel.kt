@@ -1,5 +1,10 @@
 package com.example.danallacalendar.estimate
 
+import android.graphics.Bitmap
+import android.graphics.Canvas
+import android.graphics.Color
+import android.graphics.pdf.PdfRenderer
+import android.os.ParcelFileDescriptor
 import com.example.danallacalendar.BuildConfig
 import com.example.danallacalendar.data.EstimatePdf
 import com.example.danallacalendar.data.EstimatePdfDao
@@ -349,6 +354,36 @@ class EstimateViewModel @Inject constructor(
                                     fos.write(pdfBytes)
                                 }
 
+                                // PDF → JPG 변환 (MMS 첨부용)
+                                val jpgFileName = fileName.replace(".pdf", ".jpg")
+                                val jpgFile = java.io.File(tempDir, jpgFileName)
+                                try {
+                                    val pfd = ParcelFileDescriptor.open(pdfFile, ParcelFileDescriptor.MODE_READ_ONLY)
+                                    val pdfRenderer = PdfRenderer(pfd)
+                                    val page = pdfRenderer.openPage(0)
+                                    // 고해상도 렌더링 (A4 기준 2배 해상도)
+                                    val scale = 3
+                                    val bitmapWidth = page.width * scale
+                                    val bitmapHeight = page.height * scale
+                                    val bitmap = Bitmap.createBitmap(bitmapWidth, bitmapHeight, Bitmap.Config.ARGB_8888)
+                                    // 흰 배경 채우기
+                                    val canvas = Canvas(bitmap)
+                                    canvas.drawColor(Color.WHITE)
+                                    page.render(bitmap, null, null, PdfRenderer.Page.RENDER_MODE_FOR_PRINT)
+                                    page.close()
+                                    pdfRenderer.close()
+                                    pfd.close()
+                                    java.io.FileOutputStream(jpgFile).use { out ->
+                                        bitmap.compress(Bitmap.CompressFormat.JPEG, 95, out)
+                                    }
+                                    bitmap.recycle()
+                                    savedPdfPath = jpgFile.absolutePath
+                                    android.util.Log.d("EstimateViewModel", "PDF→JPG 변환 완료: ${jpgFile.absolutePath}")
+                                } catch (jpgEx: Exception) {
+                                    android.util.Log.e("EstimateViewModel", "PDF→JPG 변환 실패, PDF 경로 사용", jpgEx)
+                                    savedPdfPath = pdfFile.absolutePath
+                                }
+
                                 // DB에는 구글 드라이브 파일 ID를 저장
                                 val estimatePdf = EstimatePdf(
                                     date = monthDay,
@@ -356,7 +391,6 @@ class EstimateViewModel @Inject constructor(
                                     filePath = pdfFileId
                                 )
                                 estimatePdfDao.insertPdf(estimatePdf)
-                                savedPdfPath = pdfFile.absolutePath
                                 android.util.Log.d("EstimateViewModel", "PDF Cached at: ${pdfFile.absolutePath}, Drive File ID: $pdfFileId")
                             }
                         } catch (pdfEx: Exception) {
