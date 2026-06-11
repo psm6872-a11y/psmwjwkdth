@@ -12,6 +12,15 @@ import androidx.core.view.WindowInsetsControllerCompat
 import android.net.Uri
 import android.print.PrintAttributes
 import android.print.PrintManager
+import android.print.PrintDocumentAdapter
+import android.print.PrintDocumentInfo
+import android.print.PageRange
+import android.os.Bundle
+import android.os.CancellationSignal
+import android.os.ParcelFileDescriptor
+import java.io.FileInputStream
+import java.io.FileOutputStream
+import java.io.File
 import android.webkit.WebResourceRequest
 import android.webkit.WebView
 import android.webkit.WebViewClient
@@ -500,7 +509,17 @@ fun EstimateScreen(
                                     saveState = saveState,
                                     totalExpectedVolume = totalExpectedVolumeStr,
                                     onPrint = {
-                                        printEstimate(context, customerName, phoneNumber, moveDate, startTime, moveType, departure, destination, amount, viewModel.formatRoomItemsSummary(), memo, totalExpectedVolumeStr)
+                                        if (savedPdfPath != null) {
+                                            val pdfPath = savedPdfPath!!.replace(".jpg", ".pdf")
+                                            val pdfFile = java.io.File(pdfPath)
+                                            if (pdfFile.exists()) {
+                                                printPdfFile(context, pdfFile, "이사 견적서 - $customerName")
+                                            } else {
+                                                Toast.makeText(context, "견적서 PDF 파일이 없습니다. 먼저 저장해 주세요.", Toast.LENGTH_SHORT).show()
+                                            }
+                                        } else {
+                                            Toast.makeText(context, "저장된 견적서가 없습니다. 먼저 저장해 주세요.", Toast.LENGTH_SHORT).show()
+                                        }
                                     },
                                     onSendSms = {
                                         if (savedPdfPath != null) {
@@ -3388,104 +3407,63 @@ class BubbleShape(
 }
 
 // Printer support helper
-fun printEstimate(
-    context: Context,
-    customerName: String,
-    phoneNumber: String,
-    moveDate: String,
-    startTime: String,
-    moveType: String,
-    departure: String,
-    destination: String,
-    amount: String,
-    roomItemsSummary: String,
-    memo: String,
-    totalExpectedVolume: String
-) {
+// Printer support helper for PDF files
+fun printPdfFile(context: Context, file: File, documentName: String) {
     val printManager = context.getSystemService(Context.PRINT_SERVICE) as? PrintManager ?: return
-    val formattedAmount = run {
-        val amt = amount.toLongOrNull() ?: 0L
-        NumberFormat.getNumberInstance(Locale.KOREA).format(amt)
-    }
-
-    val htmlDocument = """
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <meta charset="utf-8">
-            <title>이사 견적서 - $customerName 고객님</title>
-            <style>
-                body { font-family: sans-serif; padding: 20px; line-height: 1.6; }
-                h1 { text-align: center; color: #333; margin-bottom: 30px; }
-                table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
-                th, td { border: 1px solid #ddd; padding: 12px; text-align: left; }
-                th { background-color: #f5f5f5; width: 30%; }
-                .amount-box { border: 2px solid #0056b3; background-color: #e6f0fa; padding: 15px; text-align: center; font-size: 20px; font-weight: bold; color: #0056b3; margin-top: 20px; }
-                .section-title { font-size: 16px; font-weight: bold; margin-top: 20px; margin-bottom: 10px; color: #333; border-bottom: 1px solid #333; padding-bottom: 5px; }
-                pre { white-space: pre-wrap; font-family: sans-serif; background-color: #f9f9f9; padding: 15px; border-radius: 5px; }
-            </style>
-        </head>
-        <body>
-            <h1>이사 견적서</h1>
-            <table>
-                <tr>
-                    <th>고객명</th>
-                    <td>$customerName</td>
-                </tr>
-                <tr>
-                    <th>연락처</th>
-                    <td>$phoneNumber</td>
-                </tr>
-                <tr>
-                    <th>이사 종류</th>
-                    <td>$moveType</td>
-                </tr>
-                <tr>
-                    <th>이사 날짜</th>
-                    <td>$moveDate ${if (startTime.isNotBlank()) "($startTime)" else ""}</td>
-                </tr>
-                <tr>
-                    <th>출발지</th>
-                    <td>$departure</td>
-                </tr>
-                <tr>
-                    <th>도착지</th>
-                    <td>$destination</td>
-                </tr>
-                ${if (totalExpectedVolume.isNotBlank()) {
-                    "<tr><th>총 예상물량</th><td>${totalExpectedVolume}t</td></tr>"
-                } else ""}
-            </table>
-
-            ${if (roomItemsSummary.isNotBlank()) {
-                "<div class='section-title'>공간별 짐 목록</div><pre>$roomItemsSummary</pre>"
-            } else ""}
-
-            ${if (memo.isNotBlank()) {
-                "<div class='section-title'>특이사항 및 메모</div><pre>$memo</pre>"
-            } else ""}
-
-            <div class="amount-box">
-                최종 견적 금액: ${formattedAmount}원
-            </div>
-        </body>
-        </html>
-    """.trimIndent()
-
-    val webView = WebView(context).apply {
-        webViewClient = object : WebViewClient() {
-            override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
-                return false
+    val jobName = "${documentName}_Job"
+    val printAdapter = object : PrintDocumentAdapter() {
+        override fun onLayout(
+            oldAttributes: PrintAttributes?,
+            newAttributes: PrintAttributes?,
+            cancellationSignal: CancellationSignal?,
+            callback: LayoutResultCallback?,
+            extras: Bundle?
+        ) {
+            if (cancellationSignal?.isCanceled == true) {
+                callback?.onLayoutCancelled()
+                return
             }
+            val info = PrintDocumentInfo.Builder(documentName)
+                .setContentType(PrintDocumentInfo.CONTENT_TYPE_DOCUMENT)
+                .setPageCount(PrintDocumentInfo.PAGE_COUNT_UNKNOWN)
+                .build()
+            callback?.onLayoutFinished(info, newAttributes != oldAttributes)
+        }
 
-            override fun onPageFinished(view: WebView?, url: String?) {
-                val printAdapter = createPrintDocumentAdapter("이사 견적서 - $customerName")
-                val jobName = "이사 견적서_Job"
-                printManager.print(jobName, printAdapter, PrintAttributes.Builder().build())
+        override fun onWrite(
+            pages: Array<out PageRange>?,
+            destination: ParcelFileDescriptor?,
+            cancellationSignal: CancellationSignal?,
+            callback: WriteResultCallback?
+        ) {
+            var input: FileInputStream? = null
+            var output: FileOutputStream? = null
+            try {
+                input = FileInputStream(file)
+                output = FileOutputStream(destination?.fileDescriptor)
+                val buf = ByteArray(16384)
+                var size: Int
+                while (input.read(buf).also { size = it } >= 0 && cancellationSignal?.isCanceled != true) {
+                    output.write(buf, 0, size)
+                }
+                if (cancellationSignal?.isCanceled == true) {
+                    callback?.onWriteCancelled()
+                } else {
+                    callback?.onWriteFinished(arrayOf(PageRange.ALL_PAGES))
+                }
+            } catch (e: Exception) {
+                callback?.onWriteFailed(e.message)
+            } finally {
+                try {
+                    input?.close()
+                    output?.close()
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
             }
         }
-        loadDataWithBaseURL(null, htmlDocument, "text/html", "UTF-8", null)
     }
+    printManager.print(jobName, printAdapter, PrintAttributes.Builder().build())
 }
 
 private tailrec fun Context.findActivity(): Activity? =
