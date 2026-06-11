@@ -159,6 +159,9 @@ function doPost(e) {
   // 저장된 파일 URL 반환 (해당 시트로 바로 이동하는 gid 쿼리 추가)
   var fileUrl = "https://docs.google.com/spreadsheets/d/" + destSS.getId() + "/edit#gid=" + newSheet.getSheetId();
   
+  // 변경사항 강제 동기화
+  SpreadsheetApp.flush();
+  
   // PDF 생성 및 base64 인코딩 & 구글 드라이브 영구 저장
   var pdfBase64 = "";
   var pdfFileId = "";
@@ -194,10 +197,14 @@ function doPost(e) {
   try {
     debugInfo.b9_merged = newSheet.getRange("B9").isPartOfMerge();
     debugInfo.b9_val = String(newSheet.getRange("B9").getValue());
-    debugInfo.a9_val = String(newSheet.getRange("A9").getValue());
-    debugInfo.c9_val = String(newSheet.getRange("C9").getValue());
-    debugInfo.b10_val = String(newSheet.getRange("B10").getValue());
     debugInfo.b8_val = String(newSheet.getRange("B8").getValue());
+    debugInfo.j37_val = String(newSheet.getRange("J37").getValue());
+    debugInfo.j38_val = String(newSheet.getRange("J38").getValue());
+    debugInfo.j39_val = String(newSheet.getRange("J39").getValue());
+    debugInfo.j40_val = String(newSheet.getRange("J40").getValue());
+    debugInfo.j41_val = String(newSheet.getRange("J41").getValue());
+    debugInfo.a13_bg = String(newSheet.getRange("A13").getBackground());
+    debugInfo.a13_val = String(newSheet.getRange("A13").getValue());
   } catch (debugErr) {
     debugInfo.error = debugErr.message;
   }
