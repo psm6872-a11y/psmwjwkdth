@@ -290,7 +290,7 @@ fun CalendarMainScreen(
                                     val driveUri = if (folderId.isNotBlank()) {
                                         Uri.parse("https://drive.google.com/drive/folders/$folderId")
                                     } else {
-                                        Uri.parse("https://drive.google.com/drive/search?q=다날라 견적서pdf")
+                                        Uri.parse("https://drive.google.com/drive/folders/1u8PljWZu7ZaR5eORvNwiRkQNbMC2LE4t")
                                     }
                                     try {
                                         val driveIntent = Intent(Intent.ACTION_VIEW, driveUri).apply {
