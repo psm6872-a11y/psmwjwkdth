@@ -257,5 +257,5 @@ function formatWonMan(val) {
   if (s.endsWith("만원")) {
     s = s.substring(0, s.length - 2);
   }
-  return "₩" + s + "만원";
+  return "₩ " + s + " 만원";
 }
