@@ -166,7 +166,20 @@ function doPost(e) {
   var pdfBase64 = "";
   var pdfFileId = "";
   try {
-    var pdfUrl = "https://docs.google.com/spreadsheets/d/" + destSS.getId() + "/export?exportFormat=pdf&format=pdf&gid=" + newSheet.getSheetId();
+    var pdfUrl = "https://docs.google.com/spreadsheets/d/" + destSS.getId() + "/export?exportFormat=pdf&format=pdf&gid=" + newSheet.getSheetId() +
+                 "&size=a4" +
+                 "&portrait=true" +
+                 "&fitw=true" +
+                 "&fith=true" +
+                 "&scale=4" +
+                 "&gridlines=false" +
+                 "&printtitle=false" +
+                 "&sheetnames=false" +
+                 "&top_margin=0.3" +
+                 "&bottom_margin=0.3" +
+                 "&left_margin=0.3" +
+                 "&right_margin=0.3" +
+                 "&horizontal_alignment=CENTER";
     var pdfResponse = UrlFetchApp.fetch(pdfUrl, {
       headers: {
         'Authorization': 'Bearer ' + ScriptApp.getOAuthToken(),
