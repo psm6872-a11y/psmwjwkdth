@@ -76,7 +76,35 @@ class EstimateViewModel @Inject constructor(
     init {
         val today = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(java.util.Date())
         estimateDate.value = today
-        googleSheetsUrl.value = BuildConfig.SPREADSHEET_WEB_APP_URL
+        
+        // Firebase Remote Config를 통해 동적으로 스프레드시트 웹앱 URL 로드
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val remoteConfig = com.google.firebase.remoteconfig.FirebaseRemoteConfig.getInstance()
+                val configSettings = com.google.firebase.remoteconfig.ktx.remoteConfigSettings {
+                    minimumFetchIntervalInSeconds = 0 // 매번 즉시 갱신
+                }
+                remoteConfig.setConfigSettingsAsync(configSettings)
+                remoteConfig.fetchAndActivate().addOnCompleteListener { task ->
+                    if (task.isSuccessful) {
+                        val fetchedUrl = remoteConfig.getString("spreadsheet_web_app_url")
+                        if (!fetchedUrl.isNullOrBlank()) {
+                            googleSheetsUrl.value = fetchedUrl
+                            android.util.Log.d("EstimateViewModel", "[LOG] Firebase Remote Config URL loaded successfully: '$fetchedUrl'")
+                        } else {
+                            googleSheetsUrl.value = BuildConfig.SPREADSHEET_WEB_APP_URL
+                            android.util.Log.d("EstimateViewModel", "[LOG] Firebase Remote Config URL is empty. Fallback to BuildConfig.")
+                        }
+                    } else {
+                        googleSheetsUrl.value = BuildConfig.SPREADSHEET_WEB_APP_URL
+                        android.util.Log.e("EstimateViewModel", "[LOG] Firebase Remote Config Fetch failed. Fallback to BuildConfig.")
+                    }
+                }
+            } catch (e: Exception) {
+                googleSheetsUrl.value = BuildConfig.SPREADSHEET_WEB_APP_URL
+                android.util.Log.e("EstimateViewModel", "[LOG] Error loading Firebase Remote Config: ${e.message}. Fallback to BuildConfig.")
+            }
+        }
 
         // 캘린더 일정 연동 인자 파싱 및 바인딩
         try {
