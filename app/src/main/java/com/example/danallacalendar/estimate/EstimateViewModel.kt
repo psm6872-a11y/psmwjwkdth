@@ -330,9 +330,10 @@ class EstimateViewModel @Inject constructor(
                                 android.util.Log.d("EstimateViewModel", "Sheet Debug Info (B9 diagnosis): $debugInfo")
                             }
                             if (pdfBase64.isNotBlank()) {
-                                val dateParts = moveDate.value.split("-")
+                                val dateStr = estimateDate.value.ifBlank { moveDate.value }
+                                val dateParts = dateStr.split("-")
                                 val monthDay = if (dateParts.size >= 3) "${dateParts[1]}-${dateParts[2]}" else "00-00"
-                                val rawPhone = phoneNumber.value.replace("-", "").trim()
+                                val rawPhone = phoneNumber.value.replace(Regex("[^0-9]"), "")
                                 val last4 = if (rawPhone.length >= 4) rawPhone.takeLast(4) else "0000"
                                 val fileName = "${monthDay}_$last4.pdf"
 

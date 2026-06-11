@@ -30,7 +30,7 @@ function doPost(e) {
     isNewFile = true;
   }
   
-  // 시트 이름 생성 (날짜 + 순번, 예: 06-10(1))
+  // 시트 이름 생성 (날짜_전화번호뒷자리4자리, 예: 06-10_5678)
   var dateStr = data.estimateDate || Utilities.formatDate(new Date(), "GMT+9", "yyyy-MM-dd");
   var dateParts = dateStr.split("-");
   var monthDayStr = "견적";
@@ -40,11 +40,23 @@ function doPost(e) {
     monthDayStr = Utilities.formatDate(new Date(), "GMT+9", "MM-dd");
   }
   
-  var index = 1;
-  while (destSS.getSheetByName(monthDayStr + "(" + index + ")") !== null) {
-    index++;
+  var last4 = "0000";
+  if (data.phoneNumber) {
+    var rawPhone = String(data.phoneNumber).replace(/[^0-9]/g, "");
+    if (rawPhone.length >= 4) {
+      last4 = rawPhone.substring(rawPhone.length - 4);
+    }
   }
-  var sheetName = monthDayStr + "(" + index + ")";
+  
+  var baseName = monthDayStr + "_" + last4;
+  var sheetName = baseName;
+  if (destSS.getSheetByName(sheetName) !== null) {
+    var index = 2;
+    while (destSS.getSheetByName(baseName + "(" + index + ")") !== null) {
+      index++;
+    }
+    sheetName = baseName + "(" + index + ")";
+  }
   
   // 템플릿 스프레드시트에서 data.moveType에 해당하는 시트를 복사해서 추가
   var templateSheet = templateSS.getSheetByName(data.moveType);
@@ -194,7 +206,7 @@ function doPost(e) {
     var pdfRootFolder = getOrCreateFolder(pdfRootFolderName, DriveApp.getRootFolder());
     var pdfMonthFolder = getOrCreateFolder(monthFolderName, pdfRootFolder);
     
-    var pdfFileName = sheetName + (data.customerName ? "_" + data.customerName : "") + ".pdf";
+    var pdfFileName = sheetName + ".pdf";
     var pdfFile = pdfMonthFolder.createFile(pdfBlob);
     pdfFile.setName(pdfFileName);
     
