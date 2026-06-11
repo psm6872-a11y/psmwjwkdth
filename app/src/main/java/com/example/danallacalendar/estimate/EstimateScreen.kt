@@ -3322,7 +3322,7 @@ fun Step4PreviewAndActions(
                 colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.tertiary),
                 shape = RoundedCornerShape(12.dp)
             ) {
-                Text("문자 전송", fontWeight = FontWeight.Bold)
+                Text("견적서 문자 발송", fontWeight = FontWeight.Bold)
             }
         }
     }
