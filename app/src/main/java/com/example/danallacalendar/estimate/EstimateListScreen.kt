@@ -11,11 +11,13 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import android.net.Uri
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.PictureAsPdf
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Cloud
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -103,7 +105,30 @@ fun EstimateListScreen(
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = Color(0xFF1E1045)
-                )
+                ),
+                actions = {
+                    IconButton(
+                        onClick = {
+                            try {
+                                val driveIntent = Intent(
+                                    Intent.ACTION_VIEW,
+                                    Uri.parse("https://drive.google.com/drive/search?q=다날라 견적서pdf")
+                                ).apply {
+                                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                }
+                                context.startActivity(driveIntent)
+                            } catch (e: Exception) {
+                                Toast.makeText(context, "구글 드라이브를 열 수 없습니다.", Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Cloud,
+                            tint = Color.White,
+                            contentDescription = "구글 드라이브 바로가기"
+                        )
+                    }
+                }
             )
         },
         containerColor = Color(0xFF0F0825)
