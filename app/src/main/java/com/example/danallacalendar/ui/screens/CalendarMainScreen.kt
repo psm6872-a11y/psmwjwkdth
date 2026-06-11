@@ -262,7 +262,17 @@ fun CalendarMainScreen(
                     },
                     onEstimateListClick = {
                         scope.launch { drawerState.close() }
-                        onNavigateToEstimateList()
+                        try {
+                            val driveIntent = Intent(
+                                Intent.ACTION_VIEW,
+                                Uri.parse("https://drive.google.com/drive/search?q=다날라 견적서pdf")
+                            ).apply {
+                                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                            }
+                            context.startActivity(driveIntent)
+                        } catch (e: Exception) {
+                            Toast.makeText(context, "구글 드라이브를 열 수 없습니다.", Toast.LENGTH_SHORT).show()
+                        }
                     },
                     onCloseClick = {
                         scope.launch { drawerState.close() }
