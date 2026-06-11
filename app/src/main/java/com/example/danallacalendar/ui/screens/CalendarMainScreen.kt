@@ -263,18 +263,60 @@ fun CalendarMainScreen(
                     },
                     onEstimateListClick = {
                         scope.launch { drawerState.close() }
-                        try {
-                            val driveIntent = Intent(
-                                Intent.ACTION_VIEW,
-                                Uri.parse("https://drive.google.com/drive/search?q=다날라 견적서pdf")
-                            ).apply {
-                                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                        Toast.makeText(context, "견적서 폴더 열기 중...", Toast.LENGTH_SHORT).show()
+                        scope.launch(Dispatchers.IO) {
+                            try {
+                                val webAppUrl = com.example.danallacalendar.BuildConfig.SPREADSHEET_WEB_APP_URL
+                                val requestUrl = "$webAppUrl?action=getFolderInfo"
+                                val connection = java.net.URL(requestUrl).openConnection() as java.net.HttpURLConnection
+                                connection.requestMethod = "GET"
+                                connection.connectTimeout = 10000
+                                connection.readTimeout = 10000
+                                connection.instanceFollowRedirects = true
+                                val responseCode = connection.responseCode
+                                val response = if (responseCode == 200) {
+                                    connection.inputStream.bufferedReader().readText()
+                                } else null
+                                connection.disconnect()
+
+                                val folderId = if (response != null) {
+                                    try {
+                                        val json = org.json.JSONObject(response)
+                                        if (json.optBoolean("success", false)) json.optString("folderId", "") else ""
+                                    } catch (_: Exception) { "" }
+                                } else ""
+
+                                withContext(kotlinx.coroutines.Dispatchers.Main) {
+                                    val driveUri = if (folderId.isNotBlank()) {
+                                        Uri.parse("https://drive.google.com/drive/folders/$folderId")
+                                    } else {
+                                        Uri.parse("https://drive.google.com/drive/search?q=다날라 견적서pdf")
+                                    }
+                                    try {
+                                        val driveIntent = Intent(Intent.ACTION_VIEW, driveUri).apply {
+                                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                        }
+                                        context.startActivity(driveIntent)
+                                    } catch (e: Exception) {
+                                        Toast.makeText(context, "구글 드라이브를 열 수 없습니다.", Toast.LENGTH_SHORT).show()
+                                    }
+                                }
+                            } catch (e: Exception) {
+                                withContext(kotlinx.coroutines.Dispatchers.Main) {
+                                    try {
+                                        val driveIntent = Intent(
+                                            Intent.ACTION_VIEW,
+                                            Uri.parse("https://drive.google.com/drive/search?q=다날라 견적서pdf")
+                                        ).apply { addFlags(Intent.FLAG_ACTIVITY_NEW_TASK) }
+                                        context.startActivity(driveIntent)
+                                    } catch (ex: Exception) {
+                                        Toast.makeText(context, "구글 드라이브를 열 수 없습니다.", Toast.LENGTH_SHORT).show()
+                                    }
+                                }
                             }
-                            context.startActivity(driveIntent)
-                        } catch (e: Exception) {
-                            Toast.makeText(context, "구글 드라이브를 열 수 없습니다.", Toast.LENGTH_SHORT).show()
                         }
                     },
+
                     onCloseClick = {
                         scope.launch { drawerState.close() }
                     },

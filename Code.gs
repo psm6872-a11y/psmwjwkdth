@@ -272,3 +272,32 @@ function formatWonMan(val) {
   }
   return "₩ " + s + " 만원";
 }
+
+function doGet(e) {
+  var action = e && e.parameter && e.parameter.action ? e.parameter.action : "";
+  
+  if (action === "getFolderInfo") {
+    try {
+      var pdfRootFolderName = "다날라 견적서pdf";
+      var pdfRootFolder = getOrCreateFolder(pdfRootFolderName, DriveApp.getRootFolder());
+      var folderId = pdfRootFolder.getId();
+      return ContentService.createTextOutput(JSON.stringify({
+        success: true,
+        folderId: folderId,
+        folderName: pdfRootFolderName,
+        folderUrl: "https://drive.google.com/drive/folders/" + folderId
+      })).setMimeType(ContentService.MimeType.JSON);
+    } catch (err) {
+      return ContentService.createTextOutput(JSON.stringify({
+        success: false,
+        error: err.message
+      })).setMimeType(ContentService.MimeType.JSON);
+    }
+  }
+  
+  // 기본 응답 (health check)
+  return ContentService.createTextOutput(JSON.stringify({
+    success: true,
+    status: "ok"
+  })).setMimeType(ContentService.MimeType.JSON);
+}
