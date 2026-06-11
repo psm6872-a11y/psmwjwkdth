@@ -511,15 +511,57 @@ fun EstimateScreen(
                                                     "${context.packageName}.fileprovider",
                                                     jpgFile
                                                 )
+                                                val defaultSmsPackage = android.provider.Telephony.Sms.getDefaultSmsPackage(context)
+                                                val intent = Intent(Intent.ACTION_SEND).apply {
+                                                    type = "image/jpeg"
+                                                    putExtra(Intent.EXTRA_STREAM, fileUri)
+                                                    putExtra("address", phoneNumber)
+                                                    putExtra("recipient", phoneNumber)
+                                                    putExtra(Intent.EXTRA_PHONE_NUMBER, phoneNumber)
+                                                    if (!defaultSmsPackage.isNullOrBlank()) {
+                                                        setPackage(defaultSmsPackage)
+                                                    }
+                                                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                                                }
+                                                try {
+                                                    if (!defaultSmsPackage.isNullOrBlank()) {
+                                                        context.startActivity(intent)
+                                                    } else {
+                                                        context.startActivity(Intent.createChooser(intent, "견적서 전송"))
+                                                    }
+                                                } catch (e: Exception) {
+                                                    try {
+                                                        intent.setPackage(null)
+                                                        context.startActivity(Intent.createChooser(intent, "견적서 전송"))
+                                                    } catch (ex: Exception) {
+                                                        Toast.makeText(context, "앱을 실행할 수 없습니다.", Toast.LENGTH_SHORT).show()
+                                                    }
+                                                }
+                                            } else {
+                                                Toast.makeText(context, "견적서 이미지가 없습니다. 먼저 저장해 주세요.", Toast.LENGTH_SHORT).show()
+                                            }
+                                        } else {
+                                            Toast.makeText(context, "저장된 견적서가 없습니다. 먼저 저장해 주세요.", Toast.LENGTH_SHORT).show()
+                                        }
+                                    },
+                                    onShare = {
+                                        if (savedPdfPath != null) {
+                                            val jpgFile = java.io.File(savedPdfPath!!)
+                                            if (jpgFile.exists()) {
+                                                val fileUri = androidx.core.content.FileProvider.getUriForFile(
+                                                    context,
+                                                    "${context.packageName}.fileprovider",
+                                                    jpgFile
+                                                )
                                                 val intent = Intent(Intent.ACTION_SEND).apply {
                                                     type = "image/jpeg"
                                                     putExtra(Intent.EXTRA_STREAM, fileUri)
                                                     addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                                                 }
                                                 try {
-                                                    context.startActivity(Intent.createChooser(intent, "견적서 전송"))
+                                                    context.startActivity(Intent.createChooser(intent, "견적서 공유"))
                                                 } catch (e: Exception) {
-                                                    Toast.makeText(context, "앱을 실행할 수 없습니다.", Toast.LENGTH_SHORT).show()
+                                                    Toast.makeText(context, "공유할 수 없습니다.", Toast.LENGTH_SHORT).show()
                                                 }
                                             } else {
                                                 Toast.makeText(context, "견적서 이미지가 없습니다. 먼저 저장해 주세요.", Toast.LENGTH_SHORT).show()
@@ -3168,7 +3210,8 @@ fun Step4PreviewAndActions(
     saveState: SaveState,
     totalExpectedVolume: String,
     onPrint: () -> Unit,
-    onSendSms: () -> Unit
+    onSendSms: () -> Unit,
+    onShare: () -> Unit
 ) {
     val formattedAmount = remember(amount) {
         val amt = amount.toLongOrNull() ?: 0L
@@ -3296,6 +3339,20 @@ fun Step4PreviewAndActions(
                 shape = RoundedCornerShape(12.dp)
             ) {
                 Text("프린터 출력")
+            }
+
+            OutlinedButton(
+                onClick = onShare,
+                modifier = Modifier
+                    .weight(1f)
+                    .height(56.dp),
+                shape = RoundedCornerShape(12.dp),
+                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.5f)),
+                colors = ButtonDefaults.outlinedButtonColors(
+                    contentColor = Color.White
+                )
+            ) {
+                Text("공유하기")
             }
 
             Button(
