@@ -219,7 +219,7 @@ fun DrawerContent(
             modifier = Modifier.padding(vertical = 8.dp)
         )
 
-        val targetNames = listOf("내 캘린더", "공유 캘린더", "공휴일")
+        val targetNames = listOf("공유 캘린더", "내 캘린더", "공휴일")
         val filteredCategories = categories
             .filter { it.name in targetNames }
             .sortedBy { targetNames.indexOf(it.name) }
