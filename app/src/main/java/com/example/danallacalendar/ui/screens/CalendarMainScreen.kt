@@ -825,7 +825,7 @@ fun CalendarGridSection(
                     text = day,
                     modifier = Modifier.weight(1f),
                     textAlign = TextAlign.Center,
-                    fontSize = (minOf(screenWidth, 400.dp).value * 0.03f).sp,
+                    fontSize = (minOf(screenWidth, 400.dp).value * 0.035f).sp,
                     fontWeight = FontWeight.Bold,
                     color = textColor
                 )
@@ -956,7 +956,7 @@ fun CalendarDayCell(
         // Date circle highlight wrapper Box for SonEopNeunMark alignment (centered in day cell)
         Box(
             modifier = Modifier
-                .size(minOf(screenWidth, 400.dp) * 0.07f)
+                .size(minOf(screenWidth, 400.dp) * 0.08f)
                 .align(Alignment.Center),
             contentAlignment = Alignment.Center
         ) {
@@ -981,7 +981,7 @@ fun CalendarDayCell(
                         isDeadline -> dayTextColor.copy(alpha = 0.2f)
                         else -> dayTextColor
                     },
-                    fontSize = (minOf(screenWidth, 400.dp).value * 0.033f).sp,
+                    fontSize = (minOf(screenWidth, 400.dp).value * 0.038f).sp,
                     fontWeight = if (day.isToday || isSelected) FontWeight.Bold else FontWeight.Medium,
                     style = androidx.compose.ui.text.TextStyle(
                         platformStyle = androidx.compose.ui.text.PlatformTextStyle(includeFontPadding = false),
