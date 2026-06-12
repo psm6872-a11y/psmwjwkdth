@@ -1140,7 +1140,7 @@ fun EventListSection(
         ) {
             Text(
                 text = dateHeaderStr,
-                fontSize = (minOf(screenWidth, 400.dp).value * 0.04f).sp,
+                fontSize = (minOf(screenWidth, 400.dp).value * 0.046f).sp,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onBackground,
                 modifier = Modifier.weight(1f)
@@ -1155,11 +1155,11 @@ fun EventListSection(
                         containerColor = MaterialTheme.colorScheme.error.copy(alpha = 0.85f),
                         contentColor = androidx.compose.ui.graphics.Color.White
                     ),
-                    modifier = Modifier.defaultMinSize(minWidth = 1.dp).height(screenHeight * 0.028f)
+                    modifier = Modifier.defaultMinSize(minWidth = 1.dp).height(screenHeight * 0.032f)
                 ) {
                     Text(
                         text = "마감✓",
-                        fontSize = (minOf(screenWidth, 400.dp).value * 0.025f).sp,
+                        fontSize = (minOf(screenWidth, 400.dp).value * 0.03f).sp,
                         fontWeight = FontWeight.Bold,
                         style = androidx.compose.ui.text.TextStyle(
                             platformStyle = androidx.compose.ui.text.PlatformTextStyle(
@@ -1181,11 +1181,11 @@ fun EventListSection(
                     colors = ButtonDefaults.outlinedButtonColors(
                         contentColor = MaterialTheme.colorScheme.error
                     ),
-                    modifier = Modifier.defaultMinSize(minWidth = 1.dp).height(screenHeight * 0.028f)
+                    modifier = Modifier.defaultMinSize(minWidth = 1.dp).height(screenHeight * 0.032f)
                 ) {
                     Text(
                         text = "마감",
-                        fontSize = (minOf(screenWidth, 400.dp).value * 0.025f).sp,
+                        fontSize = (minOf(screenWidth, 400.dp).value * 0.03f).sp,
                         fontWeight = FontWeight.Bold,
                         style = androidx.compose.ui.text.TextStyle(
                             platformStyle = androidx.compose.ui.text.PlatformTextStyle(
@@ -1227,7 +1227,7 @@ fun EventListSection(
                     Text(
                         text = "일정이 없습니다",
                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
-                        fontSize = (minOf(screenWidth, 400.dp).value * 0.038f).sp
+                        fontSize = (minOf(screenWidth, 400.dp).value * 0.042f).sp
                     )
                 }
             }
@@ -1308,8 +1308,8 @@ fun EventItemCard(
                     .padding(
                         start = minOf(screenWidth, 400.dp) * 0.025f, 
                         end = minOf(screenWidth, 400.dp) * 0.015f, 
-                        top = if (event.isAllDay) (screenHeight * 0.02f) else (screenHeight * 0.012f), 
-                        bottom = if (event.isAllDay) (screenHeight * 0.02f) else (screenHeight * 0.012f)
+                        top = if (event.isAllDay) (screenHeight * 0.026f) else (screenHeight * 0.012f), 
+                        bottom = if (event.isAllDay) (screenHeight * 0.026f) else (screenHeight * 0.012f)
                     ),
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -1321,7 +1321,7 @@ fun EventItemCard(
                     ) {
                         Text(
                             text = startStr,
-                            fontSize = (minOf(screenWidth, 400.dp).value * 0.033f).sp,
+                            fontSize = (minOf(screenWidth, 400.dp).value * 0.038f).sp,
                             fontWeight = FontWeight.Bold,
                             color = contentColor,
                             maxLines = 1,
@@ -1352,7 +1352,7 @@ fun EventItemCard(
                     }
                     Text(
                         text = displayText,
-                        fontSize = (minOf(screenWidth, 400.dp).value * 0.035f).sp,
+                        fontSize = (minOf(screenWidth, 400.dp).value * 0.04f).sp,
                         fontWeight = FontWeight.Bold,
                         color = contentColor,
                         maxLines = 1,
@@ -1375,11 +1375,11 @@ fun EventItemCard(
                         colors = ButtonDefaults.outlinedButtonColors(
                             contentColor = MaterialTheme.colorScheme.onSurfaceVariant
                         ),
-                        modifier = Modifier.height(screenHeight * 0.028f).defaultMinSize(minWidth = 1.dp)
+                        modifier = Modifier.height(screenHeight * 0.032f).defaultMinSize(minWidth = 1.dp)
                     ) {
                         Text(
                             text = "완료",
-                            fontSize = (minOf(screenWidth, 400.dp).value * 0.025f).sp,
+                            fontSize = (minOf(screenWidth, 400.dp).value * 0.03f).sp,
                             fontWeight = FontWeight.Medium,
                             style = androidx.compose.ui.text.TextStyle(
                                 platformStyle = androidx.compose.ui.text.PlatformTextStyle(
@@ -1398,11 +1398,11 @@ fun EventItemCard(
                             containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.8f),
                             contentColor = MaterialTheme.colorScheme.onPrimary
                         ),
-                        modifier = Modifier.height(screenHeight * 0.028f).defaultMinSize(minWidth = 1.dp)
+                        modifier = Modifier.height(screenHeight * 0.032f).defaultMinSize(minWidth = 1.dp)
                     ) {
                         Text(
                             text = "완료",
-                            fontSize = (minOf(screenWidth, 400.dp).value * 0.025f).sp,
+                            fontSize = (minOf(screenWidth, 400.dp).value * 0.03f).sp,
                             fontWeight = FontWeight.Bold,
                             style = androidx.compose.ui.text.TextStyle(
                                 platformStyle = androidx.compose.ui.text.PlatformTextStyle(
