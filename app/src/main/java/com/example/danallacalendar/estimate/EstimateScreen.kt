@@ -797,8 +797,11 @@ fun Step1StartScreen(
     onBack: () -> Unit,
     onSettingClick: () -> Unit
 ) {
-    val screenWidth = androidx.compose.ui.platform.LocalConfiguration.current.screenWidthDp.dp
-    val screenHeight = androidx.compose.ui.platform.LocalConfiguration.current.screenHeightDp.dp
+    val screenWidthDp = androidx.compose.ui.platform.LocalConfiguration.current.screenWidthDp
+    val screenHeightDp = androidx.compose.ui.platform.LocalConfiguration.current.screenHeightDp
+    val screenWidth = screenWidthDp.dp
+    val screenHeight = screenHeightDp.dp
+    val baseWidth = minOf(screenWidthDp, 400)
 
     val gradientBrush = Brush.verticalGradient(
         colors = listOf(
@@ -810,7 +813,7 @@ fun Step1StartScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(gradientBrush)
-            .padding(horizontal = 24.dp)
+            .padding(horizontal = (screenWidthDp * 0.06f).dp)
     ) {
         // 뒤로가기 버튼 및 캘린더 버튼 추가 (상단 배치)
         Row(
@@ -848,7 +851,7 @@ fun Step1StartScreen(
             onClick = onSettingClick,
             modifier = Modifier
                 .align(Alignment.TopEnd)
-                .padding(top = screenHeight * 0.04f, end = 8.dp)
+                .padding(top = screenHeight * 0.04f, end = (screenWidthDp * 0.02f).dp)
         ) {
             Icon(
                 imageVector = Icons.Default.Settings,
@@ -884,17 +887,17 @@ fun Step1StartScreen(
                         .aspectRatio(1.2f)
                 )
 
-                // Directed by 텍스트 (고정 패딩을 주어 겹침 방지)
+                // Directed by 텍스트 (반응형 음수 오프셋 적용하여 위로 배치)
                 Text(
                     text = "Directed by 다날라 익스프레스",
-                    fontSize = 15.sp,
+                    fontSize = (baseWidth * 0.042f).sp,
                     color = Color.White,
-                    modifier = Modifier.padding(top = 8.dp),
+                    modifier = Modifier.offset(y = -minOf(screenHeightDp * 0.045f, 36f).dp),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
 
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(screenHeight * 0.045f))
 
                 // 점멸 애니메이션 타이틀
                 Row(
@@ -927,11 +930,8 @@ fun Step1StartScreen(
                         // screenHeight 비례 대신 고정 dp 계단식 오프셋
                         val yOffset = -(index * 2).dp
                         val animatedColor = Color.hsv(hue % 360f, 0.8f, 1.0f)
-
-                        val screenWidthDp = androidx.compose.ui.platform.LocalConfiguration.current.screenWidthDp
-                        // 가로 너비가 아무리 넓어져도 최대 400dp 기준으로만 폰트 크기 계산 (태블릿 글자 폭등 방지)
-                        val baseWidth = minOf(screenWidthDp, 400)
                         val animTextSize = (baseWidth * 0.105f).sp
+
                         Text(
                             text = char,
                             fontSize = animTextSize,
@@ -943,7 +943,7 @@ fun Step1StartScreen(
                         )
 
                         if (char == "을") {
-                            Spacer(modifier = Modifier.width(12.dp))
+                            Spacer(modifier = Modifier.width((screenWidthDp * 0.035f).dp))
                         }
                     }
                 }
@@ -953,7 +953,7 @@ fun Step1StartScreen(
             Column(
                 modifier = Modifier
                     .weight(1.0f)
-                    .padding(top = 16.dp),
+                    .padding(top = (screenHeightDp * 0.02f).dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Top
             ) {
@@ -963,15 +963,12 @@ fun Step1StartScreen(
                     Triple("사무실이사", Brush.horizontalGradient(listOf(Color(0xFF00E676), Color(0xFF00C853))), Color.White)
                 )
 
-                val screenWidthDp = androidx.compose.ui.platform.LocalConfiguration.current.screenWidthDp
-                val screenHeightDp = androidx.compose.ui.platform.LocalConfiguration.current.screenHeightDp
-
                 categories.forEach { (category, brush, textColor) ->
                     Box(
                         modifier = Modifier
                             .widthIn(max = 320.dp) // 태블릿 가로 폭 상한 지정
                             .fillMaxWidth(0.65f)
-                            .padding(vertical = 8.dp)
+                            .padding(vertical = (screenHeightDp * 0.01f).dp)
                             .heightIn(max = 60.dp) // 태블릿 세로 높이 상한 지정
                             .height((screenHeightDp * 0.09f).dp)
                             .background(brush, shape = RoundedCornerShape(16.dp))
@@ -980,7 +977,7 @@ fun Step1StartScreen(
                     ) {
                         Text(
                             text = category,
-                            fontSize = 20.sp,
+                            fontSize = (baseWidth * 0.055f).sp,
                             fontWeight = FontWeight.Bold,
                             color = textColor,
                             maxLines = 1,
