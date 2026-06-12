@@ -202,26 +202,36 @@ class CalendarViewModel @Inject constructor(
                 }
             }
 
-            // 2. Insert other default categories (excluding the 4 main ones generated on DB creation)
+            // 2. Ensure only the three main default categories exist
             val updatedList = repository.eventDao.getAllCategoriesList()
             val defaultCategories = listOf(
-                CalendarCategory(name = "공유 캘린더", colorHex = "#34c759", accountName = "공유 계정", isVisible = true),
-                CalendarCategory(name = "주황색 캘린더", colorHex = "#ff9500", accountName = "기타", isVisible = true),
-                CalendarCategory(name = "노란색 캘린더", colorHex = "#ffcc00", accountName = "기타", isVisible = true),
-                CalendarCategory(name = "핑크색 캘린더", colorHex = "#ff2d55", accountName = "기타", isVisible = true),
-                CalendarCategory(name = "청록색 캘린더", colorHex = "#5ac8fa", accountName = "기타", isVisible = true),
-                CalendarCategory(name = "남색 캘린더", colorHex = "#5856d6", accountName = "기타", isVisible = true),
-                CalendarCategory(name = "하늘색 캘린더", colorHex = "#00cbd6", accountName = "기타", isVisible = true),
-                CalendarCategory(name = "갈색 캘린더", colorHex = "#a2845e", accountName = "기타", isVisible = true),
-                CalendarCategory(name = "민트색 캘린더", colorHex = "#63e6be", accountName = "기타", isVisible = true),
-                CalendarCategory(name = "라벤더색 캘린더", colorHex = "#bf8bff", accountName = "기타", isVisible = true),
-                CalendarCategory(name = "복숭아색 캘린더", colorHex = "#ffb3ba", accountName = "기타", isVisible = true)
+                CalendarCategory(name = "내 캘린더", colorHex = "#1c62f2", accountName = "내 전화기", isVisible = true),
+                CalendarCategory(name = "공휴일", colorHex = "#ff3b30", accountName = "기타", isVisible = true),
+                CalendarCategory(name = "공유 캘린더", colorHex = "#34c759", accountName = "공유 계정", isVisible = true)
             )
+            
+            // Insert missing main categories if they don't exist
             for (defaultCat in defaultCategories) {
                 val exists = updatedList.any { it.name == defaultCat.name }
                 if (!exists) {
                     repository.eventDao.insertCategory(defaultCat)
                 }
+            }
+
+            // Delete any categories that are NOT in the default categories list
+            val finalCats = repository.eventDao.getAllCategoriesList()
+            val toDelete = finalCats.filter { cat ->
+                cat.name != "내 캘린더" && cat.name != "공유 캘린더" && cat.name != "공휴일"
+            }
+            if (toDelete.isNotEmpty()) {
+                val toDeleteIds = toDelete.map { it.id }
+                // Find target default category ID to re-map events (use "내 캘린더")
+                val myCal = finalCats.find { it.name == "내 캘린더" } 
+                    ?: repository.eventDao.getAllCategoriesList().find { it.name == "내 캘린더" }
+                if (myCal != null) {
+                    repository.eventDao.updateEventsCalendarId(toDeleteIds, myCal.id)
+                }
+                repository.eventDao.deleteCategories(toDelete)
             }
 
             // Start real-time Firestore sync
