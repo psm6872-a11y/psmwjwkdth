@@ -115,10 +115,6 @@ fun DrawerContent(
         )
     }
 
-    val grouped = categories
-        .filter { it.accountName != "기타" || it.name == "공휴일" }
-        .groupBy { if (it.name == "공휴일") "기타" else it.accountName }
-
     Column(
         modifier = modifier
             .fillMaxHeight()
@@ -214,59 +210,62 @@ fun DrawerContent(
         HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Accounts and Categories list
-        grouped.forEach { (account, accountCategories) ->
-            Text(
-                text = account,
-                fontSize = 14.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(vertical = 8.dp)
-            )
+        // Accounts and Categories list under a single header
+        Text(
+            text = "캘린더 선택",
+            fontSize = 14.sp,
+            fontWeight = FontWeight.SemiBold,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(vertical = 8.dp)
+        )
 
-            accountCategories.forEach { category ->
-                Row(
+        val targetNames = listOf("내 캘린더", "공유 캘린더", "공휴일")
+        val filteredCategories = categories
+            .filter { it.name in targetNames }
+            .sortedBy { targetNames.indexOf(it.name) }
+
+        filteredCategories.forEach { category ->
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(MaterialTheme.shapes.medium)
+                    .clickable { onToggleCategory(category) }
+                    .padding(vertical = 12.dp, horizontal = 8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Category Color Badge
+                Box(
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(MaterialTheme.shapes.medium)
-                        .clickable { onToggleCategory(category) }
-                        .padding(vertical = 12.dp, horizontal = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                        .size(16.dp)
+                        .clip(CircleShape)
+                        .background(Color(android.graphics.Color.parseColor(category.colorHex))),
+                    contentAlignment = Alignment.Center
                 ) {
-                    // Category Color Badge
-                    Box(
-                        modifier = Modifier
-                            .size(16.dp)
-                            .clip(CircleShape)
-                            .background(Color(android.graphics.Color.parseColor(category.colorHex))),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        if (category.isVisible) {
-                            Icon(
-                                imageVector = Icons.Default.Check,
-                                contentDescription = null,
-                                tint = Color.White,
-                                modifier = Modifier.size(10.dp)
-                            )
-                        }
+                    if (category.isVisible) {
+                        Icon(
+                            imageVector = Icons.Default.Check,
+                            contentDescription = null,
+                            tint = Color.White,
+                            modifier = Modifier.size(10.dp)
+                        )
                     }
-
-                    Spacer(modifier = Modifier.width(16.dp))
-
-                    Text(
-                        text = category.name,
-                        fontSize = 16.sp,
-                        color = MaterialTheme.colorScheme.onBackground,
-                        fontWeight = if (category.isVisible) FontWeight.Medium else FontWeight.Normal,
-                        modifier = Modifier.weight(1f)
-                    )
                 }
-            }
 
-            Spacer(modifier = Modifier.height(16.dp))
-            HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
-            Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.width(16.dp))
+
+                Text(
+                    text = category.name,
+                    fontSize = 16.sp,
+                    color = MaterialTheme.colorScheme.onBackground,
+                    fontWeight = if (category.isVisible) FontWeight.Medium else FontWeight.Normal,
+                    modifier = Modifier.weight(1f)
+                )
+            }
         }
+
+        Spacer(modifier = Modifier.height(16.dp))
+        HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
+        Spacer(modifier = Modifier.height(8.dp))
 
         Spacer(modifier = Modifier.height(8.dp))
 
