@@ -1093,6 +1093,10 @@ fun EventListSection(
     onSwipeUp: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
+    val configuration = androidx.compose.ui.platform.LocalConfiguration.current
+    val screenWidth = configuration.screenWidthDp.dp
+    val screenHeight = configuration.screenHeightDp.dp
+
     val dateFormat = SimpleDateFormat("d일 EEEE", Locale.KOREAN)
     val lunarStr = getKoreanLunarDateString(selectedDate)
     val dateHeaderStr = "${dateFormat.format(Date(selectedDate))} ($lunarStr)"
@@ -1127,32 +1131,35 @@ fun EventListSection(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 8.dp),
+                .padding(
+                    horizontal = minOf(screenWidth, 400.dp) * 0.04f,
+                    vertical = screenHeight * 0.01f
+                ),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             Text(
                 text = dateHeaderStr,
-                fontSize = 16.sp,
+                fontSize = (minOf(screenWidth, 400.dp).value * 0.04f).sp,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onBackground,
                 modifier = Modifier.weight(1f)
             )
-            Spacer(modifier = Modifier.width(8.dp))
+            Spacer(modifier = Modifier.width(minOf(screenWidth, 400.dp) * 0.02f))
             if (isDeadlineSet) {
                 Button(
                     onClick = { onDeadlineToggle(selectedDate) },
-                    contentPadding = PaddingValues(horizontal = 4.dp, vertical = 0.dp),
-                    shape = RoundedCornerShape(6.dp),
+                    contentPadding = PaddingValues(horizontal = minOf(screenWidth, 400.dp) * 0.015f, vertical = 0.dp),
+                    shape = RoundedCornerShape(minOf(screenWidth, 400.dp) * 0.015f),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = MaterialTheme.colorScheme.error.copy(alpha = 0.85f),
                         contentColor = androidx.compose.ui.graphics.Color.White
                     ),
-                    modifier = Modifier.defaultMinSize(minWidth = 1.dp).height(22.dp)
+                    modifier = Modifier.defaultMinSize(minWidth = 1.dp).height(screenHeight * 0.028f)
                 ) {
                     Text(
                         text = "마감✓",
-                        fontSize = 10.sp,
+                        fontSize = (minOf(screenWidth, 400.dp).value * 0.025f).sp,
                         fontWeight = FontWeight.Bold,
                         style = androidx.compose.ui.text.TextStyle(
                             platformStyle = androidx.compose.ui.text.PlatformTextStyle(
@@ -1165,20 +1172,20 @@ fun EventListSection(
             } else {
                 OutlinedButton(
                     onClick = { onDeadlineToggle(selectedDate) },
-                    contentPadding = PaddingValues(horizontal = 4.dp, vertical = 0.dp),
-                    shape = RoundedCornerShape(6.dp),
+                    contentPadding = PaddingValues(horizontal = minOf(screenWidth, 400.dp) * 0.015f, vertical = 0.dp),
+                    shape = RoundedCornerShape(minOf(screenWidth, 400.dp) * 0.015f),
                     border = androidx.compose.foundation.BorderStroke(
-                        1.dp,
+                        minOf(screenWidth, 400.dp) * 0.0025f,
                         MaterialTheme.colorScheme.error.copy(alpha = 0.7f)
                     ),
                     colors = ButtonDefaults.outlinedButtonColors(
                         contentColor = MaterialTheme.colorScheme.error
                     ),
-                    modifier = Modifier.defaultMinSize(minWidth = 1.dp).height(22.dp)
+                    modifier = Modifier.defaultMinSize(minWidth = 1.dp).height(screenHeight * 0.028f)
                 ) {
                     Text(
                         text = "마감",
-                        fontSize = 10.sp,
+                        fontSize = (minOf(screenWidth, 400.dp).value * 0.025f).sp,
                         fontWeight = FontWeight.Bold,
                         style = androidx.compose.ui.text.TextStyle(
                             platformStyle = androidx.compose.ui.text.PlatformTextStyle(
@@ -1214,13 +1221,13 @@ fun EventListSection(
                         imageVector = Icons.Default.EventNote,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
-                        modifier = Modifier.size(64.dp)
+                        modifier = Modifier.size(minOf(screenWidth, 400.dp) * 0.16f)
                     )
-                    Spacer(modifier = Modifier.height(12.dp))
+                    Spacer(modifier = Modifier.height(screenHeight * 0.015f))
                     Text(
                         text = "일정이 없습니다",
                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
-                        fontSize = 15.sp
+                        fontSize = (minOf(screenWidth, 400.dp).value * 0.038f).sp
                     )
                 }
             }
@@ -1230,8 +1237,11 @@ fun EventListSection(
                 modifier = Modifier
                     .fillMaxWidth()
                     .weight(1f),
-                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
+                contentPadding = PaddingValues(
+                    horizontal = minOf(screenWidth, 400.dp) * 0.04f,
+                    vertical = screenHeight * 0.01f
+                ),
+                verticalArrangement = Arrangement.spacedBy(screenHeight * 0.012f)
             ) {
                 items(events) { event ->
                     val category = categories.find { it.id == event.calendarId }
@@ -1296,10 +1306,10 @@ fun EventItemCard(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(
-                        start = 10.dp, 
-                        end = 6.dp, 
-                        top = if (event.isAllDay) (screenHeight * 0.02f) else 10.dp, 
-                        bottom = if (event.isAllDay) (screenHeight * 0.02f) else 10.dp
+                        start = minOf(screenWidth, 400.dp) * 0.025f, 
+                        end = minOf(screenWidth, 400.dp) * 0.015f, 
+                        top = if (event.isAllDay) (screenHeight * 0.02f) else (screenHeight * 0.012f), 
+                        bottom = if (event.isAllDay) (screenHeight * 0.02f) else (screenHeight * 0.012f)
                     ),
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -1311,24 +1321,24 @@ fun EventItemCard(
                     ) {
                         Text(
                             text = startStr,
-                            fontSize = 13.sp,
+                            fontSize = (minOf(screenWidth, 400.dp).value * 0.033f).sp,
                             fontWeight = FontWeight.Bold,
                             color = contentColor,
                             maxLines = 1,
                             softWrap = false
                         )
                     }
-                    Spacer(modifier = Modifier.width(4.dp))
+                    Spacer(modifier = Modifier.width(minOf(screenWidth, 400.dp) * 0.01f))
                     
                     // Category Color Bar indicator
                     Box(
                         modifier = Modifier
-                            .width(4.dp)
-                            .height(28.dp)
-                            .clip(RoundedCornerShape(2.dp))
+                            .width(minOf(screenWidth, 400.dp) * 0.01f)
+                            .height(screenHeight * 0.035f)
+                            .clip(RoundedCornerShape(1.dp))
                             .background(catColor.copy(alpha = if (event.isCompleted) 0.5f else 1f))
                     )
-                    Spacer(modifier = Modifier.width(10.dp))
+                    Spacer(modifier = Modifier.width(minOf(screenWidth, 400.dp) * 0.025f))
                 }
 
                 // 일정 제목 Column (우측 남은 가로 공간을 채움)
@@ -1342,7 +1352,7 @@ fun EventItemCard(
                     }
                     Text(
                         text = displayText,
-                        fontSize = 14.sp,
+                        fontSize = (minOf(screenWidth, 400.dp).value * 0.035f).sp,
                         fontWeight = FontWeight.Bold,
                         color = contentColor,
                         maxLines = 1,
@@ -1353,23 +1363,23 @@ fun EventItemCard(
                     )
                 }
 
-                Spacer(modifier = Modifier.width(8.dp))
+                Spacer(modifier = Modifier.width(minOf(screenWidth, 400.dp) * 0.02f))
 
                 // 완료 토글 버튼
                 if (event.isCompleted) {
                     OutlinedButton(
                         onClick = onToggleComplete,
-                        contentPadding = PaddingValues(horizontal = 6.dp, vertical = 0.dp),
-                        shape = RoundedCornerShape(5.dp),
-                        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)),
+                        contentPadding = PaddingValues(horizontal = minOf(screenWidth, 400.dp) * 0.015f, vertical = 0.dp),
+                        shape = RoundedCornerShape(minOf(screenWidth, 400.dp) * 0.012f),
+                        border = androidx.compose.foundation.BorderStroke(minOf(screenWidth, 400.dp) * 0.0025f, MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)),
                         colors = ButtonDefaults.outlinedButtonColors(
                             contentColor = MaterialTheme.colorScheme.onSurfaceVariant
                         ),
-                        modifier = Modifier.height(22.dp).defaultMinSize(minWidth = 1.dp)
+                        modifier = Modifier.height(screenHeight * 0.028f).defaultMinSize(minWidth = 1.dp)
                     ) {
                         Text(
                             text = "완료",
-                            fontSize = 10.sp,
+                            fontSize = (minOf(screenWidth, 400.dp).value * 0.025f).sp,
                             fontWeight = FontWeight.Medium,
                             style = androidx.compose.ui.text.TextStyle(
                                 platformStyle = androidx.compose.ui.text.PlatformTextStyle(
@@ -1382,17 +1392,17 @@ fun EventItemCard(
                 } else {
                     Button(
                         onClick = onToggleComplete,
-                        contentPadding = PaddingValues(horizontal = 6.dp, vertical = 0.dp),
-                        shape = RoundedCornerShape(5.dp),
+                        contentPadding = PaddingValues(horizontal = minOf(screenWidth, 400.dp) * 0.015f, vertical = 0.dp),
+                        shape = RoundedCornerShape(minOf(screenWidth, 400.dp) * 0.012f),
                         colors = ButtonDefaults.buttonColors(
                             containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.8f),
                             contentColor = MaterialTheme.colorScheme.onPrimary
                         ),
-                        modifier = Modifier.height(22.dp).defaultMinSize(minWidth = 1.dp)
+                        modifier = Modifier.height(screenHeight * 0.028f).defaultMinSize(minWidth = 1.dp)
                     ) {
                         Text(
                             text = "완료",
-                            fontSize = 10.sp,
+                            fontSize = (minOf(screenWidth, 400.dp).value * 0.025f).sp,
                             fontWeight = FontWeight.Bold,
                             style = androidx.compose.ui.text.TextStyle(
                                 platformStyle = androidx.compose.ui.text.PlatformTextStyle(
