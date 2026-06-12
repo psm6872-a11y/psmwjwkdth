@@ -786,7 +786,11 @@ fun CalendarGridSection(
         modifier = Modifier
             .fillMaxWidth()
             .background(MaterialTheme.colorScheme.surface)
-            .padding(start = 10.dp, end = 10.dp, bottom = 8.dp)
+            .padding(
+                start = minOf(screenWidth, 400.dp) * 0.025f,
+                end = minOf(screenWidth, 400.dp) * 0.025f,
+                bottom = screenHeight * 0.01f
+            )
             .pointerInput(viewMode) {
                 detectVerticalDragGestures(
                     onDragStart = { totalDragY = 0f },
@@ -809,7 +813,7 @@ fun CalendarGridSection(
             }
     ) {
         // Weekday labels (S M T W T F S)
-        Row(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
+        Row(modifier = Modifier.fillMaxWidth().padding(vertical = screenHeight * 0.005f)) {
             val daysOfWeek = listOf("일", "월", "화", "수", "목", "금", "토")
             daysOfWeek.forEachIndexed { index, day ->
                 val textColor = when (index) {
@@ -821,7 +825,7 @@ fun CalendarGridSection(
                     text = day,
                     modifier = Modifier.weight(1f),
                     textAlign = TextAlign.Center,
-                    fontSize = 11.sp,
+                    fontSize = (minOf(screenWidth, 400.dp).value * 0.03f).sp,
                     fontWeight = FontWeight.Bold,
                     color = textColor
                 )
@@ -977,7 +981,7 @@ fun CalendarDayCell(
                         isDeadline -> dayTextColor.copy(alpha = 0.2f)
                         else -> dayTextColor
                     },
-                    fontSize = 13.sp,
+                    fontSize = (minOf(screenWidth, 400.dp).value * 0.033f).sp,
                     fontWeight = if (day.isToday || isSelected) FontWeight.Bold else FontWeight.Medium,
                     style = androidx.compose.ui.text.TextStyle(
                         platformStyle = androidx.compose.ui.text.PlatformTextStyle(includeFontPadding = false),
@@ -992,9 +996,14 @@ fun CalendarDayCell(
             modifier = Modifier
                 .fillMaxWidth()
                 .align(Alignment.BottomCenter)
-                .padding(start = 2.dp, top = 0.dp, end = 2.dp, bottom = 0.dp)
-                .height(11.dp),
-            verticalArrangement = Arrangement.spacedBy(1.dp),
+                .padding(
+                    start = minOf(screenWidth, 400.dp) * 0.005f,
+                    top = 0.dp,
+                    end = minOf(screenWidth, 400.dp) * 0.005f,
+                    bottom = 0.dp
+                )
+                .height(screenHeight * 0.015f),
+            verticalArrangement = Arrangement.spacedBy(screenHeight * 0.0015f),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             // Display up to 2 items
@@ -1007,7 +1016,7 @@ fun CalendarDayCell(
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(3.dp)
+                        .height(screenHeight * 0.004f)
                         .clip(RoundedCornerShape(1.dp))
                         .background(catColor)
                 )
@@ -1016,7 +1025,7 @@ fun CalendarDayCell(
                 // Small indicator dot at the center for overflow
                 Box(
                     modifier = Modifier
-                        .size(3.dp)
+                        .size(screenHeight * 0.004f)
                         .clip(CircleShape)
                         .background(MaterialTheme.colorScheme.onSurfaceVariant)
                 )
@@ -1040,9 +1049,12 @@ fun CalendarDayCell(
                 contentDescription = "이삿날",
                 colorFilter = androidx.compose.ui.graphics.ColorFilter.tint(Color(0xFF9C27B0)),
                 modifier = Modifier
-                    .size(25.dp)
+                    .size(minOf(screenWidth, 400.dp) * 0.065f)
                     .align(Alignment.TopEnd)
-                    .offset(x = 2.dp, y = (-3).dp)
+                    .offset(
+                        x = minOf(screenWidth, 400.dp) * 0.005f,
+                        y = minOf(screenHeight, 800.dp) * -0.004f
+                    )
                     .alpha(alpha)
             )
         }
