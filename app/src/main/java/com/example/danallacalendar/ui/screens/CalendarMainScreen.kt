@@ -1043,6 +1043,7 @@ fun CalendarDayCell(
                 ),
                 label = "alpha"
             )
+            val badgeAlpha = if (day.isCurrentMonth) alpha else alpha * 0.3f
 
             Image(
                 painter = painterResource(id = R.drawable.ic_moving_day),
@@ -1055,7 +1056,7 @@ fun CalendarDayCell(
                         x = minOf(screenWidth, 400.dp) * 0.005f,
                         y = minOf(screenHeight, 800.dp) * -0.004f
                     )
-                    .alpha(alpha)
+                    .alpha(badgeAlpha)
             )
         }
 
