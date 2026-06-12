@@ -1316,7 +1316,7 @@ fun EventItemCard(
                 if (!event.isAllDay) {
                     // 시간 설정 일정의 경우: 제일 좌측에 24시간제 시작 시간 표시
                     Box(
-                        modifier = Modifier.width(minOf(screenWidth, 400.dp) * 0.12f),
+                        modifier = Modifier.width(minOf(screenWidth, 400.dp) * 0.15f),
                         contentAlignment = Alignment.CenterStart
                     ) {
                         Text(
