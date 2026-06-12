@@ -1057,8 +1057,8 @@ fun CalendarDayCell(
                     .align(Alignment.Center)
                     .fillMaxSize()
                     .graphicsLayer(
-                        scaleX = 0.8f,
-                        scaleY = 0.8f
+                        scaleX = 0.7f,
+                        scaleY = 0.7f
                     )
                     .alpha(stampAlpha)
             )
