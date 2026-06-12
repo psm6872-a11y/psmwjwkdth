@@ -1008,6 +1008,7 @@ fun CalendarDayCell(
         ) {
             // Display up to 2 items
             val displayEvents = dayEvents.take(2)
+            val barAlpha = if (day.isCurrentMonth) 1.0f else 0.3f
             displayEvents.forEach { event ->
                 val category = categories.find { it.id == event.calendarId }
                 val colorHex = event.colorHex ?: category?.colorHex ?: "#1c62f2"
@@ -1018,7 +1019,7 @@ fun CalendarDayCell(
                         .fillMaxWidth()
                         .height(screenHeight * 0.004f)
                         .clip(RoundedCornerShape(1.dp))
-                        .background(catColor)
+                        .background(catColor.copy(alpha = barAlpha))
                 )
             }
             if (dayEvents.size > 2) {
@@ -1027,7 +1028,7 @@ fun CalendarDayCell(
                     modifier = Modifier
                         .size(screenHeight * 0.004f)
                         .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.onSurfaceVariant)
+                        .background(MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = barAlpha))
                 )
             }
         }
