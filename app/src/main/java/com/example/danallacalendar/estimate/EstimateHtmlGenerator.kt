@@ -48,7 +48,8 @@ object EstimateHtmlGenerator {
             html = html.replace("{{room_$col}}", formatted)
         }
 
-        // Replace disposal columns (제자리, 1층, 폐기)
+        // Replace combined disposal column (제자리, 1층, 폐기)
+        val combinedList = mutableListOf<String>()
         val disposalTypes = listOf("제자리", "1층", "폐기")
         disposalTypes.forEach { type ->
             val itemsList = mutableListOf<String>()
@@ -60,8 +61,11 @@ object EstimateHtmlGenerator {
                     }
                 }
             }
-            html = html.replace("{{room_$type}}", itemsList.joinToString("\n"))
+            if (itemsList.isNotEmpty()) {
+                combinedList.add("[$type]\n" + itemsList.joinToString("\n"))
+            }
         }
+        html = html.replace("{{room_이동하지않음}}", combinedList.joinToString("\n\n"))
 
         // Replace special appliances/furniture in options table
         val allItemsList = estimate.roomItems.values.flatMap { it.keys }

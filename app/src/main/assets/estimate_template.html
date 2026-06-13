@@ -79,18 +79,18 @@ td, th { border:1px solid #000; padding:2px 4px; vertical-align:middle; font-siz
   <!-- 물품 내역 (테이블 하나로) -->
   <table style="margin-top:5px; border:2px solid #000;">
     <colgroup>
-      <col style="width:10%"><col style="width:10%"><col style="width:10%">
-      <col style="width:10%"><col style="width:10%"><col style="width:10%"><col style="width:10%">
-      <col style="width:10%"><col style="width:10%"><col style="width:10%">
+      <col style="width:12.5%"><col style="width:12.5%"><col style="width:12.5%">
+      <col style="width:12.5%"><col style="width:12.5%"><col style="width:12.5%"><col style="width:12.5%">
+      <col style="width:12.5%">
     </colgroup>
     <tr style="height:30px;">
       <th class="sec-blue" colspan="7" style="font-size:12pt; background:#fffff0;">이사 물품 내역</th>
-      <th class="sec-purple" colspan="3" style="font-size:12pt; color:#0000cc; border-left:2px solid #000; background:#f5f0ff;">이동하지 않는 물품 내역</th>
+      <th class="sec-purple" colspan="1" style="font-size:12pt; color:#0000cc; border-left:2px solid #000; background:#f5f0ff;"></th>
     </tr>
     <tr style="height:30px;">
       <th class="ih" style="font-size:11pt; font-weight:400; background:#fffff0; color:#1a6b1a;">안방</th><th class="ih" style="font-size:11pt; font-weight:400; background:#fffff0; color:#1a6b1a;">작은방1</th><th class="ih" style="font-size:11pt; font-weight:400; background:#fffff0; color:#1a6b1a;">작은방2</th>
       <th class="ih" style="font-size:11pt; font-weight:400; background:#fffff0; color:#1a6b1a;">입구방</th><th class="ih" style="font-size:11pt; font-weight:400; background:#fffff0; color:#1a6b1a;">거실</th><th class="ih" style="font-size:11pt; font-weight:400; background:#fffff0; color:#1a6b1a;">주방</th><th class="ih" style="font-size:11pt; font-weight:400; background:#fffff0; color:#1a6b1a;">그외</th>
-      <th class="ih" style="font-size:11pt; font-weight:400; border-left:2px solid #000; background:#f5f0ff; color:#1a6b1a;">제자리</th><th class="ih" style="font-size:11pt; font-weight:400; background:#f5f0ff; color:#1a6b1a;">1층</th><th class="ih" style="font-size:11pt; font-weight:400; background:#f5f0ff; color:#1a6b1a;">폐기</th>
+      <th class="ih" style="font-size:11pt; font-weight:400; border-left:2px solid #000; background:#f5f0ff; color:#1a6b1a;">제외</th>
     </tr>
     <tr>
       <td class="ic" style="height:170px; font-size:10pt;">{{room_안방}}</td>
@@ -100,9 +100,7 @@ td, th { border:1px solid #000; padding:2px 4px; vertical-align:middle; font-siz
       <td class="ic" style="height:170px; font-size:10pt;">{{room_거실}}</td>
       <td class="ic" style="height:170px; font-size:10pt;">{{room_주방}}</td>
       <td class="ic" style="height:170px; font-size:10pt;">{{room_그외}}</td>
-      <td class="ic" style="height:150px; font-size:10pt; border-left:2px solid #000;">{{room_제자리}}</td>
-      <td class="ic" style="height:170px; font-size:10pt;">{{room_1층}}</td>
-      <td class="ic" style="height:170px; font-size:10pt;">{{room_폐기}}</td>
+      <td class="ic" style="height:170px; font-size:10pt; border-left:2px solid #000;">{{room_이동하지않음}}</td>
     </tr>
   </table>
 
