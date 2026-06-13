@@ -75,8 +75,13 @@ object EstimatePrintHelper {
                     val webView = WebView(context).apply {
                         settings.useWideViewPort = true
                         settings.loadWithOverviewMode = true
+                        settings.javaScriptEnabled = true
                     }
                     webView.setLayerType(android.view.View.LAYER_TYPE_SOFTWARE, null)
+                    webView.measure(
+                        android.view.View.MeasureSpec.makeMeasureSpec(794, android.view.View.MeasureSpec.EXACTLY),
+                        android.view.View.MeasureSpec.makeMeasureSpec(1123, android.view.View.MeasureSpec.EXACTLY)
+                    )
                     webView.layout(0, 0, 794, 1123)
                     
                     var hasResumed = false
@@ -148,8 +153,9 @@ object EstimatePrintHelper {
                             }, 500)
                         }
                     }
-                    android.util.Log.d("WebViewPdf", "[LOG] WebView.loadDataWithBaseURL loading html content (size: ${htmlContent.length})...")
-                    webView.loadDataWithBaseURL("file:///android_asset/", htmlContent, "text/html", "UTF-8", null)
+                    val viewportHtml = htmlContent.replace("<head>", "<head><meta name='viewport' content='width=794'>")
+                    android.util.Log.d("WebViewPdf", "[LOG] WebView.loadDataWithBaseURL loading html content (size: ${viewportHtml.length})...")
+                    webView.loadDataWithBaseURL("file:///android_asset/", viewportHtml, "text/html", "UTF-8", null)
                 } catch (t: Throwable) {
                     android.util.Log.e("WebViewPdf", "Failed to initialize WebView or setup render", t)
                     if (continuation.isActive) {
