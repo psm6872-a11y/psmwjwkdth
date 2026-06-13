@@ -12,6 +12,7 @@ class UserPreferences(context: Context) {
         private const val KEY_NICKNAME = "nickname"
         private const val KEY_LAST_ROOM_CODE = "last_room_code"
         private const val KEY_IS_SHARE_ENABLED = "is_share_enabled"
+        private const val KEY_IS_GOOGLE_DRIVE_SAVE_ENABLED = "is_google_drive_save_enabled"
     }
 
     init {
@@ -56,6 +57,14 @@ class UserPreferences(context: Context) {
 
     fun setShareEnabled(enabled: Boolean) {
         prefs.edit().putBoolean(KEY_IS_SHARE_ENABLED, enabled).apply()
+    }
+
+    fun isGoogleDriveSaveEnabled(): Boolean {
+        return prefs.getBoolean(KEY_IS_GOOGLE_DRIVE_SAVE_ENABLED, false)
+    }
+
+    fun setGoogleDriveSaveEnabled(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_IS_GOOGLE_DRIVE_SAVE_ENABLED, enabled).apply()
     }
 
     fun clearAll() {

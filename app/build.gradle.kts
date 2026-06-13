@@ -17,8 +17,8 @@ android {
         applicationId = "com.example.danallacalendar"
         minSdk = 24
         targetSdk = 34
-        versionCode = 194
-        versionName = "1.3.48"
+        versionCode = 195
+        versionName = "1.4.0"
         val localProperties = Properties()
         val localPropertiesFile = rootProject.file("local.properties")
         if (localPropertiesFile.exists()) {
@@ -145,6 +145,15 @@ dependencies {
   
   // PrintHelper support for printing images
   implementation("androidx.print:print:1.0.0")
+
+  // Google Sign-In & Drive API
+  implementation("com.google.android.gms:play-services-auth:21.1.1")
+  implementation("com.google.api-client:google-api-client-android:2.2.0") {
+      exclude(group = "org.apache.httpcomponents")
+  }
+  implementation("com.google.apis:google-api-services-drive:v3-rev20230822-2.0.0") {
+      exclude(group = "org.apache.httpcomponents")
+  }
 }
 
 tasks.withType<org.jetbrains.kotlin.gradle.internal.KaptWithoutKotlincTask>().configureEach {

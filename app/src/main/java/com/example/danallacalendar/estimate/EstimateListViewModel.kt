@@ -1,11 +1,14 @@
 package com.example.danallacalendar.estimate
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.danallacalendar.data.EstimatePdf
 import com.example.danallacalendar.data.EstimatePdfDao
 import com.example.danallacalendar.data.local.UserPreferences
+import com.google.android.gms.auth.api.signin.GoogleSignInAccount
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -19,7 +22,8 @@ import javax.inject.Inject
 class EstimateListViewModel @Inject constructor(
     private val repository: EstimateRepository,
     private val userPreferences: UserPreferences,
-    private val estimatePdfDao: EstimatePdfDao
+    private val estimatePdfDao: EstimatePdfDao,
+    @ApplicationContext private val context: Context
 ) : ViewModel() {
 
     private val _isShareEnabled = MutableStateFlow(userPreferences.isShareEnabled())
@@ -28,6 +32,24 @@ class EstimateListViewModel @Inject constructor(
     fun toggleShareEnabled(enabled: Boolean) {
         userPreferences.setShareEnabled(enabled)
         _isShareEnabled.value = enabled
+    }
+
+    private val _isGoogleDriveSaveEnabled = MutableStateFlow(userPreferences.isGoogleDriveSaveEnabled())
+    val isGoogleDriveSaveEnabled: StateFlow<Boolean> = _isGoogleDriveSaveEnabled.asStateFlow()
+
+    fun toggleGoogleDriveSaveEnabled(enabled: Boolean) {
+        userPreferences.setGoogleDriveSaveEnabled(enabled)
+        _isGoogleDriveSaveEnabled.value = enabled
+    }
+
+    private val _googleAccount = MutableStateFlow<GoogleSignInAccount?>(GoogleDriveHelper.getSignedInAccount(context))
+    val googleAccount: StateFlow<GoogleSignInAccount?> = _googleAccount.asStateFlow()
+
+    fun updateGoogleAccount(account: GoogleSignInAccount?) {
+        _googleAccount.value = account
+        if (account == null) {
+            toggleGoogleDriveSaveEnabled(false)
+        }
     }
 
     val estimateList: StateFlow<List<Estimate>> = combine(

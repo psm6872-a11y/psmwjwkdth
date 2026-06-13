@@ -13,6 +13,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
@@ -310,6 +311,26 @@ class EstimateViewModel @Inject constructor(
                         )
                         estimatePdfDao.insertPdf(estimatePdf)
                         android.util.Log.d("EstimateViewModel", "JPG Cached locally at: ${jpgFile.absolutePath}")
+
+                        // 구글 드라이브 업로드 (사용자 설정이 켜져 있고 로그인되어 있는 경우)
+                        if (userPreferences.isGoogleDriveSaveEnabled()) {
+                            val account = GoogleDriveHelper.getSignedInAccount(context)
+                            if (account != null) {
+                                android.util.Log.d("EstimateViewModel", "Google Drive upload starting: $fileName")
+                                val fileId = GoogleDriveHelper.uploadEstimateJpg(context, account, jpgFile, fileName, finalEstimate.estimateDate)
+                                if (fileId != null) {
+                                    withContext(Dispatchers.Main) {
+                                        android.widget.Toast.makeText(context, "구글 드라이브 업로드 완료", android.widget.Toast.LENGTH_SHORT).show()
+                                    }
+                                } else {
+                                    withContext(Dispatchers.Main) {
+                                        android.widget.Toast.makeText(context, "구글 드라이브 업로드 실패", android.widget.Toast.LENGTH_SHORT).show()
+                                    }
+                                }
+                            } else {
+                                android.util.Log.w("EstimateViewModel", "Google Drive upload skipped: Not signed in")
+                            }
+                        }
                     } catch (pdfEx: Exception) {
                         android.util.Log.e("EstimateViewModel", "Local DB cache failed", pdfEx)
                     }

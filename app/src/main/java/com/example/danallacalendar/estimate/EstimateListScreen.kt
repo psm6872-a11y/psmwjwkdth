@@ -23,8 +23,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -33,6 +35,11 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.hilt.navigation.compose.hiltViewModel
+import android.util.Log
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import com.google.android.gms.common.api.ApiException
+import com.google.android.gms.auth.api.signin.GoogleSignIn
 import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -43,7 +50,28 @@ fun EstimateListScreen(
 ) {
     val estimateList by viewModel.estimateList.collectAsStateWithLifecycle()
     val isShareEnabled by viewModel.isShareEnabled.collectAsStateWithLifecycle()
+    val isGoogleDriveSaveEnabled by viewModel.isGoogleDriveSaveEnabled.collectAsStateWithLifecycle()
+    val googleAccount by viewModel.googleAccount.collectAsStateWithLifecycle()
     var selectedEstimate by remember { mutableStateOf<Estimate?>(null) }
+    val context = LocalContext.current
+    val configuration = LocalConfiguration.current
+    val screenHeight = configuration.screenHeightDp.dp
+    val rowHeight = screenHeight * 0.040f
+
+    val googleSignInLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        val task = GoogleSignIn.getSignedInAccountFromIntent(result.data)
+        try {
+            val account = task.getResult(ApiException::class.java)
+            viewModel.updateGoogleAccount(account)
+            viewModel.toggleGoogleDriveSaveEnabled(true)
+        } catch (e: ApiException) {
+            Log.e("EstimateListScreen", "Google Sign-In failed", e)
+            viewModel.updateGoogleAccount(null)
+            viewModel.toggleGoogleDriveSaveEnabled(false)
+        }
+    }
 
     Scaffold(
         containerColor = Color(0xFF0F0825)
@@ -54,106 +82,191 @@ fun EstimateListScreen(
                 .padding(innerPadding)
                 .background(Color(0xFF0F0825))
         ) {
-            // 2단 커스텀 상단 헤더 영역 (배경색: Color(0xFF1E1045))
+            // 2단 커스텀 상단 헤더 영역 (배경색: Color(0xFF1E1045)) - 반응형 중앙 정렬 적용
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .background(Color(0xFF1E1045))
-                    .padding(bottom = 12.dp)
+                    .padding(bottom = 12.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                // 1단: 뒤로가기 버튼(시작점 정렬) + "견적서 목록" 타이틀 (33.sp로 확대, 완벽한 가운데 정렬)
-                Box(
+                Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(56.dp),
-                    contentAlignment = Alignment.Center
+                        .widthIn(max = 450.dp)
                 ) {
-                    IconButton(
-                        onClick = onNavigateBack,
-                        modifier = Modifier.align(Alignment.CenterStart)
-                    ) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            tint = Color.White,
-                            contentDescription = "뒤로가기"
-                        )
-                    }
-                    Text(
-                        text = "견적서 목록",
-                        fontSize = 33.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White,
-                        modifier = Modifier.align(Alignment.Center)
-                    )
-                }
-
-                // 2단: "참여 멤버와 공유" 텍스트 (18.sp로 변경) + 스위치 토글 (우측 정렬)
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 4.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.End
-                ) {
-                    Text(
-                        text = "참여 멤버와 공유",
-                        color = Color.White,
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Medium
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Switch(
-                        checked = isShareEnabled,
-                        onCheckedChange = { viewModel.toggleShareEnabled(it) },
-                        colors = SwitchDefaults.colors(
-                            checkedThumbColor = Color(0xFFE040FB),
-                            checkedTrackColor = Color(0xFFE040FB).copy(alpha = 0.5f),
-                            uncheckedThumbColor = Color.Gray,
-                            uncheckedTrackColor = Color.LightGray
-                        )
-                    )
-                }
-            }
-
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .weight(1f)
-            ) {
-                if (estimateList.isEmpty()) {
+                    // 1단: 뒤로가기 버튼(시작점 정렬) + "견적서 목록" 타이틀 (33.sp로 확대, 완벽한 가운데 정렬)
                     Box(
-                        modifier = Modifier.fillMaxSize(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(56.dp),
                         contentAlignment = Alignment.Center
                     ) {
+                        IconButton(
+                            onClick = onNavigateBack,
+                            modifier = Modifier.align(Alignment.CenterStart)
+                        ) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                tint = Color.White,
+                                contentDescription = "뒤로가기"
+                            )
+                        }
                         Text(
-                            text = "저장된 공유 견적서가 없습니다.",
-                            color = Color.White.copy(alpha = 0.5f),
-                            fontSize = 15.sp,
-                            fontWeight = FontWeight.Medium
+                            text = "견적서 목록",
+                            fontSize = 33.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White,
+                            modifier = Modifier.align(Alignment.Center)
                         )
                     }
-                } else {
-                    LazyColumn(
+
+                    // 2단: "내 구글드라이브에 저장" 텍스트 + 스위치 토글 (우측 정렬, 반응형 높이)
+                    Row(
                         modifier = Modifier
-                            .fillMaxSize()
-                            .padding(horizontal = 16.dp, vertical = 8.dp),
-                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                            .fillMaxWidth()
+                            .height(rowHeight)
+                            .padding(horizontal = 16.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.End
                     ) {
-                        items(estimateList, key = { it.id }) { estimate ->
-                            EstimateItemCard(
-                                estimate = estimate,
-                                onItemClick = { selectedEstimate = estimate },
-                                onSyncClick = { viewModel.syncEstimate(estimate) },
-                                onDeleteClick = { viewModel.deleteEstimate(estimate) }
+                        Text(
+                            text = "내 구글드라이브에 저장",
+                            color = Color.White,
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Switch(
+                            checked = isGoogleDriveSaveEnabled,
+                            onCheckedChange = { checked ->
+                                if (checked) {
+                                    if (googleAccount == null) {
+                                        googleSignInLauncher.launch(GoogleDriveHelper.getGoogleSignInClient(context).signInIntent)
+                                    } else {
+                                        viewModel.toggleGoogleDriveSaveEnabled(true)
+                                    }
+                                } else {
+                                    viewModel.toggleGoogleDriveSaveEnabled(false)
+                                }
+                            },
+                            modifier = Modifier.scale(0.70f),
+                            colors = SwitchDefaults.colors(
+                                checkedThumbColor = Color(0xFFE040FB),
+                                checkedTrackColor = Color(0xFFE040FB).copy(alpha = 0.5f),
+                                uncheckedThumbColor = Color.Gray,
+                                uncheckedTrackColor = Color.LightGray
+                            )
+                        )
+                    }
+
+                    // 3단: "참여한 멤버와 공유" 텍스트 + 스위치 토글 (우측 정렬, 반응형 높이)
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(rowHeight)
+                            .padding(horizontal = 16.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.End
+                    ) {
+                        Text(
+                            text = "참여한 멤버와 공유",
+                            color = Color.White,
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Switch(
+                            checked = isShareEnabled,
+                            onCheckedChange = { viewModel.toggleShareEnabled(it) },
+                            modifier = Modifier.scale(0.70f),
+                            colors = SwitchDefaults.colors(
+                                checkedThumbColor = Color(0xFFE040FB),
+                                checkedTrackColor = Color(0xFFE040FB).copy(alpha = 0.5f),
+                                uncheckedThumbColor = Color.Gray,
+                                uncheckedTrackColor = Color.LightGray
+                            )
+                        )
+                    }
+
+                    // 4단: 구글 드라이브 로그인된 경우 계정 정보 표시 및 로그아웃 버튼
+                    googleAccount?.let { account ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 2.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.End
+                        ) {
+                            Text(
+                                text = "연동 계정: ${account.email ?: ""}",
+                                color = Color.White.copy(alpha = 0.7f),
+                                fontSize = 12.sp
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "로그아웃",
+                                color = Color(0xFFE040FB),
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.clickable {
+                                    GoogleDriveHelper.getGoogleSignInClient(context).signOut().addOnCompleteListener {
+                                        viewModel.updateGoogleAccount(null)
+                                    }
+                                }
                             )
                         }
                     }
                 }
-                selectedEstimate?.let { estimate ->
-                    LocalEstimateViewerDialog(
-                        estimate = estimate,
-                        onDismiss = { selectedEstimate = null }
-                    )
+            }
+
+            // 하단 리스트 영역 - 반응형 중앙 정렬 적용
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .weight(1f),
+                contentAlignment = Alignment.TopCenter
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .widthIn(max = 450.dp)
+                ) {
+                    if (estimateList.isEmpty()) {
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = "저장된 공유 견적서가 없습니다.",
+                                color = Color.White.copy(alpha = 0.5f),
+                                fontSize = 15.sp,
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
+                    } else {
+                        LazyColumn(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(horizontal = 16.dp, vertical = 8.dp),
+                            verticalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            items(estimateList, key = { it.id }) { estimate ->
+                                EstimateItemCard(
+                                    estimate = estimate,
+                                    onItemClick = { selectedEstimate = estimate },
+                                    onSyncClick = { viewModel.syncEstimate(estimate) },
+                                    onDeleteClick = { viewModel.deleteEstimate(estimate) }
+                                )
+                            }
+                        }
+                    }
+                    selectedEstimate?.let { estimate ->
+                        LocalEstimateViewerDialog(
+                            estimate = estimate,
+                            onDismiss = { selectedEstimate = null }
+                        )
+                    }
                 }
             }
         }
