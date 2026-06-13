@@ -265,6 +265,9 @@ fun LocalEstimateViewerDialog(
                             settings.domStorageEnabled = true
                             settings.useWideViewPort = true
                             settings.loadWithOverviewMode = true
+                            settings.setSupportZoom(true)
+                            settings.builtInZoomControls = true
+                            settings.displayZoomControls = false
                             loadDataWithBaseURL("file:///android_asset/", htmlContent, "text/html", "UTF-8", null)
                         }
                     },
