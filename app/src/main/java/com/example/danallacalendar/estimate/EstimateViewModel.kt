@@ -23,6 +23,7 @@ import javax.inject.Inject
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONObject
+import java.io.File
 
 sealed class SaveState {
     object Idle : SaveState()
@@ -192,14 +193,15 @@ class EstimateViewModel @Inject constructor(
         onMoveCostOrOptionChanged()
     }
 
+    private fun convertRoomItemsToLong(map: Map<String, Map<String, Int>>): Map<String, Map<String, Long>> {
+        return map.mapValues { (_, innerMap) ->
+            innerMap.mapValues { (_, value) -> value.toLong() }
+        }
+    }
+
     fun autoSaveToGoogleSheets() {
         val amt = amount.value.toLongOrNull() ?: 0L
-        val formattedCargo = formatRoomItemsSummary()
-        val combinedMemo = if (formattedCargo.isNotBlank()) {
-            if (memo.value.isNotBlank()) "$formattedCargo\n\n[메모]\n${memo.value}" else formattedCargo
-        } else {
-            memo.value
-        }
+        val actualMemo = memo.value.trim()
 
         val estimate = Estimate(
             id = estimateId,
@@ -211,9 +213,25 @@ class EstimateViewModel @Inject constructor(
             moveType = moveType.value,
             cargoSize = cargoSize.value,
             amount = amt,
-            memo = combinedMemo,
+            memo = actualMemo,
             estimateDate = estimateDate.value,
-            startTime = startTime.value
+            startTime = startTime.value,
+            visitDate = visitDate.value,
+            moveInfo = moveInfo.value,
+            totalVolume = totalVolume.value,
+            workersM = workersM.value,
+            workersF = workersF.value,
+            laddersStartFloor = laddersStartFloor.value,
+            laddersStartCost = laddersStartCost.value,
+            laddersEndFloor = laddersEndFloor.value,
+            laddersEndCost = laddersEndCost.value,
+            extraTruck = extraTruck.value,
+            moveCost = moveCost.value,
+            totalCost = totalCost.value,
+            deposit = deposit.value,
+            balance = balance.value,
+            optionCost = optionCost.value,
+            roomItems = convertRoomItemsToLong(roomItems.value)
         )
 
         viewModelScope.launch(Dispatchers.IO) {
@@ -230,11 +248,7 @@ class EstimateViewModel @Inject constructor(
         android.util.Log.d("EstimateViewModel", "[LOG] saveEstimate function entered")
         val amt = amount.value.toLongOrNull() ?: 0L
         val formattedCargo = formatRoomItemsSummary()
-        val combinedMemo = if (formattedCargo.isNotBlank()) {
-            if (memo.value.isNotBlank()) "$formattedCargo\n\n[메모]\n${memo.value}" else formattedCargo
-        } else {
-            memo.value
-        }
+        val actualMemo = memo.value.trim()
 
         val estimate = Estimate(
             id = estimateId,
@@ -246,165 +260,76 @@ class EstimateViewModel @Inject constructor(
             moveType = moveType.value,
             cargoSize = cargoSize.value,
             amount = amt,
-            memo = combinedMemo,
+            memo = actualMemo,
             estimateDate = estimateDate.value,
-            startTime = startTime.value
+            startTime = startTime.value,
+            visitDate = visitDate.value,
+            moveInfo = moveInfo.value,
+            totalVolume = totalVolume.value,
+            workersM = workersM.value,
+            workersF = workersF.value,
+            laddersStartFloor = laddersStartFloor.value,
+            laddersStartCost = laddersStartCost.value,
+            laddersEndFloor = laddersEndFloor.value,
+            laddersEndCost = laddersEndCost.value,
+            extraTruck = extraTruck.value,
+            moveCost = moveCost.value,
+            totalCost = totalCost.value,
+            deposit = deposit.value,
+            balance = balance.value,
+            optionCost = optionCost.value,
+            roomItems = convertRoomItemsToLong(roomItems.value)
         )
 
         _saveState.value = SaveState.Loading
 
         viewModelScope.launch(Dispatchers.IO) {
-            var savedPdfPath: String? = null
             try {
-                // 1. Save to Firestore
+                android.util.Log.d("EstimateViewModel", "[LOG] [THREAD: ${Thread.currentThread().name}] Step 1: Saving to Firestore starting...")
+                // 1. Save to Firestore under room collection path
                 val savedId = repository.saveToFirestore(estimate)
+                android.util.Log.d("EstimateViewModel", "[LOG] [THREAD: ${Thread.currentThread().name}] Step 1: Saving to Firestore success, ID = $savedId")
                 val finalEstimate = estimate.copy(id = savedId)
+                estimateId = savedId
 
-                // 2. Apps Script POST payload formatting
-                val roomItemsFormatted = roomItems.value.mapValues { (_, items) ->
-                    items.entries.joinToString("\n") { (item, count) ->
-                        if (count > 1) "$item x$count" else item
-                    }
-                }
-                
-                val payload = JSONObject().apply {
-                    put("customerName", customerName.value)
-                    put("phoneNumber", phoneNumber.value)
-                    put("departure", departure.value)
-                    put("destination", destination.value)
-                    put("visitDate", visitDate.value)
-                    put("moveDate", moveDate.value)
-                    put("startTime", startTime.value)
-                    put("moveType", moveType.value)
-                    put("moveInfo", moveInfo.value)
-                    put("estimateDate", estimateDate.value)
-                    put("totalVolume", totalVolume.value)
-                    put("workersM", workersM.value)
-                    put("workersF", workersF.value)
-                    put("laddersStartFloor", laddersStartFloor.value)
-                    put("laddersStartCost", laddersStartCost.value)
-                    put("laddersEndFloor", laddersEndFloor.value)
-                    put("laddersEndCost", laddersEndCost.value)
-                    put("extraTruck", extraTruck.value)
-                    put("moveCost", moveCost.value)
-                    put("optionCost", optionCost.value)
-                    put("totalCost", totalCost.value)
-                    put("deposit", deposit.value)
-                    put("balance", balance.value)
-                    put("memo", memo.value)
-                    put("roomItems", JSONObject(roomItemsFormatted))
-                }
+                android.util.Log.d("EstimateViewModel", "[LOG] [THREAD: ${Thread.currentThread().name}] Step 2: Generating HTML template starting...")
+                // 2. Generate populated HTML template locally
+                val htmlContent = EstimateHtmlGenerator.generateEstimateHtml(context, finalEstimate)
+                android.util.Log.d("EstimateViewModel", "[LOG] [THREAD: ${Thread.currentThread().name}] Step 2: Generating HTML template success (size: ${htmlContent.length} chars)")
 
-                // OkHttp POST request for Apps Script
-                val url = googleSheetsUrl.value.ifBlank { BuildConfig.SPREADSHEET_WEB_APP_URL }
-                android.util.Log.d("EstimateViewModel", "[LOG] SPREADSHEET_WEB_APP_URL value: '$url'")
-                if (url.isNotBlank()) {
-                    val client = okhttp3.OkHttpClient.Builder()
-                        .followRedirects(true)
-                        .followSslRedirects(true)
-                        .connectTimeout(60, java.util.concurrent.TimeUnit.SECONDS)
-                        .readTimeout(60, java.util.concurrent.TimeUnit.SECONDS)
-                        .writeTimeout(60, java.util.concurrent.TimeUnit.SECONDS)
-                        .build()
-                    val mediaType = "application/json; charset=utf-8".toMediaType()
-                    val body = payload.toString().toRequestBody(mediaType)
-                    val request = okhttp3.Request.Builder()
-                        .url(url)
-                        .post(body)
-                        .build()
-                    android.util.Log.d("EstimateViewModel", "[LOG] Sending POST request to URL...")
-                    client.newCall(request).execute().use { response ->
-                        android.util.Log.d("EstimateViewModel", "[LOG] POST response code: ${response.code}")
-                        val responseBody = response.body?.string() ?: ""
-                        android.util.Log.d("EstimateViewModel", "Response Body: $responseBody")
-                        if (!response.isSuccessful) {
-                            throw java.io.IOException("스프레드시트 전송 실패: ${response.code}, body: $responseBody")
+                android.util.Log.d("EstimateViewModel", "[LOG] [THREAD: ${Thread.currentThread().name}] Step 3: Rendering HTML to JPG starting...")
+                // 3. Render HTML to PDF and convert to JPG programmatically on main thread
+                val jpgPath = EstimatePrintHelper.renderHtmlToJpg(context, htmlContent, finalEstimate)
+                android.util.Log.d("EstimateViewModel", "[LOG] [THREAD: ${Thread.currentThread().name}] Step 3: Rendering HTML to JPG success, path = $jpgPath")
+
+                // 4. Save metadata to Room database (legacy support)
+                if (jpgPath != null) {
+                    try {
+                        android.util.Log.d("EstimateViewModel", "[LOG] [THREAD: ${Thread.currentThread().name}] Step 4: Caching metadata to Room starting...")
+                        val jpgFile = File(jpgPath)
+                        val monthDay = if (finalEstimate.estimateDate.length >= 10) {
+                            finalEstimate.estimateDate.substring(5, 10)
+                        } else {
+                            "00-00"
                         }
-                        
-                        try {
-                            val jsonObj = org.json.JSONObject(responseBody)
-                            val pdfBase64 = jsonObj.optString("pdfBase64", "")
-                            val pdfFileId = jsonObj.optString("pdfFileId", "")
-                            val debugInfo = jsonObj.optJSONObject("debugInfo")
-                            if (debugInfo != null) {
-                                android.util.Log.d("EstimateViewModel", "Sheet Debug Info (B9 diagnosis): $debugInfo")
-                            }
-                            if (pdfBase64.isNotBlank()) {
-                                val dateStr = estimateDate.value.ifBlank { moveDate.value }
-                                val dateParts = dateStr.split("-")
-                                val monthDay = if (dateParts.size >= 3) "${dateParts[1]}-${dateParts[2]}" else "00-00"
-                                val rawPhone = phoneNumber.value.replace(Regex("[^0-9]"), "")
-                                val last4 = if (rawPhone.length >= 4) rawPhone.takeLast(4) else "0000"
-                                val fileName = "${monthDay}_$last4.pdf"
+                        val fileName = jpgFile.name
 
-                                // MMS 첨부용 로컬 임시 캐시 디렉터리에 저장
-                                val tempDir = java.io.File(context.cacheDir, "danalla_temp")
-                                if (!tempDir.exists()) {
-                                    tempDir.mkdirs()
-                                }
-                                try {
-                                    tempDir.listFiles()?.forEach { it.delete() }
-                                } catch (e: Exception) {
-                                    android.util.Log.e("EstimateViewModel", "Failed to clean temp directory", e)
-                                }
-
-                                val pdfFile = java.io.File(tempDir, fileName)
-
-                                val pdfBytes = android.util.Base64.decode(pdfBase64, android.util.Base64.DEFAULT)
-                                java.io.FileOutputStream(pdfFile).use { fos ->
-                                    fos.write(pdfBytes)
-                                }
-
-                                // PDF → JPG 변환 (MMS 첨부용)
-                                val jpgFileName = fileName.replace(".pdf", ".jpg")
-                                val jpgFile = java.io.File(tempDir, jpgFileName)
-                                try {
-                                    val pfd = ParcelFileDescriptor.open(pdfFile, ParcelFileDescriptor.MODE_READ_ONLY)
-                                    val pdfRenderer = PdfRenderer(pfd)
-                                    val page = pdfRenderer.openPage(0)
-                                    // 고해상도 렌더링 (A4 기준 2배 해상도)
-                                    val scale = 3
-                                    val bitmapWidth = page.width * scale
-                                    val bitmapHeight = page.height * scale
-                                    val bitmap = Bitmap.createBitmap(bitmapWidth, bitmapHeight, Bitmap.Config.ARGB_8888)
-                                    // 흰 배경 채우기
-                                    val canvas = Canvas(bitmap)
-                                    canvas.drawColor(Color.WHITE)
-                                    page.render(bitmap, null, null, PdfRenderer.Page.RENDER_MODE_FOR_PRINT)
-                                    page.close()
-                                    pdfRenderer.close()
-                                    pfd.close()
-                                    java.io.FileOutputStream(jpgFile).use { out ->
-                                        bitmap.compress(Bitmap.CompressFormat.JPEG, 95, out)
-                                    }
-                                    bitmap.recycle()
-                                    savedPdfPath = jpgFile.absolutePath
-                                    android.util.Log.d("EstimateViewModel", "PDF→JPG 변환 완료: ${jpgFile.absolutePath}")
-                                } catch (jpgEx: Exception) {
-                                    android.util.Log.e("EstimateViewModel", "PDF→JPG 변환 실패, PDF 경로 사용", jpgEx)
-                                    savedPdfPath = pdfFile.absolutePath
-                                }
-
-                                // DB에는 구글 드라이브 파일 ID를 저장
-                                val estimatePdf = EstimatePdf(
-                                    date = monthDay,
-                                    fileName = fileName,
-                                    filePath = pdfFileId
-                                )
-                                estimatePdfDao.insertPdf(estimatePdf)
-                                android.util.Log.d("EstimateViewModel", "PDF Cached at: ${pdfFile.absolutePath}, Drive File ID: $pdfFileId")
-                            }
-                        } catch (pdfEx: Exception) {
-                            android.util.Log.e("EstimateViewModel", "PDF Save or DB Insert failed", pdfEx)
-                        }
+                        val estimatePdf = EstimatePdf(
+                            date = monthDay,
+                            fileName = fileName,
+                            filePath = jpgPath
+                        )
+                        estimatePdfDao.insertPdf(estimatePdf)
+                        android.util.Log.d("EstimateViewModel", "JPG Cached locally at: ${jpgFile.absolutePath}")
+                    } catch (pdfEx: Exception) {
+                        android.util.Log.e("EstimateViewModel", "Local DB cache failed", pdfEx)
                     }
-                } else {
-                    android.util.Log.w("EstimateViewModel", "[LOG] URL is blank, skipping POST request")
                 }
 
                 _saveState.value = SaveState.Success
-                
-                // Formulate SMS message
+                android.util.Log.d("EstimateViewModel", "[LOG] [THREAD: ${Thread.currentThread().name}] SaveState updated to Success")
+
+                // 5. Formulate SMS message
                 val formattedAmount = NumberFormat.getNumberInstance(Locale.KOREA).format(amt)
                 val smsBody = """
                     [이사 견적서]
@@ -424,10 +349,10 @@ class EstimateViewModel @Inject constructor(
                 """.trimIndent()
 
                 viewModelScope.launch(Dispatchers.Main) {
-                    onCompleted(smsBody, savedPdfPath)
+                    onCompleted(smsBody, jpgPath)
                 }
             } catch (e: Exception) {
-                android.util.Log.e("EstimateViewModel", "[LOG] Exception occurred during saveEstimate", e)
+                android.util.Log.e("EstimateViewModel", "Exception occurred during saveEstimate", e)
                 _saveState.value = SaveState.Error(e.toString())
             }
         }

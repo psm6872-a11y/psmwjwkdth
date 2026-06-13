@@ -274,6 +274,7 @@ fun EstimateScreen(
                 delay(2000)
                 showSuccessOverlay = false
                 viewModel.resetSaveState()
+                hasSaved = false
                 if (currentStep == 3) {
                     currentStep = 4
                 } else {
@@ -283,6 +284,7 @@ fun EstimateScreen(
             is SaveState.Error -> {
                 Toast.makeText(context, "오류: ${(saveState as SaveState.Error).message}", Toast.LENGTH_LONG).show()
                 viewModel.resetSaveState()
+                hasSaved = false
             }
             else -> {}
         }

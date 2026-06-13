@@ -1,23 +1,20 @@
 package com.example.danallacalendar.estimate
 
 import android.content.Context
-import android.content.Intent
 import android.webkit.WebView
 import android.webkit.WebViewClient
-import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import android.net.Uri
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.PictureAsPdf
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Cloud
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -34,11 +31,9 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
-import androidx.core.content.FileProvider
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.example.danallacalendar.data.EstimatePdf
-import java.io.File
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -46,49 +41,15 @@ fun EstimateListScreen(
     onNavigateBack: () -> Unit,
     viewModel: EstimateListViewModel = hiltViewModel()
 ) {
-    val context = LocalContext.current
-    val pdfList by viewModel.pdfList.collectAsStateWithLifecycle()
-    var activePdfDriveUrl by remember { mutableStateOf<String?>(null) }
-
-    fun openPdfFile(pdf: EstimatePdf) {
-        val isLocalFile = pdf.filePath.startsWith("/") || pdf.filePath.contains(":") || pdf.filePath.endsWith(".pdf")
-
-        if (isLocalFile) {
-            val file = File(pdf.filePath)
-            if (!file.exists()) {
-                Toast.makeText(context, "파일이 스마트폰에 존재하지 않습니다.\n경로: ${pdf.filePath}", Toast.LENGTH_LONG).show()
-                return
-            }
-
-            try {
-                val authority = "${context.packageName}.fileprovider"
-                val uri = FileProvider.getUriForFile(context, authority, file)
-                
-                val intent = Intent(Intent.ACTION_VIEW).apply {
-                    setDataAndType(uri, "application/pdf")
-                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                }
-                context.startActivity(Intent.createChooser(intent, "PDF 열기"))
-            } catch (e: Exception) {
-                Toast.makeText(context, "PDF를 열 수 있는 앱을 찾을 수 없습니다: ${e.localizedMessage}", Toast.LENGTH_LONG).show()
-            }
-        } else {
-            val fileId = pdf.filePath
-            if (fileId.isBlank()) {
-                Toast.makeText(context, "구글 드라이브 파일 ID가 존재하지 않습니다.", Toast.LENGTH_SHORT).show()
-                return
-            }
-            activePdfDriveUrl = "https://drive.google.com/file/d/$fileId/preview"
-        }
-    }
+    val estimateList by viewModel.estimateList.collectAsStateWithLifecycle()
+    var selectedEstimate by remember { mutableStateOf<Estimate?>(null) }
 
     Scaffold(
         topBar = {
             TopAppBar(
                 title = {
                     Text(
-                        text = "견적서 PDF 목록",
+                        text = "공유 견적서 목록",
                         fontSize = 18.sp,
                         fontWeight = FontWeight.Bold,
                         color = Color.White
@@ -105,30 +66,7 @@ fun EstimateListScreen(
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = Color(0xFF1E1045)
-                ),
-                actions = {
-                    IconButton(
-                        onClick = {
-                            try {
-                                val driveIntent = Intent(
-                                    Intent.ACTION_VIEW,
-                                    Uri.parse("https://drive.google.com/drive/search?q=다날라 견적서pdf")
-                                ).apply {
-                                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                                }
-                                context.startActivity(driveIntent)
-                            } catch (e: Exception) {
-                                Toast.makeText(context, "구글 드라이브를 열 수 없습니다.", Toast.LENGTH_SHORT).show()
-                            }
-                        }
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Cloud,
-                            tint = Color.White,
-                            contentDescription = "구글 드라이브 바로가기"
-                        )
-                    }
-                }
+                )
             )
         },
         containerColor = Color(0xFF0F0825)
@@ -139,13 +77,13 @@ fun EstimateListScreen(
                 .padding(innerPadding)
                 .background(Color(0xFF0F0825))
         ) {
-            if (pdfList.isEmpty()) {
+            if (estimateList.isEmpty()) {
                 Box(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = "저장된 견적서 PDF가 없습니다.",
+                        text = "저장된 공유 견적서가 없습니다.",
                         color = Color.White.copy(alpha = 0.5f),
                         fontSize = 15.sp,
                         fontWeight = FontWeight.Medium
@@ -158,19 +96,19 @@ fun EstimateListScreen(
                         .padding(horizontal = 16.dp, vertical = 8.dp),
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    items(pdfList, key = { it.id }) { pdf ->
-                        PdfItemCard(
-                            pdf = pdf,
-                            onItemClick = { openPdfFile(pdf) },
-                            onDeleteClick = { viewModel.deletePdf(pdf) }
+                    items(estimateList, key = { it.id }) { estimate ->
+                        EstimateItemCard(
+                            estimate = estimate,
+                            onItemClick = { selectedEstimate = estimate },
+                            onDeleteClick = { viewModel.deleteEstimate(estimate) }
                         )
                     }
                 }
             }
-            activePdfDriveUrl?.let { url ->
-                DrivePdfViewerDialog(
-                    url = url,
-                    onDismiss = { activePdfDriveUrl = null }
+            selectedEstimate?.let { estimate ->
+                LocalEstimateViewerDialog(
+                    estimate = estimate,
+                    onDismiss = { selectedEstimate = null }
                 )
             }
         }
@@ -178,11 +116,19 @@ fun EstimateListScreen(
 }
 
 @Composable
-fun PdfItemCard(
-    pdf: EstimatePdf,
+fun EstimateItemCard(
+    estimate: Estimate,
     onItemClick: () -> Unit,
     onDeleteClick: () -> Unit
 ) {
+    val amountFormatted = java.text.NumberFormat.getNumberInstance(Locale.KOREA).format(estimate.amount)
+    val totalCostFormatted = if (estimate.totalCost.isNotEmpty()) {
+        val clean = estimate.totalCost.replace("₩", "").replace("만원", "").trim()
+        "₩ $clean 만원"
+    } else {
+        "₩ ${amountFormatted}원"
+    }
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -212,16 +158,22 @@ fun PdfItemCard(
                 Spacer(modifier = Modifier.width(16.dp))
                 Column {
                     Text(
-                        text = pdf.fileName,
+                        text = "${estimate.customerName} 고객님",
                         color = Color.White,
                         fontSize = 15.sp,
                         fontWeight = FontWeight.Bold
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = "견적일: ${pdf.date}",
-                        color = Color.White.copy(alpha = 0.6f),
+                        text = "이사일: ${estimate.moveDate} (${estimate.startTime})",
+                        color = Color.White.copy(alpha = 0.8f),
                         fontSize = 12.sp
+                    )
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = "종류: ${estimate.moveInfo.ifBlank { estimate.moveType }} | 비용: $totalCostFormatted",
+                        color = Color.White.copy(alpha = 0.6f),
+                        fontSize = 11.sp
                     )
                 }
             }
@@ -237,10 +189,15 @@ fun PdfItemCard(
 }
 
 @Composable
-fun DrivePdfViewerDialog(
-    url: String,
+fun LocalEstimateViewerDialog(
+    estimate: Estimate,
     onDismiss: () -> Unit
 ) {
+    val context = LocalContext.current
+    val htmlContent = remember(estimate) {
+        EstimateHtmlGenerator.generateEstimateHtml(context, estimate)
+    }
+
     Dialog(
         onDismissRequest = onDismiss,
         properties = DialogProperties(usePlatformDefaultWidth = false)
@@ -257,35 +214,62 @@ fun DrivePdfViewerDialog(
                         .height(56.dp)
                         .background(Color(0xFF1E1045))
                         .padding(horizontal = 16.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    IconButton(onClick = onDismiss) {
-                        Icon(
-                            imageVector = Icons.Default.Close,
-                            tint = Color.White,
-                            contentDescription = "닫기"
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        IconButton(onClick = onDismiss) {
+                            Icon(
+                                imageVector = Icons.Default.Close,
+                                tint = Color.White,
+                                contentDescription = "닫기"
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(16.dp))
+                        Text(
+                            text = "견적서 상세 보기",
+                            color = Color.White,
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Bold
                         )
                     }
-                    Spacer(modifier = Modifier.width(16.dp))
-                    Text(
-                        text = "견적서 뷰어",
-                        color = Color.White,
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold
-                    )
+
+                    Row {
+                        IconButton(onClick = {
+                            EstimatePrintHelper.printEstimate(context, htmlContent, estimate)
+                        }) {
+                            Icon(
+                                imageVector = Icons.Default.PictureAsPdf,
+                                tint = Color.White,
+                                contentDescription = "인쇄/PDF저장"
+                            )
+                        }
+                        IconButton(onClick = {
+                            EstimatePrintHelper.shareEstimateAsJpg(context, htmlContent, estimate)
+                        }) {
+                            Icon(
+                                imageVector = Icons.Default.Share,
+                                tint = Color.White,
+                                contentDescription = "공유"
+                            )
+                        }
+                    }
                 }
-                
+
                 // WebView
                 AndroidView(
-                    factory = { context ->
-                        WebView(context).apply {
+                    factory = { ctx ->
+                        WebView(ctx).apply {
                             webViewClient = WebViewClient()
                             settings.javaScriptEnabled = true
                             settings.domStorageEnabled = true
                             settings.useWideViewPort = true
                             settings.loadWithOverviewMode = true
-                            loadUrl(url)
+                            loadDataWithBaseURL("file:///android_asset/", htmlContent, "text/html", "UTF-8", null)
                         }
+                    },
+                    update = { webView ->
+                        webView.loadDataWithBaseURL("file:///android_asset/", htmlContent, "text/html", "UTF-8", null)
                     },
                     modifier = Modifier.fillMaxSize()
                 )
