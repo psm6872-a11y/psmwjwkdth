@@ -69,86 +69,93 @@ object EstimatePrintHelper {
         android.util.Log.d("WebViewPdf", "[LOG] renderHtmlToJpg called. Switching to Main thread...")
         return withContext(Dispatchers.Main) {
             suspendCancellableCoroutine<String?> { continuation ->
-                android.util.Log.d("WebViewPdf", "[LOG] suspendCancellableCoroutine started on Main thread. Creating WebView...")
-                val handler = android.os.Handler(android.os.Looper.getMainLooper())
-                val webView = WebView(context).apply {
-                    settings.useWideViewPort = true
-                    settings.loadWithOverviewMode = true
-                }
-                webView.setLayerType(android.view.View.LAYER_TYPE_SOFTWARE, null)
-                webView.layout(0, 0, 794, 1123)
-                
-                var hasResumed = false
-                
-                fun doRender() {
-                    if (hasResumed) return
-                    hasResumed = true
-                    try {
-                        android.util.Log.d("WebViewPdf", "[LOG] doRender triggered. Creating directories and files...")
-                        val tempDir = File(context.cacheDir, "danalla_temp")
-                        if (!tempDir.exists()) {
-                            tempDir.mkdirs()
-                        }
-                        tempDir.listFiles()?.forEach { it.delete() }
+                try {
+                    android.util.Log.d("WebViewPdf", "[LOG] suspendCancellableCoroutine started on Main thread. Creating WebView...")
+                    val handler = android.os.Handler(android.os.Looper.getMainLooper())
+                    val webView = WebView(context).apply {
+                        settings.useWideViewPort = true
+                        settings.loadWithOverviewMode = true
+                    }
+                    webView.setLayerType(android.view.View.LAYER_TYPE_SOFTWARE, null)
+                    webView.layout(0, 0, 794, 1123)
+                    
+                    var hasResumed = false
+                    
+                    fun doRender() {
+                        if (hasResumed) return
+                        hasResumed = true
+                        try {
+                            android.util.Log.d("WebViewPdf", "[LOG] doRender triggered. Creating directories and files...")
+                            val tempDir = File(context.cacheDir, "danalla_temp")
+                            if (!tempDir.exists()) {
+                                tempDir.mkdirs()
+                            }
+                            tempDir.listFiles()?.forEach { it.delete() }
 
-                        val dateStr = estimate.estimateDate.ifBlank { estimate.moveDate }
-                        val dateParts = dateStr.split("-")
-                        val monthDay = if (dateParts.size >= 3) "${dateParts[1]}-${dateParts[2]}" else "00-00"
-                        val rawPhone = estimate.phoneNumber.replace(Regex("[^0-9]"), "")
-                        val last4 = if (rawPhone.length >= 4) rawPhone.takeLast(4) else "0000"
-                        val fileName = "${monthDay}_$last4.jpg"
+                            val dateStr = estimate.estimateDate.ifBlank { estimate.moveDate }
+                            val dateParts = dateStr.split("-")
+                            val monthDay = if (dateParts.size >= 3) "${dateParts[1]}-${dateParts[2]}" else "00-00"
+                            val rawPhone = estimate.phoneNumber.replace(Regex("[^0-9]"), "")
+                            val last4 = if (rawPhone.length >= 4) rawPhone.takeLast(4) else "0000"
+                            val fileName = "${monthDay}_$last4.jpg"
 
-                        val jpgFile = File(tempDir, fileName)
+                            val jpgFile = File(tempDir, fileName)
 
-                        // Generate High-Res Bitmap
-                        android.util.Log.d("WebViewPdf", "[LOG] Generating Bitmap (scale=2.5)...")
-                        val scale = 2.5f
-                        val width = (794 * scale).toInt()
-                        val height = (1123 * scale).toInt()
-                        val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
-                        val canvas = Canvas(bitmap)
-                        canvas.scale(scale, scale)
-                        webView.draw(canvas)
+                            // Generate High-Res Bitmap
+                            android.util.Log.d("WebViewPdf", "[LOG] Generating Bitmap (scale=2.5)...")
+                            val scale = 2.5f
+                            val width = (794 * scale).toInt()
+                            val height = (1123 * scale).toInt()
+                            val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+                            val canvas = Canvas(bitmap)
+                            canvas.scale(scale, scale)
+                            webView.draw(canvas)
 
-                        // Save JPG
-                        android.util.Log.d("WebViewPdf", "[LOG] Saving JPG to ${jpgFile.absolutePath}...")
-                        java.io.FileOutputStream(jpgFile).use { out ->
-                            bitmap.compress(Bitmap.CompressFormat.JPEG, 95, out)
-                        }
-                        bitmap.recycle()
+                            // Save JPG
+                            android.util.Log.d("WebViewPdf", "[LOG] Saving JPG to ${jpgFile.absolutePath}...")
+                            java.io.FileOutputStream(jpgFile).use { out ->
+                                bitmap.compress(Bitmap.CompressFormat.JPEG, 95, out)
+                            }
+                            bitmap.recycle()
 
-                        android.util.Log.d("WebViewPdf", "[LOG] Rendering process completed successfully!")
-                        if (continuation.isActive) {
-                            continuation.resume(jpgFile.absolutePath)
-                        }
-                    } catch (e: Throwable) {
-                        android.util.Log.e("WebViewPdf", "PDF to JPG failed", e)
-                        if (continuation.isActive) {
-                            continuation.resume(null)
+                            android.util.Log.d("WebViewPdf", "[LOG] Rendering process completed successfully!")
+                            if (continuation.isActive) {
+                                continuation.resume(jpgFile.absolutePath)
+                            }
+                        } catch (e: Throwable) {
+                            android.util.Log.e("WebViewPdf", "PDF to JPG failed", e)
+                            if (continuation.isActive) {
+                                continuation.resume(null)
+                            }
                         }
                     }
-                }
 
-                // 5-second safety timeout
-                val timeoutRunnable = Runnable {
-                    if (!hasResumed) {
-                        android.util.Log.w("WebViewPdf", "[LOG] WebView load timed out (5s). Forcing rendering...")
-                        doRender()
-                    }
-                }
-                handler.postDelayed(timeoutRunnable, 5000)
-
-                webView.webViewClient = object : WebViewClient() {
-                    override fun onPageFinished(view: WebView?, url: String?) {
-                        android.util.Log.d("WebViewPdf", "[LOG] onPageFinished callback triggered! Posting render task...")
-                        handler.removeCallbacks(timeoutRunnable)
-                        handler.postDelayed({
+                    // 5-second safety timeout
+                    val timeoutRunnable = Runnable {
+                        if (!hasResumed) {
+                            android.util.Log.w("WebViewPdf", "[LOG] WebView load timed out (5s). Forcing rendering...")
                             doRender()
-                        }, 500)
+                        }
+                    }
+                    handler.postDelayed(timeoutRunnable, 5000)
+
+                    webView.webViewClient = object : WebViewClient() {
+                        override fun onPageFinished(view: WebView?, url: String?) {
+                            android.util.Log.d("WebViewPdf", "[LOG] onPageFinished callback triggered! Posting render task...")
+                            handler.removeCallbacks(timeoutRunnable)
+                            handler.postDelayed({
+                                doRender()
+                            }, 500)
+                        }
+                    }
+                    android.util.Log.d("WebViewPdf", "[LOG] WebView.loadDataWithBaseURL loading html content (size: ${htmlContent.length})...")
+                    webView.loadDataWithBaseURL("file:///android_asset/", htmlContent, "text/html", "UTF-8", null)
+                } catch (t: Throwable) {
+                    android.util.Log.e("WebViewPdf", "Failed to initialize WebView or setup render", t)
+                    if (continuation.isActive) {
+                        continuation.resume(null)
                     }
                 }
-                android.util.Log.d("WebViewPdf", "[LOG] WebView.loadDataWithBaseURL loading html content (size: ${htmlContent.length})...")
-                webView.loadDataWithBaseURL("file:///android_asset/", htmlContent, "text/html", "UTF-8", null)
             }
         }
     }
