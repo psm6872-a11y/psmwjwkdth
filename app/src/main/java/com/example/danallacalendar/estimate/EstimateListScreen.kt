@@ -41,6 +41,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import com.google.android.gms.common.api.ApiException
 import com.google.android.gms.auth.api.signin.GoogleSignIn
 import java.util.Locale
+import android.widget.Toast
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -70,6 +71,7 @@ fun EstimateListScreen(
             Log.e("EstimateListScreen", "Google Sign-In failed", e)
             viewModel.updateGoogleAccount(null)
             viewModel.toggleGoogleDriveSaveEnabled(false)
+            Toast.makeText(context, "구글 로그인 실패 (코드: ${e.statusCode})", Toast.LENGTH_LONG).show()
         }
     }
 
@@ -159,6 +161,8 @@ fun EstimateListScreen(
                             )
                         )
                     }
+
+                    Spacer(modifier = Modifier.height(6.dp))
 
                     // 3단: "참여한 멤버와 공유" 텍스트 + 스위치 토글 (우측 정렬, 반응형 높이)
                     Row(
