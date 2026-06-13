@@ -130,6 +130,8 @@ fun EstimateScreen(
     var activeSpaceForCargoInput by remember { mutableStateOf<String?>(null) }
     var savedSmsBody by remember { mutableStateOf("") }
     var savedPdfPath by remember { mutableStateOf<String?>(null) }
+    var showErrorDialog by remember { mutableStateOf(false) }
+    var errorDetailMessage by remember { mutableStateOf("") }
     var completedSpaces by remember { mutableStateOf(setOf<String>()) }
     var spaceExpectedVolumes by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
     val totalVol = spaceExpectedVolumes.values.mapNotNull { it.toDoubleOrNull() }.sum()
@@ -281,7 +283,8 @@ fun EstimateScreen(
                 }
             }
             is SaveState.Error -> {
-                Toast.makeText(context, "오류: ${(saveState as SaveState.Error).message}", Toast.LENGTH_LONG).show()
+                errorDetailMessage = (saveState as SaveState.Error).message
+                showErrorDialog = true
                 viewModel.resetSaveState()
                 hasSaved = false
             }
@@ -801,6 +804,53 @@ fun EstimateScreen(
             dismissButton = {
                 TextButton(onClick = { showTtsSettings = false }) {
                     Text("취소")
+                }
+            }
+        )
+    }
+
+    if (showErrorDialog) {
+        AlertDialog(
+            onDismissRequest = { showErrorDialog = false },
+            title = { Text("견적 저장 오류 발생", color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("오류 원인 스택 트레이스 (제미나이 전달용):", color = MaterialTheme.colorScheme.onSurface, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(250.dp)
+                            .background(Color.Black.copy(alpha = 0.05f), shape = RoundedCornerShape(8.dp))
+                            .padding(8.dp)
+                            .verticalScroll(rememberScrollState())
+                    ) {
+                        Text(
+                            text = errorDetailMessage,
+                            color = Color.Red,
+                            fontSize = 11.sp,
+                            fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace
+                        )
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        try {
+                            val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                            val clip = android.content.ClipData.newPlainText("danalla_error", errorDetailMessage)
+                            clipboard.setPrimaryClip(clip)
+                            Toast.makeText(context, "오류 로그가 복사되었습니다.", Toast.LENGTH_SHORT).show()
+                        } catch (e: Exception) {}
+                        showErrorDialog = false
+                    }
+                ) {
+                    Text("오류 복사 및 닫기")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showErrorDialog = false }) {
+                    Text("닫기")
                 }
             }
         )

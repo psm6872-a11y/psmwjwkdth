@@ -327,7 +327,7 @@ class EstimateViewModel @Inject constructor(
                 }
             } catch (e: Throwable) {
                 android.util.Log.e("EstimateViewModel", "Exception occurred during saveEstimate", e)
-                _saveState.value = SaveState.Error(e.toString())
+                _saveState.value = SaveState.Error(e.stackTraceToString())
             }
         }
     }
