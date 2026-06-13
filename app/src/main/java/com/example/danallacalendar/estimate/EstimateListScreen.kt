@@ -42,74 +42,118 @@ fun EstimateListScreen(
     viewModel: EstimateListViewModel = hiltViewModel()
 ) {
     val estimateList by viewModel.estimateList.collectAsStateWithLifecycle()
+    val isShareEnabled by viewModel.isShareEnabled.collectAsStateWithLifecycle()
     var selectedEstimate by remember { mutableStateOf<Estimate?>(null) }
 
     Scaffold(
-        topBar = {
-            TopAppBar(
-                title = {
-                    Text(
-                        text = "공유 견적서 목록",
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White
-                    )
-                },
-                navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
+        containerColor = Color(0xFF0F0825)
+    ) { innerPadding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
+                .background(Color(0xFF0F0825))
+        ) {
+            // 2단 커스텀 상단 헤더 영역 (배경색: Color(0xFF1E1045))
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(Color(0xFF1E1045))
+                    .padding(bottom = 12.dp)
+            ) {
+                // 1단: 뒤로가기 버튼(시작점 정렬) + "견적서 목록" 타이틀 (33.sp로 확대, 완벽한 가운데 정렬)
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(56.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    IconButton(
+                        onClick = onNavigateBack,
+                        modifier = Modifier.align(Alignment.CenterStart)
+                    ) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             tint = Color.White,
                             contentDescription = "뒤로가기"
                         )
                     }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color(0xFF1E1045)
-                )
-            )
-        },
-        containerColor = Color(0xFF0F0825)
-    ) { innerPadding ->
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-                .background(Color(0xFF0F0825))
-        ) {
-            if (estimateList.isEmpty()) {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
                     Text(
-                        text = "저장된 공유 견적서가 없습니다.",
-                        color = Color.White.copy(alpha = 0.5f),
-                        fontSize = 15.sp,
-                        fontWeight = FontWeight.Medium
+                        text = "견적서 목록",
+                        fontSize = 33.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White,
+                        modifier = Modifier.align(Alignment.Center)
                     )
                 }
-            } else {
-                LazyColumn(
+
+                // 2단: "참여 멤버와 공유" 텍스트 (18.sp로 변경) + 스위치 토글 (우측 정렬)
+                Row(
                     modifier = Modifier
-                        .fillMaxSize()
-                        .padding(horizontal = 16.dp, vertical = 8.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.End
                 ) {
-                    items(estimateList, key = { it.id }) { estimate ->
-                        EstimateItemCard(
-                            estimate = estimate,
-                            onItemClick = { selectedEstimate = estimate },
-                            onDeleteClick = { viewModel.deleteEstimate(estimate) }
+                    Text(
+                        text = "참여 멤버와 공유",
+                        color = Color.White,
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Medium
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Switch(
+                        checked = isShareEnabled,
+                        onCheckedChange = { viewModel.toggleShareEnabled(it) },
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = Color(0xFFE040FB),
+                            checkedTrackColor = Color(0xFFE040FB).copy(alpha = 0.5f),
+                            uncheckedThumbColor = Color.Gray,
+                            uncheckedTrackColor = Color.LightGray
                         )
-                    }
+                    )
                 }
             }
-            selectedEstimate?.let { estimate ->
-                LocalEstimateViewerDialog(
-                    estimate = estimate,
-                    onDismiss = { selectedEstimate = null }
-                )
+
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .weight(1f)
+            ) {
+                if (estimateList.isEmpty()) {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "저장된 공유 견적서가 없습니다.",
+                            color = Color.White.copy(alpha = 0.5f),
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+                } else {
+                    LazyColumn(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(horizontal = 16.dp, vertical = 8.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        items(estimateList, key = { it.id }) { estimate ->
+                            EstimateItemCard(
+                                estimate = estimate,
+                                onItemClick = { selectedEstimate = estimate },
+                                onDeleteClick = { viewModel.deleteEstimate(estimate) }
+                            )
+                        }
+                    }
+                }
+                selectedEstimate?.let { estimate ->
+                    LocalEstimateViewerDialog(
+                        estimate = estimate,
+                        onDismiss = { selectedEstimate = null }
+                    )
+                }
             }
         }
     }

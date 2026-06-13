@@ -25,16 +25,30 @@ import kotlin.coroutines.resume
 object EstimatePrintHelper {
 
     fun printEstimate(context: Context, htmlContent: String, estimate: Estimate) {
-        val webView = WebView(context)
-        webView.webViewClient = object : WebViewClient() {
-            override fun onPageFinished(view: WebView?, url: String?) {
-                val printManager = context.getSystemService(Context.PRINT_SERVICE) as? PrintManager ?: return
-                val jobName = "이사 견적서 - ${estimate.customerName}"
-                val printAdapter = webView.createPrintDocumentAdapter(jobName)
-                printManager.print(jobName, printAdapter, PrintAttributes.Builder().build())
+        Toast.makeText(context, "인쇄할 이미지를 준비 중입니다...", Toast.LENGTH_SHORT).show()
+        val scope = CoroutineScope(Dispatchers.Main)
+        scope.launch {
+            val jpgPath = renderHtmlToJpg(context, htmlContent, estimate)
+            if (jpgPath != null) {
+                try {
+                    val printHelper = androidx.print.PrintHelper(context).apply {
+                        scaleMode = androidx.print.PrintHelper.SCALE_MODE_FIT
+                    }
+                    val bitmap = android.graphics.BitmapFactory.decodeFile(jpgPath)
+                    if (bitmap != null) {
+                        val jobName = "이사 견적서 - ${estimate.customerName}"
+                        printHelper.printBitmap(jobName, bitmap)
+                    } else {
+                        Toast.makeText(context, "인쇄 이미지 디코딩에 실패했습니다.", Toast.LENGTH_SHORT).show()
+                    }
+                } catch (e: Exception) {
+                    android.util.Log.e("WebViewPdf", "PrintHelper failed", e)
+                    Toast.makeText(context, "인쇄 중 오류가 발생했습니다: ${e.message}", Toast.LENGTH_SHORT).show()
+                }
+            } else {
+                Toast.makeText(context, "인쇄 이미지 생성에 실패했습니다.", Toast.LENGTH_SHORT).show()
             }
         }
-        webView.loadDataWithBaseURL("file:///android_asset/", htmlContent, "text/html", "UTF-8", null)
     }
 
     fun shareEstimateAsJpg(context: Context, htmlContent: String, estimate: Estimate) {
@@ -142,20 +156,7 @@ object EstimatePrintHelper {
             jpgFile
         )
         val defaultSmsPackage = android.provider.Telephony.Sms.getDefaultSmsPackage(context)
-        val amountFormatted = NumberFormat.getNumberInstance(Locale.KOREA).format(estimate.amount)
-
-        // Format SMS body
-        val smsBody = """
-            [이사 견적서]
-            고객명: ${estimate.customerName}
-            연락처: ${estimate.phoneNumber}
-            이사일: ${estimate.moveDate} ${if (estimate.startTime.isNotBlank()) "(${estimate.startTime})" else ""}
-            이사종류: ${estimate.moveType}
-            출발지: ${estimate.departure}
-            도착지: ${estimate.destination}
-            견적금액: ${amountFormatted}원
-            견적일: ${estimate.estimateDate}
-        """.trimIndent()
+        val smsBody = "위와 같이 견적 합니다. 검토해 보시고 연락주세요. 감사합니다."
 
         val intent = Intent(Intent.ACTION_SEND).apply {
             type = "image/jpeg"

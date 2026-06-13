@@ -218,7 +218,6 @@ fun EstimateScreen(
     val memo by viewModel.memo.collectAsStateWithLifecycle()
     val estimateDate by viewModel.estimateDate.collectAsStateWithLifecycle()
     val startTime by viewModel.startTime.collectAsStateWithLifecycle()
-    val googleSheetsUrl by viewModel.googleSheetsUrl.collectAsStateWithLifecycle()
     val saveState by viewModel.saveState.collectAsStateWithLifecycle()
     var showSuccessOverlay by remember { mutableStateOf(false) }
     val roomItems by viewModel.roomItems.collectAsStateWithLifecycle()
@@ -250,7 +249,7 @@ fun EstimateScreen(
         DatePickerDialog(context, { _, y, m, d ->
             val formatted = String.format(Locale.US, "%d-%02d-%02d", y, m + 1, d)
             onDateSelected(formatted)
-            viewModel.autoSaveToGoogleSheets()
+            viewModel.autoSaveToFirestore()
         }, year, month, day).show()
     }
 
@@ -263,7 +262,7 @@ fun EstimateScreen(
             val displayHour = if (h == 0) 12 else if (h > 12) h - 12 else h
             val formatted = String.format(Locale.KOREA, "%s %d:%02d", ampm, displayHour, m)
             onTimeSelected(formatted)
-            viewModel.autoSaveToGoogleSheets()
+            viewModel.autoSaveToFirestore()
         }, hour, minute, false).show()
     }
 
@@ -296,7 +295,7 @@ fun EstimateScreen(
             currentStep = 3
         } else {
             viewModel.saveEstimate(context) { smsBody, pdfPath ->
-                Toast.makeText(context, "구글 시트 및 DB 저장 완료!", Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, "저장 완료!", Toast.LENGTH_SHORT).show()
                 savedSmsBody = smsBody
                 savedPdfPath = pdfPath
             }
@@ -307,7 +306,7 @@ fun EstimateScreen(
         Step1StartScreen(
             onCategorySelected = { type ->
                 viewModel.moveType.value = type
-                viewModel.autoSaveToGoogleSheets()
+                viewModel.autoSaveToFirestore()
                 currentStep = 2
             },
             onBack = {
@@ -423,31 +422,29 @@ fun EstimateScreen(
                             )
                             3 -> Step3CustomerInfo(
                                 customerName = customerName,
-                                onCustomerNameChange = { viewModel.customerName.value = it; viewModel.autoSaveToGoogleSheets() },
+                                onCustomerNameChange = { viewModel.customerName.value = it; viewModel.autoSaveToFirestore() },
                                 phoneNumber = phoneNumber,
-                                onPhoneNumberChange = { viewModel.phoneNumber.value = it; viewModel.autoSaveToGoogleSheets() },
+                                onPhoneNumberChange = { viewModel.phoneNumber.value = it; viewModel.autoSaveToFirestore() },
                                 departure = departure,
-                                onDepartureChange = { viewModel.departure.value = it; viewModel.autoSaveToGoogleSheets() },
+                                onDepartureChange = { viewModel.departure.value = it; viewModel.autoSaveToFirestore() },
                                 destination = destination,
-                                onDestinationChange = { viewModel.destination.value = it; viewModel.autoSaveToGoogleSheets() },
+                                onDestinationChange = { viewModel.destination.value = it; viewModel.autoSaveToFirestore() },
                                 moveDate = moveDate,
                                 onSelectMoveDate = {
                                     showDatePicker(moveDate) {
                                         viewModel.moveDate.value = it
-                                        viewModel.autoSaveToGoogleSheets()
+                                        viewModel.autoSaveToFirestore()
                                     }
                                 },
                                 startTime = startTime,
                                 onSelectStartTime = { timeStr ->
                                     viewModel.startTime.value = timeStr
-                                    viewModel.autoSaveToGoogleSheets()
+                                    viewModel.autoSaveToFirestore()
                                 },
                                 amount = amount,
-                                onAmountChange = { viewModel.amount.value = it; viewModel.autoSaveToGoogleSheets() },
+                                onAmountChange = { viewModel.amount.value = it; viewModel.autoSaveToFirestore() },
                                 memo = memo,
-                                onMemoChange = { viewModel.memo.value = it; viewModel.autoSaveToGoogleSheets() },
-                                googleSheetsUrl = googleSheetsUrl,
-                                onSheetsUrlChange = { viewModel.googleSheetsUrl.value = it },
+                                onMemoChange = { viewModel.memo.value = it; viewModel.autoSaveToFirestore() },
                                 estimateDate = estimateDate,
                                 onSelectEstimateDate = {
                                     showDatePicker(estimateDate) {
@@ -458,37 +455,37 @@ fun EstimateScreen(
                                 onSelectVisitDate = {
                                     showDatePicker(visitDate) {
                                         viewModel.visitDate.value = it
-                                        viewModel.autoSaveToGoogleSheets()
+                                        viewModel.autoSaveToFirestore()
                                     }
                                 },
                                 moveInfo = moveInfo,
-                                onMoveInfoChange = { viewModel.moveInfo.value = it; viewModel.autoSaveToGoogleSheets() },
+                                onMoveInfoChange = { viewModel.moveInfo.value = it; viewModel.autoSaveToFirestore() },
                                 totalVolume = totalVolume,
-                                onTotalVolumeChange = { viewModel.totalVolume.value = it; viewModel.autoSaveToGoogleSheets() },
+                                onTotalVolumeChange = { viewModel.totalVolume.value = it; viewModel.autoSaveToFirestore() },
                                 workersM = workersM,
-                                onWorkersMChange = { viewModel.workersM.value = it; viewModel.autoSaveToGoogleSheets() },
+                                onWorkersMChange = { viewModel.workersM.value = it; viewModel.autoSaveToFirestore() },
                                 workersF = workersF,
-                                onWorkersFChange = { viewModel.workersF.value = it; viewModel.autoSaveToGoogleSheets() },
+                                onWorkersFChange = { viewModel.workersF.value = it; viewModel.autoSaveToFirestore() },
                                 laddersStartFloor = laddersStartFloor,
-                                onLaddersStartFloorChange = { viewModel.laddersStartFloor.value = it; viewModel.autoSaveToGoogleSheets() },
+                                onLaddersStartFloorChange = { viewModel.laddersStartFloor.value = it; viewModel.autoSaveToFirestore() },
                                 laddersStartCost = laddersStartCost,
-                                onLaddersStartCostChange = { viewModel.laddersStartCost.value = it; viewModel.onLadderCostChanged(); viewModel.autoSaveToGoogleSheets() },
+                                onLaddersStartCostChange = { viewModel.laddersStartCost.value = it; viewModel.onLadderCostChanged(); viewModel.autoSaveToFirestore() },
                                 laddersEndFloor = laddersEndFloor,
-                                onLaddersEndFloorChange = { viewModel.laddersEndFloor.value = it; viewModel.autoSaveToGoogleSheets() },
+                                onLaddersEndFloorChange = { viewModel.laddersEndFloor.value = it; viewModel.autoSaveToFirestore() },
                                 laddersEndCost = laddersEndCost,
-                                onLaddersEndCostChange = { viewModel.laddersEndCost.value = it; viewModel.onLadderCostChanged(); viewModel.autoSaveToGoogleSheets() },
+                                onLaddersEndCostChange = { viewModel.laddersEndCost.value = it; viewModel.onLadderCostChanged(); viewModel.autoSaveToFirestore() },
                                 extraTruck = extraTruck,
-                                onExtraTruckChange = { viewModel.extraTruck.value = it; viewModel.autoSaveToGoogleSheets() },
+                                onExtraTruckChange = { viewModel.extraTruck.value = it; viewModel.autoSaveToFirestore() },
                                 moveCost = moveCost,
-                                onMoveCostChange = { viewModel.moveCost.value = it; viewModel.onMoveCostOrOptionChanged(); viewModel.autoSaveToGoogleSheets() },
+                                onMoveCostChange = { viewModel.moveCost.value = it; viewModel.onMoveCostOrOptionChanged(); viewModel.autoSaveToFirestore() },
                                 totalCost = totalCost,
-                                onTotalCostChange = { viewModel.totalCost.value = it; viewModel.autoSaveToGoogleSheets() },
+                                onTotalCostChange = { viewModel.totalCost.value = it; viewModel.autoSaveToFirestore() },
                                 deposit = deposit,
-                                onDepositChange = { viewModel.deposit.value = it; viewModel.onDepositChanged(); viewModel.autoSaveToGoogleSheets() },
+                                onDepositChange = { viewModel.deposit.value = it; viewModel.onDepositChanged(); viewModel.autoSaveToFirestore() },
                                 balance = balance,
-                                onBalanceChange = { viewModel.balance.value = it; viewModel.autoSaveToGoogleSheets() },
+                                onBalanceChange = { viewModel.balance.value = it; viewModel.autoSaveToFirestore() },
                                 optionCost = optionCost,
-                                onOptionCostChange = { viewModel.optionCost.value = it; viewModel.onMoveCostOrOptionChanged(); viewModel.autoSaveToGoogleSheets() },
+                                onOptionCostChange = { viewModel.optionCost.value = it; viewModel.onMoveCostOrOptionChanged(); viewModel.autoSaveToFirestore() },
                                 totalExpectedVolume = totalExpectedVolumeStr
                             )
                             4 -> {
@@ -512,18 +509,29 @@ fun EstimateScreen(
                                     totalExpectedVolume = totalExpectedVolumeStr,
                                     onPrint = {
                                         if (savedPdfPath != null) {
-                                            val pdfPath = savedPdfPath!!.replace(".jpg", ".pdf")
-                                            val pdfFile = java.io.File(pdfPath)
-                                            if (pdfFile.exists()) {
-                                                printPdfFile(context, pdfFile, "이사 견적서 - $customerName")
+                                            val jpgFile = java.io.File(savedPdfPath!!)
+                                            if (jpgFile.exists()) {
+                                                try {
+                                                    val printHelper = androidx.print.PrintHelper(context).apply {
+                                                        scaleMode = androidx.print.PrintHelper.SCALE_MODE_FIT
+                                                    }
+                                                    val bitmap = android.graphics.BitmapFactory.decodeFile(savedPdfPath!!)
+                                                    if (bitmap != null) {
+                                                        printHelper.printBitmap("이사 견적서 - $customerName", bitmap)
+                                                    } else {
+                                                        Toast.makeText(context, "인쇄 이미지 디코딩에 실패했습니다.", Toast.LENGTH_SHORT).show()
+                                                    }
+                                                } catch (e: Exception) {
+                                                    Toast.makeText(context, "인쇄 중 오류가 발생했습니다: ${e.message}", Toast.LENGTH_SHORT).show()
+                                                }
                                             } else {
-                                                Toast.makeText(context, "견적서 PDF 파일이 없습니다. 먼저 저장해 주세요.", Toast.LENGTH_SHORT).show()
+                                                Toast.makeText(context, "견적서 이미지가 없습니다. 먼저 저장해 주세요.", Toast.LENGTH_SHORT).show()
                                             }
                                         } else {
                                             Toast.makeText(context, "저장된 견적서가 없습니다. 먼저 저장해 주세요.", Toast.LENGTH_SHORT).show()
                                         }
                                     },
-                                    onSendSms = {
+                                    onSendSms = { smsText ->
                                         if (savedPdfPath != null) {
                                             val jpgFile = java.io.File(savedPdfPath!!)
                                             if (jpgFile.exists()) {
@@ -536,6 +544,8 @@ fun EstimateScreen(
                                                 val intent = Intent(Intent.ACTION_SEND).apply {
                                                     type = "image/jpeg"
                                                     putExtra(Intent.EXTRA_STREAM, fileUri)
+                                                    putExtra(Intent.EXTRA_TEXT, smsText)
+                                                    putExtra("sms_body", smsText)
                                                     putExtra("address", phoneNumber)
                                                     putExtra("recipient", phoneNumber)
                                                     putExtra(Intent.EXTRA_PHONE_NUMBER, phoneNumber)
@@ -2530,8 +2540,6 @@ fun Step3CustomerInfo(
     onAmountChange: (String) -> Unit,
     memo: String,
     onMemoChange: (String) -> Unit,
-    googleSheetsUrl: String,
-    onSheetsUrlChange: (String) -> Unit,
     estimateDate: String,
     onSelectEstimateDate: () -> Unit,
     visitDate: String,
@@ -3202,11 +3210,53 @@ fun Step4PreviewAndActions(
     saveState: SaveState,
     totalExpectedVolume: String,
     onPrint: () -> Unit,
-    onSendSms: () -> Unit
+    onSendSms: (String) -> Unit
 ) {
     val formattedAmount = remember(amount) {
         val amt = amount.toLongOrNull() ?: 0L
         NumberFormat.getNumberInstance(Locale.KOREA).format(amt)
+    }
+
+    var smsText by remember { mutableStateOf("위와 같이 견적 합니다. 검토해 보시고 연락주세요. 감사합니다.") }
+    var showSmsDialog by remember { mutableStateOf(false) }
+
+    if (showSmsDialog) {
+        AlertDialog(
+            onDismissRequest = { showSmsDialog = false },
+            title = { Text("문자 메시지 본문 수정", color = MaterialTheme.colorScheme.onSurface) },
+            text = {
+                OutlinedTextField(
+                    value = smsText,
+                    onValueChange = { smsText = it },
+                    label = { Text("메시지 내용") },
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                        unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
+                        focusedBorderColor = Color(0xFFE040FB),
+                        unfocusedBorderColor = Color.Gray.copy(alpha = 0.5f),
+                        focusedLabelColor = Color(0xFFE040FB),
+                        unfocusedLabelColor = Color.Gray,
+                        cursorColor = Color(0xFFE040FB)
+                    ),
+                    maxLines = 5
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = { showSmsDialog = false }
+                ) {
+                    Text("확인", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = { showSmsDialog = false }
+                ) {
+                    Text("취소", color = Color.Gray)
+                }
+            }
+        )
     }
 
     Column(
@@ -3318,29 +3368,62 @@ fun Step4PreviewAndActions(
         Spacer(modifier = Modifier.height(16.dp))
 
         // Actions
-        Row(
+        Column(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+            verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             OutlinedButton(
                 onClick = onPrint,
                 modifier = Modifier
-                    .weight(1f)
+                    .fillMaxWidth()
                     .height(56.dp),
                 shape = RoundedCornerShape(12.dp)
             ) {
                 Text("프린터 출력")
             }
 
-            Button(
-                onClick = onSendSms,
+            Surface(
                 modifier = Modifier
-                    .weight(1.2f)
+                    .fillMaxWidth()
                     .height(56.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.tertiary),
+                color = MaterialTheme.colorScheme.tertiary,
                 shape = RoundedCornerShape(12.dp)
             ) {
-                Text("견적서 문자 발송", fontWeight = FontWeight.Bold)
+                Row(
+                    modifier = Modifier.fillMaxSize(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxHeight()
+                            .clickable { onSendSms(smsText) },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text("견적서 문자 발송", fontWeight = FontWeight.Bold, color = Color.White)
+                    }
+
+                    // Vertical Divider between text and edit button
+                    Box(
+                        modifier = Modifier
+                            .fillMaxHeight(0.5f)
+                            .width(1.dp)
+                            .background(Color.White.copy(alpha = 0.2f))
+                    )
+
+                    IconButton(
+                        onClick = { showSmsDialog = true },
+                        modifier = Modifier
+                            .fillMaxHeight()
+                            .aspectRatio(1f)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Add,
+                            contentDescription = "문구 수정",
+                            tint = Color.White
+                        )
+                    }
+                }
             }
         }
     }

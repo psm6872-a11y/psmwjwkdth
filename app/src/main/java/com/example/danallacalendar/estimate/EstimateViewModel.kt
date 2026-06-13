@@ -5,9 +5,9 @@ import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.pdf.PdfRenderer
 import android.os.ParcelFileDescriptor
-import com.example.danallacalendar.BuildConfig
 import com.example.danallacalendar.data.EstimatePdf
 import com.example.danallacalendar.data.EstimatePdfDao
+import com.example.danallacalendar.data.local.UserPreferences
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -20,9 +20,6 @@ import java.text.NumberFormat
 import java.text.SimpleDateFormat
 import java.util.Locale
 import javax.inject.Inject
-import okhttp3.MediaType.Companion.toMediaType
-import okhttp3.RequestBody.Companion.toRequestBody
-import org.json.JSONObject
 import java.io.File
 
 sealed class SaveState {
@@ -36,7 +33,8 @@ sealed class SaveState {
 class EstimateViewModel @Inject constructor(
     private val repository: EstimateRepository,
     private val estimatePdfDao: EstimatePdfDao,
-    private val savedStateHandle: SavedStateHandle
+    private val savedStateHandle: SavedStateHandle,
+    private val userPreferences: UserPreferences
 ) : ViewModel() {
 
     // Form fields
@@ -71,9 +69,6 @@ class EstimateViewModel @Inject constructor(
     private val _roomItems = MutableStateFlow<Map<String, Map<String, Int>>>(emptyMap())
     val roomItems = _roomItems.asStateFlow()
 
-    // Google Sheets WebApp URL configuration
-    val googleSheetsUrl = MutableStateFlow("")
-
     private val _saveState = MutableStateFlow<SaveState>(SaveState.Idle)
     val saveState = _saveState.asStateFlow()
 
@@ -82,35 +77,6 @@ class EstimateViewModel @Inject constructor(
     init {
         val today = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(java.util.Date())
         estimateDate.value = today
-        
-        // Firebase Remote Config를 통해 동적으로 스프레드시트 웹앱 URL 로드
-        viewModelScope.launch(Dispatchers.IO) {
-            try {
-                val remoteConfig = com.google.firebase.remoteconfig.FirebaseRemoteConfig.getInstance()
-                val configSettings = com.google.firebase.remoteconfig.ktx.remoteConfigSettings {
-                    minimumFetchIntervalInSeconds = 0 // 매번 즉시 갱신
-                }
-                remoteConfig.setConfigSettingsAsync(configSettings)
-                remoteConfig.fetchAndActivate().addOnCompleteListener { task ->
-                    if (task.isSuccessful) {
-                        val fetchedUrl = remoteConfig.getString("spreadsheet_web_app_url")
-                        if (!fetchedUrl.isNullOrBlank()) {
-                            googleSheetsUrl.value = fetchedUrl
-                            android.util.Log.d("EstimateViewModel", "[LOG] Firebase Remote Config URL loaded successfully: '$fetchedUrl'")
-                        } else {
-                            googleSheetsUrl.value = BuildConfig.SPREADSHEET_WEB_APP_URL
-                            android.util.Log.d("EstimateViewModel", "[LOG] Firebase Remote Config URL is empty. Fallback to BuildConfig.")
-                        }
-                    } else {
-                        googleSheetsUrl.value = BuildConfig.SPREADSHEET_WEB_APP_URL
-                        android.util.Log.e("EstimateViewModel", "[LOG] Firebase Remote Config Fetch failed. Fallback to BuildConfig.")
-                    }
-                }
-            } catch (e: Exception) {
-                googleSheetsUrl.value = BuildConfig.SPREADSHEET_WEB_APP_URL
-                android.util.Log.e("EstimateViewModel", "[LOG] Error loading Firebase Remote Config: ${e.message}. Fallback to BuildConfig.")
-            }
-        }
 
         // 캘린더 일정 연동 인자 파싱 및 바인딩
         try {
@@ -150,7 +116,7 @@ class EstimateViewModel @Inject constructor(
             current[space] = spaceMap
         }
         _roomItems.value = current
-        autoSaveToGoogleSheets()
+        autoSaveToFirestore()
     }
 
     fun formatRoomItemsSummary(): String {
@@ -199,7 +165,12 @@ class EstimateViewModel @Inject constructor(
         }
     }
 
-    fun autoSaveToGoogleSheets() {
+    fun autoSaveToFirestore() {
+        if (!userPreferences.isShareEnabled()) {
+            android.util.Log.d("EstimateViewModel", "Auto save to Firestore skipped since sharing is disabled.")
+            return
+        }
+
         val amt = amount.value.toLongOrNull() ?: 0L
         val actualMemo = memo.value.trim()
 
@@ -285,12 +256,20 @@ class EstimateViewModel @Inject constructor(
 
         viewModelScope.launch(Dispatchers.IO) {
             try {
-                android.util.Log.d("EstimateViewModel", "[LOG] [THREAD: ${Thread.currentThread().name}] Step 1: Saving to Firestore starting...")
-                // 1. Save to Firestore under room collection path
-                val savedId = repository.saveToFirestore(estimate)
-                android.util.Log.d("EstimateViewModel", "[LOG] [THREAD: ${Thread.currentThread().name}] Step 1: Saving to Firestore success, ID = $savedId")
-                val finalEstimate = estimate.copy(id = savedId)
-                estimateId = savedId
+                val finalEstimate: Estimate
+                if (userPreferences.isShareEnabled()) {
+                    android.util.Log.d("EstimateViewModel", "[LOG] [THREAD: ${Thread.currentThread().name}] Step 1: Saving to Firestore starting...")
+                    // 1. Save to Firestore under room collection path
+                    val savedId = repository.saveToFirestore(estimate)
+                    android.util.Log.d("EstimateViewModel", "[LOG] [THREAD: ${Thread.currentThread().name}] Step 1: Saving to Firestore success, ID = $savedId")
+                    finalEstimate = estimate.copy(id = savedId)
+                    estimateId = savedId
+                } else {
+                    android.util.Log.d("EstimateViewModel", "[LOG] [THREAD: ${Thread.currentThread().name}] Step 1: Saving to Firestore skipped (sharing disabled).")
+                    val tempId = estimate.id.ifBlank { java.util.UUID.randomUUID().toString() }
+                    finalEstimate = estimate.copy(id = tempId)
+                    estimateId = tempId
+                }
 
                 android.util.Log.d("EstimateViewModel", "[LOG] [THREAD: ${Thread.currentThread().name}] Step 2: Generating HTML template starting...")
                 // 2. Generate populated HTML template locally
@@ -329,24 +308,7 @@ class EstimateViewModel @Inject constructor(
                 _saveState.value = SaveState.Success
                 android.util.Log.d("EstimateViewModel", "[LOG] [THREAD: ${Thread.currentThread().name}] SaveState updated to Success")
 
-                // 5. Formulate SMS message
-                val formattedAmount = NumberFormat.getNumberInstance(Locale.KOREA).format(amt)
-                val smsBody = """
-                    [이사 견적서]
-                    고객명: ${finalEstimate.customerName}
-                    연락처: ${finalEstimate.phoneNumber}
-                    이사일: ${finalEstimate.moveDate} ${if (finalEstimate.startTime.isNotBlank()) "(${finalEstimate.startTime})" else ""}
-                    이사종류: ${finalEstimate.moveType}
-                    출발지: ${finalEstimate.departure}
-                    도착지: ${finalEstimate.destination}
-                    견적금액: ${formattedAmount}원
-                    
-                    [이사 화물 정보]
-                    ${if (formattedCargo.isNotBlank()) formattedCargo else "기본 정보"}
-                    
-                    ${if (finalEstimate.memo.isNotBlank() && finalEstimate.memo != formattedCargo) "[메모]\n${memo.value}" else ""}
-                    견적일: ${finalEstimate.estimateDate}
-                """.trimIndent()
+                val smsBody = "위와 같이 견적 합니다. 검토해 보시고 연락주세요. 감사합니다."
 
                 viewModelScope.launch(Dispatchers.Main) {
                     onCompleted(smsBody, jpgPath)

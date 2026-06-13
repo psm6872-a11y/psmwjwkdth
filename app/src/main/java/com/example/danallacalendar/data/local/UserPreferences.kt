@@ -11,6 +11,7 @@ class UserPreferences(context: Context) {
         private const val KEY_DEVICE_UUID = "device_uuid"
         private const val KEY_NICKNAME = "nickname"
         private const val KEY_LAST_ROOM_CODE = "last_room_code"
+        private const val KEY_IS_SHARE_ENABLED = "is_share_enabled"
     }
 
     init {
@@ -47,6 +48,14 @@ class UserPreferences(context: Context) {
 
     fun setLastRoomCode(roomCode: String) {
         prefs.edit().putString(KEY_LAST_ROOM_CODE, roomCode).apply()
+    }
+
+    fun isShareEnabled(): Boolean {
+        return prefs.getBoolean(KEY_IS_SHARE_ENABLED, false)
+    }
+
+    fun setShareEnabled(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_IS_SHARE_ENABLED, enabled).apply()
     }
 
     fun clearAll() {
