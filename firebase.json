@@ -14,5 +14,13 @@
         "firestore-debug.log"
       ]
     }
-  ]
+  ],
+  "auth": {
+    "providers": {
+      "googleSignIn": {
+        "oAuthBrandDisplayName": "다날라 캘린더",
+        "supportEmail": "psm6872@gmail.com"
+      }
+    }
+  }
 }

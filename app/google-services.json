@@ -12,7 +12,28 @@
           "package_name": "com.example.danallacalendar"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "365182373353-mkkprv5lrnfbjph65ce6g6d1ohfkqd6f.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.danallacalendar",
+            "certificate_hash": "4692d841a820940c8e71e6a8c495ee3ec9be9c62"
+          }
+        },
+        {
+          "client_id": "365182373353-o0ru6j21soegf6o9ludpmeugh6lo49oi.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.danallacalendar",
+            "certificate_hash": "fff42cdceb4e83dae90fb3f53e07253779d238bb"
+          }
+        },
+        {
+          "client_id": "365182373353-7tsiga92omdc55p13b3um6tbe793crvt.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyBB6Yayj2i1Xd-G1qa9ppDTgzE5eZXhYS0"
@@ -20,7 +41,12 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "365182373353-7tsiga92omdc55p13b3um6tbe793crvt.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
         }
       }
     }
