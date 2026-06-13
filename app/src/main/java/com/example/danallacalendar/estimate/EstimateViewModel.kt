@@ -312,29 +312,6 @@ class EstimateViewModel @Inject constructor(
                         estimatePdfDao.insertPdf(estimatePdf)
                         android.util.Log.d("EstimateViewModel", "JPG Cached locally at: ${jpgFile.absolutePath}")
 
-                        // 구글 드라이브 업로드 (사용자 설정이 켜져 있고 로그인되어 있는 경우)
-                        if (userPreferences.isGoogleDriveSaveEnabled()) {
-                            try {
-                                val account = GoogleDriveHelper.getSignedInAccount(context)
-                                if (account != null) {
-                                    android.util.Log.d("EstimateViewModel", "Google Drive upload starting: $fileName")
-                                    val fileId = GoogleDriveHelper.uploadEstimateJpg(context, account, jpgFile, fileName, finalEstimate.estimateDate)
-                                    if (fileId != null) {
-                                        withContext(Dispatchers.Main) {
-                                            android.widget.Toast.makeText(context, "구글 드라이브 업로드 완료", android.widget.Toast.LENGTH_SHORT).show()
-                                        }
-                                    } else {
-                                        withContext(Dispatchers.Main) {
-                                            android.widget.Toast.makeText(context, "구글 드라이브 업로드 실패", android.widget.Toast.LENGTH_SHORT).show()
-                                        }
-                                    }
-                                } else {
-                                    android.util.Log.w("EstimateViewModel", "Google Drive upload skipped: Not signed in")
-                                }
-                            } catch (driveEx: Throwable) {
-                                android.util.Log.e("EstimateViewModel", "Google Drive upload flow failed", driveEx)
-                            }
-                        }
                     } catch (pdfEx: Throwable) {
                         android.util.Log.e("EstimateViewModel", "Local DB cache failed", pdfEx)
                     }
@@ -351,6 +328,41 @@ class EstimateViewModel @Inject constructor(
             } catch (e: Throwable) {
                 android.util.Log.e("EstimateViewModel", "Exception occurred during saveEstimate", e)
                 _saveState.value = SaveState.Error(e.toString())
+            }
+        }
+    }
+
+    fun uploadToGoogleDrive(context: android.content.Context, jpgPath: String) {
+        if (!userPreferences.isGoogleDriveSaveEnabled()) {
+            android.util.Log.d("EstimateViewModel", "Google Drive save is disabled in preferences.")
+            return
+        }
+
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val jpgFile = File(jpgPath)
+                if (!jpgFile.exists()) {
+                    android.util.Log.e("EstimateViewModel", "Upload failed: File does not exist at $jpgPath")
+                    return@launch
+                }
+                val fileName = jpgFile.name
+                val account = GoogleDriveHelper.getSignedInAccount(context)
+                if (account != null) {
+                    val dateVal = estimateDate.value
+                    android.util.Log.d("EstimateViewModel", "Google Drive background upload starting: $fileName with date $dateVal")
+                    val fileId = GoogleDriveHelper.uploadEstimateJpg(context, account, jpgFile, fileName, dateVal)
+                    withContext(Dispatchers.Main) {
+                        if (fileId != null) {
+                            android.widget.Toast.makeText(context, "구글 드라이브 업로드 완료", android.widget.Toast.LENGTH_SHORT).show()
+                        } else {
+                            android.widget.Toast.makeText(context, "구글 드라이브 업로드 실패", android.widget.Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                } else {
+                    android.util.Log.w("EstimateViewModel", "Google Drive background upload skipped: Not signed in")
+                }
+            } catch (e: Throwable) {
+                android.util.Log.e("EstimateViewModel", "Background Google Drive upload failed", e)
             }
         }
     }

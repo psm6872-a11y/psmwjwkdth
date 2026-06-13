@@ -643,6 +643,9 @@ fun EstimateScreen(
                             } else {
                                 Button(
                                     onClick = {
+                                        savedPdfPath?.let { path ->
+                                            viewModel.uploadToGoogleDrive(context, path)
+                                        }
                                         onNavigateBack()
                                     },
                                     modifier = Modifier
