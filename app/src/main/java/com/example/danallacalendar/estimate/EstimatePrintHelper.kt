@@ -121,7 +121,7 @@ object EstimatePrintHelper {
                         if (continuation.isActive) {
                             continuation.resume(jpgFile.absolutePath)
                         }
-                    } catch (e: Exception) {
+                    } catch (e: Throwable) {
                         android.util.Log.e("WebViewPdf", "PDF to JPG failed", e)
                         if (continuation.isActive) {
                             continuation.resume(null)

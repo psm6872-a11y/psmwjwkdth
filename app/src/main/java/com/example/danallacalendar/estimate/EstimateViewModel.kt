@@ -314,24 +314,28 @@ class EstimateViewModel @Inject constructor(
 
                         // 구글 드라이브 업로드 (사용자 설정이 켜져 있고 로그인되어 있는 경우)
                         if (userPreferences.isGoogleDriveSaveEnabled()) {
-                            val account = GoogleDriveHelper.getSignedInAccount(context)
-                            if (account != null) {
-                                android.util.Log.d("EstimateViewModel", "Google Drive upload starting: $fileName")
-                                val fileId = GoogleDriveHelper.uploadEstimateJpg(context, account, jpgFile, fileName, finalEstimate.estimateDate)
-                                if (fileId != null) {
-                                    withContext(Dispatchers.Main) {
-                                        android.widget.Toast.makeText(context, "구글 드라이브 업로드 완료", android.widget.Toast.LENGTH_SHORT).show()
+                            try {
+                                val account = GoogleDriveHelper.getSignedInAccount(context)
+                                if (account != null) {
+                                    android.util.Log.d("EstimateViewModel", "Google Drive upload starting: $fileName")
+                                    val fileId = GoogleDriveHelper.uploadEstimateJpg(context, account, jpgFile, fileName, finalEstimate.estimateDate)
+                                    if (fileId != null) {
+                                        withContext(Dispatchers.Main) {
+                                            android.widget.Toast.makeText(context, "구글 드라이브 업로드 완료", android.widget.Toast.LENGTH_SHORT).show()
+                                        }
+                                    } else {
+                                        withContext(Dispatchers.Main) {
+                                            android.widget.Toast.makeText(context, "구글 드라이브 업로드 실패", android.widget.Toast.LENGTH_SHORT).show()
+                                        }
                                     }
                                 } else {
-                                    withContext(Dispatchers.Main) {
-                                        android.widget.Toast.makeText(context, "구글 드라이브 업로드 실패", android.widget.Toast.LENGTH_SHORT).show()
-                                    }
+                                    android.util.Log.w("EstimateViewModel", "Google Drive upload skipped: Not signed in")
                                 }
-                            } else {
-                                android.util.Log.w("EstimateViewModel", "Google Drive upload skipped: Not signed in")
+                            } catch (driveEx: Throwable) {
+                                android.util.Log.e("EstimateViewModel", "Google Drive upload flow failed", driveEx)
                             }
                         }
-                    } catch (pdfEx: Exception) {
+                    } catch (pdfEx: Throwable) {
                         android.util.Log.e("EstimateViewModel", "Local DB cache failed", pdfEx)
                     }
                 }
@@ -344,7 +348,7 @@ class EstimateViewModel @Inject constructor(
                 viewModelScope.launch(Dispatchers.Main) {
                     onCompleted(smsBody, jpgPath)
                 }
-            } catch (e: Exception) {
+            } catch (e: Throwable) {
                 android.util.Log.e("EstimateViewModel", "Exception occurred during saveEstimate", e)
                 _saveState.value = SaveState.Error(e.toString())
             }
