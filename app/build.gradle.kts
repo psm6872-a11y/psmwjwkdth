@@ -1,5 +1,3 @@
-import java.util.Properties
-
 plugins {
   alias(libs.plugins.android.application)
   alias(libs.plugins.kotlin.android)
@@ -19,17 +17,6 @@ android {
         targetSdk = 34
         versionCode = 195
         versionName = "1.4.0"
-        val localProperties = Properties()
-        val localPropertiesFile = rootProject.file("local.properties")
-        if (localPropertiesFile.exists()) {
-            localPropertiesFile.inputStream().use { stream: java.io.InputStream ->
-                localProperties.load(stream)
-            }
-        }
-        val spreadsheetUrl = localProperties.getProperty("SPREADSHEET_WEB_APP_URL")
-            ?: System.getenv("SPREADSHEET_WEB_APP_URL")
-            ?: ""
-        buildConfigField("String", "SPREADSHEET_WEB_APP_URL", "\"$spreadsheetUrl\"")
     }
 
     signingConfigs {
