@@ -81,10 +81,10 @@ class EstimateViewModel @Inject constructor(
 
         // 캘린더 일정 연동 인자 파싱 및 바인딩
         try {
-            val argMoveDate = savedStateHandle.get<String>("moveDate")?.let { java.net.URLDecoder.decode(it, "UTF-8") }
-            val argDeparture = savedStateHandle.get<String>("departure")?.let { java.net.URLDecoder.decode(it, "UTF-8") }
-            val argDestination = savedStateHandle.get<String>("destination")?.let { java.net.URLDecoder.decode(it, "UTF-8") }
-            val argPhone = savedStateHandle.get<String>("phone")?.let { java.net.URLDecoder.decode(it, "UTF-8") }
+            val argMoveDate = savedStateHandle.get<String>("moveDate")
+            val argDeparture = savedStateHandle.get<String>("departure")
+            val argDestination = savedStateHandle.get<String>("destination")
+            val argPhone = savedStateHandle.get<String>("phone")
 
             if (!argMoveDate.isNullOrBlank()) {
                 moveDate.value = argMoveDate
