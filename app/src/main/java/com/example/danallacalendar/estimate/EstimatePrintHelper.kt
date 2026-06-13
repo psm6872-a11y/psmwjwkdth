@@ -33,6 +33,7 @@ object EstimatePrintHelper {
                 try {
                     val printHelper = androidx.print.PrintHelper(context).apply {
                         scaleMode = androidx.print.PrintHelper.SCALE_MODE_FIT
+                        orientation = androidx.print.PrintHelper.ORIENTATION_PORTRAIT
                     }
                     val bitmap = android.graphics.BitmapFactory.decodeFile(jpgPath)
                     if (bitmap != null) {
@@ -70,7 +71,10 @@ object EstimatePrintHelper {
             suspendCancellableCoroutine<String?> { continuation ->
                 android.util.Log.d("WebViewPdf", "[LOG] suspendCancellableCoroutine started on Main thread. Creating WebView...")
                 val handler = android.os.Handler(android.os.Looper.getMainLooper())
-                val webView = WebView(context)
+                val webView = WebView(context).apply {
+                    settings.useWideViewPort = true
+                    settings.loadWithOverviewMode = true
+                }
                 webView.setLayerType(android.view.View.LAYER_TYPE_SOFTWARE, null)
                 webView.layout(0, 0, 794, 1123)
                 

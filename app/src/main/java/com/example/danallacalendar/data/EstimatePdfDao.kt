@@ -16,4 +16,10 @@ interface EstimatePdfDao {
 
     @Query("DELETE FROM estimate_pdfs WHERE id = :id")
     suspend fun deletePdf(id: Int)
+
+    @Query("UPDATE estimate_pdfs SET isSynced = :isSynced, estimateId = :newId WHERE estimateId = :oldId")
+    suspend fun updateSyncStatus(oldId: String, newId: String, isSynced: Boolean)
+
+    @Query("DELETE FROM estimate_pdfs WHERE estimateId = :estimateId")
+    suspend fun deleteByEstimateId(estimateId: String)
 }

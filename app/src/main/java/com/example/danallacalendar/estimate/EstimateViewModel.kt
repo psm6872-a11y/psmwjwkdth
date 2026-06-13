@@ -293,10 +293,20 @@ class EstimateViewModel @Inject constructor(
                         }
                         val fileName = jpgFile.name
 
+                        val gson = com.google.gson.Gson()
+                        val estimateJson = gson.toJson(finalEstimate)
+
                         val estimatePdf = EstimatePdf(
                             date = monthDay,
                             fileName = fileName,
-                            filePath = jpgPath
+                            filePath = jpgPath,
+                            estimateId = finalEstimate.id,
+                            customerName = finalEstimate.customerName,
+                            phoneNumber = finalEstimate.phoneNumber,
+                            moveDate = finalEstimate.moveDate,
+                            departure = finalEstimate.departure,
+                            estimateJson = estimateJson,
+                            isSynced = userPreferences.isShareEnabled()
                         )
                         estimatePdfDao.insertPdf(estimatePdf)
                         android.util.Log.d("EstimateViewModel", "JPG Cached locally at: ${jpgFile.absolutePath}")

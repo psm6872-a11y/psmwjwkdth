@@ -514,6 +514,7 @@ fun EstimateScreen(
                                                 try {
                                                     val printHelper = androidx.print.PrintHelper(context).apply {
                                                         scaleMode = androidx.print.PrintHelper.SCALE_MODE_FIT
+                                                        orientation = androidx.print.PrintHelper.ORIENTATION_PORTRAIT
                                                     }
                                                     val bitmap = android.graphics.BitmapFactory.decodeFile(savedPdfPath!!)
                                                     if (bitmap != null) {
@@ -3217,6 +3218,10 @@ fun Step4PreviewAndActions(
         NumberFormat.getNumberInstance(Locale.KOREA).format(amt)
     }
 
+    val configuration = androidx.compose.ui.platform.LocalConfiguration.current
+    val screenHeightDp = configuration.screenHeightDp
+    val buttonHeight = (screenHeightDp * 0.07f).coerceIn(48f, 60f).dp
+
     var smsText by remember { mutableStateOf("위와 같이 견적 합니다. 검토해 보시고 연락주세요. 감사합니다.") }
     var showSmsDialog by remember { mutableStateOf(false) }
 
@@ -3322,7 +3327,10 @@ fun Step4PreviewAndActions(
             }
         }
         Card(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .widthIn(max = 400.dp)
+                .fillMaxWidth(0.9f)
+                .align(Alignment.CenterHorizontally),
             colors = CardDefaults.cardColors(
                 containerColor = Color(0xFF1E0F3D).copy(alpha = 0.85f)
             ),
@@ -3362,30 +3370,44 @@ fun Step4PreviewAndActions(
             text = " 상세 견적서는 별도로 첨부해 드립니다.",
             fontSize = 17.sp,
             color = Color.White.copy(alpha = 0.6f),
-            modifier = Modifier.padding(horizontal = 4.dp)
+            modifier = Modifier
+                .widthIn(max = 400.dp)
+                .fillMaxWidth(0.9f)
+                .align(Alignment.CenterHorizontally)
+                .padding(horizontal = 4.dp)
         )
 
         Spacer(modifier = Modifier.height(16.dp))
 
         // Actions
         Column(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .widthIn(max = 400.dp)
+                .fillMaxWidth(0.9f)
+                .align(Alignment.CenterHorizontally),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            OutlinedButton(
-                onClick = onPrint,
+            Surface(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(56.dp),
+                    .height(buttonHeight),
+                color = MaterialTheme.colorScheme.tertiary,
                 shape = RoundedCornerShape(12.dp)
             ) {
-                Text("프린터 출력")
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .clickable { onPrint() },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text("프린터 출력", fontWeight = FontWeight.Bold, color = Color.White)
+                }
             }
 
             Surface(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(56.dp),
+                    .height(buttonHeight),
                 color = MaterialTheme.colorScheme.tertiary,
                 shape = RoundedCornerShape(12.dp)
             ) {

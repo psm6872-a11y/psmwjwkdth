@@ -143,6 +143,7 @@ fun EstimateListScreen(
                             EstimateItemCard(
                                 estimate = estimate,
                                 onItemClick = { selectedEstimate = estimate },
+                                onSyncClick = { viewModel.syncEstimate(estimate) },
                                 onDeleteClick = { viewModel.deleteEstimate(estimate) }
                             )
                         }
@@ -163,16 +164,9 @@ fun EstimateListScreen(
 fun EstimateItemCard(
     estimate: Estimate,
     onItemClick: () -> Unit,
+    onSyncClick: () -> Unit,
     onDeleteClick: () -> Unit
 ) {
-    val amountFormatted = java.text.NumberFormat.getNumberInstance(Locale.KOREA).format(estimate.amount)
-    val totalCostFormatted = if (estimate.totalCost.isNotEmpty()) {
-        val clean = estimate.totalCost.replace("₩", "").replace("만원", "").trim()
-        "₩ $clean 만원"
-    } else {
-        "₩ ${amountFormatted}원"
-    }
-
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -193,40 +187,75 @@ fun EstimateItemCard(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.weight(1f)
             ) {
-                Icon(
-                    imageVector = Icons.Default.PictureAsPdf,
-                    contentDescription = "PDF 아이콘",
-                    tint = Color(0xFFE040FB),
-                    modifier = Modifier.size(32.dp)
-                )
-                Spacer(modifier = Modifier.width(16.dp))
-                Column {
-                    Text(
-                        text = "${estimate.customerName} 고객님",
-                        color = Color.White,
-                        fontSize = 15.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(
+                            text = "${estimate.customerName} 고객님",
+                            color = Color.White,
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                        
+                        val badgeColor = if (estimate.isSynced) Color(0xFFE040FB) else Color(0xFFFF9800)
+                        val badgeText = if (estimate.isSynced) "공유 완료 ☁️" else "로컬 저장"
+                        Surface(
+                            color = badgeColor.copy(alpha = 0.2f),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, badgeColor),
+                            shape = RoundedCornerShape(4.dp),
+                            modifier = Modifier.padding(start = 8.dp)
+                        ) {
+                            Text(
+                                text = badgeText,
+                                color = badgeColor,
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                            )
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(6.dp))
                     Text(
                         text = "이사일: ${estimate.moveDate} (${estimate.startTime})",
                         color = Color.White.copy(alpha = 0.8f),
-                        fontSize = 12.sp
+                        fontSize = 13.sp
                     )
-                    Spacer(modifier = Modifier.height(2.dp))
+                    Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = "종류: ${estimate.moveInfo.ifBlank { estimate.moveType }} | 비용: $totalCostFormatted",
-                        color = Color.White.copy(alpha = 0.6f),
-                        fontSize = 11.sp
+                        text = "출발지주소: ${estimate.departure.ifBlank { "정보 없음" }}",
+                        color = Color.White.copy(alpha = 0.8f),
+                        fontSize = 13.sp,
+                        maxLines = 1,
+                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = "전화번호: ${estimate.phoneNumber.ifBlank { "정보 없음" }}",
+                        color = Color.White.copy(alpha = 0.8f),
+                        fontSize = 13.sp
                     )
                 }
             }
-            IconButton(onClick = onDeleteClick) {
-                Icon(
-                    imageVector = Icons.Default.Delete,
-                    contentDescription = "삭제",
-                    tint = Color.Red.copy(alpha = 0.8f)
-                )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                if (!estimate.isSynced) {
+                    IconButton(onClick = onSyncClick) {
+                        Icon(
+                            imageVector = Icons.Default.Share,
+                            contentDescription = "파이어베이스 동기화",
+                            tint = Color(0xFFFF9800)
+                        )
+                    }
+                }
+                IconButton(onClick = onDeleteClick) {
+                    Icon(
+                        imageVector = Icons.Default.Delete,
+                        contentDescription = "삭제",
+                        tint = Color.Red.copy(alpha = 0.8f)
+                    )
+                }
             }
         }
     }
