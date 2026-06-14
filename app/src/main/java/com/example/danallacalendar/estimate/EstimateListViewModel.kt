@@ -42,6 +42,14 @@ class EstimateListViewModel @Inject constructor(
         _isGoogleDriveSaveEnabled.value = enabled
     }
 
+    private val _isAutoDriveSyncEnabled = MutableStateFlow(userPreferences.isAutoDriveSyncEnabled())
+    val isAutoDriveSyncEnabled: StateFlow<Boolean> = _isAutoDriveSyncEnabled.asStateFlow()
+
+    fun toggleAutoDriveSyncEnabled(enabled: Boolean) {
+        userPreferences.setAutoDriveSyncEnabled(enabled)
+        _isAutoDriveSyncEnabled.value = enabled
+    }
+
     private val _googleAccount = MutableStateFlow<GoogleSignInAccount?>(GoogleDriveHelper.getSignedInAccount(context))
     val googleAccount: StateFlow<GoogleSignInAccount?> = _googleAccount.asStateFlow()
 
@@ -97,6 +105,23 @@ class EstimateListViewModel @Inject constructor(
         initialValue = emptyList()
     )
 
+    private val processingIds = java.util.Collections.synchronizedSet(mutableSetOf<String>())
+
+    init {
+        viewModelScope.launch(kotlinx.coroutines.Dispatchers.Default) {
+            estimateList.collect { list ->
+                if (userPreferences.isAutoDriveSyncEnabled() && GoogleDriveHelper.getSignedInAccount(context) != null) {
+                    val targets = list.filter { it.isSynced && it.localFilePath.isNullOrEmpty() && !processingIds.contains(it.id) }
+                    if (targets.isNotEmpty()) {
+                        targets.forEach { target ->
+                            autoBackupToGoogleDrive(target)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     fun syncEstimate(estimate: Estimate) {
         viewModelScope.launch {
             try {
@@ -121,6 +146,59 @@ class EstimateListViewModel @Inject constructor(
                 estimatePdfDao.deleteByEstimateId(estimate.id)
             } catch (e: Exception) {
                 android.util.Log.e("EstimateListViewModel", "Failed to delete local estimate: ${estimate.id}", e)
+            }
+        }
+    }
+
+    private fun autoBackupToGoogleDrive(estimate: Estimate) {
+        if (!processingIds.add(estimate.id)) return
+        viewModelScope.launch(kotlinx.coroutines.Dispatchers.Main) {
+            try {
+                val account = GoogleDriveHelper.getSignedInAccount(context)
+                if (account == null) {
+                    processingIds.remove(estimate.id)
+                    return@launch
+                }
+                val htmlContent = EstimateHtmlGenerator.generateEstimateHtml(context, estimate)
+                val jpgPath = EstimatePrintHelper.renderHtmlToJpg(context, htmlContent, estimate)
+                if (jpgPath != null) {
+                    val jpgFile = java.io.File(jpgPath)
+                    val fileName = jpgFile.name
+                    val fileId = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                        GoogleDriveHelper.uploadEstimateJpg(
+                            context,
+                            account,
+                            jpgFile,
+                            fileName,
+                            estimate.estimateDate
+                        )
+                    }
+                    if (fileId != null) {
+                        val gson = com.google.gson.Gson()
+                        val dateParts = estimate.estimateDate.split("-")
+                        val monthDay = if (dateParts.size >= 3) "${dateParts[1]}-${dateParts[2]}" else "00-00"
+                        val pdfEntity = com.example.danallacalendar.data.EstimatePdf(
+                            date = monthDay,
+                            fileName = fileName,
+                            filePath = jpgPath,
+                            estimateId = estimate.id,
+                            customerName = estimate.customerName,
+                            phoneNumber = estimate.phoneNumber,
+                            moveDate = estimate.moveDate,
+                            departure = estimate.departure,
+                            estimateJson = gson.toJson(estimate),
+                            isSynced = true
+                        )
+                        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                            estimatePdfDao.insertPdf(pdfEntity)
+                        }
+                        android.util.Log.d("EstimateListViewModel", "Auto backup success for estimate: ${estimate.id}")
+                    }
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("EstimateListViewModel", "Auto backup failed for estimate: ${estimate.id}", e)
+            } finally {
+                processingIds.remove(estimate.id)
             }
         }
     }

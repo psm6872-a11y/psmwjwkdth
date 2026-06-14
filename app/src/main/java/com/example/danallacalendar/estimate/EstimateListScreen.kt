@@ -196,6 +196,48 @@ fun EstimateListScreen(
                         )
                     }
 
+                    Spacer(modifier = Modifier.height(6.dp))
+
+                    // 3.5단: "공유받은 견적서 자동 백업" 텍스트 + 스위치 토글 (우측 정렬, 반응형 높이)
+                    val isAutoDriveSyncEnabled by viewModel.isAutoDriveSyncEnabled.collectAsStateWithLifecycle()
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(rowHeight)
+                            .padding(horizontal = 16.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.End
+                    ) {
+                        Text(
+                            text = "공유받은 견적서 자동 백업",
+                            color = Color.White,
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Switch(
+                            checked = isAutoDriveSyncEnabled,
+                            onCheckedChange = { checked ->
+                                if (checked) {
+                                    if (googleAccount == null) {
+                                        googleSignInLauncher.launch(GoogleDriveHelper.getGoogleSignInClient(context).signInIntent)
+                                    } else {
+                                        viewModel.toggleAutoDriveSyncEnabled(true)
+                                    }
+                                } else {
+                                    viewModel.toggleAutoDriveSyncEnabled(false)
+                                }
+                            },
+                            modifier = Modifier.scale(0.70f),
+                            colors = SwitchDefaults.colors(
+                                checkedThumbColor = Color(0xFFE040FB),
+                                checkedTrackColor = Color(0xFFE040FB).copy(alpha = 0.5f),
+                                uncheckedThumbColor = Color.Gray,
+                                uncheckedTrackColor = Color.LightGray
+                            )
+                        )
+                    }
+
                     // 4단: 구글 드라이브 로그인된 경우 계정 정보 표시 및 로그아웃 버튼
                     googleAccount?.let { account ->
                         Row(
