@@ -15,12 +15,14 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.PictureAsPdf
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.CloudUpload
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
@@ -42,6 +44,7 @@ import com.google.android.gms.common.api.ApiException
 import com.google.android.gms.auth.api.signin.GoogleSignIn
 import java.util.Locale
 import android.widget.Toast
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -384,6 +387,8 @@ fun LocalEstimateViewerDialog(
     onDismiss: () -> Unit
 ) {
     val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
+    var isUploading by remember { mutableStateOf(false) }
     val htmlContent = remember(estimate) {
         EstimateHtmlGenerator.generateEstimateHtml(context, estimate)
     }
@@ -424,7 +429,58 @@ fun LocalEstimateViewerDialog(
                         )
                     }
 
-                    Row {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        if (isUploading) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(24.dp),
+                                color = Color.White,
+                                strokeWidth = 2.dp
+                            )
+                        } else {
+                            IconButton(onClick = {
+                                val account = GoogleDriveHelper.getSignedInAccount(context)
+                                if (account == null) {
+                                    Toast.makeText(context, "설정 화면에서 구글 드라이브 로그인을 먼저 진행해주세요.", Toast.LENGTH_LONG).show()
+                                } else {
+                                    isUploading = true
+                                    coroutineScope.launch {
+                                        try {
+                                            val jpgPath = EstimatePrintHelper.renderHtmlToJpg(context, htmlContent, estimate)
+                                            if (jpgPath != null) {
+                                                val jpgFile = java.io.File(jpgPath)
+                                                val fileName = jpgFile.name
+                                                val fileId = GoogleDriveHelper.uploadEstimateJpg(
+                                                    context,
+                                                    account,
+                                                    jpgFile,
+                                                    fileName,
+                                                    estimate.estimateDate
+                                                )
+                                                if (fileId != null) {
+                                                    Toast.makeText(context, "구글 드라이브 백업 완료", Toast.LENGTH_SHORT).show()
+                                                } else {
+                                                    Toast.makeText(context, "구글 드라이브 백업 실패", Toast.LENGTH_SHORT).show()
+                                                }
+                                            } else {
+                                                Toast.makeText(context, "견적서 이미지 렌더링 실패", Toast.LENGTH_SHORT).show()
+                                            }
+                                        } catch (e: Exception) {
+                                            Log.e("EstimateListScreen", "Direct Google Drive upload failed", e)
+                                            Toast.makeText(context, "백업 중 오류 발생: ${e.message}", Toast.LENGTH_LONG).show()
+                                        } finally {
+                                            isUploading = false
+                                        }
+                                    }
+                                }
+                            }) {
+                                Icon(
+                                    imageVector = Icons.Default.CloudUpload,
+                                    tint = Color.White,
+                                    contentDescription = "구글 드라이브 백업"
+                                )
+                            }
+                        }
+                        Spacer(modifier = Modifier.width(4.dp))
                         IconButton(onClick = {
                             EstimatePrintHelper.printEstimate(context, htmlContent, estimate)
                         }) {
