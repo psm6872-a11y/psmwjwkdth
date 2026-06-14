@@ -16,6 +16,7 @@ import androidx.compose.material.icons.filled.PictureAsPdf
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.CloudUpload
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -57,6 +58,7 @@ fun EstimateListScreen(
     val isGoogleDriveSaveEnabled by viewModel.isGoogleDriveSaveEnabled.collectAsStateWithLifecycle()
     val googleAccount by viewModel.googleAccount.collectAsStateWithLifecycle()
     var selectedEstimate by remember { mutableStateOf<Estimate?>(null) }
+    var showInfoDialog by remember { mutableStateOf<String?>(null) }
     val context = LocalContext.current
     val configuration = LocalConfiguration.current
     val screenHeight = configuration.screenHeightDp.dp
@@ -141,6 +143,18 @@ fun EstimateListScreen(
                             fontSize = 16.sp,
                             fontWeight = FontWeight.Medium
                         )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        IconButton(
+                            onClick = { showInfoDialog = "share" },
+                            modifier = Modifier.size(24.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Info,
+                                tint = Color.White.copy(alpha = 0.7f),
+                                contentDescription = "정보",
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
                         Spacer(modifier = Modifier.width(8.dp))
                         Switch(
                             checked = isShareEnabled,
@@ -172,6 +186,18 @@ fun EstimateListScreen(
                             fontSize = 16.sp,
                             fontWeight = FontWeight.Medium
                         )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        IconButton(
+                            onClick = { showInfoDialog = "save" },
+                            modifier = Modifier.size(24.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Info,
+                                tint = Color.White.copy(alpha = 0.7f),
+                                contentDescription = "정보",
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
                         Spacer(modifier = Modifier.width(8.dp))
                         Switch(
                             checked = isGoogleDriveSaveEnabled,
@@ -214,6 +240,18 @@ fun EstimateListScreen(
                             fontSize = 16.sp,
                             fontWeight = FontWeight.Medium
                         )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        IconButton(
+                            onClick = { showInfoDialog = "auto" },
+                            modifier = Modifier.size(24.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Info,
+                                tint = Color.White.copy(alpha = 0.7f),
+                                contentDescription = "정보",
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
                         Spacer(modifier = Modifier.width(8.dp))
                         Switch(
                             checked = isAutoDriveSyncEnabled,
@@ -314,6 +352,48 @@ fun EstimateListScreen(
                         LocalEstimateViewerDialog(
                             estimate = estimate,
                             onDismiss = { selectedEstimate = null }
+                        )
+                    }
+
+                    showInfoDialog?.let { type ->
+                        val title = when (type) {
+                            "share" -> "참여한 멤버와 공유"
+                            "save" -> "내 구글드라이브에 저장"
+                            "auto" -> "공유받은 견적서 자동 저장"
+                            else -> ""
+                        }
+                        val message = when (type) {
+                            "share" -> "내가 작성한 견적서는 내 전화기에서만 사용 할 수 있습니다.\n내가 작성한 견적서를 같은 방에 있는 팀원들에게 서로 공유 하기 위해서는 스위치를 켜세요."
+                            "save" -> "내가 견적서를 작성하면 내 전화기에 저장이 됩니다. \n스위치를 키게 되면 내가 견적서를 작성하고 완료할 때, 내구글 드라이브에 자동으로 저장합니다.\n구글 로그인 필수.\n로그인 된 계정의 구글드라이브에 \"월/일_견적서상 전화번호 뒷4자리\" 형식으로 자동 저장됩니다.\n견적서를 보관해야 하거나, 백업을 해야 할 시 스위치를 켜세요."
+                            "auto" -> "다른 멤버가 공유하여 내 목록에 새로 추가된 견적서를 내 구글 드라이브에 자동으로 저장합니다.\n구글 로그인 필수.\n견적사원, 직원 등 다른 멤버가 견적서를 작성시 견적목록에 자동 추가된 견적서를 현재 로그인 된 계정의 구글드라이브에 \"월/일_견적서상 전화번호 뒷4자리\" 형식으로 자동 저장됩니다.\n주로 모든 견적서를 관리해야 하시는 분은 참여한 다른 멤버들이 \"참여한 멤버와 공유\" 스위치를 켠 상태에서 공유받은 견적서 자동 저장 스위치를 켜세요."
+                            else -> ""
+                        }
+
+                        AlertDialog(
+                            onDismissRequest = { showInfoDialog = null },
+                            title = {
+                                Text(
+                                    text = title,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color.White,
+                                    fontSize = 18.sp
+                                )
+                            },
+                            text = {
+                                Text(
+                                    text = message,
+                                    color = Color.White.copy(alpha = 0.9f),
+                                    fontSize = 14.sp,
+                                    lineHeight = 20.sp
+                                )
+                            },
+                            confirmButton = {
+                                TextButton(onClick = { showInfoDialog = null }) {
+                                    Text("확인", color = Color(0xFFE040FB), fontWeight = FontWeight.Bold)
+                                }
+                            },
+                            containerColor = Color(0xFF1E1045),
+                            shape = RoundedCornerShape(16.dp)
                         )
                     }
                 }
