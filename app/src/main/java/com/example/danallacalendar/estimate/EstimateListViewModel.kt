@@ -60,10 +60,18 @@ class EstimateListViewModel @Inject constructor(
         }
     }
 
+    private val _searchQuery = MutableStateFlow("")
+    val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
+
+    fun setSearchQuery(query: String) {
+        _searchQuery.value = query
+    }
+
     val estimateList: StateFlow<List<Estimate>> = combine(
         repository.getEstimatesFlow(),
-        estimatePdfDao.getAllPdfs()
-    ) { remoteList, localList ->
+        estimatePdfDao.getAllPdfs(),
+        searchQuery
+    ) { remoteList, localList, query ->
         val mergedMap = mutableMapOf<String, Estimate>()
         val gson = com.google.gson.Gson()
         
@@ -98,7 +106,17 @@ class EstimateListViewModel @Inject constructor(
             )
         }
         
-        mergedMap.values.sortedByDescending { it.createdAt }
+        val sortedList = mergedMap.values.sortedByDescending { it.createdAt }
+        if (query.isBlank()) {
+            sortedList
+        } else {
+            val trimmed = query.trim().lowercase(java.util.Locale.getDefault())
+            sortedList.filter { est ->
+                est.customerName.lowercase(java.util.Locale.getDefault()).contains(trimmed) ||
+                est.phoneNumber.lowercase(java.util.Locale.getDefault()).contains(trimmed) ||
+                est.departure.lowercase(java.util.Locale.getDefault()).contains(trimmed)
+            }
+        }
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5000),

@@ -17,11 +17,15 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.CloudUpload
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
@@ -102,30 +106,105 @@ fun EstimateListScreen(
                         .fillMaxWidth()
                         .widthIn(max = 450.dp)
                 ) {
-                    // 1단: 뒤로가기 버튼(시작점 정렬) + "견적서 목록" 타이틀 (33.sp로 확대, 완벽한 가운데 정렬)
+                    val searchQuery by viewModel.searchQuery.collectAsStateWithLifecycle()
+                    var isSearchMode by remember { mutableStateOf(false) }
+                    val focusRequester = remember { FocusRequester() }
+
+                    // 1단: 뒤로가기 버튼(시작점 정렬) + "견적서 목록" 타이틀 또는 검색창
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(56.dp),
                         contentAlignment = Alignment.Center
                     ) {
-                        IconButton(
-                            onClick = onNavigateBack,
-                            modifier = Modifier.align(Alignment.CenterStart)
-                        ) {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                                tint = Color.White,
-                                contentDescription = "뒤로가기"
+                        if (!isSearchMode) {
+                            IconButton(
+                                onClick = onNavigateBack,
+                                modifier = Modifier.align(Alignment.CenterStart)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                    tint = Color.White,
+                                    contentDescription = "뒤로가기"
+                                )
+                            }
+                            Text(
+                                text = "견적서 목록",
+                                fontSize = 33.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White,
+                                modifier = Modifier.align(Alignment.Center)
                             )
+                            IconButton(
+                                onClick = { isSearchMode = true },
+                                modifier = Modifier.align(Alignment.CenterEnd)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Search,
+                                    tint = Color.White,
+                                    contentDescription = "검색"
+                                )
+                            }
+                        } else {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                TextField(
+                                    value = searchQuery,
+                                    onValueChange = { viewModel.setSearchQuery(it) },
+                                    placeholder = {
+                                        Text(
+                                            text = "고객명, 전화번호, 주소 검색...",
+                                            color = Color.White.copy(alpha = 0.5f)
+                                        )
+                                    },
+                                    leadingIcon = {
+                                        Icon(
+                                            imageVector = Icons.Default.Search,
+                                            contentDescription = "검색 아이콘",
+                                            tint = Color.White.copy(alpha = 0.6f)
+                                        )
+                                    },
+                                    trailingIcon = {
+                                        IconButton(
+                                            onClick = {
+                                                if (searchQuery.isNotEmpty()) {
+                                                    viewModel.setSearchQuery("")
+                                                } else {
+                                                    isSearchMode = false
+                                                }
+                                            }
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.Close,
+                                                contentDescription = "닫기",
+                                                tint = Color.White
+                                            )
+                                        }
+                                    },
+                                    singleLine = true,
+                                    colors = TextFieldDefaults.colors(
+                                        focusedContainerColor = Color.Transparent,
+                                        unfocusedContainerColor = Color.Transparent,
+                                        disabledContainerColor = Color.Transparent,
+                                        focusedTextColor = Color.White,
+                                        unfocusedTextColor = Color.White,
+                                        cursorColor = Color(0xFFE040FB),
+                                        focusedIndicatorColor = Color(0xFFE040FB),
+                                        unfocusedIndicatorColor = Color.White.copy(alpha = 0.3f)
+                                    ),
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .focusRequester(focusRequester)
+                                )
+                            }
+                            LaunchedEffect(Unit) {
+                                focusRequester.requestFocus()
+                            }
                         }
-                        Text(
-                            text = "견적서 목록",
-                            fontSize = 33.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color.White,
-                            modifier = Modifier.align(Alignment.Center)
-                        )
                     }
 
                     // 1단: "참여한 멤버와 공유" 텍스트 + 스위치 토글 (우측 정렬, 반응형 높이)
