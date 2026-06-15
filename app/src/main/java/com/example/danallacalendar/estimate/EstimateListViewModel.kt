@@ -213,21 +213,28 @@ class EstimateListViewModel @Inject constructor(
                 return
             }
 
-            val result = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
-                val htmlContent = EstimateHtmlGenerator.generateEstimateHtml(context, estimate)
-                val jpgPath = EstimatePrintHelper.renderHtmlToJpg(context, htmlContent, estimate)
-                if (jpgPath != null) {
+            // 1. HTML generation on Dispatchers.Default
+            val htmlContent = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
+                EstimateHtmlGenerator.generateEstimateHtml(context, estimate)
+            }
+
+            // 2. HTML to JPG rendering (WebView needs Main thread)
+            val jpgPath = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                EstimatePrintHelper.renderHtmlToJpg(context, htmlContent, estimate)
+            }
+
+            // 3. Upload & DB Caching on Dispatchers.IO
+            val result = if (jpgPath != null) {
+                kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
                     val jpgFile = java.io.File(jpgPath)
                     val fileName = jpgFile.name
-                    val uploadResult = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-                        GoogleDriveHelper.uploadEstimateJpgWithResult(
-                            context,
-                            account,
-                            jpgFile,
-                            fileName,
-                            estimate.estimateDate
-                        )
-                    }
+                    val uploadResult = GoogleDriveHelper.uploadEstimateJpgWithResult(
+                        context,
+                        account,
+                        jpgFile,
+                        fileName,
+                        estimate.estimateDate
+                    )
                     if (uploadResult is GoogleDriveHelper.UploadResult.Success) {
                         val gson = com.google.gson.Gson()
                         val dateParts = estimate.estimateDate.split("-")
@@ -244,19 +251,17 @@ class EstimateListViewModel @Inject constructor(
                             estimateJson = gson.toJson(estimate),
                             isSynced = true
                         )
-                        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-                            estimatePdfDao.insertPdf(pdfEntity)
-                        }
+                        estimatePdfDao.insertPdf(pdfEntity)
                         android.util.Log.d("EstimateListViewModel", "Auto backup success for estimate: ${estimate.id}")
                         true
                     } else {
                         android.util.Log.w("EstimateListViewModel", "Auto backup upload result: $uploadResult for estimate: ${estimate.id}")
                         false
                     }
-                } else {
-                    android.util.Log.e("EstimateListViewModel", "Failed to render HTML to JPG for ${estimate.id}")
-                    false
                 }
+            } else {
+                android.util.Log.e("EstimateListViewModel", "Failed to render HTML to JPG for ${estimate.id}")
+                false
             }
 
             if (!result) {
