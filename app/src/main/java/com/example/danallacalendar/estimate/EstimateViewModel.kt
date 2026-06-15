@@ -395,8 +395,8 @@ class EstimateViewModel @Inject constructor(
      */
     fun uploadToGoogleDrive(context: android.content.Context, jpgPath: String, onDone: () -> Unit = {}) {
         // 드라이브 비활성화 또는 권한 없음 → 즉시 완료
-        if (!userPreferences.isGoogleDriveSaveEnabled()) {
-            android.util.Log.d("EstimateViewModel", "Google Drive save is disabled in preferences.")
+        if (!userPreferences.isGoogleDriveSaveEnabled() && !userPreferences.isAutoDriveSyncEnabled()) {
+            android.util.Log.d("EstimateViewModel", "Google Drive save/sync is disabled in preferences.")
             onDone()
             return
         }
