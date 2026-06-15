@@ -1223,7 +1223,7 @@ fun EventListSection(
                     start = minOf(screenWidth, 400.dp) * 0.04f,
                     end = minOf(screenWidth, 400.dp) * 0.04f,
                     top = screenHeight * 0.01f,
-                    bottom = screenHeight * 0.15f
+                    bottom = screenHeight * 0.3f
                 ),
                 verticalArrangement = Arrangement.spacedBy(screenHeight * 0.012f)
             ) {

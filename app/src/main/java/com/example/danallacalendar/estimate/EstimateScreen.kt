@@ -652,6 +652,7 @@ fun EstimateScreen(
                             } else {
                                 Button(
                                     onClick = {
+                                        if (isDriveUploading) return@Button
                                         // 업로드 완료 후 화면 이탈 (업로드 없으면 즉시 이탈)
                                         savedPdfPath?.let { path ->
                                             val userPrefs = UserPreferences(context)
