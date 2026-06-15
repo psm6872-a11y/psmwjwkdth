@@ -68,6 +68,8 @@ fun EstimateListScreen(
     val screenHeight = configuration.screenHeightDp.dp
     val rowHeight = screenHeight * 0.040f
 
+    var pendingSignInAction by remember { mutableStateOf<String?>(null) } // "save" or "auto"
+
     val googleSignInLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartActivityForResult()
     ) { result ->
@@ -75,12 +77,19 @@ fun EstimateListScreen(
         try {
             val account = task.getResult(ApiException::class.java)
             viewModel.updateGoogleAccount(account)
-            viewModel.toggleGoogleDriveSaveEnabled(true)
+            if (pendingSignInAction == "auto") {
+                viewModel.toggleAutoDriveSyncEnabled(true)
+            } else {
+                viewModel.toggleGoogleDriveSaveEnabled(true)
+            }
         } catch (e: ApiException) {
             Log.e("EstimateListScreen", "Google Sign-In failed", e)
             viewModel.updateGoogleAccount(null)
             viewModel.toggleGoogleDriveSaveEnabled(false)
+            viewModel.toggleAutoDriveSyncEnabled(false)
             Toast.makeText(context, "구글 로그인 실패 (코드: ${e.statusCode})", Toast.LENGTH_LONG).show()
+        } finally {
+            pendingSignInAction = null
         }
     }
 
@@ -282,7 +291,9 @@ fun EstimateListScreen(
                             checked = isGoogleDriveSaveEnabled,
                             onCheckedChange = { checked ->
                                 if (checked) {
-                                    if (googleAccount == null) {
+                                    val hasPerm = GoogleDriveHelper.hasDrivePermission(context)
+                                    if (googleAccount == null || !hasPerm) {
+                                        pendingSignInAction = "save"
                                         googleSignInLauncher.launch(GoogleDriveHelper.getGoogleSignInClient(context).signInIntent)
                                     } else {
                                         viewModel.toggleGoogleDriveSaveEnabled(true)
@@ -336,7 +347,9 @@ fun EstimateListScreen(
                             checked = isAutoDriveSyncEnabled,
                             onCheckedChange = { checked ->
                                 if (checked) {
-                                    if (googleAccount == null) {
+                                    val hasPerm = GoogleDriveHelper.hasDrivePermission(context)
+                                    if (googleAccount == null || !hasPerm) {
+                                        pendingSignInAction = "auto"
                                         googleSignInLauncher.launch(GoogleDriveHelper.getGoogleSignInClient(context).signInIntent)
                                     } else {
                                         viewModel.toggleAutoDriveSyncEnabled(true)
@@ -378,6 +391,8 @@ fun EstimateListScreen(
                                 modifier = Modifier.clickable {
                                     GoogleDriveHelper.getGoogleSignInClient(context).signOut().addOnCompleteListener {
                                         viewModel.updateGoogleAccount(null)
+                                        viewModel.toggleGoogleDriveSaveEnabled(false)
+                                        viewModel.toggleAutoDriveSyncEnabled(false)
                                     }
                                 }
                             )
