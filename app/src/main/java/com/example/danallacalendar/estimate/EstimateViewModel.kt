@@ -86,17 +86,28 @@ class EstimateViewModel @Inject constructor(
             val argDestination = savedStateHandle.get<String>("destination")
             val argPhone = savedStateHandle.get<String>("phone")
 
+            val decodeParam = { value: String? ->
+                if (value == null) ""
+                else {
+                    try {
+                        java.net.URLDecoder.decode(value, "UTF-8")
+                    } catch (e: Exception) {
+                        value
+                    }
+                }
+            }
+
             if (!argMoveDate.isNullOrBlank()) {
-                moveDate.value = argMoveDate
+                moveDate.value = decodeParam(argMoveDate)
             }
             if (!argDeparture.isNullOrBlank()) {
-                departure.value = argDeparture
+                departure.value = decodeParam(argDeparture)
             }
             if (!argDestination.isNullOrBlank()) {
-                destination.value = argDestination
+                destination.value = decodeParam(argDestination)
             }
             if (!argPhone.isNullOrBlank()) {
-                phoneNumber.value = argPhone
+                phoneNumber.value = decodeParam(argPhone)
             }
         } catch (e: Exception) {
             android.util.Log.e("EstimateViewModel", "Error decoding navigation arguments", e)
