@@ -233,10 +233,10 @@ fun AppNavigation(userPreferences: UserPreferences) {
                     navController.popBackStack()
                 },
                 onNavigateToEstimate = { moveDate, departure, destination, phone ->
-                    val encDate = java.net.URLEncoder.encode(moveDate, "UTF-8")
-                    val encDep = java.net.URLEncoder.encode(departure, "UTF-8")
-                    val encDest = java.net.URLEncoder.encode(destination, "UTF-8")
-                    val encPhone = java.net.URLEncoder.encode(phone, "UTF-8")
+                    val encDate = android.net.Uri.encode(moveDate)
+                    val encDep = android.net.Uri.encode(departure)
+                    val encDest = android.net.Uri.encode(destination)
+                    val encPhone = android.net.Uri.encode(phone)
                     navController.navigate("estimate?moveDate=$encDate&departure=$encDep&destination=$encDest&phone=$encPhone")
                 },
                 viewModel = viewModel

@@ -332,13 +332,20 @@ class EstimateViewModel @Inject constructor(
         }
     }
 
+    companion object {
+        private val uploadScope = kotlinx.coroutines.CoroutineScope(
+            kotlinx.coroutines.SupervisorJob() + Dispatchers.IO
+        )
+    }
+
     fun uploadToGoogleDrive(context: android.content.Context, jpgPath: String) {
         if (!userPreferences.isGoogleDriveSaveEnabled()) {
             android.util.Log.d("EstimateViewModel", "Google Drive save is disabled in preferences.")
             return
         }
 
-        viewModelScope.launch(Dispatchers.IO) {
+        val appContext = context.applicationContext
+        uploadScope.launch {
             try {
                 val jpgFile = File(jpgPath)
                 if (!jpgFile.exists()) {
@@ -346,16 +353,16 @@ class EstimateViewModel @Inject constructor(
                     return@launch
                 }
                 val fileName = jpgFile.name
-                val account = GoogleDriveHelper.getSignedInAccount(context)
+                val account = GoogleDriveHelper.getSignedInAccount(appContext)
                 if (account != null) {
                     val dateVal = estimateDate.value
                     android.util.Log.d("EstimateViewModel", "Google Drive background upload starting: $fileName with date $dateVal")
-                    val fileId = GoogleDriveHelper.uploadEstimateJpg(context, account, jpgFile, fileName, dateVal)
+                    val fileId = GoogleDriveHelper.uploadEstimateJpg(appContext, account, jpgFile, fileName, dateVal)
                     withContext(Dispatchers.Main) {
                         if (fileId != null) {
-                            android.widget.Toast.makeText(context, "구글 드라이브 업로드 완료", android.widget.Toast.LENGTH_SHORT).show()
+                            android.widget.Toast.makeText(appContext, "구글 드라이브 업로드 완료", android.widget.Toast.LENGTH_SHORT).show()
                         } else {
-                            android.widget.Toast.makeText(context, "구글 드라이브 업로드 실패", android.widget.Toast.LENGTH_SHORT).show()
+                            android.widget.Toast.makeText(appContext, "구글 드라이브 업로드 실패", android.widget.Toast.LENGTH_SHORT).show()
                         }
                     }
                 } else {

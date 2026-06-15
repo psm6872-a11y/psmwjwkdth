@@ -72,7 +72,11 @@ object EstimatePrintHelper {
                 try {
                     android.util.Log.d("WebViewPdf", "[LOG] suspendCancellableCoroutine started on Main thread. Creating WebView...")
                     val handler = android.os.Handler(android.os.Looper.getMainLooper())
-                    val webView = WebView(context)
+                    val webView = WebView(context).apply {
+                        settings.useWideViewPort = true
+                        settings.loadWithOverviewMode = true
+                        settings.javaScriptEnabled = true
+                    }
                     webView.setLayerType(android.view.View.LAYER_TYPE_SOFTWARE, null)
                     webView.layout(0, 0, 794, 1123)
                     
