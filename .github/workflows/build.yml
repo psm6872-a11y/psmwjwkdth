@@ -39,22 +39,24 @@ jobs:
       - name: Grant execute permission for gradlew
         run: chmod +x ./gradlew
 
-      - name: Build Signed Release APK
+      - name: Build Signed Release APK & AAB
         env:
           STORE_PASSWORD: ${{ secrets.STORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
           SPREADSHEET_WEB_APP_URL: ${{ secrets.SPREADSHEET_WEB_APP_URL }}
         run: |
-          ./gradlew assembleRelease -q
+          ./gradlew assembleRelease bundleRelease -q
           echo "Signing config: release ✅"
           echo "keyAlias: $KEY_ALIAS ✅"
 
-      - name: Create GitHub Release and Upload APK
+      - name: Create GitHub Release and Upload APK & AAB
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ env.VERSION_NAME }}
-          files: app/build/outputs/apk/release/app-release.apk
+          files: |
+            app/build/outputs/apk/release/app-release.apk
+            app/build/outputs/bundle/release/app-release.aab
           name: Release v${{ env.VERSION_NAME }}
           draft: false
           prerelease: false
