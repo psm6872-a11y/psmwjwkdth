@@ -19,30 +19,56 @@ import kotlin.coroutines.resume
 
 object EstimatePrintHelper {
 
+    /**
+     * HTML 콘텐츠를 WebView의 createPrintDocumentAdapter()로 직접 인쇄합니다.
+     * 이 방식은 Android PrintManager가 HTML을 A4 페이지에 맞게 렌더링하므로
+     * 이미지 축소 문제가 없고 실제 용지에 맞는 출력이 가능합니다.
+     */
     fun printEstimate(context: Context, htmlContent: String, estimate: Estimate) {
-        Toast.makeText(context, "인쇄를 시작합니다...", Toast.LENGTH_SHORT).show()
-        val scope = CoroutineScope(Dispatchers.Main)
-        scope.launch {
-            val jpgPath = renderHtmlToJpg(context, htmlContent, estimate)
-            if (jpgPath != null) {
-                try {
-                    val printHelper = androidx.print.PrintHelper(context).apply {
-                        scaleMode = androidx.print.PrintHelper.SCALE_MODE_FIT
-                        orientation = androidx.print.PrintHelper.ORIENTATION_PORTRAIT
-                    }
-                    val bitmap = android.graphics.BitmapFactory.decodeFile(jpgPath)
-                    if (bitmap != null) {
-                        val jobName = "이사 견적서 - ${estimate.customerName}"
-                        printHelper.printBitmap(jobName, bitmap)
-                    } else {
-                        Toast.makeText(context, "인쇄 이미지 디코딩에 실패했습니다.", Toast.LENGTH_SHORT).show()
-                    }
-                } catch (e: Throwable) {
-                    android.util.Log.e("WebViewPdf", "PrintHelper failed", e)
-                    Toast.makeText(context, "인쇄 중 오류가 발생했습니다: ${e.message}", Toast.LENGTH_SHORT).show()
+        val handler = android.os.Handler(android.os.Looper.getMainLooper())
+        handler.post {
+            try {
+                val printManager = context.getSystemService(Context.PRINT_SERVICE) as android.print.PrintManager
+
+                // WebView는 메인 스레드에서 생성해야 함
+                val webView = WebView(context).apply {
+                    settings.javaScriptEnabled = true
+                    settings.useWideViewPort = true
+                    settings.loadWithOverviewMode = false
                 }
-            } else {
-                Toast.makeText(context, "인쇄 이미지 생성에 실패했습니다.", Toast.LENGTH_SHORT).show()
+
+                var adapter: android.print.PrintDocumentAdapter? = null
+
+                webView.webViewClient = object : WebViewClient() {
+                    override fun onPageFinished(view: WebView?, url: String?) {
+                        // 페이지 로딩 완료 후 인쇄 어댑터 생성
+                        handler.postDelayed({
+                            try {
+                                adapter = webView.createPrintDocumentAdapter("이사 견적서 - ${estimate.customerName}")
+                                val printAttributes = android.print.PrintAttributes.Builder()
+                                    .setMediaSize(android.print.PrintAttributes.MediaSize.ISO_A4)
+                                    .setResolution(android.print.PrintAttributes.Resolution("pdf", "pdf", 600, 600))
+                                    .setMinMargins(android.print.PrintAttributes.Margins.NO_MARGINS)
+                                    .build()
+                                printManager.print(
+                                    "이사 견적서 - ${estimate.customerName}",
+                                    adapter!!,
+                                    printAttributes
+                                )
+                            } catch (e: Throwable) {
+                                android.util.Log.e("WebViewPdf", "Print failed", e)
+                                Toast.makeText(context, "인쇄 중 오류: ${e.message}", Toast.LENGTH_SHORT).show()
+                            }
+                        }, 500)
+                    }
+                }
+
+                webView.loadDataWithBaseURL("file:///android_asset/", htmlContent, "text/html", "UTF-8", null)
+                Toast.makeText(context, "인쇄 준비 중...", Toast.LENGTH_SHORT).show()
+
+            } catch (e: Throwable) {
+                android.util.Log.e("WebViewPdf", "printEstimate failed", e)
+                Toast.makeText(context, "인쇄 오류: ${e.message}", Toast.LENGTH_SHORT).show()
             }
         }
     }

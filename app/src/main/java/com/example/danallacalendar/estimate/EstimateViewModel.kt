@@ -166,6 +166,40 @@ class EstimateViewModel @Inject constructor(
         }
     }
 
+    /** 현재 ViewModel 상태를 Estimate 객체로 빌드합니다. (인쇄/재생성 용도) */
+    fun buildCurrentEstimate(): Estimate {
+        return Estimate(
+            id = estimateId,
+            customerName = customerName.value,
+            phoneNumber = phoneNumber.value,
+            departure = departure.value,
+            destination = destination.value,
+            moveDate = moveDate.value,
+            moveType = moveType.value,
+            cargoSize = cargoSize.value,
+            amount = amount.value.toLongOrNull() ?: 0L,
+            memo = memo.value.trim(),
+            estimateDate = estimateDate.value,
+            startTime = startTime.value,
+            visitDate = visitDate.value,
+            moveInfo = moveInfo.value,
+            totalVolume = totalVolume.value,
+            workersM = workersM.value,
+            workersF = workersF.value,
+            laddersStartFloor = laddersStartFloor.value,
+            laddersStartCost = laddersStartCost.value,
+            laddersEndFloor = laddersEndFloor.value,
+            laddersEndCost = laddersEndCost.value,
+            extraTruck = extraTruck.value,
+            moveCost = moveCost.value,
+            totalCost = totalCost.value,
+            deposit = deposit.value,
+            balance = balance.value,
+            optionCost = optionCost.value,
+            roomItems = convertRoomItemsToLong(roomItems.value)
+        )
+    }
+
     fun autoSaveToFirestore() {
         if (!userPreferences.isShareEnabled()) {
             android.util.Log.d("EstimateViewModel", "Auto save to Firestore skipped since sharing is disabled.")

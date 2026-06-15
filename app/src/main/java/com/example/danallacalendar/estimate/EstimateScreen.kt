@@ -511,29 +511,11 @@ fun EstimateScreen(
                                     saveState = saveState,
                                     totalExpectedVolume = totalExpectedVolumeStr,
                                     onPrint = {
-                                        if (savedPdfPath != null) {
-                                            val jpgFile = java.io.File(savedPdfPath!!)
-                                            if (jpgFile.exists()) {
-                                                try {
-                                                    val printHelper = androidx.print.PrintHelper(context).apply {
-                                                        scaleMode = androidx.print.PrintHelper.SCALE_MODE_FIT
-                                                        orientation = androidx.print.PrintHelper.ORIENTATION_PORTRAIT
-                                                    }
-                                                    val bitmap = android.graphics.BitmapFactory.decodeFile(savedPdfPath!!)
-                                                    if (bitmap != null) {
-                                                        printHelper.printBitmap("이사 견적서 - $customerName", bitmap)
-                                                    } else {
-                                                        Toast.makeText(context, "인쇄 이미지 디코딩에 실패했습니다.", Toast.LENGTH_SHORT).show()
-                                                    }
-                                                } catch (e: Exception) {
-                                                    Toast.makeText(context, "인쇄 중 오류가 발생했습니다: ${e.message}", Toast.LENGTH_SHORT).show()
-                                                }
-                                            } else {
-                                                Toast.makeText(context, "견적서 이미지가 없습니다. 먼저 저장해 주세요.", Toast.LENGTH_SHORT).show()
-                                            }
-                                        } else {
-                                            Toast.makeText(context, "저장된 견적서가 없습니다. 먼저 저장해 주세요.", Toast.LENGTH_SHORT).show()
-                                        }
+                                        // WebView createPrintDocumentAdapter 방식: HTML을 직접 PrintManager에 전달
+                                        // 이 방식은 Android가 A4 크기에 맞게 렌더링하므로 이미지 축소 문제 없음
+                                        val estimate = viewModel.buildCurrentEstimate()
+                                        val html = com.example.danallacalendar.estimate.EstimateHtmlGenerator.generateEstimateHtml(context, estimate)
+                                        EstimatePrintHelper.printEstimate(context, html, estimate)
                                     },
                                     onSendSms = { smsText ->
                                         if (savedPdfPath != null) {
