@@ -646,21 +646,34 @@ fun LocalEstimateViewerDialog(
                                     isUploading = true
                                     coroutineScope.launch {
                                         try {
+                                            // Drive 권한 체크 먼저
+                                            if (!GoogleDriveHelper.hasDrivePermission(context)) {
+                                                Toast.makeText(context, "구글 드라이브 권한이 없습니다.\n설정에서 다시 연결해 주세요.", Toast.LENGTH_LONG).show()
+                                                isUploading = false
+                                                return@launch
+                                            }
                                             val jpgPath = EstimatePrintHelper.renderHtmlToJpg(context, htmlContent, estimate)
                                             if (jpgPath != null) {
                                                 val jpgFile = java.io.File(jpgPath)
                                                 val fileName = jpgFile.name
-                                                val fileId = GoogleDriveHelper.uploadEstimateJpg(
+                                                val result = GoogleDriveHelper.uploadEstimateJpgWithResult(
                                                     context,
                                                     account,
                                                     jpgFile,
                                                     fileName,
                                                     estimate.estimateDate
                                                 )
-                                                if (fileId != null) {
-                                                    Toast.makeText(context, "구글 드라이브 백업 완료", Toast.LENGTH_SHORT).show()
-                                                } else {
-                                                    Toast.makeText(context, "구글 드라이브 백업 실패", Toast.LENGTH_SHORT).show()
+                                                when (result) {
+                                                    is GoogleDriveHelper.UploadResult.Success ->
+                                                        Toast.makeText(context, "구글 드라이브 백업 완료", Toast.LENGTH_SHORT).show()
+                                                    is GoogleDriveHelper.UploadResult.UserRecoverable ->
+                                                        Toast.makeText(context, "구글 드라이브 로그인이 만료되었습니다.\n설정에서 다시 연결해 주세요.", Toast.LENGTH_LONG).show()
+                                                    is GoogleDriveHelper.UploadResult.NoPermission ->
+                                                        Toast.makeText(context, "구글 드라이브 권한이 없습니다.\n설정에서 다시 연결해 주세요.", Toast.LENGTH_LONG).show()
+                                                    is GoogleDriveHelper.UploadResult.Failure -> {
+                                                        Log.e("EstimateListScreen", "Drive upload failure: ${result.error}")
+                                                        Toast.makeText(context, "백업 실패: 네트워크를 확인해 주세요.", Toast.LENGTH_SHORT).show()
+                                                    }
                                                 }
                                             } else {
                                                 Toast.makeText(context, "견적서 이미지 렌더링 실패", Toast.LENGTH_SHORT).show()

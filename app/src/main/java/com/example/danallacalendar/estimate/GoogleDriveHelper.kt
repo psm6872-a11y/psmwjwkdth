@@ -23,10 +23,12 @@ import java.util.Collections
 object GoogleDriveHelper {
     private const val TAG = "GoogleDriveHelper"
     private const val FOLDER_NAME = "다날라 견적"
+    private const val PREFS_NAME = "drive_folder_prefs"
+    private const val KEY_PARENT_FOLDER_ID = "parent_folder_id"
+    private const val KEY_PARENT_FOLDER_EMAIL = "parent_folder_email"
 
     /**
      * Google Sign-In Client를 생성합니다.
-     * DriveScopes.DRIVE_FILE 스코프를 추가하여 앱이 생성하거나 연 파일에만 접근 가능하도록 제한합니다.
      */
     fun getGoogleSignInClient(context: Context): GoogleSignInClient {
         val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
@@ -45,7 +47,6 @@ object GoogleDriveHelper {
 
     /**
      * 현재 계정이 Drive 스코프 권한을 실제로 가지고 있는지 확인합니다.
-     * 권한 없이 Drive API를 호출하면 UserRecoverableAuthIOException이 발생하므로 사전에 체크합니다.
      */
     fun hasDrivePermission(context: Context): Boolean {
         val account = getSignedInAccount(context) ?: return false
@@ -71,21 +72,67 @@ object GoogleDriveHelper {
     }
 
     /**
-     * 최상위 "다날라 견적" 폴더가 존재하는지 검색하고, 없으면 생성하여 폴더 ID를 반환합니다.
+     * SharedPreferences에 캐시된 폴더 ID를 가져옵니다.
+     * 계정 이메일이 다르면 무효화합니다.
      */
-    private fun getOrCreateParentFolder(driveService: Drive): String {
-        val query = "mimeType = 'application/vnd.google-apps.folder' and name = '$FOLDER_NAME' and trashed = false"
-        val resultList = driveService.files().list()
-            .setQ(query)
-            .setSpaces("drive")
-            .setFields("files(id, name)")
-            .execute()
+    private fun getCachedParentFolderId(context: Context, accountEmail: String?): String? {
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        val cachedEmail = prefs.getString(KEY_PARENT_FOLDER_EMAIL, null)
+        if (cachedEmail != accountEmail) {
+            // 계정이 바뀌었으면 캐시 무효화
+            prefs.edit().remove(KEY_PARENT_FOLDER_ID).remove(KEY_PARENT_FOLDER_EMAIL).apply()
+            return null
+        }
+        return prefs.getString(KEY_PARENT_FOLDER_ID, null)
+    }
 
-        val files = resultList.files
-        if (!files.isNullOrEmpty()) {
-            return files[0].id
+    private fun cacheParentFolderId(context: Context, folderId: String, accountEmail: String?) {
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit()
+            .putString(KEY_PARENT_FOLDER_ID, folderId)
+            .putString(KEY_PARENT_FOLDER_EMAIL, accountEmail ?: "")
+            .apply()
+    }
+
+    private fun clearCachedParentFolderId(context: Context) {
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit()
+            .remove(KEY_PARENT_FOLDER_ID)
+            .remove(KEY_PARENT_FOLDER_EMAIL)
+            .apply()
+    }
+
+    /**
+     * 최상위 "다날라 견적" 폴더를 가져오거나 생성합니다.
+     * 캐시된 ID가 있으면 바로 사용하고, 없으면 생성 후 캐시합니다.
+     */
+    private fun getOrCreateParentFolder(context: Context, driveService: Drive, accountEmail: String?): String {
+        // 1. 캐시된 폴더 ID가 있으면 바로 반환 (API 호출 없음)
+        val cachedId = getCachedParentFolderId(context, accountEmail)
+        if (!cachedId.isNullOrBlank()) {
+            Log.d(TAG, "Using cached parent folder ID: $cachedId")
+            return cachedId
         }
 
+        // 2. 캐시 없음 → 폴더 검색 (DRIVE_FILE scope는 앱이 만든 파일만 검색됨)
+        try {
+            val query = "mimeType = 'application/vnd.google-apps.folder' and name = '$FOLDER_NAME' and trashed = false"
+            val resultList = driveService.files().list()
+                .setQ(query)
+                .setSpaces("drive")
+                .setFields("files(id, name)")
+                .execute()
+
+            val files = resultList.files
+            if (!files.isNullOrEmpty()) {
+                val folderId = files[0].id
+                cacheParentFolderId(context, folderId, accountEmail)
+                Log.d(TAG, "Found existing parent folder: $folderId")
+                return folderId
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "Folder search failed (may be scope limitation), will create new: ${e.message}")
+        }
+
+        // 3. 폴더가 없으면 새로 생성
         val folderMetadata = DriveFile().apply {
             name = FOLDER_NAME
             mimeType = "application/vnd.google-apps.folder"
@@ -93,23 +140,40 @@ object GoogleDriveHelper {
         val folder = driveService.files().create(folderMetadata)
             .setFields("id")
             .execute()
-        return folder.id
+        val newId = folder.id
+        cacheParentFolderId(context, newId, accountEmail)
+        Log.d(TAG, "Created new parent folder: $newId")
+        return newId
     }
 
     /**
-     * 최상위 폴더 하위에 특정 월별 폴더(예: "2026년 06월")가 존재하는지 검색하고, 없으면 생성하여 반환합니다.
+     * 하위 월별 폴더(예: "2026년 06월")를 가져오거나 생성합니다.
      */
-    private fun getOrCreateSubFolder(driveService: Drive, parentId: String, subFolderName: String): String {
-        val query = "mimeType = 'application/vnd.google-apps.folder' and name = '$subFolderName' and '$parentId' in parents and trashed = false"
-        val resultList = driveService.files().list()
-            .setQ(query)
-            .setSpaces("drive")
-            .setFields("files(id, name)")
-            .execute()
+    private fun getOrCreateSubFolder(context: Context, driveService: Drive, parentId: String, subFolderName: String, accountEmail: String?): String {
+        val subKey = "sub_${subFolderName.replace(" ", "_")}_${accountEmail}"
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        val cachedSubId = prefs.getString(subKey, null)
+        if (!cachedSubId.isNullOrBlank()) {
+            Log.d(TAG, "Using cached sub folder ID for $subFolderName: $cachedSubId")
+            return cachedSubId
+        }
 
-        val files = resultList.files
-        if (!files.isNullOrEmpty()) {
-            return files[0].id
+        try {
+            val query = "mimeType = 'application/vnd.google-apps.folder' and name = '$subFolderName' and '$parentId' in parents and trashed = false"
+            val resultList = driveService.files().list()
+                .setQ(query)
+                .setSpaces("drive")
+                .setFields("files(id, name)")
+                .execute()
+
+            val files = resultList.files
+            if (!files.isNullOrEmpty()) {
+                val subId = files[0].id
+                prefs.edit().putString(subKey, subId).apply()
+                return subId
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "Sub-folder search failed, will create new: ${e.message}")
         }
 
         val folderMetadata = DriveFile().apply {
@@ -120,21 +184,22 @@ object GoogleDriveHelper {
         val folder = driveService.files().create(folderMetadata)
             .setFields("id")
             .execute()
-        return folder.id
+        val newSubId = folder.id
+        prefs.edit().putString(subKey, newSubId).apply()
+        Log.d(TAG, "Created new sub folder $subFolderName: $newSubId")
+        return newSubId
+    }
+
+    sealed class UploadResult {
+        data class Success(val fileId: String) : UploadResult()
+        object NoPermission : UploadResult()
+        object UserRecoverable : UploadResult()
+        data class Failure(val error: String) : UploadResult()
     }
 
     /**
-     * 지정된 이미지 파일(JPG)을 구글 드라이브 폴더에 백그라운드 스레드에서 업로드합니다.
-     * 반환값: 성공 시 파일 ID, 실패 시 null
-     * 실패 이유: "NO_PERMISSION" (Drive 권한 없음), "USER_RECOVERABLE" (재로그인 필요), null (기타 오류)
+     * JPG 파일을 구글 드라이브에 업로드합니다.
      */
-    sealed class UploadResult {
-        data class Success(val fileId: String) : UploadResult()
-        object NoPermission : UploadResult()        // Drive scope 권한 없음 → 재로그인 필요
-        object UserRecoverable : UploadResult()     // 토큰 만료 등 → 재로그인 필요
-        data class Failure(val error: String) : UploadResult() // 기타 오류
-    }
-
     suspend fun uploadEstimateJpgWithResult(
         context: Context,
         account: GoogleSignInAccount,
@@ -150,49 +215,49 @@ object GoogleDriveHelper {
 
         try {
             val driveService = getDriveService(context, account)
-            val parentId = getOrCreateParentFolder(driveService)
+            val parentId = getOrCreateParentFolder(context, driveService, account.email)
 
-            // 날짜 기반 하위 폴더명 도출 (예: "2026-06-13" -> "2026년 06월")
             val subFolderName = try {
                 val parts = estimateDate.split("-")
-                if (parts.size >= 2) {
-                    "${parts[0]}년 ${parts[1]}월"
-                } else {
-                    "기타 견적"
-                }
-            } catch (e: Exception) {
-                "기타 견적"
-            }
+                if (parts.size >= 2) "${parts[0]}년 ${parts[1]}월" else "기타 견적"
+            } catch (e: Exception) { "기타 견적" }
 
-            val folderId = getOrCreateSubFolder(driveService, parentId, subFolderName)
+            val folderId = getOrCreateSubFolder(context, driveService, parentId, subFolderName, account.email)
 
-            // 파일 메타데이터 세팅
             val fileMetadata = DriveFile().apply {
                 name = fileName
                 parents = listOf(folderId)
             }
 
-            // 파일 콘텐츠 세팅
             val mediaContent = FileContent("image/jpeg", file)
-
-            // 파일 업로드 실행
             val uploadedFile = driveService.files().create(fileMetadata, mediaContent)
                 .setFields("id, webViewLink")
                 .execute()
 
-            Log.d(TAG, "File uploaded successfully inside $subFolderName. ID: ${uploadedFile.id}")
+            Log.d(TAG, "Uploaded to $subFolderName. ID: ${uploadedFile.id}")
             UploadResult.Success(uploadedFile.id)
+
         } catch (e: UserRecoverableAuthIOException) {
-            Log.w(TAG, "Drive upload requires user action (token expired or scope not granted): ${e.message}")
+            Log.w(TAG, "Drive upload requires user action: ${e.message}")
+            // 폴더 ID 캐시 초기화 (재로그인 시 새로 받아야 함)
+            clearCachedParentFolderId(context)
             UploadResult.UserRecoverable
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to upload file to Google Drive: ${e.message}", e)
+            Log.e(TAG, "Failed to upload to Google Drive: ${e.message}", e)
+            // 폴더 ID 캐시 초기화 (다음 시도 시 다시 생성)
+            clearCachedParentFolderId(context)
             UploadResult.Failure(e.message ?: "Unknown error")
         }
     }
 
-    // 기존 호환성 유지용 래퍼 (null = 실패)
-    suspend fun uploadEstimateJpg(context: Context, account: GoogleSignInAccount, file: File, fileName: String, estimateDate: String): String? = withContext(Dispatchers.IO) {
+    // 하위 호환성 유지용 래퍼
+    suspend fun uploadEstimateJpg(
+        context: Context,
+        account: GoogleSignInAccount,
+        file: File,
+        fileName: String,
+        estimateDate: String
+    ): String? = withContext(Dispatchers.IO) {
         when (val result = uploadEstimateJpgWithResult(context, account, file, fileName, estimateDate)) {
             is UploadResult.Success -> result.fileId
             else -> null
