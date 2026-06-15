@@ -444,6 +444,7 @@ class EstimateViewModel @Inject constructor(
                         }
                         is GoogleDriveHelper.UploadResult.NoPermission -> {
                             android.util.Log.w("EstimateViewModel", "Drive upload skipped: No Drive permission")
+                            android.widget.Toast.makeText(appContext, "구글 드라이브 권한이 없습니다. 설정에서 다시 연결해 주세요.", android.widget.Toast.LENGTH_LONG).show()
                         }
                         is GoogleDriveHelper.UploadResult.UserRecoverable -> {
                             android.util.Log.w("EstimateViewModel", "Drive upload failed: User recoverable auth error")
