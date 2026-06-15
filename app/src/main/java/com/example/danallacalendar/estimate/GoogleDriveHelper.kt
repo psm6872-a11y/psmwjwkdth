@@ -78,7 +78,7 @@ object GoogleDriveHelper {
     private fun getCachedParentFolderId(context: Context, accountEmail: String?): String? {
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         val cachedEmail = prefs.getString(KEY_PARENT_FOLDER_EMAIL, null)
-        if (cachedEmail != accountEmail) {
+        if ((cachedEmail ?: "") != (accountEmail ?: "")) {
             // 계정이 바뀌었으면 캐시 무효화
             prefs.edit().remove(KEY_PARENT_FOLDER_ID).remove(KEY_PARENT_FOLDER_EMAIL).apply()
             return null
