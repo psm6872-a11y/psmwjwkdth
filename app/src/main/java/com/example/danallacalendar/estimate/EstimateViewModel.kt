@@ -381,11 +381,6 @@ class EstimateViewModel @Inject constructor(
         }
     }
 
-    companion object {
-        private val uploadScope = kotlinx.coroutines.CoroutineScope(
-            kotlinx.coroutines.SupervisorJob() + Dispatchers.IO
-        )
-    }
 
     /**
      * 구글 드라이브 업로드 후 onDone 콜백을 호출합니다.
