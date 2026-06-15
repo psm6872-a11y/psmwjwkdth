@@ -555,13 +555,19 @@ fun EstimateItemCard(
                     }
                     Spacer(modifier = Modifier.height(6.dp))
                     Text(
-                        text = "이사일: ${estimate.moveDate} (${estimate.startTime})",
+                        text = estimate.estimateDate.ifBlank { "정보 없음" },
                         color = Color.White.copy(alpha = 0.8f),
                         fontSize = 13.sp
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = "출발지주소: ${estimate.departure.ifBlank { "정보 없음" }}",
+                        text = if (estimate.moveDate.isBlank()) "정보 없음" else "${estimate.moveDate} (${estimate.startTime})",
+                        color = Color.White.copy(alpha = 0.8f),
+                        fontSize = 13.sp
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = estimate.departure.ifBlank { "정보 없음" },
                         color = Color.White.copy(alpha = 0.8f),
                         fontSize = 13.sp,
                         maxLines = 1,
@@ -569,7 +575,7 @@ fun EstimateItemCard(
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = "전화번호: ${estimate.phoneNumber.ifBlank { "정보 없음" }}",
+                        text = estimate.phoneNumber.ifBlank { "정보 없음" },
                         color = Color.White.copy(alpha = 0.8f),
                         fontSize = 13.sp
                     )
