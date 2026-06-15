@@ -26,6 +26,9 @@ class EstimateListViewModel @Inject constructor(
     @ApplicationContext private val context: Context
 ) : ViewModel() {
 
+    private val processingIds = java.util.Collections.synchronizedSet(mutableSetOf<String>())
+    private val failedIds = java.util.Collections.synchronizedSet(mutableSetOf<String>())
+
     private val _isShareEnabled = MutableStateFlow(userPreferences.isShareEnabled())
     val isShareEnabled: StateFlow<Boolean> = _isShareEnabled.asStateFlow()
 
@@ -48,6 +51,9 @@ class EstimateListViewModel @Inject constructor(
     fun toggleAutoDriveSyncEnabled(enabled: Boolean) {
         userPreferences.setAutoDriveSyncEnabled(enabled)
         _isAutoDriveSyncEnabled.value = enabled
+        if (enabled) {
+            failedIds.clear()
+        }
     }
 
     private val _googleAccount = MutableStateFlow<GoogleSignInAccount?>(GoogleDriveHelper.getSignedInAccount(context))
@@ -57,6 +63,8 @@ class EstimateListViewModel @Inject constructor(
         _googleAccount.value = account
         if (account == null) {
             toggleGoogleDriveSaveEnabled(false)
+        } else {
+            failedIds.clear()
         }
     }
 
@@ -123,18 +131,29 @@ class EstimateListViewModel @Inject constructor(
         initialValue = emptyList()
     )
 
-    private val processingIds = java.util.Collections.synchronizedSet(mutableSetOf<String>())
-
     init {
         viewModelScope.launch(kotlinx.coroutines.Dispatchers.Default) {
-            estimateList.collect { list ->
-                if (userPreferences.isAutoDriveSyncEnabled() && GoogleDriveHelper.getSignedInAccount(context) != null) {
-                    val targets = list.filter { it.isSynced && it.localFilePath.isNullOrEmpty() && !processingIds.contains(it.id) }
-                    if (targets.isNotEmpty()) {
-                        targets.forEach { target ->
-                            autoBackupToGoogleDrive(target)
-                        }
+            combine(
+                repository.getEstimatesFlow(),
+                estimatePdfDao.getAllPdfs(),
+                isAutoDriveSyncEnabled,
+                googleAccount
+            ) { remoteList, localList, autoSync, account ->
+                if (autoSync && account != null) {
+                    val localMap = localList.associateBy { it.estimateId.ifBlank { it.id.toString() } }
+                    remoteList.filter { remoteEst ->
+                        val localPdf = localMap[remoteEst.id]
+                        localPdf?.filePath.isNullOrBlank()
                     }
+                } else {
+                    emptyList()
+                }
+            }.collect { targets ->
+                val pendingTargets = targets.filter {
+                    !processingIds.contains(it.id) && !failedIds.contains(it.id)
+                }
+                for (target in pendingTargets) {
+                    autoBackupToGoogleDriveSequentially(target)
                 }
             }
         }
@@ -168,27 +187,23 @@ class EstimateListViewModel @Inject constructor(
         }
     }
 
-    private fun autoBackupToGoogleDrive(estimate: Estimate) {
+    private suspend fun autoBackupToGoogleDriveSequentially(estimate: Estimate) {
         if (!processingIds.add(estimate.id)) return
-        viewModelScope.launch(kotlinx.coroutines.Dispatchers.Main) {
-            try {
-                val account = GoogleDriveHelper.getSignedInAccount(context)
-                if (account == null) {
-                    processingIds.remove(estimate.id)
-                    return@launch
-                }
-                // Drive scope 권한 체크
-                if (!GoogleDriveHelper.hasDrivePermission(context)) {
-                    android.util.Log.w("EstimateListViewModel", "Auto backup skipped: Drive permission not granted for ${estimate.id}")
-                    processingIds.remove(estimate.id)
-                    return@launch
-                }
+        try {
+            val account = GoogleDriveHelper.getSignedInAccount(context) ?: throw Exception("No signed in account")
+            if (!GoogleDriveHelper.hasDrivePermission(context)) {
+                android.util.Log.w("EstimateListViewModel", "Auto backup skipped: Drive permission not granted for ${estimate.id}")
+                failedIds.add(estimate.id)
+                return
+            }
+
+            val result = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
                 val htmlContent = EstimateHtmlGenerator.generateEstimateHtml(context, estimate)
                 val jpgPath = EstimatePrintHelper.renderHtmlToJpg(context, htmlContent, estimate)
                 if (jpgPath != null) {
                     val jpgFile = java.io.File(jpgPath)
                     val fileName = jpgFile.name
-                    val result = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                    val uploadResult = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
                         GoogleDriveHelper.uploadEstimateJpgWithResult(
                             context,
                             account,
@@ -197,7 +212,7 @@ class EstimateListViewModel @Inject constructor(
                             estimate.estimateDate
                         )
                     }
-                    if (result is GoogleDriveHelper.UploadResult.Success) {
+                    if (uploadResult is GoogleDriveHelper.UploadResult.Success) {
                         val gson = com.google.gson.Gson()
                         val dateParts = estimate.estimateDate.split("-")
                         val monthDay = if (dateParts.size >= 3) "${dateParts[1]}-${dateParts[2]}" else "00-00"
@@ -217,15 +232,25 @@ class EstimateListViewModel @Inject constructor(
                             estimatePdfDao.insertPdf(pdfEntity)
                         }
                         android.util.Log.d("EstimateListViewModel", "Auto backup success for estimate: ${estimate.id}")
+                        true
                     } else {
-                        android.util.Log.w("EstimateListViewModel", "Auto backup upload result: $result for estimate: ${estimate.id}")
+                        android.util.Log.w("EstimateListViewModel", "Auto backup upload result: $uploadResult for estimate: ${estimate.id}")
+                        false
                     }
+                } else {
+                    android.util.Log.e("EstimateListViewModel", "Failed to render HTML to JPG for ${estimate.id}")
+                    false
                 }
-            } catch (e: Exception) {
-                android.util.Log.e("EstimateListViewModel", "Auto backup failed for estimate: ${estimate.id}", e)
-            } finally {
-                processingIds.remove(estimate.id)
             }
+
+            if (!result) {
+                failedIds.add(estimate.id)
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("EstimateListViewModel", "Auto backup failed for estimate: ${estimate.id}", e)
+            failedIds.add(estimate.id)
+        } finally {
+            processingIds.remove(estimate.id)
         }
     }
 }
