@@ -133,6 +133,7 @@ fun EstimateScreen(
     var showErrorDialog by remember { mutableStateOf(false) }
     var errorDetailMessage by remember { mutableStateOf("") }
     var completedSpaces by remember { mutableStateOf(setOf<String>()) }
+    val isDriveUploading by viewModel.isDriveUploading.collectAsStateWithLifecycle()
     var spaceExpectedVolumes by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
     val totalVol = spaceExpectedVolumes.values.mapNotNull { it.toDoubleOrNull() }.sum()
     val totalExpectedVolumeStr = if (totalVol > 0.0) {
@@ -628,11 +629,14 @@ fun EstimateScreen(
                             } else {
                                 Button(
                                     onClick = {
+                                        // 업로드 완료 후 화면 이탈 (업로드 없으면 즉시 이탈)
                                         savedPdfPath?.let { path ->
-                                            viewModel.uploadToGoogleDrive(context, path)
-                                        }
-                                        onNavigateBack()
+                                            viewModel.uploadToGoogleDrive(context, path) {
+                                                onNavigateBack()
+                                            }
+                                        } ?: onNavigateBack()
                                     },
+                                    enabled = !isDriveUploading,
                                     modifier = Modifier
                                         .weight(1f)
                                         .height(48.dp),
@@ -641,7 +645,15 @@ fun EstimateScreen(
                                         containerColor = Color(0xFFE040FB)
                                     )
                                 ) {
-                                    Text("나가기")
+                                    if (isDriveUploading) {
+                                        androidx.compose.material3.CircularProgressIndicator(
+                                            modifier = Modifier.size(20.dp),
+                                            color = Color.White,
+                                            strokeWidth = 2.dp
+                                        )
+                                    } else {
+                                        Text("나가기")
+                                    }
                                 }
                             }
                         }

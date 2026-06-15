@@ -73,6 +73,10 @@ class EstimateViewModel @Inject constructor(
     private val _saveState = MutableStateFlow<SaveState>(SaveState.Idle)
     val saveState = _saveState.asStateFlow()
 
+    // 구글 드라이브 업로드 진행 중 여부 (나가기 버튼 로딩 표시용)
+    private val _isDriveUploading = MutableStateFlow(false)
+    val isDriveUploading = _isDriveUploading.asStateFlow()
+
     private var estimateId: String = ""
 
     init {
@@ -383,30 +387,47 @@ class EstimateViewModel @Inject constructor(
         )
     }
 
-    fun uploadToGoogleDrive(context: android.content.Context, jpgPath: String) {
+    /**
+     * 구글 드라이브 업로드 후 onDone 콜백을 호출합니다.
+     * - 드라이브가 비활성화되어 있거나 권한이 없으면 즉시 onDone()을 호출합니다.
+     * - 활성화된 경우 업로드 완료(성공/실패) 후 onDone()을 호출합니다.
+     * - isDriveUploading 상태로 UI에 로딩 표시를 할 수 있습니다.
+     */
+    fun uploadToGoogleDrive(context: android.content.Context, jpgPath: String, onDone: () -> Unit = {}) {
+        // 드라이브 비활성화 또는 권한 없음 → 즉시 완료
         if (!userPreferences.isGoogleDriveSaveEnabled()) {
             android.util.Log.d("EstimateViewModel", "Google Drive save is disabled in preferences.")
+            onDone()
             return
         }
-
-        // Drive 권한이 없으면 조용히 스킵 (토스트 없음)
         if (!GoogleDriveHelper.hasDrivePermission(context)) {
-            android.util.Log.w("EstimateViewModel", "Google Drive upload skipped: Drive permission not granted. User needs to re-login.")
+            android.util.Log.w("EstimateViewModel", "Google Drive upload skipped: Drive permission not granted.")
+            onDone()
             return
         }
 
         val appContext = context.applicationContext
-        uploadScope.launch {
+        _isDriveUploading.value = true
+
+        viewModelScope.launch(Dispatchers.IO) {
             try {
                 val jpgFile = File(jpgPath)
                 if (!jpgFile.exists()) {
                     android.util.Log.e("EstimateViewModel", "Upload failed: File does not exist at $jpgPath")
+                    withContext(Dispatchers.Main) {
+                        _isDriveUploading.value = false
+                        onDone()
+                    }
                     return@launch
                 }
                 val fileName = jpgFile.name
                 val account = GoogleDriveHelper.getSignedInAccount(appContext)
                 if (account == null) {
                     android.util.Log.w("EstimateViewModel", "Google Drive upload skipped: No signed-in account")
+                    withContext(Dispatchers.Main) {
+                        _isDriveUploading.value = false
+                        onDone()
+                    }
                     return@launch
                 }
 
@@ -422,22 +443,26 @@ class EstimateViewModel @Inject constructor(
                             android.widget.Toast.makeText(appContext, "구글 드라이브 업로드 완료", android.widget.Toast.LENGTH_SHORT).show()
                         }
                         is GoogleDriveHelper.UploadResult.NoPermission -> {
-                            // Drive scope 권한 없음 → 조용히 처리 (설정에서 재로그인 필요하지만 방해하지 않음)
                             android.util.Log.w("EstimateViewModel", "Drive upload skipped: No Drive permission")
                         }
                         is GoogleDriveHelper.UploadResult.UserRecoverable -> {
-                            // 토큰 만료 등으로 재로그인 필요 → 설정 화면에서 다시 로그인하도록 안내
                             android.util.Log.w("EstimateViewModel", "Drive upload failed: User recoverable auth error")
                             android.widget.Toast.makeText(appContext, "구글 드라이브 로그인이 만료되었습니다.\n견적 목록 설정에서 다시 연결해 주세요.", android.widget.Toast.LENGTH_LONG).show()
                         }
                         is GoogleDriveHelper.UploadResult.Failure -> {
                             android.util.Log.e("EstimateViewModel", "Drive upload failed: ${result.error}")
-                            // 네트워크 오류 등은 조용히 처리 (업무 흐름을 방해하지 않음)
+                            android.widget.Toast.makeText(appContext, "드라이브 업로드 실패. 다시 시도해 주세요.", android.widget.Toast.LENGTH_SHORT).show()
                         }
                     }
+                    _isDriveUploading.value = false
+                    onDone()
                 }
             } catch (e: Throwable) {
                 android.util.Log.e("EstimateViewModel", "Background Google Drive upload failed", e)
+                withContext(Dispatchers.Main) {
+                    _isDriveUploading.value = false
+                    onDone()
+                }
             }
         }
     }
