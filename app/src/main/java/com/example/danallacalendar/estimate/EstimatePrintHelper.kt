@@ -4,10 +4,7 @@ import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.Canvas
-import android.graphics.Color
-import android.os.ParcelFileDescriptor
-import android.print.PrintAttributes
-import android.print.PrintManager
+import android.webkit.JavascriptInterface
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.Toast
@@ -18,8 +15,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import java.io.File
-import java.text.NumberFormat
-import java.util.Locale
 import kotlin.coroutines.resume
 
 object EstimatePrintHelper {
@@ -65,32 +60,45 @@ object EstimatePrintHelper {
         }
     }
 
+    // JavaScript 인터페이스: HTML 전체 높이를 콜백으로 받아옴
+    private class HeightBridge(val onHeight: (Int) -> Unit) {
+        @JavascriptInterface
+        fun reportHeight(height: Int) {
+            onHeight(height)
+        }
+    }
+
     suspend fun renderHtmlToJpg(context: Context, htmlContent: String, estimate: Estimate): String? {
         android.util.Log.d("WebViewPdf", "[LOG] renderHtmlToJpg called. Switching to Main thread...")
         return withContext(Dispatchers.Main) {
             suspendCancellableCoroutine<String?> { continuation ->
                 try {
-                    android.util.Log.d("WebViewPdf", "[LOG] suspendCancellableCoroutine started on Main thread. Creating WebView...")
+                    android.util.Log.d("WebViewPdf", "[LOG] Creating WebView on Main thread...")
                     val handler = android.os.Handler(android.os.Looper.getMainLooper())
+                    var hasResumed = false
+
+                    // 페이지 폭 (A4 96dpi = 794px)
+                    val pageWidth = 794
+
                     val webView = WebView(context).apply {
                         settings.useWideViewPort = true
-                        settings.loadWithOverviewMode = true
+                        settings.loadWithOverviewMode = false
                         settings.javaScriptEnabled = true
                     }
                     webView.setLayerType(android.view.View.LAYER_TYPE_SOFTWARE, null)
-                    webView.layout(0, 0, 794, 1123)
-                    
-                    var hasResumed = false
-                    
-                    fun doRender() {
+
+                    fun doRenderWithHeight(contentHeight: Int) {
                         if (hasResumed) return
                         hasResumed = true
                         try {
-                            android.util.Log.d("WebViewPdf", "[LOG] doRender triggered. Creating directories and files...")
+                            android.util.Log.d("WebViewPdf", "[LOG] doRender: contentHeight=$contentHeight")
+
+                            // 실제 높이로 WebView 재레이아웃
+                            val finalHeight = maxOf(contentHeight, 1123)
+                            webView.layout(0, 0, pageWidth, finalHeight)
+
                             val tempDir = File(context.cacheDir, "danalla_temp")
-                            if (!tempDir.exists()) {
-                                tempDir.mkdirs()
-                            }
+                            if (!tempDir.exists()) tempDir.mkdirs()
                             tempDir.listFiles()?.forEach { it.delete() }
 
                             val dateStr = estimate.estimateDate.ifBlank { estimate.moveDate }
@@ -99,60 +107,83 @@ object EstimatePrintHelper {
                             val rawPhone = estimate.phoneNumber.replace(Regex("[^0-9]"), "")
                             val last4 = if (rawPhone.length >= 4) rawPhone.takeLast(4) else "0000"
                             val fileName = "${monthDay}_$last4.jpg"
-
                             val jpgFile = File(tempDir, fileName)
 
-                            // Generate High-Res Bitmap
-                            android.util.Log.d("WebViewPdf", "[LOG] Generating Bitmap (scale=2.5)...")
+                            // 고해상도 비트맵 생성 (scale=2.5)
                             val scale = 2.5f
-                            val width = (794 * scale).toInt()
-                            val height = (1123 * scale).toInt()
-                            val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+                            val bmpWidth = (pageWidth * scale).toInt()
+                            val bmpHeight = (finalHeight * scale).toInt()
+                            android.util.Log.d("WebViewPdf", "[LOG] Bitmap size: ${bmpWidth}x${bmpHeight}")
+
+                            val bitmap = Bitmap.createBitmap(bmpWidth, bmpHeight, Bitmap.Config.ARGB_8888)
                             val canvas = Canvas(bitmap)
+                            canvas.drawColor(android.graphics.Color.WHITE)
                             canvas.scale(scale, scale)
                             webView.draw(canvas)
 
-                            // Save JPG
-                            android.util.Log.d("WebViewPdf", "[LOG] Saving JPG to ${jpgFile.absolutePath}...")
                             java.io.FileOutputStream(jpgFile).use { out ->
                                 bitmap.compress(Bitmap.CompressFormat.JPEG, 95, out)
                             }
                             bitmap.recycle()
 
-                            android.util.Log.d("WebViewPdf", "[LOG] Rendering process completed successfully!")
+                            android.util.Log.d("WebViewPdf", "[LOG] JPG saved: ${jpgFile.absolutePath}")
                             if (continuation.isActive) {
                                 continuation.resume(jpgFile.absolutePath)
                             }
                         } catch (e: Throwable) {
-                            android.util.Log.e("WebViewPdf", "PDF to JPG failed", e)
+                            android.util.Log.e("WebViewPdf", "doRender failed", e)
                             if (continuation.isActive) {
                                 continuation.resume(null)
                             }
                         }
                     }
 
-                    // 5-second safety timeout
-                    val timeoutRunnable = Runnable {
-                        if (!hasResumed) {
-                            android.util.Log.w("WebViewPdf", "[LOG] WebView load timed out (5s). Forcing rendering...")
-                            doRender()
+                    // JS 인터페이스로 높이 측정
+                    val bridge = HeightBridge { height ->
+                        handler.post {
+                            android.util.Log.d("WebViewPdf", "[LOG] JS reported height: $height")
+                            handler.removeCallbacksAndMessages(null)
+                            doRenderWithHeight(height)
                         }
                     }
-                    handler.postDelayed(timeoutRunnable, 5000)
+
+                    webView.addJavascriptInterface(bridge, "AndroidBridge")
+
+                    // 안전 타임아웃: 8초 후 현재 contentHeight로 강제 렌더링
+                    val timeoutRunnable = Runnable {
+                        if (!hasResumed) {
+                            val fallbackHeight = webView.contentHeight
+                            android.util.Log.w("WebViewPdf", "[LOG] Timeout! Using fallback contentHeight=$fallbackHeight")
+                            doRenderWithHeight(if (fallbackHeight > 100) fallbackHeight else 1123)
+                        }
+                    }
+                    handler.postDelayed(timeoutRunnable, 8000)
 
                     webView.webViewClient = object : WebViewClient() {
                         override fun onPageFinished(view: WebView?, url: String?) {
-                            android.util.Log.d("WebViewPdf", "[LOG] onPageFinished callback triggered! Posting render task...")
-                            handler.removeCallbacks(timeoutRunnable)
+                            android.util.Log.d("WebViewPdf", "[LOG] onPageFinished. Measuring content height via JS...")
+                            // 렌더링이 완전히 끝날 때까지 약간 대기 후 JS로 높이 측정
                             handler.postDelayed({
-                                doRender()
-                            }, 500)
+                                webView.evaluateJavascript(
+                                    "document.documentElement.scrollHeight"
+                                ) { value ->
+                                    val height = value?.toIntOrNull() ?: webView.contentHeight
+                                    android.util.Log.d("WebViewPdf", "[LOG] JS scrollHeight=$height, contentHeight=${webView.contentHeight}")
+                                    handler.removeCallbacks(timeoutRunnable)
+                                    val finalH = if (height > 100) height else maxOf(webView.contentHeight, 1123)
+                                    doRenderWithHeight(finalH)
+                                }
+                            }, 800)
                         }
                     }
-                    android.util.Log.d("WebViewPdf", "[LOG] WebView.loadDataWithBaseURL loading html content (size: ${htmlContent.length})...")
+
+                    // 초기 레이아웃: 충분히 넓은 임시 높이로 설정
+                    webView.layout(0, 0, pageWidth, 10000)
+                    android.util.Log.d("WebViewPdf", "[LOG] Loading HTML (size=${htmlContent.length})...")
                     webView.loadDataWithBaseURL("file:///android_asset/", htmlContent, "text/html", "UTF-8", null)
+
                 } catch (t: Throwable) {
-                    android.util.Log.e("WebViewPdf", "Failed to initialize WebView or setup render", t)
+                    android.util.Log.e("WebViewPdf", "Failed to initialize WebView", t)
                     if (continuation.isActive) {
                         continuation.resume(null)
                     }
