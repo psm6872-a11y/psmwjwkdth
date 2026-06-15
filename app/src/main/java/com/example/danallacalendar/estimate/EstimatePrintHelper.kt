@@ -24,14 +24,55 @@ import kotlin.coroutines.resume
 
 object EstimatePrintHelper {
 
+    private val activeWebViews = mutableSetOf<WebView>()
+
     fun printEstimate(context: Context, htmlContent: String, estimate: Estimate) {
-        val webView = WebView(context)
+        val webView = WebView(context).apply {
+            settings.useWideViewPort = true
+            settings.loadWithOverviewMode = true
+            settings.javaScriptEnabled = true
+        }
+        webView.setLayerType(android.view.View.LAYER_TYPE_SOFTWARE, null)
+        webView.layout(0, 0, 794, 1123)
+
+        activeWebViews.add(webView)
+
         webView.webViewClient = object : WebViewClient() {
             override fun onPageFinished(view: WebView?, url: String?) {
-                val printManager = context.getSystemService(Context.PRINT_SERVICE) as? PrintManager ?: return
-                val jobName = "이사 견적서 - ${estimate.customerName}"
-                val printAdapter = webView.createPrintDocumentAdapter(jobName)
-                printManager.print(jobName, printAdapter, PrintAttributes.Builder().build())
+                android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+                    val printManager = context.getSystemService(Context.PRINT_SERVICE) as? PrintManager
+                    if (printManager != null) {
+                        val jobName = "이사 견적서 - ${estimate.customerName}"
+                        val printAdapter = webView.createPrintDocumentAdapter(jobName)
+                        val wrappedAdapter = object : android.print.PrintDocumentAdapter() {
+                            override fun onStart() {
+                                printAdapter.onStart()
+                            }
+                            override fun onLayout(
+                                oldAttributes: android.print.PrintAttributes?,
+                                newAttributes: android.print.PrintAttributes?,
+                                cancellationSignal: android.os.CancellationSignal?,
+                                callback: android.print.PrintDocumentAdapter.LayoutResultCallback?,
+                                extras: android.os.Bundle?
+                            ) {
+                                printAdapter.onLayout(oldAttributes, newAttributes, cancellationSignal, callback, extras)
+                            }
+                            override fun onWrite(
+                                pages: Array<out android.print.PageRange>?,
+                                destination: android.os.ParcelFileDescriptor?,
+                                cancellationSignal: android.os.CancellationSignal?,
+                                callback: android.print.PrintDocumentAdapter.WriteResultCallback?
+                            ) {
+                                printAdapter.onWrite(pages, destination, cancellationSignal, callback)
+                            }
+                            override fun onFinish() {
+                                printAdapter.onFinish()
+                                activeWebViews.remove(webView)
+                            }
+                        }
+                        printManager.print(jobName, wrappedAdapter, PrintAttributes.Builder().build())
+                    }
+                }, 500)
             }
         }
         webView.loadDataWithBaseURL("file:///android_asset/", htmlContent, "text/html", "UTF-8", null)
