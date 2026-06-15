@@ -135,7 +135,7 @@ fun EstimateScreen(
     var hasSaved by remember { mutableStateOf(false) }
     var activeSpaceForCargoInput by remember { mutableStateOf<String?>(null) }
     var savedSmsBody by remember { mutableStateOf("") }
-    var savedPdfPath by remember { mutableStateOf<String?>(null) }
+    var savedJpgPath by remember { mutableStateOf<String?>(null) }
 
     val googleSignInLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartActivityForResult()
@@ -143,7 +143,7 @@ fun EstimateScreen(
         val task = GoogleSignIn.getSignedInAccountFromIntent(result.data)
         try {
             val account = task.getResult(ApiException::class.java)
-            savedPdfPath?.let { path ->
+            savedJpgPath?.let { path ->
                 viewModel.uploadToGoogleDrive(context, path) {
                     onNavigateBack()
                 }
@@ -324,7 +324,7 @@ fun EstimateScreen(
             viewModel.saveEstimate(context) { smsBody, pdfPath ->
                 Toast.makeText(context, "저장 완료!", Toast.LENGTH_SHORT).show()
                 savedSmsBody = smsBody
-                savedPdfPath = pdfPath
+                savedJpgPath = pdfPath
             }
         }
     }
@@ -542,8 +542,8 @@ fun EstimateScreen(
                                         EstimatePrintHelper.printEstimate(context, html, estimate)
                                     },
                                     onSendSms = { smsText ->
-                                        if (savedPdfPath != null) {
-                                            val jpgFile = java.io.File(savedPdfPath!!)
+                                        if (savedJpgPath != null) {
+                                            val jpgFile = java.io.File(savedJpgPath!!)
                                             if (jpgFile.exists()) {
                                                 val fileUri = androidx.core.content.FileProvider.getUriForFile(
                                                     context,
@@ -654,7 +654,7 @@ fun EstimateScreen(
                                     onClick = {
                                         if (isDriveUploading) return@Button
                                         // 업로드 완료 후 화면 이탈 (업로드 없으면 즉시 이탈)
-                                        savedPdfPath?.let { path ->
+                                        savedJpgPath?.let { path ->
                                             val userPrefs = UserPreferences(context)
                                             val isDriveSyncOn = userPrefs.isGoogleDriveSaveEnabled() || userPrefs.isAutoDriveSyncEnabled()
                                             val hasPerm = GoogleDriveHelper.hasDrivePermission(context)
