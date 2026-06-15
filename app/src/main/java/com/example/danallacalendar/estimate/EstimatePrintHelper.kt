@@ -5,6 +5,7 @@ import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.webkit.JavascriptInterface
+import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.Toast
@@ -20,9 +21,25 @@ import kotlin.coroutines.resume
 object EstimatePrintHelper {
 
     /**
+     * 모든 기기에서 동일한 렌더링을 보장하는 160dpi 고정 WebView 컨텍스트를 생성합니다.
+     *
+     * 문제: WebView의 layout()은 물리 픽셀(physical pixels)을 받습니다.
+     *   - 1x(160dpi) 기기: 794 물리px = 794 CSS px → HTML 뷰포트(794px)와 일치 ✅
+     *   - 2x(320dpi) 기기: 794 물리px = 397 CSS px → HTML이 절반만 보임 ❌
+     *   - 3x(480dpi) 기기: 794 물리px = 265 CSS px → HTML이 1/3만 보임 ❌
+     *
+     * 해결: WebView가 항상 160dpi(1x)라고 인식하게 강제하면
+     *   모든 기기에서 794 물리px = 794 CSS px로 통일됩니다.
+     */
+    private fun createFixedDpiContext(context: Context): Context {
+        val config = context.resources.configuration
+        config.densityDpi = 160 // mdpi(1x) 고정 → 794 CSS px = 794 물리 px
+        return context.createConfigurationContext(config)
+    }
+
+    /**
      * HTML 콘텐츠를 WebView의 createPrintDocumentAdapter()로 직접 인쇄합니다.
-     * 이 방식은 Android PrintManager가 HTML을 A4 페이지에 맞게 렌더링하므로
-     * 이미지 축소 문제가 없고 실제 용지에 맞는 출력이 가능합니다.
+     * 모든 기기에서 동일한 A4 출력 미리보기를 보장합니다.
      */
     fun printEstimate(context: Context, htmlContent: String, estimate: Estimate) {
         val handler = android.os.Handler(android.os.Looper.getMainLooper())
@@ -30,16 +47,18 @@ object EstimatePrintHelper {
             try {
                 val printManager = context.getSystemService(Context.PRINT_SERVICE) as android.print.PrintManager
 
-                // A4 96dpi 기준 폭 = 794px
-                // WebView에 명시적으로 크기를 잡아줘야 인쇄 시 견적서가 A4 폭에 맞게 렌더링됨
-                val pageWidthPx = 794
-                val pageHeightPx = 10000
+                // 160dpi 고정 컨텍스트: 모든 기기에서 794 CSS px = 794 물리 px
+                val fixedContext = createFixedDpiContext(context)
+                val pageWidthPx = 794   // A4 at 96dpi = 794px (160dpi 기준으로 통일)
+                val pageHeightPx = 20000
 
-                val webView = WebView(context).apply {
+                val webView = WebView(fixedContext).apply {
                     settings.javaScriptEnabled = true
-                    settings.useWideViewPort = true     // HTML의 viewport 설정을 활성화하여 가로폭을 794px로 맞춤
-                    settings.loadWithOverviewMode = true // 뷰포트에 맞게 레이아웃 크기를 축소/확대(overview)
-                    // 명시적으로 A4 폭(794px)으로 레이아웃 크기 지정
+                    settings.useWideViewPort = true       // HTML viewport 설정 활성화
+                    settings.loadWithOverviewMode = false // 자동 축소 방지 (뷰포트 그대로 사용)
+                    settings.textZoom = 100               // 시스템 글자 크기 설정 무시
+                    settings.layoutAlgorithm = WebSettings.LayoutAlgorithm.NORMAL
+                    settings.domStorageEnabled = true
                     layout(0, 0, pageWidthPx, pageHeightPx)
                 }
                 webView.setLayerType(android.view.View.LAYER_TYPE_SOFTWARE, null)
@@ -105,18 +124,21 @@ object EstimatePrintHelper {
         return withContext(Dispatchers.Main) {
             suspendCancellableCoroutine<String?> { continuation ->
                 try {
-                    android.util.Log.d("WebViewPdf", "[LOG] Creating WebView on Main thread...")
+                    android.util.Log.d("WebViewPdf", "[LOG] Creating fixed-dpi WebView on Main thread...")
                     val handler = android.os.Handler(android.os.Looper.getMainLooper())
                     var hasResumed = false
 
-                    // 페이지 폭 (A4 96dpi = 794px)
-                    val pageWidth = 794
+                    // 160dpi 고정 컨텍스트: 모든 기기에서 동일하게 794 CSS px = 794 물리 px
+                    val fixedContext = createFixedDpiContext(context)
+                    val pageWidth = 794 // A4 at 96dpi (160dpi 컨텍스트 기준)
 
-                    val webView = WebView(context).apply {
+                    val webView = WebView(fixedContext).apply {
                         settings.useWideViewPort = true
-                        settings.loadWithOverviewMode = false
+                        settings.loadWithOverviewMode = false // 자동 축소 방지
                         settings.javaScriptEnabled = true
                         settings.domStorageEnabled = true
+                        settings.textZoom = 100              // 시스템 글자 크기 설정 무시
+                        settings.layoutAlgorithm = WebSettings.LayoutAlgorithm.NORMAL
                     }
                     webView.setLayerType(android.view.View.LAYER_TYPE_SOFTWARE, null)
 
@@ -126,7 +148,6 @@ object EstimatePrintHelper {
                         try {
                             android.util.Log.d("WebViewPdf", "[LOG] doRender: contentHeight=$contentHeight")
 
-                            // 실제 높이로 WebView 레이아웃
                             val finalHeight = maxOf(contentHeight, 1123)
                             webView.layout(0, 0, pageWidth, finalHeight)
 
@@ -143,6 +164,7 @@ object EstimatePrintHelper {
                             val jpgFile = File(tempDir, fileName)
 
                             // 고해상도 비트맵 생성 (scale=2.5)
+                            // 160dpi 고정이므로 모든 기기에서 동일한 크기의 이미지가 생성됨
                             val scale = 2.5f
                             val bmpWidth = (pageWidth * scale).toInt()
                             val bmpHeight = (finalHeight * scale).toInt()
@@ -195,7 +217,6 @@ object EstimatePrintHelper {
                     webView.webViewClient = object : WebViewClient() {
                         override fun onPageFinished(view: WebView?, url: String?) {
                             android.util.Log.d("WebViewPdf", "[LOG] onPageFinished. Measuring content height via JS...")
-                            // 렌더링이 완전히 끝날 때까지 약간 대기 후 JS로 높이 측정
                             handler.postDelayed({
                                 webView.evaluateJavascript(
                                     "(function() { " +
@@ -210,7 +231,7 @@ object EstimatePrintHelper {
                                     val finalH = if (height > 100) height else maxOf(webView.contentHeight, 1123)
                                     doRenderWithHeight(finalH)
                                 }
-                            }, 1500) // 렌더링 안정화를 위해 1.5초 대기
+                            }, 1500)
                         }
                     }
 
