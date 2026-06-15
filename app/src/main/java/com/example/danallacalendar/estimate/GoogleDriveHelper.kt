@@ -9,6 +9,7 @@ import com.google.android.gms.auth.api.signin.GoogleSignInOptions
 import com.google.android.gms.common.api.Scope
 import com.google.api.client.http.javanet.NetHttpTransport
 import com.google.api.client.googleapis.extensions.android.gms.auth.GoogleAccountCredential
+import com.google.api.client.googleapis.extensions.android.gms.auth.UserRecoverableAuthIOException
 import com.google.api.client.json.gson.GsonFactory
 import com.google.api.services.drive.Drive
 import com.google.api.services.drive.DriveScopes
@@ -40,6 +41,15 @@ object GoogleDriveHelper {
      */
     fun getSignedInAccount(context: Context): GoogleSignInAccount? {
         return GoogleSignIn.getLastSignedInAccount(context)
+    }
+
+    /**
+     * 현재 계정이 Drive 스코프 권한을 실제로 가지고 있는지 확인합니다.
+     * 권한 없이 Drive API를 호출하면 UserRecoverableAuthIOException이 발생하므로 사전에 체크합니다.
+     */
+    fun hasDrivePermission(context: Context): Boolean {
+        val account = getSignedInAccount(context) ?: return false
+        return GoogleSignIn.hasPermissions(account, Scope(DriveScopes.DRIVE_FILE))
     }
 
     /**
@@ -115,8 +125,29 @@ object GoogleDriveHelper {
 
     /**
      * 지정된 이미지 파일(JPG)을 구글 드라이브 폴더에 백그라운드 스레드에서 업로드합니다.
+     * 반환값: 성공 시 파일 ID, 실패 시 null
+     * 실패 이유: "NO_PERMISSION" (Drive 권한 없음), "USER_RECOVERABLE" (재로그인 필요), null (기타 오류)
      */
-    suspend fun uploadEstimateJpg(context: Context, account: GoogleSignInAccount, file: File, fileName: String, estimateDate: String): String? = withContext(Dispatchers.IO) {
+    sealed class UploadResult {
+        data class Success(val fileId: String) : UploadResult()
+        object NoPermission : UploadResult()        // Drive scope 권한 없음 → 재로그인 필요
+        object UserRecoverable : UploadResult()     // 토큰 만료 등 → 재로그인 필요
+        data class Failure(val error: String) : UploadResult() // 기타 오류
+    }
+
+    suspend fun uploadEstimateJpgWithResult(
+        context: Context,
+        account: GoogleSignInAccount,
+        file: File,
+        fileName: String,
+        estimateDate: String
+    ): UploadResult = withContext(Dispatchers.IO) {
+        // Drive scope 권한 확인
+        if (!GoogleSignIn.hasPermissions(account, Scope(DriveScopes.DRIVE_FILE))) {
+            Log.w(TAG, "Drive permission not granted for account: ${account.email}")
+            return@withContext UploadResult.NoPermission
+        }
+
         try {
             val driveService = getDriveService(context, account)
             val parentId = getOrCreateParentFolder(driveService)
@@ -150,10 +181,21 @@ object GoogleDriveHelper {
                 .execute()
 
             Log.d(TAG, "File uploaded successfully inside $subFolderName. ID: ${uploadedFile.id}")
-            uploadedFile.id
+            UploadResult.Success(uploadedFile.id)
+        } catch (e: UserRecoverableAuthIOException) {
+            Log.w(TAG, "Drive upload requires user action (token expired or scope not granted): ${e.message}")
+            UploadResult.UserRecoverable
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to upload file to Google Drive", e)
-            null
+            Log.e(TAG, "Failed to upload file to Google Drive: ${e.message}", e)
+            UploadResult.Failure(e.message ?: "Unknown error")
+        }
+    }
+
+    // 기존 호환성 유지용 래퍼 (null = 실패)
+    suspend fun uploadEstimateJpg(context: Context, account: GoogleSignInAccount, file: File, fileName: String, estimateDate: String): String? = withContext(Dispatchers.IO) {
+        when (val result = uploadEstimateJpgWithResult(context, account, file, fileName, estimateDate)) {
+            is UploadResult.Success -> result.fileId
+            else -> null
         }
     }
 }

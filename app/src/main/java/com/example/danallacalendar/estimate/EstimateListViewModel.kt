@@ -177,13 +177,19 @@ class EstimateListViewModel @Inject constructor(
                     processingIds.remove(estimate.id)
                     return@launch
                 }
+                // Drive scope 권한 체크
+                if (!GoogleDriveHelper.hasDrivePermission(context)) {
+                    android.util.Log.w("EstimateListViewModel", "Auto backup skipped: Drive permission not granted for ${estimate.id}")
+                    processingIds.remove(estimate.id)
+                    return@launch
+                }
                 val htmlContent = EstimateHtmlGenerator.generateEstimateHtml(context, estimate)
                 val jpgPath = EstimatePrintHelper.renderHtmlToJpg(context, htmlContent, estimate)
                 if (jpgPath != null) {
                     val jpgFile = java.io.File(jpgPath)
                     val fileName = jpgFile.name
-                    val fileId = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-                        GoogleDriveHelper.uploadEstimateJpg(
+                    val result = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                        GoogleDriveHelper.uploadEstimateJpgWithResult(
                             context,
                             account,
                             jpgFile,
@@ -191,7 +197,7 @@ class EstimateListViewModel @Inject constructor(
                             estimate.estimateDate
                         )
                     }
-                    if (fileId != null) {
+                    if (result is GoogleDriveHelper.UploadResult.Success) {
                         val gson = com.google.gson.Gson()
                         val dateParts = estimate.estimateDate.split("-")
                         val monthDay = if (dateParts.size >= 3) "${dateParts[1]}-${dateParts[2]}" else "00-00"
@@ -211,6 +217,8 @@ class EstimateListViewModel @Inject constructor(
                             estimatePdfDao.insertPdf(pdfEntity)
                         }
                         android.util.Log.d("EstimateListViewModel", "Auto backup success for estimate: ${estimate.id}")
+                    } else {
+                        android.util.Log.w("EstimateListViewModel", "Auto backup upload result: $result for estimate: ${estimate.id}")
                     }
                 }
             } catch (e: Exception) {

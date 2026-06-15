@@ -344,6 +344,12 @@ class EstimateViewModel @Inject constructor(
             return
         }
 
+        // Drive 권한이 없으면 조용히 스킵 (토스트 없음)
+        if (!GoogleDriveHelper.hasDrivePermission(context)) {
+            android.util.Log.w("EstimateViewModel", "Google Drive upload skipped: Drive permission not granted. User needs to re-login.")
+            return
+        }
+
         val appContext = context.applicationContext
         uploadScope.launch {
             try {
@@ -354,19 +360,36 @@ class EstimateViewModel @Inject constructor(
                 }
                 val fileName = jpgFile.name
                 val account = GoogleDriveHelper.getSignedInAccount(appContext)
-                if (account != null) {
-                    val dateVal = estimateDate.value
-                    android.util.Log.d("EstimateViewModel", "Google Drive background upload starting: $fileName with date $dateVal")
-                    val fileId = GoogleDriveHelper.uploadEstimateJpg(appContext, account, jpgFile, fileName, dateVal)
-                    withContext(Dispatchers.Main) {
-                        if (fileId != null) {
+                if (account == null) {
+                    android.util.Log.w("EstimateViewModel", "Google Drive upload skipped: No signed-in account")
+                    return@launch
+                }
+
+                val dateVal = estimateDate.value
+                android.util.Log.d("EstimateViewModel", "Google Drive upload starting: $fileName, date=$dateVal")
+
+                val result = GoogleDriveHelper.uploadEstimateJpgWithResult(appContext, account, jpgFile, fileName, dateVal)
+
+                withContext(Dispatchers.Main) {
+                    when (result) {
+                        is GoogleDriveHelper.UploadResult.Success -> {
+                            android.util.Log.d("EstimateViewModel", "Drive upload success: ${result.fileId}")
                             android.widget.Toast.makeText(appContext, "구글 드라이브 업로드 완료", android.widget.Toast.LENGTH_SHORT).show()
-                        } else {
-                            android.widget.Toast.makeText(appContext, "구글 드라이브 업로드 실패", android.widget.Toast.LENGTH_SHORT).show()
+                        }
+                        is GoogleDriveHelper.UploadResult.NoPermission -> {
+                            // Drive scope 권한 없음 → 조용히 처리 (설정에서 재로그인 필요하지만 방해하지 않음)
+                            android.util.Log.w("EstimateViewModel", "Drive upload skipped: No Drive permission")
+                        }
+                        is GoogleDriveHelper.UploadResult.UserRecoverable -> {
+                            // 토큰 만료 등으로 재로그인 필요 → 설정 화면에서 다시 로그인하도록 안내
+                            android.util.Log.w("EstimateViewModel", "Drive upload failed: User recoverable auth error")
+                            android.widget.Toast.makeText(appContext, "구글 드라이브 로그인이 만료되었습니다.\n견적 목록 설정에서 다시 연결해 주세요.", android.widget.Toast.LENGTH_LONG).show()
+                        }
+                        is GoogleDriveHelper.UploadResult.Failure -> {
+                            android.util.Log.e("EstimateViewModel", "Drive upload failed: ${result.error}")
+                            // 네트워크 오류 등은 조용히 처리 (업무 흐름을 방해하지 않음)
                         }
                     }
-                } else {
-                    android.util.Log.w("EstimateViewModel", "Google Drive background upload skipped: Not signed in")
                 }
             } catch (e: Throwable) {
                 android.util.Log.e("EstimateViewModel", "Background Google Drive upload failed", e)
