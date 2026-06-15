@@ -70,4 +70,16 @@ class MemberViewModel @Inject constructor(
             }
         }
     }
+
+    fun transferHost(newHostUUID: String) {
+        if (currentRoomCode.isNotEmpty() && newHostUUID.isNotEmpty()) {
+            viewModelScope.launch {
+                try {
+                    memberRepository.transferHost(currentRoomCode, newHostUUID)
+                } catch (e: Exception) {
+                    android.util.Log.e("MemberViewModel", "Failed to transfer host privilege", e)
+                }
+            }
+        }
+    }
 }

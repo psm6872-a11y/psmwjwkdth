@@ -240,6 +240,7 @@ fun CalendarMainScreen(
                     currentDeviceUUID = memberViewModel.deviceUUID,
                     isCreator = isCreator,
                     onRemoveMember = { memberViewModel.removeMember(it) },
+                    onTransferHost = { memberViewModel.transferHost(it) },
                     onLogoutClick = { viewModel.logout() },
                     onToggleCategory = { viewModel.toggleCategoryVisibility(it) },
                     onImportClick = {

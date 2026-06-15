@@ -40,6 +40,7 @@ import androidx.compose.material.icons.filled.SystemUpdate
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.CloudUpload
 import androidx.compose.material.icons.filled.List
+import androidx.compose.material.icons.filled.Star
 
 private fun getAvatarColor(nickname: String): Color {
     val colors = listOf(
@@ -78,6 +79,7 @@ fun DrawerContent(
     onBackupClick: () -> Unit,
     isCreator: Boolean,
     onRemoveMember: (String) -> Unit,
+    onTransferHost: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -91,6 +93,7 @@ fun DrawerContent(
     }
     
     var memberToRemove: Member? by remember { mutableStateOf(null) }
+    var memberToTransferHost: Member? by remember { mutableStateOf(null) }
     
     if (memberToRemove != null) {
         AlertDialog(
@@ -109,6 +112,29 @@ fun DrawerContent(
             },
             dismissButton = {
                 TextButton(onClick = { memberToRemove = null }) {
+                    Text("취소")
+                }
+            }
+        )
+    }
+
+    if (memberToTransferHost != null) {
+        AlertDialog(
+            onDismissRequest = { memberToTransferHost = null },
+            title = { Text("방장 권한 위임") },
+            text = { Text("${memberToTransferHost?.nickname}님에게 방장 권한을 위임하시겠습니까?\n위임 후에는 일반 멤버가 되며, 이 작업은 되돌릴 수 없습니다.") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        memberToTransferHost?.let { onTransferHost(it.deviceUUID) }
+                        memberToTransferHost = null
+                    }
+                ) {
+                    Text("확인")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { memberToTransferHost = null }) {
                     Text("취소")
                 }
             }
@@ -426,16 +452,32 @@ fun DrawerContent(
                         }
                         
                         if (isCreator && !isMe) {
-                            IconButton(
-                                onClick = { memberToRemove = member },
-                                modifier = Modifier.size(24.dp)
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(4.dp)
                             ) {
-                                Icon(
-                                    imageVector = Icons.Default.Close,
-                                    contentDescription = "내보내기",
-                                    tint = MaterialTheme.colorScheme.error,
-                                    modifier = Modifier.size(16.dp)
-                                )
+                                IconButton(
+                                    onClick = { memberToTransferHost = member },
+                                    modifier = Modifier.size(24.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Star,
+                                        contentDescription = "방장 위임",
+                                        tint = Color(0xFFF2C94C),
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                }
+                                IconButton(
+                                    onClick = { memberToRemove = member },
+                                    modifier = Modifier.size(24.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Close,
+                                        contentDescription = "내보내기",
+                                        tint = MaterialTheme.colorScheme.error,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                }
                             }
                         }
                     }

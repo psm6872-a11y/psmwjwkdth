@@ -157,4 +157,13 @@ class MemberRepository @Inject constructor(
             .delete()
             .await()
     }
+
+    suspend fun transferHost(roomCode: String, newHostUUID: String) {
+        firestore.collection("rooms")
+            .document(roomCode)
+            .collection("info")
+            .document("details")
+            .update("createdBy", newHostUUID)
+            .await()
+    }
 }
