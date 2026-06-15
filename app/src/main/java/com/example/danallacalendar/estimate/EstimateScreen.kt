@@ -72,6 +72,12 @@ import androidx.compose.ui.unit.DpOffset
 import androidx.compose.foundation.Image
 import androidx.compose.ui.res.painterResource
 import com.example.danallacalendar.R
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import com.google.android.gms.auth.api.signin.GoogleSignIn
+import com.google.android.gms.common.api.ApiException
+import com.example.danallacalendar.data.local.UserPreferences
+import android.util.Log
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.text.buildAnnotatedString
@@ -130,6 +136,23 @@ fun EstimateScreen(
     var activeSpaceForCargoInput by remember { mutableStateOf<String?>(null) }
     var savedSmsBody by remember { mutableStateOf("") }
     var savedPdfPath by remember { mutableStateOf<String?>(null) }
+
+    val googleSignInLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        val task = GoogleSignIn.getSignedInAccountFromIntent(result.data)
+        try {
+            val account = task.getResult(ApiException::class.java)
+            savedPdfPath?.let { path ->
+                viewModel.uploadToGoogleDrive(context, path) {
+                    onNavigateBack()
+                }
+            } ?: onNavigateBack()
+        } catch (e: ApiException) {
+            Log.e("EstimateScreen", "Google Sign-In failed during save", e)
+            Toast.makeText(context, "구글 로그인 및 권한 획득에 실패했습니다. (코드: ${e.statusCode})", Toast.LENGTH_LONG).show()
+        }
+    }
     var showErrorDialog by remember { mutableStateOf(false) }
     var errorDetailMessage by remember { mutableStateOf("") }
     var completedSpaces by remember { mutableStateOf(setOf<String>()) }
@@ -631,8 +654,17 @@ fun EstimateScreen(
                                     onClick = {
                                         // 업로드 완료 후 화면 이탈 (업로드 없으면 즉시 이탈)
                                         savedPdfPath?.let { path ->
-                                            viewModel.uploadToGoogleDrive(context, path) {
-                                                onNavigateBack()
+                                            val userPrefs = UserPreferences(context)
+                                            val isDriveSyncOn = userPrefs.isGoogleDriveSaveEnabled() || userPrefs.isAutoDriveSyncEnabled()
+                                            val hasPerm = GoogleDriveHelper.hasDrivePermission(context)
+                                            val account = GoogleDriveHelper.getSignedInAccount(context)
+                                            
+                                            if (isDriveSyncOn && (account == null || !hasPerm)) {
+                                                googleSignInLauncher.launch(GoogleDriveHelper.getGoogleSignInClient(context).signInIntent)
+                                            } else {
+                                                viewModel.uploadToGoogleDrive(context, path) {
+                                                    onNavigateBack()
+                                                }
                                             }
                                         } ?: onNavigateBack()
                                     },
