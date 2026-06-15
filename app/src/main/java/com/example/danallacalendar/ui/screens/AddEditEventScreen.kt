@@ -191,11 +191,39 @@ fun AddEditEventScreen(
     val onSaveClick = {
         if (title.isNotBlank() && selectedCategory != null) {
             val now = System.currentTimeMillis()
+            
+            val finalStart: Long
+            val finalEnd: Long
+            if (isAllDay) {
+                val calStart = Calendar.getInstance().apply {
+                    timeInMillis = startMillis
+                    set(Calendar.HOUR_OF_DAY, 0)
+                    set(Calendar.MINUTE, 0)
+                    set(Calendar.SECOND, 0)
+                    set(Calendar.MILLISECOND, 0)
+                }
+                val calEnd = Calendar.getInstance().apply {
+                    timeInMillis = endMillis
+                    set(Calendar.HOUR_OF_DAY, 23)
+                    set(Calendar.MINUTE, 59)
+                    set(Calendar.SECOND, 59)
+                    set(Calendar.MILLISECOND, 999)
+                }
+                if (calEnd.timeInMillis < calStart.timeInMillis) {
+                    calEnd.timeInMillis = calStart.timeInMillis + 24 * 60 * 60 * 1000L - 1000L
+                }
+                finalStart = calStart.timeInMillis
+                finalEnd = calEnd.timeInMillis
+            } else {
+                finalStart = startMillis
+                finalEnd = endMillis
+            }
+
             val event = Event(
                 id = eventId ?: 0,
                 title = title,
-                startMillis = startMillis,
-                endMillis = endMillis,
+                startMillis = finalStart,
+                endMillis = finalEnd,
                 isAllDay = isAllDay,
                 location = listOf(location, location1b, location2, location2b)
                     .joinToString("|||"),
@@ -1229,11 +1257,9 @@ fun AddEditEventScreen(
                     set(Calendar.SECOND, 0)
                     set(Calendar.MILLISECOND, 0)
                 }
+                val duration = endMillis - startMillis
                 startMillis = newCal.timeInMillis
-                // Adjust end date if start date is after end date
-                if (startMillis >= endMillis) {
-                    endMillis = startMillis + 60 * 60 * 1000L
-                }
+                endMillis = startMillis + duration
                 showStartDatePicker = false
             }
         )
