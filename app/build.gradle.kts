@@ -15,8 +15,8 @@ android {
         applicationId = "com.example.danallacalendar"
         minSdk = 24
         targetSdk = 34
-        versionCode = 215
-        versionName = "1.5.28"
+        versionCode = 216
+        versionName = "1.5.29"
     }
 
     signingConfigs {

@@ -25,21 +25,13 @@ import kotlin.coroutines.resume
 object EstimatePrintHelper {
 
     fun printEstimate(context: Context, htmlContent: String, estimate: Estimate) {
-        Toast.makeText(context, "인쇄를 시작합니다...", Toast.LENGTH_SHORT).show()
-        val webView = WebView(context).apply {
-            settings.javaScriptEnabled = true
-        }
+        val webView = WebView(context)
         webView.webViewClient = object : WebViewClient() {
             override fun onPageFinished(view: WebView?, url: String?) {
-                try {
-                    val printManager = context.getSystemService(Context.PRINT_SERVICE) as? PrintManager ?: return
-                    val jobName = "이사 견적서 - ${estimate.customerName}"
-                    val printAdapter = webView.createPrintDocumentAdapter(jobName)
-                    printManager.print(jobName, printAdapter, PrintAttributes.Builder().build())
-                } catch (e: Exception) {
-                    android.util.Log.e("WebViewPdf", "Print native failed", e)
-                    Toast.makeText(context, "인쇄 중 오류가 발생했습니다: ${e.message}", Toast.LENGTH_SHORT).show()
-                }
+                val printManager = context.getSystemService(Context.PRINT_SERVICE) as? PrintManager ?: return
+                val jobName = "이사 견적서 - ${estimate.customerName}"
+                val printAdapter = webView.createPrintDocumentAdapter(jobName)
+                printManager.print(jobName, printAdapter, PrintAttributes.Builder().build())
             }
         }
         webView.loadDataWithBaseURL("file:///android_asset/", htmlContent, "text/html", "UTF-8", null)
@@ -65,16 +57,8 @@ object EstimatePrintHelper {
                 try {
                     android.util.Log.d("WebViewPdf", "[LOG] suspendCancellableCoroutine started on Main thread. Creating WebView...")
                     val handler = android.os.Handler(android.os.Looper.getMainLooper())
-                    val webView = WebView(context).apply {
-                        settings.useWideViewPort = true
-                        settings.loadWithOverviewMode = true
-                        settings.javaScriptEnabled = true
-                    }
+                    val webView = WebView(context)
                     webView.setLayerType(android.view.View.LAYER_TYPE_SOFTWARE, null)
-                    webView.measure(
-                        android.view.View.MeasureSpec.makeMeasureSpec(794, android.view.View.MeasureSpec.EXACTLY),
-                        android.view.View.MeasureSpec.makeMeasureSpec(1123, android.view.View.MeasureSpec.EXACTLY)
-                    )
                     webView.layout(0, 0, 794, 1123)
                     
                     var hasResumed = false
@@ -146,9 +130,8 @@ object EstimatePrintHelper {
                             }, 500)
                         }
                     }
-                    val viewportHtml = htmlContent.replace("<head>", "<head><meta name='viewport' content='width=794'>")
-                    android.util.Log.d("WebViewPdf", "[LOG] WebView.loadDataWithBaseURL loading html content (size: ${viewportHtml.length})...")
-                    webView.loadDataWithBaseURL("file:///android_asset/", viewportHtml, "text/html", "UTF-8", null)
+                    android.util.Log.d("WebViewPdf", "[LOG] WebView.loadDataWithBaseURL loading html content (size: ${htmlContent.length})...")
+                    webView.loadDataWithBaseURL("file:///android_asset/", htmlContent, "text/html", "UTF-8", null)
                 } catch (t: Throwable) {
                     android.util.Log.e("WebViewPdf", "Failed to initialize WebView or setup render", t)
                     if (continuation.isActive) {
