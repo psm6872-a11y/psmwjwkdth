@@ -9,11 +9,13 @@ import com.example.danallacalendar.data.local.UserPreferences
 import com.google.android.gms.auth.api.signin.GoogleSignInAccount
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -133,28 +135,42 @@ class EstimateListViewModel @Inject constructor(
 
     init {
         viewModelScope.launch(kotlinx.coroutines.Dispatchers.Default) {
-            combine(
-                repository.getEstimatesFlow(),
-                estimatePdfDao.getAllPdfs(),
-                isAutoDriveSyncEnabled,
-                googleAccount
-            ) { remoteList, localList, autoSync, account ->
-                if (autoSync && account != null) {
-                    val localMap = localList.associateBy { it.estimateId.ifBlank { it.id.toString() } }
-                    remoteList.filter { remoteEst ->
-                        val localPdf = localMap[remoteEst.id]
-                        localPdf?.filePath.isNullOrBlank()
+            // 앱 시작 직후 Firestore flow가 즉시 방출되면 WebView 초기화 전에 충돌이 발생할 수 있음
+            // 3초 지연 후 자동 백업을 시작하여 안정성 확보
+            delay(3000L)
+            try {
+                combine(
+                    repository.getEstimatesFlow(),
+                    estimatePdfDao.getAllPdfs(),
+                    isAutoDriveSyncEnabled,
+                    googleAccount
+                ) { remoteList, localList, autoSync, account ->
+                    if (autoSync && account != null) {
+                        val localMap = localList.associateBy { it.estimateId.ifBlank { it.id.toString() } }
+                        remoteList.filter { remoteEst ->
+                            val localPdf = localMap[remoteEst.id]
+                            localPdf?.filePath.isNullOrBlank()
+                        }
+                    } else {
+                        emptyList()
                     }
-                } else {
-                    emptyList()
                 }
-            }.collect { targets ->
-                val pendingTargets = targets.filter {
-                    !processingIds.contains(it.id) && !failedIds.contains(it.id)
+                .distinctUntilChanged() // 동일한 목록이 재방출될 때 중복 처리 방지
+                .collect { targets ->
+                    val pendingTargets = targets.filter {
+                        !processingIds.contains(it.id) && !failedIds.contains(it.id)
+                    }
+                    if (pendingTargets.isNotEmpty()) {
+                        android.util.Log.d("EstimateListViewModel", "Auto backup: ${pendingTargets.size} items pending")
+                    }
+                    for (target in pendingTargets) {
+                        // 각 항목 사이에 짧은 지연을 두어 메인 스레드 과부하 방지
+                        delay(500L)
+                        autoBackupToGoogleDriveSequentially(target)
+                    }
                 }
-                for (target in pendingTargets) {
-                    autoBackupToGoogleDriveSequentially(target)
-                }
+            } catch (e: Exception) {
+                android.util.Log.e("EstimateListViewModel", "Auto backup flow error", e)
             }
         }
     }

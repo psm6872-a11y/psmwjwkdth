@@ -116,6 +116,7 @@ object EstimatePrintHelper {
                         settings.useWideViewPort = true
                         settings.loadWithOverviewMode = false
                         settings.javaScriptEnabled = true
+                        settings.domStorageEnabled = true
                     }
                     webView.setLayerType(android.view.View.LAYER_TYPE_SOFTWARE, null)
 
@@ -181,7 +182,7 @@ object EstimatePrintHelper {
 
                     webView.addJavascriptInterface(bridge, "AndroidBridge")
 
-                    // 안전 타임아웃: 8초 후 현재 contentHeight로 강제 렌더링
+                    // 안전 타임아웃: 10초 후 현재 contentHeight로 강제 렌더링
                     val timeoutRunnable = Runnable {
                         if (!hasResumed) {
                             val fallbackHeight = webView.contentHeight
@@ -189,7 +190,7 @@ object EstimatePrintHelper {
                             doRenderWithHeight(if (fallbackHeight > 100) fallbackHeight else 1123)
                         }
                     }
-                    handler.postDelayed(timeoutRunnable, 8000)
+                    handler.postDelayed(timeoutRunnable, 10000)
 
                     webView.webViewClient = object : WebViewClient() {
                         override fun onPageFinished(view: WebView?, url: String?) {
@@ -197,7 +198,11 @@ object EstimatePrintHelper {
                             // 렌더링이 완전히 끝날 때까지 약간 대기 후 JS로 높이 측정
                             handler.postDelayed({
                                 webView.evaluateJavascript(
-                                    "document.documentElement.scrollHeight"
+                                    "(function() { " +
+                                    "  document.body.style.overflow = 'visible'; " +
+                                    "  var h = Math.max(document.documentElement.scrollHeight, document.body.scrollHeight); " +
+                                    "  return h; " +
+                                    "})()"
                                 ) { value ->
                                     val height = value?.toIntOrNull() ?: webView.contentHeight
                                     android.util.Log.d("WebViewPdf", "[LOG] JS scrollHeight=$height, contentHeight=${webView.contentHeight}")
@@ -205,12 +210,12 @@ object EstimatePrintHelper {
                                     val finalH = if (height > 100) height else maxOf(webView.contentHeight, 1123)
                                     doRenderWithHeight(finalH)
                                 }
-                            }, 800)
+                            }, 1500) // 렌더링 안정화를 위해 1.5초 대기
                         }
                     }
 
                     // 초기 레이아웃: 충분히 높은 임시 높이로 설정
-                    webView.layout(0, 0, pageWidth, 10000)
+                    webView.layout(0, 0, pageWidth, 20000)
                     android.util.Log.d("WebViewPdf", "[LOG] Loading HTML (size=${htmlContent.length})...")
                     webView.loadDataWithBaseURL("file:///android_asset/", htmlContent, "text/html", "UTF-8", null)
 
