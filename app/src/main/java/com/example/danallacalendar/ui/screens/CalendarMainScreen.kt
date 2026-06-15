@@ -332,7 +332,7 @@ fun CalendarMainScreen(
                 // Bottom Panel: Selected Date Header and Event List
                 EventListSection(
                     selectedDate = selectedDate,
-                    events = selectedDateEvents,
+                    events = monthlyEvents,
                     categories = categories,
                     onEventClick = { onNavigateToAddEditEvent(it.id) },
                     onDeleteEvent = { viewModel.deleteEvent(it) },
@@ -1032,6 +1032,29 @@ fun CalendarDayCell(
     }
 }
 
+private fun getDaysFromBase(millis: Long): Int {
+    val baseCal = Calendar.getInstance().apply {
+        set(2000, 0, 1, 0, 0, 0)
+        set(Calendar.MILLISECOND, 0)
+    }
+    val targetCal = Calendar.getInstance().apply {
+        timeInMillis = millis
+        clearTimeToZero()
+    }
+    val diffMillis = targetCal.timeInMillis - baseCal.timeInMillis
+    return (diffMillis / (24 * 60 * 60 * 1000L)).toInt()
+}
+
+private fun getCalendarFromDays(days: Int): Calendar {
+    val baseCal = Calendar.getInstance().apply {
+        set(2000, 0, 1, 0, 0, 0)
+        set(Calendar.MILLISECOND, 0)
+    }
+    baseCal.add(Calendar.DAY_OF_YEAR, days)
+    return baseCal
+}
+
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun EventListSection(
     selectedDate: Long,
@@ -1076,38 +1099,35 @@ fun EventListSection(
         }
     }
 
-    val density = androidx.compose.ui.platform.LocalDensity.current
-    val swipeThresholdPx = with(density) { 50.dp.toPx() }
-    var totalDragX by remember(selectedDate) { mutableStateOf(0f) }
+    val pagerState = rememberPagerState(
+        initialPage = getDaysFromBase(selectedDate)
+    ) { 100000 }
+
+    // Sync selectedDate (from outside) -> pagerState (inside)
+    LaunchedEffect(selectedDate) {
+        val targetPage = getDaysFromBase(selectedDate)
+        if (pagerState.currentPage != targetPage) {
+            val diff = kotlin.math.abs(pagerState.currentPage - targetPage)
+            if (diff <= 2) {
+                pagerState.animateScrollToPage(targetPage)
+            } else {
+                pagerState.scrollToPage(targetPage)
+            }
+        }
+    }
+
+    // Sync pagerState (inside) -> selectedDate (outside)
+    LaunchedEffect(pagerState.settledPage) {
+        val targetCal = getCalendarFromDays(pagerState.settledPage)
+        if (getDaysFromBase(selectedDate) != pagerState.settledPage) {
+            onDateSelected(targetCal.timeInMillis)
+        }
+    }
 
     Column(
         modifier = modifier
             .fillMaxWidth()
             .background(MaterialTheme.colorScheme.surface)
-            .pointerInput(selectedDate) {
-                detectHorizontalDragGestures(
-                    onDragStart = { totalDragX = 0f },
-                    onDragEnd = {
-                        if (totalDragX > swipeThresholdPx) {
-                            val prevDay = Calendar.getInstance().apply {
-                                timeInMillis = selectedDate
-                                add(Calendar.DAY_OF_YEAR, -1)
-                            }.timeInMillis
-                            onDateSelected(prevDay)
-                        } else if (totalDragX < -swipeThresholdPx) {
-                            val nextDay = Calendar.getInstance().apply {
-                                timeInMillis = selectedDate
-                                add(Calendar.DAY_OF_YEAR, 1)
-                            }.timeInMillis
-                            onDateSelected(nextDay)
-                        }
-                    },
-                    onHorizontalDrag = { change, dragAmount ->
-                        change.consume()
-                        totalDragX += dragAmount
-                    }
-                )
-            }
             .nestedScroll(nestedScrollConnection)
     ) {
         // Date Header Row with Deadline button
@@ -1181,62 +1201,81 @@ fun EventListSection(
             }
         }
 
-        if (events.isEmpty()) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f)
-                    .pointerInput(viewMode) {
-                        detectVerticalDragGestures { change, dragAmount ->
-                            if (dragAmount > 0.5f && viewMode == CalendarViewMode.WEEK) {
-                                change.consume()
-                                onSwipeDownAtTop()
-                            } else if (dragAmount < -0.5f && viewMode == CalendarViewMode.MONTH) {
-                                change.consume()
-                                onSwipeUp()
-                            }
-                        }
-                    },
-                contentAlignment = Alignment.Center
-            ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Icon(
-                        imageVector = Icons.Default.EventNote,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
-                        modifier = Modifier.size(minOf(screenWidth, 400.dp) * 0.16f)
-                    )
-                    Spacer(modifier = Modifier.height(screenHeight * 0.015f))
-                    Text(
-                        text = "일정이 없습니다",
-                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
-                        fontSize = (minOf(screenWidth, 400.dp).value * 0.042f).sp
-                    )
+        HorizontalPager(
+            state = pagerState,
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(1f)
+        ) { page ->
+            val pageCal = getCalendarFromDays(page)
+            val pageDateMillis = pageCal.timeInMillis
+
+            val dayEvents = remember(events, pageDateMillis) {
+                val pageStart = pageDateMillis
+                val pageEnd = pageDateMillis + 24 * 60 * 60 * 1000L - 1
+                events.filter { event ->
+                    event.startMillis <= pageEnd && event.endMillis >= pageStart
                 }
             }
-        } else {
-            LazyColumn(
-                state = lazyListState,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f),
-                contentPadding = PaddingValues(
-                    start = minOf(screenWidth, 400.dp) * 0.04f,
-                    end = minOf(screenWidth, 400.dp) * 0.04f,
-                    top = screenHeight * 0.01f,
-                    bottom = screenHeight * 0.3f
-                ),
-                verticalArrangement = Arrangement.spacedBy(screenHeight * 0.012f)
+
+            Box(
+                modifier = Modifier.fillMaxSize()
             ) {
-                items(events) { event ->
-                    val category = categories.find { it.id == event.calendarId }
-                    EventItemCard(
-                        event = event,
-                        category = category,
-                        onClick = { onEventClick(event) },
-                        onDelete = { onDeleteEvent(event) },
-                        onToggleComplete = { onToggleComplete(event) }
-                    )
+                if (dayEvents.isEmpty()) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .pointerInput(viewMode) {
+                                detectVerticalDragGestures { change, dragAmount ->
+                                    if (dragAmount > 0.5f && viewMode == CalendarViewMode.WEEK) {
+                                        change.consume()
+                                        onSwipeDownAtTop()
+                                    } else if (dragAmount < -0.5f && viewMode == CalendarViewMode.MONTH) {
+                                        change.consume()
+                                        onSwipeUp()
+                                    }
+                                }
+                            },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Icon(
+                                imageVector = Icons.Default.EventNote,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                                modifier = Modifier.size(minOf(screenWidth, 400.dp) * 0.16f)
+                            )
+                            Spacer(modifier = Modifier.height(screenHeight * 0.015f))
+                            Text(
+                                text = "일정이 없습니다",
+                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                                fontSize = (minOf(screenWidth, 400.dp).value * 0.042f).sp
+                            )
+                        }
+                    }
+                } else {
+                    LazyColumn(
+                        state = if (page == getDaysFromBase(selectedDate)) lazyListState else rememberLazyListState(),
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(
+                            start = minOf(screenWidth, 400.dp) * 0.04f,
+                            end = minOf(screenWidth, 400.dp) * 0.04f,
+                            top = screenHeight * 0.01f,
+                            bottom = screenHeight * 0.3f
+                        ),
+                        verticalArrangement = Arrangement.spacedBy(screenHeight * 0.012f)
+                    ) {
+                        items(dayEvents) { event ->
+                            val category = categories.find { it.id == event.calendarId }
+                            EventItemCard(
+                                event = event,
+                                category = category,
+                                onClick = { onEventClick(event) },
+                                onDelete = { onDeleteEvent(event) },
+                                onToggleComplete = { onToggleComplete(event) }
+                            )
+                        }
+                    }
                 }
             }
         }
