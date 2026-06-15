@@ -225,12 +225,16 @@ object EstimatePrintHelper {
                                 webView.evaluateJavascript(
                                     "(function() { " +
                                     "  document.body.style.overflow = 'visible'; " +
-                                    "  var h = Math.max(document.documentElement.scrollHeight, document.body.scrollHeight); " +
+                                    "  var page = document.querySelector('.page'); " +
+                                    "  var h = page ? page.offsetHeight : document.body.offsetHeight; " +
+                                    "  if (!h || h < 100) { " +
+                                    "    h = Math.max(document.documentElement.scrollHeight, document.body.scrollHeight); " +
+                                    "  } " +
                                     "  return h; " +
                                     "})()"
                                 ) { value ->
                                     val height = value?.toIntOrNull() ?: webView.contentHeight
-                                    android.util.Log.d("WebViewPdf", "[LOG] JS scrollHeight=$height, contentHeight=${webView.contentHeight}")
+                                    android.util.Log.d("WebViewPdf", "[LOG] JS calculatedHeight=$height, contentHeight=${webView.contentHeight}")
                                     handler.removeCallbacks(timeoutRunnable)
                                     val finalH = if (height > 100) height else maxOf(webView.contentHeight, 1123)
                                     doRenderWithHeight(finalH)
