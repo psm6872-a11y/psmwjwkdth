@@ -94,10 +94,18 @@ object GoogleDriveHelper {
     }
 
     private fun clearCachedParentFolderId(context: Context) {
-        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit()
-            .remove(KEY_PARENT_FOLDER_ID)
-            .remove(KEY_PARENT_FOLDER_EMAIL)
-            .apply()
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        val editor = prefs.edit()
+        editor.remove(KEY_PARENT_FOLDER_ID)
+        editor.remove(KEY_PARENT_FOLDER_EMAIL)
+        
+        val allKeys = prefs.all
+        for (key in allKeys.keys) {
+            if (key.startsWith("sub_")) {
+                editor.remove(key)
+            }
+        }
+        editor.apply()
     }
 
     /**
