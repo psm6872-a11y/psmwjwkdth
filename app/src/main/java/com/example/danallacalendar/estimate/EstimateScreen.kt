@@ -3298,16 +3298,21 @@ fun Step4PreviewAndActions(
         NumberFormat.getNumberInstance(Locale.KOREA).format(amt)
     }
 
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val userPreferences = remember { com.example.danallacalendar.data.local.UserPreferences(context) }
     val configuration = androidx.compose.ui.platform.LocalConfiguration.current
     val screenHeightDp = configuration.screenHeightDp
     val buttonHeight = (screenHeightDp * 0.07f).coerceIn(48f, 60f).dp
 
-    var smsText by remember { mutableStateOf("위와 같이 견적 합니다. 검토해 보시고 연락주세요. 감사합니다.") }
+    var smsText by remember { mutableStateOf(userPreferences.getSmsBodyTemplate()) }
     var showSmsDialog by remember { mutableStateOf(false) }
 
     if (showSmsDialog) {
         AlertDialog(
-            onDismissRequest = { showSmsDialog = false },
+            onDismissRequest = { 
+                smsText = userPreferences.getSmsBodyTemplate()
+                showSmsDialog = false 
+            },
             title = { Text("문자 메시지 본문 수정", color = MaterialTheme.colorScheme.onSurface) },
             text = {
                 OutlinedTextField(
@@ -3329,14 +3334,20 @@ fun Step4PreviewAndActions(
             },
             confirmButton = {
                 TextButton(
-                    onClick = { showSmsDialog = false }
+                    onClick = { 
+                        userPreferences.setSmsBodyTemplate(smsText)
+                        showSmsDialog = false 
+                    }
                 ) {
                     Text("확인", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
                 }
             },
             dismissButton = {
                 TextButton(
-                    onClick = { showSmsDialog = false }
+                    onClick = { 
+                        smsText = userPreferences.getSmsBodyTemplate()
+                        showSmsDialog = false 
+                    }
                 ) {
                     Text("취소", color = Color.Gray)
                 }

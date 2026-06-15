@@ -14,6 +14,7 @@ class UserPreferences(context: Context) {
         private const val KEY_IS_SHARE_ENABLED = "is_share_enabled"
         private const val KEY_IS_GOOGLE_DRIVE_SAVE_ENABLED = "is_google_drive_save_enabled"
         private const val KEY_IS_AUTO_DRIVE_SYNC_ENABLED = "is_auto_drive_sync_enabled"
+        private const val KEY_SMS_BODY_TEMPLATE = "sms_body_template"
     }
 
     init {
@@ -74,6 +75,14 @@ class UserPreferences(context: Context) {
 
     fun setAutoDriveSyncEnabled(enabled: Boolean) {
         prefs.edit().putBoolean(KEY_IS_AUTO_DRIVE_SYNC_ENABLED, enabled).apply()
+    }
+
+    fun getSmsBodyTemplate(): String {
+        return prefs.getString(KEY_SMS_BODY_TEMPLATE, "위와 같이 견적 합니다. 검토해 보시고 연락주세요. 감사합니다.") ?: "위와 같이 견적 합니다. 검토해 보시고 연락주세요. 감사합니다."
+    }
+
+    fun setSmsBodyTemplate(template: String) {
+        prefs.edit().putString(KEY_SMS_BODY_TEMPLATE, template).apply()
     }
 
     fun clearAll() {
