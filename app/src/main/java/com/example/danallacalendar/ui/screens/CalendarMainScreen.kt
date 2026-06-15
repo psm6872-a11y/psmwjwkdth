@@ -1220,8 +1220,10 @@ fun EventListSection(
                     .fillMaxWidth()
                     .weight(1f),
                 contentPadding = PaddingValues(
-                    horizontal = minOf(screenWidth, 400.dp) * 0.04f,
-                    vertical = screenHeight * 0.01f
+                    start = minOf(screenWidth, 400.dp) * 0.04f,
+                    end = minOf(screenWidth, 400.dp) * 0.04f,
+                    top = screenHeight * 0.01f,
+                    bottom = screenHeight * 0.15f
                 ),
                 verticalArrangement = Arrangement.spacedBy(screenHeight * 0.012f)
             ) {
