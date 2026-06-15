@@ -12,10 +12,10 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.PictureAsPdf
+import androidx.compose.material.icons.filled.Print
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Share
-import androidx.compose.material.icons.filled.CloudUpload
+import androidx.compose.material.icons.filled.AddToDrive
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
@@ -709,7 +709,7 @@ fun LocalEstimateViewerDialog(
                                 }
                             }) {
                                 Icon(
-                                    imageVector = Icons.Default.CloudUpload,
+                                    imageVector = Icons.Default.AddToDrive,
                                     tint = Color.White,
                                     contentDescription = "구글 드라이브 백업"
                                 )
@@ -720,7 +720,7 @@ fun LocalEstimateViewerDialog(
                             EstimatePrintHelper.printEstimate(context, htmlContent, estimate)
                         }) {
                             Icon(
-                                imageVector = Icons.Default.PictureAsPdf,
+                                imageVector = Icons.Default.Print,
                                 tint = Color.White,
                                 contentDescription = "인쇄/PDF저장"
                             )
