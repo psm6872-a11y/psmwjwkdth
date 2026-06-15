@@ -160,10 +160,13 @@ object GoogleDriveHelper {
     private fun getOrCreateSubFolder(context: Context, driveService: Drive, parentId: String, subFolderName: String, accountEmail: String?): String {
         val subKey = "sub_${subFolderName.replace(" ", "_")}_${accountEmail}"
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-        val cachedSubId = prefs.getString(subKey, null)
-        if (!cachedSubId.isNullOrBlank()) {
-            Log.d(TAG, "Using cached sub folder ID for $subFolderName: $cachedSubId")
-            return cachedSubId
+        
+        if (!accountEmail.isNullOrBlank()) {
+            val cachedSubId = prefs.getString(subKey, null)
+            if (!cachedSubId.isNullOrBlank()) {
+                Log.d(TAG, "Using cached sub folder ID for $subFolderName: $cachedSubId")
+                return cachedSubId
+            }
         }
 
         try {
@@ -177,7 +180,9 @@ object GoogleDriveHelper {
             val files = resultList.files
             if (!files.isNullOrEmpty()) {
                 val subId = files[0].id
-                prefs.edit().putString(subKey, subId).apply()
+                if (!accountEmail.isNullOrBlank()) {
+                    prefs.edit().putString(subKey, subId).apply()
+                }
                 return subId
             }
         } catch (e: Exception) {
@@ -193,7 +198,9 @@ object GoogleDriveHelper {
             .setFields("id")
             .execute()
         val newSubId = folder.id
-        prefs.edit().putString(subKey, newSubId).apply()
+        if (!accountEmail.isNullOrBlank()) {
+            prefs.edit().putString(subKey, newSubId).apply()
+        }
         Log.d(TAG, "Created new sub folder $subFolderName: $newSubId")
         return newSubId
     }
