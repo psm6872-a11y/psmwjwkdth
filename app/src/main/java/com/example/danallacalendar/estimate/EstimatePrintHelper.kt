@@ -124,15 +124,16 @@ object EstimatePrintHelper {
         return withContext(Dispatchers.Main) {
             suspendCancellableCoroutine<String?> { continuation ->
                 try {
-                    android.util.Log.d("WebViewPdf", "[LOG] Creating fixed-dpi WebView on Main thread...")
+                    android.util.Log.d("WebViewPdf", "[LOG] Creating WebView on Main thread...")
                     val handler = android.os.Handler(android.os.Looper.getMainLooper())
                     var hasResumed = false
 
-                    // 160dpi 고정 컨텍스트: 모든 기기에서 동일하게 794 CSS px = 794 물리 px
-                    val fixedContext = createFixedDpiContext(context)
-                    val pageWidth = 794 // A4 at 96dpi (160dpi 컨텍스트 기준)
+                    // 기기 원래의 density 적용: WebView 내부의 CSS px 너비를 항상 794px로 맞추기 위함
+                    val density = context.resources.displayMetrics.density
+                    val pageWidth = 794
+                    val layoutWidth = (pageWidth * density).toInt()
 
-                    val webView = WebView(fixedContext).apply {
+                    val webView = WebView(context).apply {
                         settings.useWideViewPort = true
                         settings.loadWithOverviewMode = false // 자동 축소 방지
                         settings.javaScriptEnabled = true
@@ -146,10 +147,11 @@ object EstimatePrintHelper {
                         if (hasResumed) return
                         hasResumed = true
                         try {
-                            android.util.Log.d("WebViewPdf", "[LOG] doRender: contentHeight=$contentHeight")
+                            android.util.Log.d("WebViewPdf", "[LOG] doRender: contentHeight=$contentHeight, density=$density")
 
                             val finalHeight = maxOf(contentHeight, 1123)
-                            webView.layout(0, 0, pageWidth, finalHeight)
+                            val layoutHeight = (finalHeight * density).toInt()
+                            webView.layout(0, 0, layoutWidth, layoutHeight)
 
                             val tempDir = File(context.cacheDir, "danalla_temp")
                             if (!tempDir.exists()) tempDir.mkdirs()
@@ -164,7 +166,6 @@ object EstimatePrintHelper {
                             val jpgFile = File(tempDir, fileName)
 
                             // 고해상도 비트맵 생성 (scale=2.5)
-                            // 160dpi 고정이므로 모든 기기에서 동일한 크기의 이미지가 생성됨
                             val scale = 2.5f
                             val bmpWidth = (pageWidth * scale).toInt()
                             val bmpHeight = (finalHeight * scale).toInt()
@@ -173,7 +174,10 @@ object EstimatePrintHelper {
                             val bitmap = Bitmap.createBitmap(bmpWidth, bmpHeight, Bitmap.Config.ARGB_8888)
                             val canvas = Canvas(bitmap)
                             canvas.drawColor(android.graphics.Color.WHITE)
-                            canvas.scale(scale, scale)
+                            
+                            // WebView 물리 크기(density 곱해짐)를 타겟 해상도(scale)로 맵핑하기 위한 스케일 비율 계산
+                            val canvasScale = scale / density
+                            canvas.scale(canvasScale, canvasScale)
                             webView.draw(canvas)
 
                             java.io.FileOutputStream(jpgFile).use { out ->
@@ -193,7 +197,7 @@ object EstimatePrintHelper {
                         }
                     }
 
-                    // JS 인터페이스로 높이 측정
+                    // JavaScript 인터페이스로 높이 측정
                     val bridge = HeightBridge { height ->
                         handler.post {
                             android.util.Log.d("WebViewPdf", "[LOG] JS reported height: $height")
@@ -235,8 +239,8 @@ object EstimatePrintHelper {
                         }
                     }
 
-                    // 초기 레이아웃: 충분히 높은 임시 높이로 설정
-                    webView.layout(0, 0, pageWidth, 20000)
+                    // 초기 레이아웃: 충분히 높은 임시 높이로 설정 (density 곱한 물리 픽셀 크기 적용)
+                    webView.layout(0, 0, layoutWidth, (20000 * density).toInt())
                     android.util.Log.d("WebViewPdf", "[LOG] Loading HTML (size=${htmlContent.length})...")
                     webView.loadDataWithBaseURL("file:///android_asset/", htmlContent, "text/html", "UTF-8", null)
 
