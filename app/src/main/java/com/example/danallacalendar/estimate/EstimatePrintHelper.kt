@@ -24,58 +24,32 @@ import kotlin.coroutines.resume
 
 object EstimatePrintHelper {
 
-    private val activeWebViews = mutableSetOf<WebView>()
-
     fun printEstimate(context: Context, htmlContent: String, estimate: Estimate) {
-        val webView = WebView(context).apply {
-            settings.useWideViewPort = true
-            settings.loadWithOverviewMode = true
-            settings.javaScriptEnabled = true
-        }
-        webView.setLayerType(android.view.View.LAYER_TYPE_SOFTWARE, null)
-        webView.layout(0, 0, 794, 1123)
-
-        activeWebViews.add(webView)
-
-        webView.webViewClient = object : WebViewClient() {
-            override fun onPageFinished(view: WebView?, url: String?) {
-                android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
-                    val printManager = context.getSystemService(Context.PRINT_SERVICE) as? PrintManager
-                    if (printManager != null) {
-                        val jobName = "이사 견적서 - ${estimate.customerName}"
-                        val printAdapter = webView.createPrintDocumentAdapter(jobName)
-                        val wrappedAdapter = object : android.print.PrintDocumentAdapter() {
-                            override fun onStart() {
-                                printAdapter.onStart()
-                            }
-                            override fun onLayout(
-                                oldAttributes: android.print.PrintAttributes?,
-                                newAttributes: android.print.PrintAttributes?,
-                                cancellationSignal: android.os.CancellationSignal?,
-                                callback: android.print.PrintDocumentAdapter.LayoutResultCallback?,
-                                extras: android.os.Bundle?
-                            ) {
-                                printAdapter.onLayout(oldAttributes, newAttributes, cancellationSignal, callback, extras)
-                            }
-                            override fun onWrite(
-                                pages: Array<out android.print.PageRange>?,
-                                destination: android.os.ParcelFileDescriptor?,
-                                cancellationSignal: android.os.CancellationSignal?,
-                                callback: android.print.PrintDocumentAdapter.WriteResultCallback?
-                            ) {
-                                printAdapter.onWrite(pages, destination, cancellationSignal, callback)
-                            }
-                            override fun onFinish() {
-                                printAdapter.onFinish()
-                                activeWebViews.remove(webView)
-                            }
-                        }
-                        printManager.print(jobName, wrappedAdapter, PrintAttributes.Builder().build())
+        Toast.makeText(context, "인쇄를 시작합니다...", Toast.LENGTH_SHORT).show()
+        val scope = CoroutineScope(Dispatchers.Main)
+        scope.launch {
+            val jpgPath = renderHtmlToJpg(context, htmlContent, estimate)
+            if (jpgPath != null) {
+                try {
+                    val printHelper = androidx.print.PrintHelper(context).apply {
+                        scaleMode = androidx.print.PrintHelper.SCALE_MODE_FIT
+                        orientation = androidx.print.PrintHelper.ORIENTATION_PORTRAIT
                     }
-                }, 500)
+                    val bitmap = android.graphics.BitmapFactory.decodeFile(jpgPath)
+                    if (bitmap != null) {
+                        val jobName = "이사 견적서 - ${estimate.customerName}"
+                        printHelper.printBitmap(jobName, bitmap)
+                    } else {
+                        Toast.makeText(context, "인쇄 이미지 디코딩에 실패했습니다.", Toast.LENGTH_SHORT).show()
+                    }
+                } catch (e: Throwable) {
+                    android.util.Log.e("WebViewPdf", "PrintHelper failed", e)
+                    Toast.makeText(context, "인쇄 중 오류가 발생했습니다: ${e.message}", Toast.LENGTH_SHORT).show()
+                }
+            } else {
+                Toast.makeText(context, "인쇄 이미지 생성에 실패했습니다.", Toast.LENGTH_SHORT).show()
             }
         }
-        webView.loadDataWithBaseURL("file:///android_asset/", htmlContent, "text/html", "UTF-8", null)
     }
 
     fun shareEstimateAsJpg(context: Context, htmlContent: String, estimate: Estimate) {
