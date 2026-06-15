@@ -37,6 +37,10 @@ class UserPreferences(context: Context) {
         return prefs.getString(KEY_DEVICE_UUID, "") ?: ""
     }
 
+    fun setDeviceUUID(uuid: String) {
+        prefs.edit().putString(KEY_DEVICE_UUID, uuid).apply()
+    }
+
     fun getNickname(): String {
         return prefs.getString(KEY_NICKNAME, "") ?: ""
     }

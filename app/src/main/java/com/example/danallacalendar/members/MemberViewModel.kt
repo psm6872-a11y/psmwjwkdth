@@ -16,7 +16,8 @@ class MemberViewModel @Inject constructor(
     private val userPreferences: UserPreferences
 ) : ViewModel() {
 
-    val deviceUUID = userPreferences.getDeviceUUID()
+    val deviceUUID: String
+        get() = userPreferences.getDeviceUUID()
     
     private val _members = MutableStateFlow<List<Member>>(emptyList())
     val members: StateFlow<List<Member>> = _members.asStateFlow()

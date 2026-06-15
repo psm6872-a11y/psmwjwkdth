@@ -19,34 +19,76 @@ data class Member(
 
 @Singleton
 class MemberRepository @Inject constructor(
-    private val firestore: FirebaseFirestore
+    private val firestore: FirebaseFirestore,
+    private val userPreferences: com.example.danallacalendar.data.local.UserPreferences
 ) {
     fun registerOrUpdateMember(roomCode: String, deviceUUID: String, nickname: String) {
-        if (roomCode.isBlank() || deviceUUID.isBlank()) return
+        if (roomCode.isBlank() || deviceUUID.isBlank() || nickname.isBlank()) return
         
-        val docRef = firestore.collection("rooms")
+        firestore.collection("rooms")
             .document(roomCode)
             .collection("members")
-            .document(deviceUUID)
-            
-        docRef.get().addOnSuccessListener { document ->
-            val data = hashMapOf<String, Any>(
-                "nickname" to nickname,
-                "lastSeen" to Timestamp.now()
-            )
-            if (!document.exists() || document.get("joinedAt") == null) {
-                data["joinedAt"] = Timestamp.now()
+            .whereEqualTo("nickname", nickname)
+            .get()
+            .addOnSuccessListener { querySnapshot ->
+                var targetUUID = deviceUUID
+                if (querySnapshot != null && !querySnapshot.isEmpty) {
+                    val existingDoc = querySnapshot.documents[0]
+                    val existingUUID = existingDoc.id
+                    if (existingUUID != deviceUUID) {
+                        userPreferences.setDeviceUUID(existingUUID)
+                        targetUUID = existingUUID
+                        android.util.Log.d("MemberRepository", "Restored existing deviceUUID ($existingUUID) for nickname: $nickname")
+                    }
+                }
+                
+                val docRef = firestore.collection("rooms")
+                    .document(roomCode)
+                    .collection("members")
+                    .document(targetUUID)
+                    
+                docRef.get().addOnSuccessListener { document ->
+                    val data = hashMapOf<String, Any>(
+                        "nickname" to nickname,
+                        "lastSeen" to Timestamp.now()
+                    )
+                    if (!document.exists() || document.get("joinedAt") == null) {
+                        data["joinedAt"] = Timestamp.now()
+                    }
+                    docRef.set(data, com.google.firebase.firestore.SetOptions.merge())
+                }.addOnFailureListener {
+                    val data = hashMapOf<String, Any>(
+                        "nickname" to nickname,
+                        "joinedAt" to Timestamp.now(),
+                        "lastSeen" to Timestamp.now()
+                    )
+                    docRef.set(data, com.google.firebase.firestore.SetOptions.merge())
+                }
             }
-            docRef.set(data, com.google.firebase.firestore.SetOptions.merge())
-        }.addOnFailureListener {
-            // Fallback: set directly if fetch fails
-            val data = hashMapOf<String, Any>(
-                "nickname" to nickname,
-                "joinedAt" to Timestamp.now(),
-                "lastSeen" to Timestamp.now()
-            )
-            docRef.set(data, com.google.firebase.firestore.SetOptions.merge())
-        }
+            .addOnFailureListener {
+                val docRef = firestore.collection("rooms")
+                    .document(roomCode)
+                    .collection("members")
+                    .document(deviceUUID)
+                    
+                docRef.get().addOnSuccessListener { document ->
+                    val data = hashMapOf<String, Any>(
+                        "nickname" to nickname,
+                        "lastSeen" to Timestamp.now()
+                    )
+                    if (!document.exists() || document.get("joinedAt") == null) {
+                        data["joinedAt"] = Timestamp.now()
+                    }
+                    docRef.set(data, com.google.firebase.firestore.SetOptions.merge())
+                }.addOnFailureListener {
+                    val data = hashMapOf<String, Any>(
+                        "nickname" to nickname,
+                        "joinedAt" to Timestamp.now(),
+                        "lastSeen" to Timestamp.now()
+                    )
+                    docRef.set(data, com.google.firebase.firestore.SetOptions.merge())
+                }
+            }
     }
 
     fun getMembersFlow(roomCode: String): Flow<List<Member>> = callbackFlow {

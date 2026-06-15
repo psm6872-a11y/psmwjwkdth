@@ -124,23 +124,67 @@ class CalendarRepository @Inject constructor(
     }
 
     fun registerMemberInFirestore(roomCode: String) {
-        val deviceUUID = userPreferences.getDeviceUUID()
-        val nickname = userPreferences.getNickname()
-        if (roomCode.isEmpty() || deviceUUID.isEmpty()) return
+        val currentNickname = userPreferences.getNickname()
+        if (roomCode.isEmpty() || currentNickname.isEmpty()) return
 
-        com.google.firebase.messaging.FirebaseMessaging.getInstance().token
-            .addOnCompleteListener { task ->
-                val fcmToken = if (task.isSuccessful) task.result else ""
-                val memberData = hashMapOf(
-                    "nickname" to nickname,
-                    "fcmToken" to fcmToken,
-                    "updatedAt" to Timestamp.now()
-                )
-                firestore.collection("rooms")
-                    .document(roomCode)
-                    .collection("members")
-                    .document(deviceUUID)
-                    .set(memberData, com.google.firebase.firestore.SetOptions.merge())
+        firestore.collection("rooms")
+            .document(roomCode)
+            .collection("members")
+            .whereEqualTo("nickname", currentNickname)
+            .get()
+            .addOnSuccessListener { querySnapshot ->
+                var targetDeviceUUID = userPreferences.getDeviceUUID()
+                if (querySnapshot != null && !querySnapshot.isEmpty) {
+                    val existingDoc = querySnapshot.documents[0]
+                    val existingUUID = existingDoc.id
+                    if (existingUUID != targetDeviceUUID) {
+                        userPreferences.setDeviceUUID(existingUUID)
+                        targetDeviceUUID = existingUUID
+                        android.util.Log.d("CalendarRepository", "Restored existing deviceUUID ($existingUUID) for nickname: $currentNickname")
+                    }
+                }
+                
+                com.google.firebase.messaging.FirebaseMessaging.getInstance().token
+                    .addOnCompleteListener { task ->
+                        val fcmToken = if (task.isSuccessful) task.result else ""
+                        val memberData = hashMapOf(
+                            "nickname" to currentNickname,
+                            "fcmToken" to fcmToken,
+                            "updatedAt" to Timestamp.now()
+                        )
+                        val docRef = firestore.collection("rooms")
+                            .document(roomCode)
+                            .collection("members")
+                            .document(targetDeviceUUID)
+                            
+                        docRef.get().addOnSuccessListener { memberDoc ->
+                            if (!memberDoc.exists() || memberDoc.get("joinedAt") == null) {
+                                memberData["joinedAt"] = Timestamp.now()
+                            }
+                            docRef.set(memberData, com.google.firebase.firestore.SetOptions.merge())
+                        }.addOnFailureListener {
+                            memberData["joinedAt"] = Timestamp.now()
+                            docRef.set(memberData, com.google.firebase.firestore.SetOptions.merge())
+                        }
+                    }
+            }
+            .addOnFailureListener {
+                val targetDeviceUUID = userPreferences.getDeviceUUID()
+                com.google.firebase.messaging.FirebaseMessaging.getInstance().token
+                    .addOnCompleteListener { task ->
+                        val fcmToken = if (task.isSuccessful) task.result else ""
+                        val memberData = hashMapOf(
+                            "nickname" to currentNickname,
+                            "fcmToken" to fcmToken,
+                            "updatedAt" to Timestamp.now(),
+                            "joinedAt" to Timestamp.now()
+                        )
+                        firestore.collection("rooms")
+                            .document(roomCode)
+                            .collection("members")
+                            .document(targetDeviceUUID)
+                            .set(memberData, com.google.firebase.firestore.SetOptions.merge())
+                    }
             }
     }
 
