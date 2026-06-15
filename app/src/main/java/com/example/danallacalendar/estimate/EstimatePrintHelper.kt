@@ -37,8 +37,8 @@ object EstimatePrintHelper {
 
                 val webView = WebView(context).apply {
                     settings.javaScriptEnabled = true
-                    settings.useWideViewPort = false   // false: HTML 고정 폭 그대로 사용
-                    settings.loadWithOverviewMode = false
+                    settings.useWideViewPort = true     // HTML의 viewport 설정을 활성화하여 가로폭을 794px로 맞춤
+                    settings.loadWithOverviewMode = true // 뷰포트에 맞게 레이아웃 크기를 축소/확대(overview)
                     // 명시적으로 A4 폭(794px)으로 레이아웃 크기 지정
                     layout(0, 0, pageWidthPx, pageHeightPx)
                 }
