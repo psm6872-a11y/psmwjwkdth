@@ -28,6 +28,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
@@ -342,6 +343,7 @@ fun CalendarMainScreen(
                     viewMode = viewMode,
                     onSwipeDownAtTop = { viewModel.setViewMode(CalendarViewMode.MONTH) },
                     onSwipeUp = { viewModel.setViewMode(CalendarViewMode.WEEK) },
+                    onDateSelected = { viewModel.selectDate(it) },
                     modifier = Modifier.weight(1f)
                 )
             }
@@ -1042,6 +1044,7 @@ fun EventListSection(
     viewMode: CalendarViewMode = CalendarViewMode.MONTH,
     onSwipeDownAtTop: () -> Unit = {},
     onSwipeUp: () -> Unit = {},
+    onDateSelected: (Long) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val configuration = androidx.compose.ui.platform.LocalConfiguration.current
@@ -1072,10 +1075,38 @@ fun EventListSection(
         }
     }
 
+    val density = androidx.compose.ui.platform.LocalDensity.current
+    val swipeThresholdPx = with(density) { 50.dp.toPx() }
+    var totalDragX by remember(selectedDate) { mutableStateOf(0f) }
+
     Column(
         modifier = modifier
             .fillMaxWidth()
             .background(MaterialTheme.colorScheme.surface)
+            .pointerInput(selectedDate) {
+                detectHorizontalDragGestures(
+                    onDragStart = { totalDragX = 0f },
+                    onDragEnd = {
+                        if (totalDragX > swipeThresholdPx) {
+                            val prevDay = Calendar.getInstance().apply {
+                                timeInMillis = selectedDate
+                                add(Calendar.DAY_OF_YEAR, -1)
+                            }.timeInMillis
+                            onDateSelected(prevDay)
+                        } else if (totalDragX < -swipeThresholdPx) {
+                            val nextDay = Calendar.getInstance().apply {
+                                timeInMillis = selectedDate
+                                add(Calendar.DAY_OF_YEAR, 1)
+                            }.timeInMillis
+                            onDateSelected(nextDay)
+                        }
+                    },
+                    onHorizontalDrag = { change, dragAmount ->
+                        change.consume()
+                        totalDragX += dragAmount
+                    }
+                )
+            }
             .nestedScroll(nestedScrollConnection)
     ) {
         // Date Header Row with Deadline button
