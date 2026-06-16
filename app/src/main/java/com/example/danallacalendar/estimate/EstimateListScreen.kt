@@ -16,6 +16,7 @@ import androidx.compose.material.icons.filled.Print
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.AddToDrive
+import androidx.compose.material.icons.filled.Sms
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
@@ -642,11 +643,11 @@ fun LocalEstimateViewerDialog(
                                 contentDescription = "닫기"
                             )
                         }
-                        Spacer(modifier = Modifier.width(16.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
                         Text(
                             text = "견적서 상세 보기",
                             color = Color.White,
-                            fontSize = 18.sp,
+                            fontSize = 16.sp,
                             fontWeight = FontWeight.Bold
                         )
                     }
@@ -729,9 +730,9 @@ fun LocalEstimateViewerDialog(
                             EstimatePrintHelper.shareEstimateAsJpg(context, htmlContent, estimate)
                         }) {
                             Icon(
-                                imageVector = Icons.Default.Share,
+                                imageVector = Icons.Default.Sms,
                                 tint = Color.White,
-                                contentDescription = "공유"
+                                contentDescription = "문자 발송(MMS)"
                             )
                         }
                     }
