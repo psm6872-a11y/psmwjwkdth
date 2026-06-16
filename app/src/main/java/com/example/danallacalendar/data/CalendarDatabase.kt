@@ -8,6 +8,8 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import java.util.Calendar
 
 @Database(entities = [CalendarCategory::class, Event::class, DeadlineDate::class, EstimatePdf::class], version = 9, exportSchema = false)
@@ -38,6 +40,7 @@ abstract class CalendarDatabase : RoomDatabase() {
     private class CalendarDatabaseCallback(
         private val scope: CoroutineScope
     ) : RoomDatabase.Callback() {
+        private val dbMutex = Mutex()
         override fun onCreate(db: SupportSQLiteDatabase) {
             super.onCreate(db)
             INSTANCE?.let { database ->
@@ -107,50 +110,59 @@ abstract class CalendarDatabase : RoomDatabase() {
         }
 
         private suspend fun ensureHolidaysPopulated(dao: EventDao) {
-            val categories = dao.getAllCategoriesList()
-            val holidayCategory = categories.find { it.name == "공휴일" }
-            val holidayId = if (holidayCategory == null) {
-                dao.insertCategory(CalendarCategory(name = "공휴일", colorHex = "#ff3b30", accountName = "기타", isVisible = true)).toInt()
-            } else {
-                holidayCategory.id
-            }
+            dbMutex.withLock {
+                val categories = dao.getAllCategoriesList()
+                val holidayCategories = categories.filter { it.name == "공휴일" }
+                
+                val holidayId = if (holidayCategories.isEmpty()) {
+                    dao.insertCategory(CalendarCategory(name = "공휴일", colorHex = "#ff3b30", accountName = "기타", isVisible = true)).toInt()
+                } else {
+                    val mainHoliday = holidayCategories.first()
+                    if (holidayCategories.size > 1) {
+                        val duplicateIds = holidayCategories.drop(1).map { it.id }
+                        dao.updateEventsCalendarId(duplicateIds, mainHoliday.id)
+                        dao.deleteCategories(holidayCategories.drop(1))
+                    }
+                    mainHoliday.id
+                }
 
-            val count = dao.getEventCountForCategory(holidayId)
-            if (count == 0) {
-                val calendar = Calendar.getInstance()
-                for (year in 2025..2028) {
-                    val holidays = getKoreanHolidaysList(year)
-                    for (holiday in holidays) {
-                        val hMonth = holiday.first
-                        val hDay = holiday.second
-                        val hTitle = holiday.third
-                        
-                        calendar.clear()
-                        calendar.set(Calendar.YEAR, year)
-                        calendar.set(Calendar.MONTH, hMonth - 1)
-                        calendar.set(Calendar.DAY_OF_MONTH, hDay)
-                        calendar.set(Calendar.HOUR_OF_DAY, 0)
-                        calendar.set(Calendar.MINUTE, 0)
-                        calendar.set(Calendar.SECOND, 0)
-                        calendar.set(Calendar.MILLISECOND, 0)
-                        val startMillis = calendar.timeInMillis
-                        
-                        calendar.set(Calendar.HOUR_OF_DAY, 23)
-                        calendar.set(Calendar.MINUTE, 59)
-                        calendar.set(Calendar.SECOND, 59)
-                        calendar.set(Calendar.MILLISECOND, 999)
-                        val endMillis = calendar.timeInMillis
-                        
-                        dao.insertEvent(
-                            Event(
-                                title = hTitle,
-                                startMillis = startMillis,
-                                endMillis = endMillis,
-                                isAllDay = true,
-                                notes = "법정 공휴일",
-                                calendarId = holidayId
+                val count = dao.getEventCountForCategory(holidayId)
+                if (count == 0) {
+                    val calendar = Calendar.getInstance()
+                    for (year in 2025..2028) {
+                        val holidays = getKoreanHolidaysList(year)
+                        for (holiday in holidays) {
+                            val hMonth = holiday.first
+                            val hDay = holiday.second
+                            val hTitle = holiday.third
+                            
+                            calendar.clear()
+                            calendar.set(Calendar.YEAR, year)
+                            calendar.set(Calendar.MONTH, hMonth - 1)
+                            calendar.set(Calendar.DAY_OF_MONTH, hDay)
+                            calendar.set(Calendar.HOUR_OF_DAY, 0)
+                            calendar.set(Calendar.MINUTE, 0)
+                            calendar.set(Calendar.SECOND, 0)
+                            calendar.set(Calendar.MILLISECOND, 0)
+                            val startMillis = calendar.timeInMillis
+                            
+                            calendar.set(Calendar.HOUR_OF_DAY, 23)
+                            calendar.set(Calendar.MINUTE, 59)
+                            calendar.set(Calendar.SECOND, 59)
+                            calendar.set(Calendar.MILLISECOND, 999)
+                            val endMillis = calendar.timeInMillis
+                            
+                            dao.insertEvent(
+                                Event(
+                                    title = hTitle,
+                                    startMillis = startMillis,
+                                    endMillis = endMillis,
+                                    isAllDay = true,
+                                    notes = "법정 공휴일",
+                                    calendarId = holidayId
+                                )
                             )
-                        )
+                        }
                     }
                 }
             }
