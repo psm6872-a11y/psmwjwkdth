@@ -73,7 +73,6 @@ fun DrawerContent(
     onShareAppClick: () -> Unit,
     onEstimateListClick: () -> Unit,
     onCloseClick: () -> Unit,
-    onApkClick: () -> Unit,
     onBackupClick: () -> Unit,
     isCreator: Boolean,
     onRemoveMember: (String) -> Unit,
@@ -504,30 +503,5 @@ fun DrawerContent(
             )
         }
 
-        Spacer(modifier = Modifier.height(8.dp))
-
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(MaterialTheme.shapes.medium)
-                .clickable { onApkClick() }
-                .background(MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.4f))
-                .padding(vertical = 12.dp, horizontal = 12.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(
-                imageVector = Icons.Default.FileDownload,
-                contentDescription = "apk",
-                tint = MaterialTheme.colorScheme.secondary,
-                modifier = Modifier.size(24.dp)
-            )
-            Spacer(modifier = Modifier.width(16.dp))
-            Text(
-                text = "apk 저장",
-                fontSize = 15.sp,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.secondary
-            )
-        }
     }
 }
