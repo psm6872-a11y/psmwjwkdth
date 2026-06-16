@@ -15,12 +15,10 @@ import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import java.util.Calendar
 import java.util.UUID
+import android.provider.CalendarContract
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.decodeFromString
-import android.provider.CalendarContract
 import javax.inject.Inject
-import com.example.danallacalendar.update.UpdateChecker
-import com.example.danallacalendar.update.UpdateState
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import android.net.ConnectivityManager
@@ -41,11 +39,6 @@ class CalendarViewModel @Inject constructor(
     @ApplicationContext private val context: Context
 ) : ViewModel() {
 
-    private val _updateState = MutableStateFlow<UpdateState>(UpdateState.Idle)
-    val updateState: StateFlow<UpdateState> = _updateState.asStateFlow()
-
-    private val _isChecking = MutableStateFlow(false)
-    val isChecking: StateFlow<Boolean> = _isChecking.asStateFlow()
 
     private fun isNetworkAvailable(context: Context): Boolean {
         val connectivityManager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
@@ -55,62 +48,7 @@ class CalendarViewModel @Inject constructor(
         return capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
     }
 
-    fun checkUpdateManually() {
-        if (_isChecking.value) return
-        
-        if (!isNetworkAvailable(context)) {
-            _updateState.value = UpdateState.NoNetwork
-            return
-        }
 
-        _isChecking.value = true
-        _updateState.value = UpdateState.Checking
-        
-        viewModelScope.launch(Dispatchers.IO) {
-            try {
-                val info = UpdateChecker.checkForUpdate(context)
-                if (info != null) {
-                    _updateState.value = UpdateState.UpdateAvailable(
-                        version = info.latestVersion,
-                        downloadUrl = info.downloadUrl,
-                        updateInfo = info
-                    )
-                } else {
-                    _updateState.value = UpdateState.UpToDate
-                }
-            } catch (e: java.net.UnknownHostException) {
-                android.util.Log.e("UpdateChecker", "오류 발생: ${e.message}", e)
-                _updateState.value = UpdateState.NoNetwork
-            } catch (e: Exception) {
-                android.util.Log.e("UpdateChecker", "오류 발생: ${e.message}", e)
-                _updateState.value = UpdateState.Error
-            } finally {
-                _isChecking.value = false
-            }
-        }
-    }
-
-    fun checkUpdateAutomatically() {
-        if (!isNetworkAvailable(context)) return
-        viewModelScope.launch(Dispatchers.IO) {
-            try {
-                val info = UpdateChecker.checkForUpdate(context)
-                if (info != null) {
-                    _updateState.value = UpdateState.UpdateAvailable(
-                        version = info.latestVersion,
-                        downloadUrl = info.downloadUrl,
-                        updateInfo = info
-                    )
-                }
-            } catch (e: Exception) {
-                android.util.Log.e("UpdateChecker", "자동 업데이트 확인 실패", e)
-            }
-        }
-    }
-
-    fun resetUpdateState() {
-        _updateState.value = UpdateState.Idle
-    }
 
     val deviceUUID = userPreferences.getDeviceUUID()
 
@@ -241,16 +179,6 @@ class CalendarViewModel @Inject constructor(
             }
         }
 
-        // 3. 24-hour interval automatic update check
-        val prefs = context.getSharedPreferences("update_prefs", Context.MODE_PRIVATE)
-        val lastCheck = prefs.getLong("last_check_time", 0L)
-        val now = System.currentTimeMillis()
-        val oneDayMillis = 24 * 60 * 60 * 1000L
-
-        if (now - lastCheck >= oneDayMillis) {
-            checkUpdateAutomatically()
-            prefs.edit().putLong("last_check_time", now).apply()
-        }
     }
 
     // View States

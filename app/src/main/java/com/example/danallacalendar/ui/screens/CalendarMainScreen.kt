@@ -65,11 +65,6 @@ import androidx.activity.result.contract.ActivityResultContracts
 import android.net.Uri
 import android.widget.Toast
 import androidx.compose.ui.platform.LocalContext
-import com.example.danallacalendar.update.UpdateChecker
-import com.example.danallacalendar.update.UpdateDownloader
-import com.example.danallacalendar.update.UpdateDialog
-import com.example.danallacalendar.update.UpdateInfo
-import com.example.danallacalendar.update.UpdateState
 import androidx.compose.ui.window.Dialog
 import com.example.danallacalendar.members.MemberViewModel
 import com.example.danallacalendar.members.MemberPanel
@@ -103,11 +98,6 @@ fun CalendarMainScreen(
     val userName by viewModel.userName.collectAsStateWithLifecycle()
     var showPermissionGuideDialog by remember { mutableStateOf(false) }
 
-    val updateState by viewModel.updateState.collectAsStateWithLifecycle()
-    val isCheckingUpdate by viewModel.isChecking.collectAsStateWithLifecycle()
-    var isUpdateDownloading by remember { mutableStateOf(false) }
-    var updateProgress by remember { mutableStateOf(0f) }
-
     val memberViewModel: MemberViewModel = hiltViewModel()
     val members by memberViewModel.members.collectAsStateWithLifecycle()
     val isCreator by memberViewModel.isCreator.collectAsStateWithLifecycle()
@@ -125,24 +115,6 @@ fun CalendarMainScreen(
     LaunchedEffect(Unit) {
         memberViewModel.kickedEvent.collect {
             viewModel.logout()
-        }
-    }
-
-    LaunchedEffect(updateState) {
-        when (updateState) {
-            is UpdateState.NoNetwork -> {
-                Toast.makeText(context, "인터넷 연결을 확인해주세요", Toast.LENGTH_SHORT).show()
-                viewModel.resetUpdateState()
-            }
-            is UpdateState.Error -> {
-                Toast.makeText(context, "업데이트 확인 실패, 나중에 다시 시도해주세요", Toast.LENGTH_SHORT).show()
-                viewModel.resetUpdateState()
-            }
-            is UpdateState.UpToDate -> {
-                Toast.makeText(context, "최신 버전입니다", Toast.LENGTH_SHORT).show()
-                viewModel.resetUpdateState()
-            }
-            else -> {}
         }
     }
 
@@ -265,10 +237,6 @@ fun CalendarMainScreen(
                             Toast.makeText(context, "앱 공유 실패: ${e.localizedMessage}", Toast.LENGTH_LONG).show()
                         }
                     },
-                    onUpdateClick = {
-                        scope.launch { drawerState.close() }
-                        viewModel.checkUpdateManually()
-                    },
                     onEstimateListClick = {
                         scope.launch { drawerState.close() }
                         onNavigateToEstimateList()
@@ -357,62 +325,6 @@ fun CalendarMainScreen(
         }
     }
 
-        if (isCheckingUpdate) {
-            Dialog(onDismissRequest = {}) {
-                Box(
-                    contentAlignment = Alignment.Center,
-                    modifier = Modifier
-                        .size(100.dp)
-                        .background(
-                            color = MaterialTheme.colorScheme.surface.copy(alpha = 0.9f),
-                            shape = RoundedCornerShape(12.dp)
-                        )
-                ) {
-                    CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
-                }
-            }
-        }
-
-        (updateState as? UpdateState.UpdateAvailable)?.let { state ->
-            val info = state.updateInfo
-            UpdateDialog(
-                updateInfo = info,
-                isDownloading = isUpdateDownloading,
-                progress = updateProgress,
-                onDismiss = {
-                    viewModel.resetUpdateState()
-                },
-                onUpdateClick = {
-                    if (!UpdateDownloader.hasInstallPermission(context)) {
-                        Toast.makeText(context, "설치 권한 허용 후 다시 업데이트를 클릭해 주세요.", Toast.LENGTH_LONG).show()
-                        UpdateDownloader.openInstallPermissionSettings(context)
-                    } else {
-                        isUpdateDownloading = true
-                        updateProgress = 0f
-                        UpdateDownloader.downloadApk(
-                            context = context,
-                            assetUrl = info.downloadUrl,
-                            onProgress = { prog ->
-                                updateProgress = prog
-                            },
-                            onComplete = { file ->
-                                isUpdateDownloading = false
-                                viewModel.resetUpdateState()
-                                UpdateDownloader.triggerInstall(context, file)
-                            },
-                            onError = { err ->
-                                isUpdateDownloading = false
-                                Toast.makeText(context, "다운로드 실패: ${err.message}", Toast.LENGTH_LONG).show()
-                            }
-                        )
-                    }
-                },
-                onCancelClick = {
-                    UpdateDownloader.cancelDownload()
-                    isUpdateDownloading = false
-                }
-            )
-        }
 
 
     }

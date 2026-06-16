@@ -36,7 +36,6 @@ import com.example.danallacalendar.members.Member
 import androidx.compose.material.icons.filled.CloudSync
 import androidx.compose.material.icons.filled.FileDownload
 import androidx.compose.material.icons.filled.Share
-import androidx.compose.material.icons.filled.SystemUpdate
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.CloudUpload
 import androidx.compose.material.icons.filled.List
@@ -72,7 +71,6 @@ fun DrawerContent(
     onToggleCategory: (CalendarCategory) -> Unit,
     @Suppress("UNUSED_PARAMETER") onImportClick: () -> Unit,
     onShareAppClick: () -> Unit,
-    onUpdateClick: () -> Unit,
     onEstimateListClick: () -> Unit,
     onCloseClick: () -> Unit,
     onApkClick: () -> Unit,
@@ -170,40 +168,6 @@ fun DrawerContent(
                     tint = MaterialTheme.colorScheme.onBackground
                 )
             }
-        }
-
-        Spacer(modifier = Modifier.height(8.dp))
-
-        // Update App Button
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(MaterialTheme.shapes.medium)
-                .clickable { onUpdateClick() }
-                .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f))
-                .padding(vertical = 12.dp, horizontal = 12.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(
-                imageVector = Icons.Default.SystemUpdate,
-                contentDescription = "업데이트",
-                tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(24.dp)
-            )
-            Spacer(modifier = Modifier.width(16.dp))
-            Text(
-                text = "업데이트",
-                fontSize = 15.sp,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.primary
-            )
-            Spacer(modifier = Modifier.weight(1f))
-            Text(
-                text = "v$currentVersion",
-                fontSize = 13.sp,
-                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.8f),
-                fontWeight = FontWeight.Medium
-            )
         }
 
         Spacer(modifier = Modifier.height(8.dp))

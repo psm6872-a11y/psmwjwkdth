@@ -15,8 +15,8 @@ android {
         applicationId = "com.danalla.calendar"
         minSdk = 24
         targetSdk = 35
-        versionCode = 250
-        versionName = "1.5.63"
+        versionCode = 251
+        versionName = "1.6.01"
     }
 
     signingConfigs {
@@ -121,8 +121,7 @@ dependencies {
   implementation(libs.room.ktx)
   kapt(libs.room.compiler)
 
-  // HTTP & JSON for Updater
-  implementation(libs.okhttp)
+  // JSON library
   implementation(libs.gson)
 
   // WorkManager + Hilt-Work (for backup scheduler)
