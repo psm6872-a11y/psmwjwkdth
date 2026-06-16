@@ -14,6 +14,22 @@
       },
       "oauth_client": [
         {
+          "client_id": "365182373353-ikg9nrakmuoh0lf27e1bslh94aa4bn5d.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.danalla.calendar",
+            "certificate_hash": "fff42cdceb4e83dae90fb3f53e07253779d238bb"
+          }
+        },
+        {
+          "client_id": "365182373353-q0iuikjt1vnnjkerd7acjlhsu8n87v0k.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.danalla.calendar",
+            "certificate_hash": "4692d841a820940c8e71e6a8c495ee3ec9be9c62"
+          }
+        },
+        {
           "client_id": "365182373353-7tsiga92omdc55p13b3um6tbe793crvt.apps.googleusercontent.com",
           "client_type": 3
         }
