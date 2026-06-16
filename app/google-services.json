@@ -7,6 +7,35 @@
   "client": [
     {
       "client_info": {
+        "mobilesdk_app_id": "1:365182373353:android:31dc99a4de513a98780f78",
+        "android_client_info": {
+          "package_name": "com.danalla.calendar"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "365182373353-7tsiga92omdc55p13b3um6tbe793crvt.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBB6Yayj2i1Xd-G1qa9ppDTgzE5eZXhYS0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "365182373353-7tsiga92omdc55p13b3um6tbe793crvt.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
         "mobilesdk_app_id": "1:365182373353:android:92097799a70abb89780f78",
         "android_client_info": {
           "package_name": "com.example.danallacalendar"

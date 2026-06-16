@@ -12,11 +12,11 @@ android {
     namespace = "com.example.danallacalendar"
     compileSdk = 36
     defaultConfig {
-        applicationId = "com.example.danallacalendar"
+        applicationId = "com.danalla.calendar"
         minSdk = 24
         targetSdk = 34
-        versionCode = 241
-        versionName = "1.5.54"
+        versionCode = 242
+        versionName = "1.5.55"
     }
 
     signingConfigs {
