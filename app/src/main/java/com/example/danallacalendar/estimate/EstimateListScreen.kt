@@ -747,6 +747,7 @@ fun LocalEstimateViewerDialog(
                             settings.domStorageEnabled = true
                             settings.useWideViewPort = true
                             settings.loadWithOverviewMode = true
+                            settings.textZoom = 100
                             settings.setSupportZoom(true)
                             settings.builtInZoomControls = true
                             settings.displayZoomControls = false
