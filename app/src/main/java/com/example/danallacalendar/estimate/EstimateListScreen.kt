@@ -613,13 +613,13 @@ fun LocalEstimateViewerDialog(
     val coroutineScope = rememberCoroutineScope()
     var isUploading by remember { mutableStateOf(false) }
     var showOverwriteConfirmDialog by remember { mutableStateOf(false) }
-    var detectedFileId by remember { mutableStateOf<String?>(null) }
+    var nextFileNameToUpload by remember { mutableStateOf<String?>(null) }
 
     val htmlContent = remember(estimate) {
         EstimateHtmlGenerator.generateEstimateHtml(context, estimate)
     }
 
-    fun performUpload(existingFileId: String?) {
+    fun performUpload(targetFileName: String?) {
         isUploading = true
         coroutineScope.launch {
             try {
@@ -632,19 +632,19 @@ fun LocalEstimateViewerDialog(
                     val monthDay = if (dateParts.size >= 3) "${dateParts[1]}-${dateParts[2]}" else "00-00"
                     val rawPhone = estimate.phoneNumber.replace(Regex("[^0-9]"), "")
                     val last4 = if (rawPhone.length >= 4) rawPhone.takeLast(4) else "0000"
-                    val fileName = "${monthDay}_$last4.jpg"
+                    val originalFileName = "${monthDay}_$last4.jpg"
+                    val finalFileName = targetFileName ?: originalFileName
 
                     val result = GoogleDriveHelper.uploadEstimateJpgWithResult(
                         context,
                         account,
                         jpgFile,
-                        fileName,
-                        estimate.estimateDate,
-                        existingFileId
+                        finalFileName,
+                        estimate.estimateDate
                     )
                     when (result) {
                         is GoogleDriveHelper.UploadResult.Success ->
-                            Toast.makeText(context, if (existingFileId != null) "구글 드라이브 덮어쓰기 완료" else "구글 드라이브 백업 완료", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, "구글 드라이브 백업 완료", Toast.LENGTH_SHORT).show()
                         is GoogleDriveHelper.UploadResult.UserRecoverable ->
                             Toast.makeText(context, "구글 드라이브 로그인이 만료되었습니다.\n설정에서 다시 연결해 주세요.", Toast.LENGTH_LONG).show()
                         is GoogleDriveHelper.UploadResult.NoPermission ->
@@ -734,9 +734,16 @@ fun LocalEstimateViewerDialog(
                                                 context, account, fileName, estimate.estimateDate
                                             )
                                             if (existingId != null) {
-                                                detectedFileId = existingId
-                                                isUploading = false
-                                                showOverwriteConfirmDialog = true
+                                                val nextName = GoogleDriveHelper.findNextAvailableFileName(
+                                                    context, account, fileName, estimate.estimateDate
+                                                )
+                                                if (nextName != null) {
+                                                    nextFileNameToUpload = nextName
+                                                    isUploading = false
+                                                    showOverwriteConfirmDialog = true
+                                                } else {
+                                                    performUpload(null)
+                                                }
                                             } else {
                                                 performUpload(null)
                                             }
@@ -803,7 +810,7 @@ fun LocalEstimateViewerDialog(
                     AlertDialog(
                         onDismissRequest = {
                             showOverwriteConfirmDialog = false
-                            detectedFileId = null
+                            nextFileNameToUpload = null
                         },
                         title = { Text("이미 저장된 견적서 입니다.", color = Color.White) },
                         text = { Text("다시 저장 할까요?", color = Color.White) },
@@ -811,8 +818,8 @@ fun LocalEstimateViewerDialog(
                             TextButton(
                                 onClick = {
                                     showOverwriteConfirmDialog = false
-                                    performUpload(detectedFileId)
-                                    detectedFileId = null
+                                    performUpload(nextFileNameToUpload)
+                                    nextFileNameToUpload = null
                                 }
                             ) {
                                 Text("예", color = Color(0xFFE040FB), fontWeight = FontWeight.Bold)
@@ -822,7 +829,7 @@ fun LocalEstimateViewerDialog(
                             TextButton(
                                 onClick = {
                                     showOverwriteConfirmDialog = false
-                                    detectedFileId = null
+                                    nextFileNameToUpload = null
                                 }
                             ) {
                                 Text("아니오", color = Color.Gray)

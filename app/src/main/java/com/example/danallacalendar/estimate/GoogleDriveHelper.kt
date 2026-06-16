@@ -256,16 +256,84 @@ object GoogleDriveHelper {
     }
 
     /**
+     * 구글 드라이브 내 월별 폴더를 탐색하여, 중복되지 않는 다음 파일명을 구합니다.
+     * 예: "06-16_6872.jpg"가 이미 존재한다면 "06-16_6872(2).jpg"를 반환하고,
+     * 그것도 있다면 "06-16_6872(3).jpg"를 순차적으로 계산해 반환합니다.
+     */
+    suspend fun findNextAvailableFileName(
+        context: Context,
+        account: GoogleSignInAccount,
+        fileName: String,
+        estimateDate: String
+    ): String? = withContext(Dispatchers.IO) {
+        if (!GoogleSignIn.hasPermissions(account, Scope(DriveScopes.DRIVE_FILE))) {
+            return@withContext null
+        }
+        try {
+            val driveService = getDriveService(context, account)
+            val parentId = getOrCreateParentFolder(context, driveService, account.email)
+            val subFolderName = try {
+                val parts = estimateDate.split("-")
+                if (parts.size >= 2) "${parts[0]}년 ${parts[1]}월" else "기타 견적"
+            } catch (e: Exception) { "기타 견적" }
+
+            val folderId = getOrCreateSubFolder(context, driveService, parentId, subFolderName, account.email)
+
+            val baseName = fileName.substringBeforeLast(".")
+            val ext = fileName.substringAfterLast(".", "jpg")
+            
+            val query = "name contains '$baseName' and '$folderId' in parents and trashed = false"
+            val resultList = driveService.files().list()
+                .setQ(query)
+                .setSpaces("drive")
+                .setFields("files(name)")
+                .execute()
+
+            val files = resultList.files
+            if (files.isNullOrEmpty()) {
+                return@withContext fileName
+            }
+
+            var maxNum = 1
+            var hasExactMatch = false
+            for (file in files) {
+                val name = file.name ?: continue
+                if (name == "$baseName.$ext") {
+                    hasExactMatch = true
+                } else if (name.startsWith("$baseName(") && name.endsWith(").$ext")) {
+                    val startIdx = baseName.length + 1
+                    val endIdx = name.length - (ext.length + 2) // ").jpg" 길이 제외
+                    if (startIdx < endIdx) {
+                        val numStr = name.substring(startIdx, endIdx)
+                        val num = numStr.toIntOrNull()
+                        if (num != null) {
+                            maxNum = maxOf(maxNum, num)
+                        }
+                    }
+                }
+            }
+
+            if (!hasExactMatch) {
+                return@withContext fileName
+            }
+
+            val nextNum = maxNum + 1
+            return@withContext "$baseName($nextNum).$ext"
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to find next available file name: ${e.message}")
+            return@withContext null
+        }
+    }
+
+    /**
      * JPG 파일을 구글 드라이브에 업로드합니다.
-     * existingFileId가 제공되면 신규 작성 대신 기존 파일을 덮어씁니다(update).
      */
     suspend fun uploadEstimateJpgWithResult(
         context: Context,
         account: GoogleSignInAccount,
         file: File,
         fileName: String,
-        estimateDate: String,
-        existingFileId: String? = null
+        estimateDate: String
     ): UploadResult = withContext(Dispatchers.IO) {
         // Drive scope 권한 확인
         if (!GoogleSignIn.hasPermissions(account, Scope(DriveScopes.DRIVE_FILE))) {
@@ -286,21 +354,13 @@ object GoogleDriveHelper {
 
             val fileMetadata = DriveFile().apply {
                 name = fileName
-                if (existingFileId == null) {
-                    parents = listOf(folderId)
-                }
+                parents = listOf(folderId)
             }
 
             val mediaContent = FileContent("image/jpeg", file)
-            val uploadedFile = if (existingFileId != null) {
-                driveService.files().update(existingFileId, fileMetadata, mediaContent)
-                    .setFields("id")
-                    .execute()
-            } else {
-                driveService.files().create(fileMetadata, mediaContent)
-                    .setFields("id, webViewLink")
-                    .execute()
-            }
+            val uploadedFile = driveService.files().create(fileMetadata, mediaContent)
+                .setFields("id, webViewLink")
+                .execute()
 
             Log.d(TAG, "Uploaded to $subFolderName. ID: ${uploadedFile.id}")
             UploadResult.Success(uploadedFile.id)
@@ -324,10 +384,9 @@ object GoogleDriveHelper {
         account: GoogleSignInAccount,
         file: File,
         fileName: String,
-        estimateDate: String,
-        existingFileId: String? = null
+        estimateDate: String
     ): String? = withContext(Dispatchers.IO) {
-        when (val result = uploadEstimateJpgWithResult(context, account, file, fileName, estimateDate, existingFileId)) {
+        when (val result = uploadEstimateJpgWithResult(context, account, file, fileName, estimateDate)) {
             is UploadResult.Success -> result.fileId
             else -> null
         }
