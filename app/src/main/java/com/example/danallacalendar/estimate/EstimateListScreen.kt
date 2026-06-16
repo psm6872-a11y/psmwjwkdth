@@ -612,8 +612,58 @@ fun LocalEstimateViewerDialog(
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
     var isUploading by remember { mutableStateOf(false) }
+    var showOverwriteConfirmDialog by remember { mutableStateOf(false) }
+    var detectedFileId by remember { mutableStateOf<String?>(null) }
+
     val htmlContent = remember(estimate) {
         EstimateHtmlGenerator.generateEstimateHtml(context, estimate)
+    }
+
+    fun performUpload(existingFileId: String?) {
+        isUploading = true
+        coroutineScope.launch {
+            try {
+                val account = GoogleDriveHelper.getSignedInAccount(context) ?: return@launch
+                val jpgPath = EstimatePrintHelper.renderHtmlToJpg(context, htmlContent, estimate)
+                if (jpgPath != null) {
+                    val jpgFile = java.io.File(jpgPath)
+                    val dateStr = estimate.estimateDate.ifBlank { estimate.moveDate }
+                    val dateParts = dateStr.split("-")
+                    val monthDay = if (dateParts.size >= 3) "${dateParts[1]}-${dateParts[2]}" else "00-00"
+                    val rawPhone = estimate.phoneNumber.replace(Regex("[^0-9]"), "")
+                    val last4 = if (rawPhone.length >= 4) rawPhone.takeLast(4) else "0000"
+                    val fileName = "${monthDay}_$last4.jpg"
+
+                    val result = GoogleDriveHelper.uploadEstimateJpgWithResult(
+                        context,
+                        account,
+                        jpgFile,
+                        fileName,
+                        estimate.estimateDate,
+                        existingFileId
+                    )
+                    when (result) {
+                        is GoogleDriveHelper.UploadResult.Success ->
+                            Toast.makeText(context, if (existingFileId != null) "구글 드라이브 덮어쓰기 완료" else "구글 드라이브 백업 완료", Toast.LENGTH_SHORT).show()
+                        is GoogleDriveHelper.UploadResult.UserRecoverable ->
+                            Toast.makeText(context, "구글 드라이브 로그인이 만료되었습니다.\n설정에서 다시 연결해 주세요.", Toast.LENGTH_LONG).show()
+                        is GoogleDriveHelper.UploadResult.NoPermission ->
+                            Toast.makeText(context, "구글 드라이브 권한이 없습니다.\n설정에서 다시 연결해 주세요.", Toast.LENGTH_LONG).show()
+                        is GoogleDriveHelper.UploadResult.Failure -> {
+                            android.util.Log.e("EstimateListScreen", "Drive upload failure: ${result.error}")
+                            Toast.makeText(context, "백업 실패: 네트워크를 확인해 주세요.", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                } else {
+                    Toast.makeText(context, "견적서 이미지 렌더링 실패", Toast.LENGTH_SHORT).show()
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("EstimateListScreen", "Direct Google Drive upload failed", e)
+                Toast.makeText(context, "백업 중 오류 발생: ${e.message}", Toast.LENGTH_LONG).show()
+            } finally {
+                isUploading = false
+            }
+        }
     }
 
     Dialog(
@@ -668,43 +718,32 @@ fun LocalEstimateViewerDialog(
                                     isUploading = true
                                     coroutineScope.launch {
                                         try {
-                                            // Drive 권한 체크 먼저
                                             if (!GoogleDriveHelper.hasDrivePermission(context)) {
                                                 Toast.makeText(context, "구글 드라이브 권한이 없습니다.\n설정에서 다시 연결해 주세요.", Toast.LENGTH_LONG).show()
                                                 isUploading = false
                                                 return@launch
                                             }
-                                            val jpgPath = EstimatePrintHelper.renderHtmlToJpg(context, htmlContent, estimate)
-                                            if (jpgPath != null) {
-                                                val jpgFile = java.io.File(jpgPath)
-                                                val fileName = jpgFile.name
-                                                val result = GoogleDriveHelper.uploadEstimateJpgWithResult(
-                                                    context,
-                                                    account,
-                                                    jpgFile,
-                                                    fileName,
-                                                    estimate.estimateDate
-                                                )
-                                                when (result) {
-                                                    is GoogleDriveHelper.UploadResult.Success ->
-                                                        Toast.makeText(context, "구글 드라이브 백업 완료", Toast.LENGTH_SHORT).show()
-                                                    is GoogleDriveHelper.UploadResult.UserRecoverable ->
-                                                        Toast.makeText(context, "구글 드라이브 로그인이 만료되었습니다.\n설정에서 다시 연결해 주세요.", Toast.LENGTH_LONG).show()
-                                                    is GoogleDriveHelper.UploadResult.NoPermission ->
-                                                        Toast.makeText(context, "구글 드라이브 권한이 없습니다.\n설정에서 다시 연결해 주세요.", Toast.LENGTH_LONG).show()
-                                                    is GoogleDriveHelper.UploadResult.Failure -> {
-                                                        Log.e("EstimateListScreen", "Drive upload failure: ${result.error}")
-                                                        Toast.makeText(context, "백업 실패: 네트워크를 확인해 주세요.", Toast.LENGTH_SHORT).show()
-                                                    }
-                                                }
+                                            val dateStr = estimate.estimateDate.ifBlank { estimate.moveDate }
+                                            val dateParts = dateStr.split("-")
+                                            val monthDay = if (dateParts.size >= 3) "${dateParts[1]}-${dateParts[2]}" else "00-00"
+                                            val rawPhone = estimate.phoneNumber.replace(Regex("[^0-9]"), "")
+                                            val last4 = if (rawPhone.length >= 4) rawPhone.takeLast(4) else "0000"
+                                            val fileName = "${monthDay}_$last4.jpg"
+
+                                            val existingId = GoogleDriveHelper.findExistingFileId(
+                                                context, account, fileName, estimate.estimateDate
+                                            )
+                                            if (existingId != null) {
+                                                detectedFileId = existingId
+                                                isUploading = false
+                                                showOverwriteConfirmDialog = true
                                             } else {
-                                                Toast.makeText(context, "견적서 이미지 렌더링 실패", Toast.LENGTH_SHORT).show()
+                                                performUpload(null)
                                             }
                                         } catch (e: Exception) {
-                                            Log.e("EstimateListScreen", "Direct Google Drive upload failed", e)
-                                            Toast.makeText(context, "백업 중 오류 발생: ${e.message}", Toast.LENGTH_LONG).show()
-                                        } finally {
+                                            android.util.Log.e("EstimateListScreen", "Drive check failed", e)
                                             isUploading = false
+                                            performUpload(null)
                                         }
                                     }
                                 }
@@ -759,6 +798,41 @@ fun LocalEstimateViewerDialog(
                     },
                     modifier = Modifier.fillMaxSize()
                 )
+
+                if (showOverwriteConfirmDialog) {
+                    AlertDialog(
+                        onDismissRequest = {
+                            showOverwriteConfirmDialog = false
+                            detectedFileId = null
+                        },
+                        title = { Text("이미 저장된 견적서 입니다.", color = Color.White) },
+                        text = { Text("다시 저장 할까요?", color = Color.White) },
+                        confirmButton = {
+                            TextButton(
+                                onClick = {
+                                    showOverwriteConfirmDialog = false
+                                    performUpload(detectedFileId)
+                                    detectedFileId = null
+                                }
+                            ) {
+                                Text("예", color = Color(0xFFE040FB), fontWeight = FontWeight.Bold)
+                            }
+                        },
+                        dismissButton = {
+                            TextButton(
+                                onClick = {
+                                    showOverwriteConfirmDialog = false
+                                    detectedFileId = null
+                                }
+                            ) {
+                                Text("아니오", color = Color.Gray)
+                            }
+                        },
+                        containerColor = Color(0xFF1E1045),
+                        titleContentColor = Color.White,
+                        textContentColor = Color.White
+                    )
+                }
             }
         }
     }

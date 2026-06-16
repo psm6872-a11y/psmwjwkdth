@@ -215,12 +215,57 @@ object GoogleDriveHelper {
     /**
      * JPG 파일을 구글 드라이브에 업로드합니다.
      */
+    /**
+     * 월별 하위 폴더 내에 동일한 이름을 가진 파일이 이미 존재하는지 확인하고,
+     * 존재한다면 그 파일의 ID를 반환합니다. 존재하지 않거나 오류 발생 시 null을 반환합니다.
+     */
+    suspend fun findExistingFileId(
+        context: Context,
+        account: GoogleSignInAccount,
+        fileName: String,
+        estimateDate: String
+    ): String? = withContext(Dispatchers.IO) {
+        if (!GoogleSignIn.hasPermissions(account, Scope(DriveScopes.DRIVE_FILE))) {
+            return@withContext null
+        }
+        try {
+            val driveService = getDriveService(context, account)
+            val parentId = getOrCreateParentFolder(context, driveService, account.email)
+            val subFolderName = try {
+                val parts = estimateDate.split("-")
+                if (parts.size >= 2) "${parts[0]}년 ${parts[1]}월" else "기타 견적"
+            } catch (e: Exception) { "기타 견적" }
+
+            val folderId = getOrCreateSubFolder(context, driveService, parentId, subFolderName, account.email)
+
+            val query = "name = '$fileName' and '$folderId' in parents and trashed = false"
+            val resultList = driveService.files().list()
+                .setQ(query)
+                .setSpaces("drive")
+                .setFields("files(id)")
+                .execute()
+
+            val files = resultList.files
+            if (!files.isNullOrEmpty()) {
+                return@withContext files[0].id
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to check existing file: ${e.message}")
+        }
+        null
+    }
+
+    /**
+     * JPG 파일을 구글 드라이브에 업로드합니다.
+     * existingFileId가 제공되면 신규 작성 대신 기존 파일을 덮어씁니다(update).
+     */
     suspend fun uploadEstimateJpgWithResult(
         context: Context,
         account: GoogleSignInAccount,
         file: File,
         fileName: String,
-        estimateDate: String
+        estimateDate: String,
+        existingFileId: String? = null
     ): UploadResult = withContext(Dispatchers.IO) {
         // Drive scope 권한 확인
         if (!GoogleSignIn.hasPermissions(account, Scope(DriveScopes.DRIVE_FILE))) {
@@ -241,13 +286,21 @@ object GoogleDriveHelper {
 
             val fileMetadata = DriveFile().apply {
                 name = fileName
-                parents = listOf(folderId)
+                if (existingFileId == null) {
+                    parents = listOf(folderId)
+                }
             }
 
             val mediaContent = FileContent("image/jpeg", file)
-            val uploadedFile = driveService.files().create(fileMetadata, mediaContent)
-                .setFields("id, webViewLink")
-                .execute()
+            val uploadedFile = if (existingFileId != null) {
+                driveService.files().update(existingFileId, fileMetadata, mediaContent)
+                    .setFields("id")
+                    .execute()
+            } else {
+                driveService.files().create(fileMetadata, mediaContent)
+                    .setFields("id, webViewLink")
+                    .execute()
+            }
 
             Log.d(TAG, "Uploaded to $subFolderName. ID: ${uploadedFile.id}")
             UploadResult.Success(uploadedFile.id)
@@ -271,9 +324,10 @@ object GoogleDriveHelper {
         account: GoogleSignInAccount,
         file: File,
         fileName: String,
-        estimateDate: String
+        estimateDate: String,
+        existingFileId: String? = null
     ): String? = withContext(Dispatchers.IO) {
-        when (val result = uploadEstimateJpgWithResult(context, account, file, fileName, estimateDate)) {
+        when (val result = uploadEstimateJpgWithResult(context, account, file, fileName, estimateDate, existingFileId)) {
             is UploadResult.Success -> result.fileId
             else -> null
         }
