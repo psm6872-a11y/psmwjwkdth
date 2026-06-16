@@ -7,6 +7,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -24,6 +25,11 @@ class MemberViewModel @Inject constructor(
 
     private val _isCreator = MutableStateFlow(false)
     val isCreator: StateFlow<Boolean> = _isCreator.asStateFlow()
+
+    private val _kickedEvent = kotlinx.coroutines.flow.MutableSharedFlow<Unit>()
+    val kickedEvent = _kickedEvent.asSharedFlow()
+
+    private var hasLoadedMembers = false
 
     var currentRoomCode: String = ""
         private set
@@ -44,10 +50,36 @@ class MemberViewModel @Inject constructor(
     }
 
     private fun observeMembers(roomCode: String) {
+        hasLoadedMembers = false
         viewModelScope.launch {
             memberRepository.getMembersFlow(roomCode).collect { memberList ->
                 _members.value = memberList
+                
+                val nickname = userPreferences.getNickname()
+                if (nickname.isNotEmpty()) {
+                    if (memberList.isNotEmpty()) {
+                        hasLoadedMembers = true
+                        val isMePresent = memberList.any { it.deviceUUID == deviceUUID }
+                        if (!isMePresent) {
+                            handleKicked()
+                        }
+                    } else if (hasLoadedMembers) {
+                        handleKicked()
+                    }
+                }
             }
+        }
+    }
+
+    private fun handleKicked() {
+        viewModelScope.launch {
+            try {
+                memberRepository.removeMember(currentRoomCode, deviceUUID)
+            } catch (e: Exception) {
+                // Ignore
+            }
+            userPreferences.clearAll()
+            _kickedEvent.emit(Unit)
         }
     }
 

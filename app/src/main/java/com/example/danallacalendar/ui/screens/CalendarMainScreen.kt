@@ -122,6 +122,12 @@ fun CalendarMainScreen(
         memberViewModel.initializeRoom(viewModel.roomCode)
     }
 
+    LaunchedEffect(Unit) {
+        memberViewModel.kickedEvent.collect {
+            viewModel.logout()
+        }
+    }
+
     LaunchedEffect(updateState) {
         when (updateState) {
             is UpdateState.NoNetwork -> {
