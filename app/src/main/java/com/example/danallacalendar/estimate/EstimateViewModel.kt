@@ -81,6 +81,7 @@ class EstimateViewModel @Inject constructor(
     val isDriveUploading = _isDriveUploading.asStateFlow()
 
     private var estimateId: String = ""
+    private var copiedScheduleId: String? = null
 
     val copyFromEstimateJson: String?
         get() {
@@ -154,6 +155,7 @@ class EstimateViewModel @Inject constructor(
                 withContext(Dispatchers.Main) {
                     // UI 필드 복사 (ID는 신규 생성을 위해 의도적으로 빈 값 "" 세팅)
                     estimateId = "" 
+                    copiedScheduleId = originalEstimate.scheduleId
                     customerName.value = originalEstimate.customerName
                     phoneNumber.value = originalEstimate.phoneNumber
                     departure.value = originalEstimate.departure
@@ -302,6 +304,8 @@ class EstimateViewModel @Inject constructor(
 
         val amt = amount.value.toLongOrNull() ?: 0L
         val actualMemo = memo.value.trim()
+        val scheduleIdParam = savedStateHandle.get<String>("scheduleId")
+        val resolvedScheduleId = scheduleIdParam.takeIf { !it.isNullOrBlank() } ?: copiedScheduleId
 
         val estimate = Estimate(
             id = estimateId,
@@ -331,7 +335,8 @@ class EstimateViewModel @Inject constructor(
             deposit = deposit.value,
             balance = balance.value,
             optionCost = optionCost.value,
-            roomItems = convertRoomItemsToLong(roomItems.value)
+            roomItems = convertRoomItemsToLong(roomItems.value),
+            scheduleId = resolvedScheduleId
         )
 
         viewModelScope.launch(Dispatchers.IO) {
@@ -351,6 +356,7 @@ class EstimateViewModel @Inject constructor(
         val actualMemo = memo.value.trim()
 
         val scheduleIdParam = savedStateHandle.get<String>("scheduleId")
+        val resolvedScheduleId = scheduleIdParam.takeIf { !it.isNullOrBlank() } ?: copiedScheduleId
 
         val estimate = Estimate(
             id = estimateId,
@@ -381,7 +387,7 @@ class EstimateViewModel @Inject constructor(
             balance = balance.value,
             optionCost = optionCost.value,
             roomItems = convertRoomItemsToLong(roomItems.value),
-            scheduleId = scheduleIdParam
+            scheduleId = resolvedScheduleId
         )
 
         _saveState.value = SaveState.Loading
@@ -449,7 +455,7 @@ class EstimateViewModel @Inject constructor(
                 }
 
                 try {
-                    val scheduleIdStr = savedStateHandle.get<String>("scheduleId")
+                    val scheduleIdStr = resolvedScheduleId
                     val scheduleId = scheduleIdStr?.toIntOrNull()
                     if (scheduleId != null) {
                         val event = calendarRepository.getEventById(scheduleId)
@@ -467,7 +473,7 @@ class EstimateViewModel @Inject constructor(
                 _saveState.value = SaveState.Success
                 android.util.Log.d("EstimateViewModel", "[LOG] [THREAD: ${Thread.currentThread().name}] SaveState updated to Success")
 
-                val smsBody = "위와 같이 견적 합니다. 검토해 보시고 연락주세요. 감사합니다."
+                val smsBody = userPreferences.getSmsBodyTemplate()
 
                 viewModelScope.launch(Dispatchers.Main) {
                     onCompleted(smsBody, jpgPath)

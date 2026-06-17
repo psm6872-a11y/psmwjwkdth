@@ -265,7 +265,8 @@ object EstimatePrintHelper {
             jpgFile
         )
         val defaultSmsPackage = android.provider.Telephony.Sms.getDefaultSmsPackage(context)
-        val smsBody = "위와 같이 견적 합니다. 검토해 보시고 연락주세요. 감사합니다."
+        val userPreferences = com.example.danallacalendar.data.local.UserPreferences(context)
+        val smsBody = userPreferences.getSmsBodyTemplate()
 
         val intent = Intent(Intent.ACTION_SEND).apply {
             type = "image/jpeg"

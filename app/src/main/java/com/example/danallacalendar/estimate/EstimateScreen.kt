@@ -78,6 +78,7 @@ import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.common.api.ApiException
 import com.example.danallacalendar.data.local.UserPreferences
 import android.util.Log
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.text.buildAnnotatedString
@@ -245,7 +246,6 @@ fun EstimateScreen(
     val estimateDate by viewModel.estimateDate.collectAsStateWithLifecycle()
     val startTime by viewModel.startTime.collectAsStateWithLifecycle()
     val saveState by viewModel.saveState.collectAsStateWithLifecycle()
-    var showSuccessOverlay by remember { mutableStateOf(false) }
     val roomItems by viewModel.roomItems.collectAsStateWithLifecycle()
     val visitDate by viewModel.visitDate.collectAsStateWithLifecycle()
     val moveInfo by viewModel.moveInfo.collectAsStateWithLifecycle()
@@ -295,9 +295,6 @@ fun EstimateScreen(
     LaunchedEffect(saveState) {
         when (saveState) {
             is SaveState.Success -> {
-                showSuccessOverlay = true
-                delay(2000)
-                showSuccessOverlay = false
                 viewModel.resetSaveState()
                 hasSaved = false
                 if (currentStep == 3) {
@@ -322,7 +319,6 @@ fun EstimateScreen(
             currentStep = 3
         } else {
             viewModel.saveEstimate(context) { smsBody, pdfPath ->
-                Toast.makeText(context, "저장 완료!", Toast.LENGTH_SHORT).show()
                 savedSmsBody = smsBody
                 savedJpgPath = pdfPath
             }
@@ -719,29 +715,7 @@ fun EstimateScreen(
         }
     }
 
-    if (showSuccessOverlay) {
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(Color.Black.copy(alpha = 0.7f)),
-            contentAlignment = Alignment.Center
-        ) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text(
-                    "견적이 완료 되었습니다.",
-                    fontSize = 24.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    "견적서가 자동저장 되었습니다.",
-                    fontSize = 18.sp,
-                    color = Color.White.copy(alpha = 0.8f)
-                )
-            }
-        }
-    }
+
 
     if (showTtsSettings) {
         var tempSelectedVoice by remember { mutableStateOf(selectedVoice) }
@@ -3319,7 +3293,13 @@ fun Step4PreviewAndActions(
                     value = smsText,
                     onValueChange = { smsText = it },
                     label = { Text("메시지 내용") },
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .onFocusChanged { focusState ->
+                            if (!focusState.isFocused) {
+                                userPreferences.setSmsBodyTemplate(smsText)
+                            }
+                        },
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedTextColor = MaterialTheme.colorScheme.onSurface,
                         unfocusedTextColor = MaterialTheme.colorScheme.onSurface,

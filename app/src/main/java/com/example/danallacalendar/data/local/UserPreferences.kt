@@ -14,7 +14,7 @@ class UserPreferences(context: Context) {
         private const val KEY_IS_SHARE_ENABLED = "is_share_enabled"
         private const val KEY_IS_GOOGLE_DRIVE_SAVE_ENABLED = "is_google_drive_save_enabled"
         private const val KEY_IS_AUTO_DRIVE_SYNC_ENABLED = "is_auto_drive_sync_enabled"
-        private const val KEY_SMS_BODY_TEMPLATE = "sms_body_template"
+        private const val KEY_SMS_BODY_TEMPLATE = "smsTemplate"
     }
 
     init {
