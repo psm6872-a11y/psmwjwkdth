@@ -30,6 +30,9 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.foundation.gestures.detectTapGestures
+import com.example.danallacalendar.estimate.LocalEstimateViewerDialog
 
 import com.example.danallacalendar.ui.components.formatPhoneNumber
 import android.content.Intent
@@ -71,7 +74,7 @@ val calendarColors = listOf(
 fun AddEditEventScreen(
     eventId: Int?,
     onNavigateBack: () -> Unit,
-    onNavigateToEstimate: (moveDate: String, departure: String, destination: String, phone: String) -> Unit,
+    onNavigateToEstimate: (moveDate: String, departure: String, destination: String, phone: String, scheduleId: String?, copyFromEstimateJson: String?) -> Unit,
     viewModel: CalendarViewModel,
     modifier: Modifier = Modifier
 ) {
@@ -86,6 +89,7 @@ fun AddEditEventScreen(
 
     // Form States
     var title by remember { mutableStateOf("") }
+    var linkedEstimateId by remember { mutableStateOf<String?>(null) }
     var isAllDay by remember { mutableStateOf(false) }
     var startMillis by remember { mutableStateOf(selectedDate) }
     var endMillis by remember { mutableStateOf(selectedDate + 60 * 60 * 1000L) } // Default +1 hour
@@ -116,6 +120,8 @@ fun AddEditEventScreen(
     var showEndTimePicker by remember { mutableStateOf(false) }
     var showRecentCallsDialog by remember { mutableStateOf(false) }
     var showTitleDatePicker by remember { mutableStateOf(false) }
+    var showEstimateDetailDialog by remember { mutableStateOf(false) }
+    var selectedEstimateForDetail by remember { mutableStateOf<com.example.danallacalendar.estimate.Estimate?>(null) }
 
     // Dropdown control states
     var showCategoryDropdown by remember { mutableStateOf(false) }
@@ -183,6 +189,16 @@ fun AddEditEventScreen(
                 isCompleted = event.isCompleted
                 createdAt = if (event.createdAt <= 0L) System.currentTimeMillis() else event.createdAt
                 updatedAt = if (event.updatedAt <= 0L) System.currentTimeMillis() else event.updatedAt
+                var est = event.linkedEstimateId?.let { viewModel.getEstimateById(it) }
+                if (est == null) {
+                    est = viewModel.getEstimateByScheduleId(eventId.toString())
+                }
+                if (est != null) {
+                    linkedEstimateId = est.id
+                    selectedEstimateForDetail = est
+                } else {
+                    linkedEstimateId = event.linkedEstimateId
+                }
                 isLoaded = true
             }
         }
@@ -236,7 +252,8 @@ fun AddEditEventScreen(
                 colorHex = selectedColorHex,
                 isCompleted = isCompleted,
                 createdAt = if (eventId == null) now else createdAt,
-                updatedAt = now
+                updatedAt = now,
+                linkedEstimateId = linkedEstimateId
             )
             if (eventId == null) {
                 viewModel.addEvent(event)
@@ -266,61 +283,184 @@ fun AddEditEventScreen(
                             text = if (eventId == null) "일정 추가" else "일정 편집",
                             fontWeight = FontWeight.Bold
                         )
-                        Box(
-                            modifier = Modifier
-                                .height(26.dp)
-                                .clip(RoundedCornerShape(6.dp))
-                                .background(Color(0xFFF3E5F5))
-                                .border(1.dp, Color(0xFFAB47BC), RoundedCornerShape(6.dp))
-                                .clickable {
-                                    // 1. 일정 제목 첫줄이 07-22 같은 날짜 형식(MM-dd)이면 스텝3 이사날짜에 자동입력
-                                    val firstLine = title.lineSequence().firstOrNull()?.trim() ?: ""
-                                    val isDatePattern = firstLine.matches(Regex("""^\d{2}-\d{2}$"""))
-                                    val resolvedMoveDate = if (isDatePattern) {
-                                        val currentYear = java.util.Calendar.getInstance().get(java.util.Calendar.YEAR)
-                                        "$currentYear-$firstLine"
-                                    } else {
-                                        ""
+                        var showEstimateMenu by remember { mutableStateOf(false) }
+                        var pressOffset by remember { mutableStateOf(androidx.compose.ui.unit.DpOffset.Zero) }
+                        val density = androidx.compose.ui.platform.LocalDensity.current
+                        val coroutineScope = rememberCoroutineScope()
+
+                        if (linkedEstimateId == null) {
+                            Box(
+                                modifier = Modifier
+                                    .height(26.dp)
+                                    .clip(RoundedCornerShape(6.dp))
+                                    .background(Color(0xFFF3E5F5))
+                                    .border(1.dp, Color(0xFFAB47BC), RoundedCornerShape(6.dp))
+                                    .clickable {
+                                        // 1. 일정 제목 첫줄이 07-22 같은 날짜 형식(MM-dd)이면 스텝3 이사날짜에 자동입력
+                                        val firstLine = title.lineSequence().firstOrNull()?.trim() ?: ""
+                                        val isDatePattern = firstLine.matches(Regex("""^\d{2}-\d{2}$"""))
+                                        val resolvedMoveDate = if (isDatePattern) {
+                                            val currentYear = java.util.Calendar.getInstance().get(java.util.Calendar.YEAR)
+                                            "$currentYear-$firstLine"
+                                        } else {
+                                            ""
+                                        }
+
+                                        // 2. 일정의 출발지 주소 + 동/호수 이어붙여서 스텝3 출발지에 자동입력
+                                        val resolvedDeparture = buildString {
+                                            append(location)
+                                            if (location1b.isNotBlank()) {
+                                                if (isNotEmpty() && !endsWith(" ")) append(" ")
+                                                append(location1b)
+                                            }
+                                        }.trim()
+
+                                        // 3. 일정의 도착지 주소 + 동/호수 이어붙여서 스텝3 도착지에 자동입력
+                                        val resolvedDestination = buildString {
+                                            append(location2)
+                                            if (location2b.isNotBlank()) {
+                                                if (isNotEmpty() && !endsWith(" ")) append(" ")
+                                                append(location2b)
+                                            }
+                                        }.trim()
+
+                                        // 4. 일정의 전화번호를 스텝3 연락처에 자동입력
+                                        val resolvedPhone = notesList.firstOrNull { it.isNotBlank() } ?: ""
+
+                                         onNavigateToEstimate(resolvedMoveDate, resolvedDeparture, resolvedDestination, resolvedPhone, eventId?.toString(), null)
                                     }
-
-                                    // 2. 일정의 출발지 주소 + 동/호수 이어붙여서 스텝3 출발지에 자동입력
-                                    val resolvedDeparture = buildString {
-                                        append(location)
-                                        if (location1b.isNotBlank()) {
-                                            if (isNotEmpty() && !endsWith(" ")) append(" ")
-                                            append(location1b)
+                                    .padding(horizontal = 8.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = "견적내기",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFF8E24AA),
+                                    style = androidx.compose.ui.text.TextStyle(
+                                        platformStyle = androidx.compose.ui.text.PlatformTextStyle(
+                                            includeFontPadding = false
+                                        )
+                                    ),
+                                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                                )
+                            }
+                        } else {
+                            Box(
+                                modifier = Modifier
+                                    .height(26.dp)
+                                    .clip(RoundedCornerShape(6.dp))
+                                    .background(Color(0xFFE8F5E9))
+                                    .border(1.dp, Color(0xFF4CAF50), RoundedCornerShape(6.dp))
+                                    .pointerInput(Unit) {
+                                        detectTapGestures(
+                                            onTap = {
+                                                coroutineScope.launch {
+                                                    val est = viewModel.getEstimateById(linkedEstimateId!!)
+                                                    if (est != null) {
+                                                        selectedEstimateForDetail = est
+                                                        showEstimateDetailDialog = true
+                                                    } else {
+                                                        Toast.makeText(context, "견적서를 찾을 수 없습니다.", Toast.LENGTH_SHORT).show()
+                                                    }
+                                                }
+                                            },
+                                            onLongPress = { offset ->
+                                                val xDp = with(density) { offset.x.toDp() }
+                                                val yDp = with(density) { offset.y.toDp() }
+                                                pressOffset = androidx.compose.ui.unit.DpOffset(xDp, yDp)
+                                                showEstimateMenu = true
+                                            }
+                                        )
+                                    }
+                                    .padding(horizontal = 8.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = "견적서 보기",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFF2E7D32),
+                                    style = androidx.compose.ui.text.TextStyle(
+                                        platformStyle = androidx.compose.ui.text.PlatformTextStyle(
+                                            includeFontPadding = false
+                                        )
+                                    ),
+                                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                                )
+                            }
+                            
+                            DropdownMenu(
+                                expanded = showEstimateMenu,
+                                onDismissRequest = { showEstimateMenu = false },
+                                offset = pressOffset,
+                                modifier = Modifier
+                                    .background(Color(0xFF1E1045))
+                                    .border(1.dp, Color(0xFFE040FB).copy(alpha = 0.3f), RoundedCornerShape(8.dp))
+                            ) {
+                                DropdownMenuItem(
+                                    text = {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.Edit,
+                                                contentDescription = "수정",
+                                                tint = Color(0xFFE040FB),
+                                                modifier = Modifier.size(20.dp)
+                                            )
+                                            Text(
+                                                text = "수정",
+                                                color = Color.White,
+                                                fontSize = 15.sp,
+                                                fontWeight = FontWeight.SemiBold
+                                            )
                                         }
-                                    }.trim()
-
-                                    // 3. 일정의 도착지 주소 + 동/호수 이어붙여서 스텝3 도착지에 자동입력
-                                    val resolvedDestination = buildString {
-                                        append(location2)
-                                        if (location2b.isNotBlank()) {
-                                            if (isNotEmpty() && !endsWith(" ")) append(" ")
-                                            append(location2b)
+                                    },
+                                    onClick = {
+                                        showEstimateMenu = false
+                                        coroutineScope.launch {
+                                            val est = viewModel.getEstimateById(linkedEstimateId!!)
+                                            if (est != null) {
+                                                val estimateJson = com.google.gson.Gson().toJson(est)
+                                                onNavigateToEstimate("", "", "", "", eventId?.toString(), estimateJson)
+                                            } else {
+                                                Toast.makeText(context, "견적서를 찾을 수 없습니다.", Toast.LENGTH_SHORT).show()
+                                            }
                                         }
-                                    }.trim()
-
-                                    // 4. 일정의 전화번호를 스텝3 연락처에 자동입력
-                                    val resolvedPhone = notesList.firstOrNull { it.isNotBlank() } ?: ""
-
-                                    onNavigateToEstimate(resolvedMoveDate, resolvedDeparture, resolvedDestination, resolvedPhone)
-                                }
-                                .padding(horizontal = 8.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = "견적내기",
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Color(0xFF8E24AA),
-                                style = androidx.compose.ui.text.TextStyle(
-                                    platformStyle = androidx.compose.ui.text.PlatformTextStyle(
-                                        includeFontPadding = false
-                                    )
-                                ),
-                                textAlign = androidx.compose.ui.text.style.TextAlign.Center
-                            )
+                                    },
+                                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp)
+                                )
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(0.5.dp)
+                                        .background(Color.White.copy(alpha = 0.12f))
+                                )
+                                DropdownMenuItem(
+                                    text = {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.Close,
+                                                contentDescription = "취소",
+                                                tint = Color.White.copy(alpha = 0.4f),
+                                                modifier = Modifier.size(20.dp)
+                                            )
+                                            Text(
+                                                text = "취소",
+                                                color = Color.White.copy(alpha = 0.6f),
+                                                fontSize = 15.sp
+                                            )
+                                        }
+                                    },
+                                    onClick = { showEstimateMenu = false },
+                                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp)
+                                )
+                            }
                         }
                     }
                 },
@@ -1302,6 +1442,19 @@ fun AddEditEventScreen(
                 showRecentCallsDialog = false
             },
             onDismiss = { showRecentCallsDialog = false }
+        )
+    }
+
+    // Estimate Detail Dialog
+    if (showEstimateDetailDialog && selectedEstimateForDetail != null) {
+        LocalEstimateViewerDialog(
+            estimate = selectedEstimateForDetail!!,
+            onDismiss = { showEstimateDetailDialog = false },
+            onEditClick = {
+                showEstimateDetailDialog = false
+                val estimateJson = com.google.gson.Gson().toJson(selectedEstimateForDetail)
+                onNavigateToEstimate("", "", "", "", eventId?.toString(), estimateJson)
+            }
         )
     }
 }

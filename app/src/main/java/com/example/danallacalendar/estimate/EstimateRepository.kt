@@ -76,4 +76,37 @@ class EstimateRepository @Inject constructor(
         awaitClose { listener.remove() }
     }
 
+    suspend fun getEstimateFromFirestore(estimateId: String): Estimate? {
+        val roomCode = userPreferences.getLastRoomCode()
+        val docRef = if (roomCode.isNotEmpty()) {
+            firestore.collection("rooms").document(roomCode).collection("estimates").document(estimateId)
+        } else {
+            firestore.collection("estimates").document(estimateId)
+        }
+        return try {
+            val snapshot = docRef.get().await()
+            snapshot.toObject(Estimate::class.java)
+        } catch (e: Exception) {
+            android.util.Log.e("EstimateRepository", "Failed to get estimate from Firestore", e)
+            null
+        }
+    }
+
+    suspend fun getEstimateByScheduleId(scheduleId: String): Estimate? {
+        val roomCode = userPreferences.getLastRoomCode()
+        val collectionRef = if (roomCode.isNotEmpty()) {
+            firestore.collection("rooms").document(roomCode).collection("estimates")
+        } else {
+            firestore.collection("estimates")
+        }
+        return try {
+            val snapshot = collectionRef.whereEqualTo("scheduleId", scheduleId).limit(1).get().await()
+            val doc = snapshot.documents.firstOrNull()
+            doc?.toObject(Estimate::class.java)
+        } catch (e: Exception) {
+            android.util.Log.e("EstimateRepository", "Failed to query estimate by scheduleId", e)
+            null
+        }
+    }
+
 }

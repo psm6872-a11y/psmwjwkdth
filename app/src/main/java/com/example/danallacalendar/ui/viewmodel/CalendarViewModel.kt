@@ -36,6 +36,8 @@ enum class EventFilter {
 class CalendarViewModel @Inject constructor(
     private val repository: CalendarRepository,
     private val userPreferences: UserPreferences,
+    private val estimatePdfDao: com.example.danallacalendar.data.EstimatePdfDao,
+    private val estimateRepository: com.example.danallacalendar.estimate.EstimateRepository,
     @ApplicationContext private val context: Context
 ) : ViewModel() {
 
@@ -544,6 +546,22 @@ class CalendarViewModel @Inject constructor(
         set(Calendar.MINUTE, 0)
         set(Calendar.SECOND, 0)
         set(Calendar.MILLISECOND, 0)
+    }
+
+    suspend fun getEstimateById(estimateId: String): com.example.danallacalendar.estimate.Estimate? {
+        val pdf = estimatePdfDao.getPdfByEstimateId(estimateId)
+        if (pdf != null) {
+            return try {
+                com.google.gson.Gson().fromJson(pdf.estimateJson, com.example.danallacalendar.estimate.Estimate::class.java)
+            } catch (e: Exception) {
+                null
+            }
+        }
+        return estimateRepository.getEstimateFromFirestore(estimateId)
+    }
+
+    suspend fun getEstimateByScheduleId(scheduleId: String): com.example.danallacalendar.estimate.Estimate? {
+        return estimateRepository.getEstimateByScheduleId(scheduleId)
     }
 }
 

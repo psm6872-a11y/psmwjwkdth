@@ -714,7 +714,8 @@ fun EstimateItemCard(
 @Composable
 fun LocalEstimateViewerDialog(
     estimate: Estimate,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
+    onEditClick: (() -> Unit)? = null
 ) {
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
@@ -807,8 +808,25 @@ fun LocalEstimateViewerDialog(
                         text = "견적서 상세 보기",
                         color = Color.White,
                         fontSize = 15.sp,
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.weight(1f)
                     )
+                    if (onEditClick != null) {
+                        IconButton(
+                            onClick = {
+                                onDismiss()
+                                onEditClick()
+                            },
+                            modifier = Modifier.size(32.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Edit,
+                                tint = Color.White,
+                                contentDescription = "수정",
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                    }
                 }
 
                 // 상단 액션 버튼 행 (아이콘 + 텍스트 정렬 개선 및 높이 축소)

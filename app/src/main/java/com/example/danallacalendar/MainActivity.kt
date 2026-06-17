@@ -113,7 +113,7 @@ fun AppNavigation(userPreferences: UserPreferences) {
 
     NavHost(navController = navController, startDestination = initialRoute) {
         composable(
-            route = "estimate?moveDate={moveDate}&departure={departure}&destination={destination}&phone={phone}&copyFromEstimateJson={copyFromEstimateJson}",
+            route = "estimate?moveDate={moveDate}&departure={departure}&destination={destination}&phone={phone}&copyFromEstimateJson={copyFromEstimateJson}&scheduleId={scheduleId}",
             arguments = listOf(
                 navArgument("moveDate") {
                     type = NavType.StringType
@@ -139,13 +139,28 @@ fun AppNavigation(userPreferences: UserPreferences) {
                     type = NavType.StringType
                     nullable = true
                     defaultValue = null
+                },
+                navArgument("scheduleId") {
+                    type = NavType.StringType
+                    nullable = true
+                    defaultValue = null
                 }
             )
         ) { backStackEntry ->
             val viewModel: com.example.danallacalendar.estimate.EstimateViewModel = hiltViewModel()
+            val scheduleId = backStackEntry.arguments?.getString("scheduleId")
             com.example.danallacalendar.estimate.EstimateScreen(
                 viewModel = viewModel,
-                onNavigateBack = { navController.popBackStack() }
+                onNavigateBack = {
+                    if (viewModel.isSaved && !scheduleId.isNullOrBlank()) {
+                        val popped = navController.popBackStack("calendar", inclusive = false)
+                        if (!popped) {
+                            navController.popBackStack()
+                        }
+                    } else {
+                        navController.popBackStack()
+                    }
+                }
             )
         }
 
@@ -241,12 +256,22 @@ fun AppNavigation(userPreferences: UserPreferences) {
                 onNavigateBack = {
                     navController.popBackStack()
                 },
-                onNavigateToEstimate = { moveDate, departure, destination, phone ->
+                onNavigateToEstimate = { moveDate, departure, destination, phone, scheduleId, copyFromEstimateJson ->
                     val encDate = android.net.Uri.encode(moveDate)
                     val encDep = android.net.Uri.encode(departure)
                     val encDest = android.net.Uri.encode(destination)
                     val encPhone = android.net.Uri.encode(phone)
-                    navController.navigate("estimate?moveDate=$encDate&departure=$encDep&destination=$encDest&phone=$encPhone")
+                    val encJson = if (copyFromEstimateJson != null) android.net.Uri.encode(copyFromEstimateJson) else null
+                    val route = buildString {
+                        append("estimate?moveDate=$encDate&departure=$encDep&destination=$encDest&phone=$encPhone")
+                        if (scheduleId != null) {
+                            append("&scheduleId=$scheduleId")
+                        }
+                        if (encJson != null) {
+                            append("&copyFromEstimateJson=$encJson")
+                        }
+                    }
+                    navController.navigate(route)
                 },
                 viewModel = viewModel
             )

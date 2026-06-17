@@ -35,8 +35,11 @@ class EstimateViewModel @Inject constructor(
     private val repository: EstimateRepository,
     private val estimatePdfDao: EstimatePdfDao,
     private val savedStateHandle: SavedStateHandle,
-    private val userPreferences: UserPreferences
+    private val userPreferences: UserPreferences,
+    private val calendarRepository: com.example.danallacalendar.data.repository.CalendarRepository
 ) : ViewModel() {
+
+    var isSaved = false
 
     // Form fields
     val customerName = MutableStateFlow("")
@@ -347,6 +350,8 @@ class EstimateViewModel @Inject constructor(
         val formattedCargo = formatRoomItemsSummary()
         val actualMemo = memo.value.trim()
 
+        val scheduleIdParam = savedStateHandle.get<String>("scheduleId")
+
         val estimate = Estimate(
             id = estimateId,
             customerName = customerName.value,
@@ -375,7 +380,8 @@ class EstimateViewModel @Inject constructor(
             deposit = deposit.value,
             balance = balance.value,
             optionCost = optionCost.value,
-            roomItems = convertRoomItemsToLong(roomItems.value)
+            roomItems = convertRoomItemsToLong(roomItems.value),
+            scheduleId = scheduleIdParam
         )
 
         _saveState.value = SaveState.Loading
@@ -442,6 +448,22 @@ class EstimateViewModel @Inject constructor(
                     }
                 }
 
+                try {
+                    val scheduleIdStr = savedStateHandle.get<String>("scheduleId")
+                    val scheduleId = scheduleIdStr?.toIntOrNull()
+                    if (scheduleId != null) {
+                        val event = calendarRepository.getEventById(scheduleId)
+                        if (event != null) {
+                            val updatedEvent = event.copy(linkedEstimateId = finalEstimate.id)
+                            calendarRepository.updateEvent(updatedEvent)
+                            android.util.Log.d("EstimateViewModel", "Schedule linked success: eventId=$scheduleId, estimateId=${finalEstimate.id}")
+                        }
+                    }
+                } catch (e: Exception) {
+                    android.util.Log.e("EstimateViewModel", "Failed to link schedule with estimate", e)
+                }
+
+                isSaved = true
                 _saveState.value = SaveState.Success
                 android.util.Log.d("EstimateViewModel", "[LOG] [THREAD: ${Thread.currentThread().name}] SaveState updated to Success")
 

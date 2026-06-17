@@ -391,6 +391,7 @@ class CalendarRepository @Inject constructor(
                                 val syncId = doc.getString("syncId") ?: doc.id
                                 val colorHex = doc.getString("colorHex")
                                 val isCompleted = doc.getBoolean("isCompleted") ?: false
+                                val linkedEstimateId = doc.getString("linkedEstimateId")
                                 val createdAt = doc.getLong("createdAt") ?: System.currentTimeMillis()
                                 val updatedAt = doc.getLong("updatedAt") ?: System.currentTimeMillis()
                                 
@@ -409,7 +410,8 @@ class CalendarRepository @Inject constructor(
                                     colorHex = colorHex,
                                     isCompleted = isCompleted,
                                     createdAt = createdAt,
-                                    updatedAt = updatedAt
+                                    updatedAt = updatedAt,
+                                    linkedEstimateId = linkedEstimateId
                                 )
                             }
                             
@@ -427,7 +429,8 @@ class CalendarRepository @Inject constructor(
                                         existing.colorHex != remote.colorHex ||
                                         existing.isCompleted != remote.isCompleted ||
                                         existing.createdAt != remote.createdAt ||
-                                        existing.updatedAt != remote.updatedAt
+                                        existing.updatedAt != remote.updatedAt ||
+                                        existing.linkedEstimateId != remote.linkedEstimateId
                                     ) {
                                         eventDao.updateEvent(updated)
                                     }
@@ -470,6 +473,7 @@ class CalendarRepository @Inject constructor(
             "syncId" to event.syncId,
             "colorHex" to event.colorHex,
             "isCompleted" to event.isCompleted,
+            "linkedEstimateId" to event.linkedEstimateId,
             "lastUpdatedBy" to userPreferences.getDeviceUUID(),
             "createdBy" to userPreferences.getDeviceUUID(),
             "createdAt" to event.createdAt,

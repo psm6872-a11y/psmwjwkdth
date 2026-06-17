@@ -32,7 +32,8 @@ data class Event(
     val colorHex: String? = null,
     val isCompleted: Boolean = false,
     val createdAt: Long = System.currentTimeMillis(),
-    val updatedAt: Long = System.currentTimeMillis()
+    val updatedAt: Long = System.currentTimeMillis(),
+    val linkedEstimateId: String? = null
 )
 
 @Entity(tableName = "deadline_dates")

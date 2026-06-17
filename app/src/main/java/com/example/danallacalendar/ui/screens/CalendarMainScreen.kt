@@ -1301,6 +1301,25 @@ fun EventItemCard(
                     )
                 }
 
+                // 견적서 연결 아이콘
+                if (!event.linkedEstimateId.isNullOrBlank()) {
+                    Spacer(modifier = Modifier.width(minOf(screenWidth, 400.dp) * 0.015f))
+                    Box(
+                        modifier = Modifier
+                            .size(26.dp)
+                            .clip(CircleShape)
+                            .background(Color(0xFFFBEAF0)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Description,
+                            contentDescription = "견적서 연결됨",
+                            tint = Color(0xFF993556),
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
+                }
+
                 Spacer(modifier = Modifier.width(minOf(screenWidth, 400.dp) * 0.02f))
 
                 // 완료 토글 버튼
