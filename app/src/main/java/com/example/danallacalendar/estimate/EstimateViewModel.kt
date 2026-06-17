@@ -65,7 +65,7 @@ class EstimateViewModel @Inject constructor(
     val extraTruck = MutableStateFlow("")
     val moveCost = MutableStateFlow("")
     val totalCost = MutableStateFlow("")
-    val deposit = MutableStateFlow("")
+    val deposit = MutableStateFlow("10")
     val balance = MutableStateFlow("")
     val optionCost = MutableStateFlow("")
 
@@ -179,7 +179,7 @@ class EstimateViewModel @Inject constructor(
                     extraTruck.value = originalEstimate.extraTruck
                     moveCost.value = originalEstimate.moveCost
                     totalCost.value = originalEstimate.totalCost
-                    deposit.value = originalEstimate.deposit
+                    deposit.value = originalEstimate.deposit.ifBlank { "10" }
                     balance.value = originalEstimate.balance
                     optionCost.value = originalEstimate.optionCost
 

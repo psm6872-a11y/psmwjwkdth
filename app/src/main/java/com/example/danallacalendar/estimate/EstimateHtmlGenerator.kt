@@ -83,7 +83,7 @@ object EstimateHtmlGenerator {
 
         // 벽걸이TV
         val tvWall = allItemsList.filter {
-            it.contains("TV") && it.contains("벽걸이") && !it.contains("85\"") &&
+            it.contains("TV") && it.contains("벽걸이") &&
                     !it.contains("(폐기)") && !it.contains("(제자리)") && !it.contains("(1층)")
         }.joinToString("\n")
         html = html.replace("{{opt_벽걸이TV}}", tvWall)
