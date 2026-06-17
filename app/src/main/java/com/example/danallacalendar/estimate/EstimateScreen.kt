@@ -1365,7 +1365,6 @@ fun SpaceCard(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun Step2ItemSelection(
     spaceName: String,
@@ -1889,10 +1888,8 @@ fun Step2ItemSelection(
         }
     }
 
-    val is2ndOr3rdActive = isSecondBubble || isAirconBrandBubble || isAirconInstallBubble || isTvSizeBubble || isTvInstallBubble
-
     // Popup Dialog (Speech Bubble Overlay)
-    if (itemPendingOptions != null && !is2ndOr3rdActive) {
+    if (itemPendingOptions != null) {
         val density = LocalDensity.current
         val bubbleWidth = 280.dp
         var bubbleHeightPx by remember { mutableStateOf(0f) }
@@ -1930,7 +1927,7 @@ fun Step2ItemSelection(
             val finalLeftDp = with(density) { bubbleLeftPx.toDp() }
 
             val bubbleAlpha by animateFloatAsState(
-                targetValue = if (bubbleHeightPx > 0f) 1f else 0f,
+                targetValue = if (itemPendingOptions != null && bubbleHeightPx > 0f) 1f else 0f,
                 animationSpec = tween(durationMillis = 150),
                 label = "bubbleAlpha"
             )
@@ -1948,10 +1945,12 @@ fun Step2ItemSelection(
                 modifier = Modifier
                     .offset(x = finalLeftDp, y = finalTopDp)
                     .width(bubbleWidth)
+                    .animateContentSize()
                     .alpha(bubbleAlpha)
                     .onGloballyPositioned { coords ->
-                        if (bubbleHeightPx == 0f) {
-                            bubbleHeightPx = coords.size.height.toFloat()
+                        val newHeight = coords.size.height.toFloat()
+                        if (bubbleHeightPx != newHeight && newHeight > 0f) {
+                            bubbleHeightPx = newHeight
                         }
                     }
                     .clickable(
@@ -1995,9 +1994,16 @@ fun Step2ItemSelection(
 
                     Spacer(modifier = Modifier.height(12.dp))
 
-                    if (!isSecondBubble && !isAirconBrandBubble && !isAirconInstallBubble && !isTvSizeBubble && !isTvInstallBubble) {
-                        // 1차 말풍선
-                        val hasOptions = itemPendingOptions!!.options.isNotEmpty()
+                    val is2ndOr3rdActive = isSecondBubble || isAirconBrandBubble || isAirconInstallBubble || isTvSizeBubble || isTvInstallBubble
+
+                    AnimatedVisibility(
+                        visible = !is2ndOr3rdActive,
+                        enter = fadeIn(animationSpec = tween(durationMillis = 600)),
+                        exit = fadeOut(animationSpec = tween(0))
+                    ) {
+                        Column {
+                            // 1차 말풍선
+                            val hasOptions = itemPendingOptions!!.options.isNotEmpty()
                         if (hasOptions) {
                             // 기존에 옵션 있던 물품 (침대, 소파 등): 기존 옵션들 + 제외
                             itemPendingOptions!!.options.forEach { option ->
@@ -2010,12 +2016,10 @@ fun Step2ItemSelection(
                                                 onUpdateCountTts("${option} 선택")
                                                 selectedFirstOption = option
                                                 isAirconBrandBubble = true
-                                                bubbleHeightPx = 0f // 높이 재계산 유도
                                             } else if (itemPendingOptions!!.name == "TV") {
                                                 onUpdateCountTts("${option} 선택")
                                                 selectedFirstOption = option
                                                 isTvSizeBubble = true
-                                                bubbleHeightPx = 0f // 높이 재계산 유도
                                             } else {
                                                 val displayName = "${itemPendingOptions!!.name} ($option)"
                                                 val currentCount = roomItems[spaceName]?.get(displayName) ?: 0
@@ -2094,7 +2098,6 @@ fun Step2ItemSelection(
                                 .clickable {
                                     onUpdateCountTts("제외 옵션 선택")
                                     isSecondBubble = true
-                                    bubbleHeightPx = 0f // 높이 재계산 유도
                                 },
                             colors = CardDefaults.cardColors(
                                 containerColor = Color.White.copy(alpha = 0.1f)
@@ -2116,212 +2119,253 @@ fun Step2ItemSelection(
                                 )
                             }
                         }
-                    } else if (isAirconBrandBubble) {
-                        // 에어컨 브랜드 2차 말풍선: 삼성 / LG / 캐리어 / 위니아
-                        val brands = listOf("삼성", "LG", "캐리어", "위니아")
-                        brands.forEach { brand ->
-                            Card(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(vertical = 3.dp)
-                                    .clickable {
-                                        onUpdateCountTts("${brand} 선택")
-                                        selectedSecondOption = brand
-                                        isAirconBrandBubble = false
-                                        isAirconInstallBubble = true
-                                        bubbleHeightPx = 0f // 높이 재계산 유도
-                                    },
-                                colors = CardDefaults.cardColors(
-                                    containerColor = Color.White.copy(alpha = 0.1f)
-                                ),
-                                shape = RoundedCornerShape(8.dp),
-                                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.05f))
-                            ) {
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(vertical = 10.dp),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Text(
-                                        text = brand,
-                                        fontSize = 14.sp,
-                                        fontWeight = FontWeight.SemiBold,
-                                        color = Color.White
-                                    )
-                                }
-                            }
-                        }
-                    } else if (isAirconInstallBubble) {
-                        // 에어컨 설치 3차 말풍선: 협력업체 / A/S센터 / 탈착,이동 / 미정
-                        val options3 = listOf("협력업체", "A/S센터", "탈착,이동", "미정")
-                        options3.forEach { option ->
-                            Card(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(vertical = 3.dp)
-                                    .clickable {
-                                        val displayName = "${itemPendingOptions!!.name} (${selectedFirstOption!!}_${selectedSecondOption!!}_$option)"
-                                        val currentCount = roomItems["에어컨"]?.get(displayName) ?: 0
-                                        onUpdateCount("에어컨", displayName, currentCount + 1)
-                                        onUpdateCountTts("${displayName} 추가")
-                                        toastMessage = "${displayName}이 추가되었습니다."
-                                        spawnFlyingParticle(itemPendingOptions!!)
-                                        itemPendingOptions = null
-                                        isAirconInstallBubble = false
-                                        selectedFirstOption = null
-                                        selectedSecondOption = null
-                                    },
-                                colors = CardDefaults.cardColors(
-                                    containerColor = Color.White.copy(alpha = 0.1f)
-                                ),
-                                shape = RoundedCornerShape(8.dp),
-                                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.05f))
-                            ) {
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(vertical = 10.dp),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Text(
-                                        text = option,
-                                        fontSize = 14.sp,
-                                        fontWeight = FontWeight.SemiBold,
-                                        color = Color.White
-                                    )
-                                }
-                            }
-                        }
-                    } else if (isTvSizeBubble) {
-                        // TV 크기 2차 말풍선: 65"이하 / 75" / 85"이상
-                        val sizes = listOf("65\"이하", "75\"", "85\"이상")
-                        sizes.forEach { size ->
-                            Card(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(vertical = 3.dp)
-                                    .clickable {
-                                        if (selectedFirstOption == "벽걸이") {
-                                            onUpdateCountTts("${size} 선택")
-                                            selectedSecondOption = size
-                                            isTvSizeBubble = false
-                                            isTvInstallBubble = true
-                                            bubbleHeightPx = 0f // 높이 재계산 유도
-                                        } else {
-                                            val displayName = "${itemPendingOptions!!.name} (${selectedFirstOption!!}-$size)"
-                                            val currentCount = roomItems[spaceName]?.get(displayName) ?: 0
-                                            onUpdateCount(spaceName, displayName, currentCount + 1)
-                                            onUpdateCountTts("${displayName} 추가")
-                                            toastMessage = "${displayName}이 추가되었습니다."
-                                            spawnFlyingParticle(itemPendingOptions!!)
-                                            itemPendingOptions = null
-                                            isTvSizeBubble = false
-                                            selectedFirstOption = null
-                                        }
-                                    },
-                                colors = CardDefaults.cardColors(
-                                    containerColor = Color.White.copy(alpha = 0.1f)
-                                ),
-                                shape = RoundedCornerShape(8.dp),
-                                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.05f))
-                            ) {
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(vertical = 10.dp),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Text(
-                                        text = size,
-                                        fontSize = 14.sp,
-                                        fontWeight = FontWeight.SemiBold,
-                                        color = Color.White
-                                    )
-                                }
-                            }
-                        }
-                    } else if (isTvInstallBubble) {
-                        // TV 설치 3차 말풍선: 협력업체 / A/S센터 / 탈착,이동 / 미정
-                        val options3 = listOf("협력업체", "A/S센터", "탈착,이동", "미정")
-                        options3.forEach { option ->
-                            Card(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(vertical = 3.dp)
-                                    .clickable {
-                                        val displayName = "${itemPendingOptions!!.name} (${selectedFirstOption!!}_${selectedSecondOption!!}_$option)"
-                                        val currentCount = roomItems["TV"]?.get(displayName) ?: 0
-                                        onUpdateCount("TV", displayName, currentCount + 1)
-                                        onUpdateCountTts("${displayName} 추가")
-                                        toastMessage = "${displayName}이 추가되었습니다."
-                                        spawnFlyingParticle(itemPendingOptions!!)
-                                        itemPendingOptions = null
-                                        isTvInstallBubble = false
-                                        selectedFirstOption = null
-                                        selectedSecondOption = null
-                                    },
-                                colors = CardDefaults.cardColors(
-                                    containerColor = Color.White.copy(alpha = 0.1f)
-                                ),
-                                shape = RoundedCornerShape(8.dp),
-                                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.05f))
-                            ) {
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(vertical = 10.dp),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Text(
-                                        text = option,
-                                        fontSize = 14.sp,
-                                        fontWeight = FontWeight.SemiBold,
-                                        color = Color.White
-                                    )
-                                }
-                            }
-                        }
-                    } else {
-                        // 2차 말풍선: 폐기 / 제자리 / 1층
-                        val excludeOptions = listOf("폐기", "제자리", "1층")
-                        excludeOptions.forEach { option ->
-                            Card(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(vertical = 3.dp)
-                                    .clickable {
-                                        val displayName = "${itemPendingOptions!!.name} ($option)"
-                                        val currentCount = roomItems[spaceName]?.get(displayName) ?: 0
-                                        onUpdateCount(spaceName, displayName, currentCount + 1)
-                                        onUpdateCountTts("${displayName} 추가")
-                                        toastMessage = "${displayName}이 추가되었습니다."
-                                        spawnFlyingParticle(itemPendingOptions!!)
-                                        itemPendingOptions = null
-                                        isSecondBubble = false
-                                    },
-                                colors = CardDefaults.cardColors(
-                                    containerColor = Color.White.copy(alpha = 0.1f)
-                                ),
-                                shape = RoundedCornerShape(8.dp),
-                                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.05f))
-                            ) {
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(vertical = 10.dp),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Text(
-                                        text = option,
-                                        fontSize = 14.sp,
-                                        fontWeight = FontWeight.SemiBold,
-                                        color = Color.White
-                                    )
-                                }
-                            }
                         }
                     }
+
+                        // 2차 및 3차 다이얼로그들은 AnimatedVisibility를 사용하여 슬라이드 인 애니메이션 적용
+
+                        // 에어컨 브랜드 2차 말풍선: 삼성 / LG / 캐리어 / 위니아
+                        AnimatedVisibility(
+                            visible = isAirconBrandBubble,
+                            enter = slideInHorizontally(animationSpec = tween(durationMillis = 1200), initialOffsetX = { -it }) + fadeIn(animationSpec = tween(durationMillis = 1200)),
+                            exit = fadeOut(animationSpec = tween(0))
+                        ) {
+                            Column {
+                                val brands = listOf("삼성", "LG", "캐리어", "위니아")
+                                brands.forEach { brand ->
+                                    Card(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(vertical = 3.dp)
+                                            .clickable {
+                                                onUpdateCountTts("${brand} 선택")
+                                                selectedSecondOption = brand
+                                                isAirconBrandBubble = false
+                                                isAirconInstallBubble = true
+                                            },
+                                        colors = CardDefaults.cardColors(
+                                            containerColor = Color.White.copy(alpha = 0.1f)
+                                        ),
+                                        shape = RoundedCornerShape(8.dp),
+                                        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.05f))
+                                    ) {
+                                        Box(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(vertical = 10.dp),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Text(
+                                                text = brand,
+                                                fontSize = 14.sp,
+                                                fontWeight = FontWeight.SemiBold,
+                                                color = Color.White
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        // 에어컨 설치 3차 말풍선: 협력업체 / A/S센터 / 탈착,이동 / 미정
+                        AnimatedVisibility(
+                            visible = isAirconInstallBubble,
+                            enter = slideInHorizontally(animationSpec = tween(durationMillis = 1200), initialOffsetX = { -it }) + fadeIn(animationSpec = tween(durationMillis = 1200)),
+                            exit = fadeOut(animationSpec = tween(0))
+                        ) {
+                            Column {
+                                val options3 = listOf("협력업체", "A/S센터", "탈착,이동", "미정")
+                                options3.forEach { option ->
+                                    Card(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(vertical = 3.dp)
+                                            .clickable {
+                                                val displayName = "${itemPendingOptions!!.name} (${selectedFirstOption!!}_${selectedSecondOption!!}_$option)"
+                                                val currentCount = roomItems["에어컨"]?.get(displayName) ?: 0
+                                                onUpdateCount("에어컨", displayName, currentCount + 1)
+                                                onUpdateCountTts("${displayName} 추가")
+                                                toastMessage = "${displayName}이 추가되었습니다."
+                                                spawnFlyingParticle(itemPendingOptions!!)
+                                                itemPendingOptions = null
+                                                isAirconInstallBubble = false
+                                                selectedFirstOption = null
+                                                selectedSecondOption = null
+                                            },
+                                        colors = CardDefaults.cardColors(
+                                            containerColor = Color.White.copy(alpha = 0.1f)
+                                        ),
+                                        shape = RoundedCornerShape(8.dp),
+                                        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.05f))
+                                    ) {
+                                        Box(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(vertical = 10.dp),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Text(
+                                                text = option,
+                                                fontSize = 14.sp,
+                                                fontWeight = FontWeight.SemiBold,
+                                                color = Color.White
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        // TV 크기 2차 말풍선: 65"이하 / 75" / 85"이상
+                        AnimatedVisibility(
+                            visible = isTvSizeBubble,
+                            enter = slideInHorizontally(animationSpec = tween(durationMillis = 1200), initialOffsetX = { -it }) + fadeIn(animationSpec = tween(durationMillis = 1200)),
+                            exit = fadeOut(animationSpec = tween(0))
+                        ) {
+                            Column {
+                                val sizes = listOf("65\"이하", "75\"", "85\"이상")
+                                sizes.forEach { size ->
+                                    Card(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(vertical = 3.dp)
+                                            .clickable {
+                                                if (selectedFirstOption == "벽걸이") {
+                                                    onUpdateCountTts("${size} 선택")
+                                                    selectedSecondOption = size
+                                                    isTvSizeBubble = false
+                                                    isTvInstallBubble = true
+                                                } else {
+                                                    val displayName = "${itemPendingOptions!!.name} (${selectedFirstOption!!}-$size)"
+                                                    val currentCount = roomItems[spaceName]?.get(displayName) ?: 0
+                                                    onUpdateCount(spaceName, displayName, currentCount + 1)
+                                                    onUpdateCountTts("${displayName} 추가")
+                                                    toastMessage = "${displayName}이 추가되었습니다."
+                                                    spawnFlyingParticle(itemPendingOptions!!)
+                                                    itemPendingOptions = null
+                                                    isTvSizeBubble = false
+                                                    selectedFirstOption = null
+                                                }
+                                            },
+                                        colors = CardDefaults.cardColors(
+                                            containerColor = Color.White.copy(alpha = 0.1f)
+                                        ),
+                                        shape = RoundedCornerShape(8.dp),
+                                        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.05f))
+                                    ) {
+                                        Box(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(vertical = 10.dp),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Text(
+                                                text = size,
+                                                fontSize = 14.sp,
+                                                fontWeight = FontWeight.SemiBold,
+                                                color = Color.White
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        // TV 설치 3차 말풍선: 협력업체 / A/S센터 / 탈착,이동 / 미정
+                        AnimatedVisibility(
+                            visible = isTvInstallBubble,
+                            enter = slideInHorizontally(animationSpec = tween(durationMillis = 1200), initialOffsetX = { -it }) + fadeIn(animationSpec = tween(durationMillis = 1200)),
+                            exit = fadeOut(animationSpec = tween(0))
+                        ) {
+                            Column {
+                                val options3 = listOf("협력업체", "A/S센터", "탈착,이동", "미정")
+                                options3.forEach { option ->
+                                    Card(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(vertical = 3.dp)
+                                            .clickable {
+                                                val displayName = "${itemPendingOptions!!.name} (${selectedFirstOption!!}_${selectedSecondOption!!}_$option)"
+                                                val currentCount = roomItems["TV"]?.get(displayName) ?: 0
+                                                onUpdateCount("TV", displayName, currentCount + 1)
+                                                onUpdateCountTts("${displayName} 추가")
+                                                toastMessage = "${displayName}이 추가되었습니다."
+                                                spawnFlyingParticle(itemPendingOptions!!)
+                                                itemPendingOptions = null
+                                                isTvInstallBubble = false
+                                                selectedFirstOption = null
+                                                selectedSecondOption = null
+                                            },
+                                        colors = CardDefaults.cardColors(
+                                            containerColor = Color.White.copy(alpha = 0.1f)
+                                        ),
+                                        shape = RoundedCornerShape(8.dp),
+                                        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.05f))
+                                    ) {
+                                        Box(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(vertical = 10.dp),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Text(
+                                                text = option,
+                                                fontSize = 14.sp,
+                                                fontWeight = FontWeight.SemiBold,
+                                                color = Color.White
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        // 2차 제외 옵션 말풍선: 폐기 / 제자리 / 1층
+                        AnimatedVisibility(
+                            visible = isSecondBubble,
+                            enter = slideInHorizontally(animationSpec = tween(durationMillis = 1200), initialOffsetX = { -it }) + fadeIn(animationSpec = tween(durationMillis = 1200)),
+                            exit = fadeOut(animationSpec = tween(0))
+                        ) {
+                            Column {
+                                val excludeOptions = listOf("폐기", "제자리", "1층")
+                                excludeOptions.forEach { option ->
+                                    Card(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(vertical = 3.dp)
+                                            .clickable {
+                                                val displayName = "${itemPendingOptions!!.name} ($option)"
+                                                val currentCount = roomItems[spaceName]?.get(displayName) ?: 0
+                                                onUpdateCount(spaceName, displayName, currentCount + 1)
+                                                onUpdateCountTts("${displayName} 추가")
+                                                toastMessage = "${displayName}이 추가되었습니다."
+                                                spawnFlyingParticle(itemPendingOptions!!)
+                                                itemPendingOptions = null
+                                                isSecondBubble = false
+                                            },
+                                        colors = CardDefaults.cardColors(
+                                            containerColor = Color.White.copy(alpha = 0.1f)
+                                        ),
+                                        shape = RoundedCornerShape(8.dp),
+                                        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.05f))
+                                    ) {
+                                        Box(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(vertical = 10.dp),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Text(
+                                                text = option,
+                                                fontSize = 14.sp,
+                                                fontWeight = FontWeight.SemiBold,
+                                                color = Color.White
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
 
                     Spacer(modifier = Modifier.height(8.dp))
 
@@ -2342,171 +2386,6 @@ fun Step2ItemSelection(
                     ) {
                         Text("취소", color = Color(0xFFE040FB), fontWeight = FontWeight.Bold)
                     }
-                }
-            }
-        }
-    }
-
-    if (itemPendingOptions != null && is2ndOr3rdActive) {
-        ModalBottomSheet(
-            onDismissRequest = {
-                itemPendingOptions = null
-                isSecondBubble = false
-                isAirconBrandBubble = false
-                isAirconInstallBubble = false
-                isTvSizeBubble = false
-                isTvInstallBubble = false
-                selectedFirstOption = null
-                selectedSecondOption = null
-            },
-            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-            containerColor = Color(0xFF1E0F3D),
-            contentColor = Color.White
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 24.dp, vertical = 16.dp)
-                    .navigationBarsPadding()
-            ) {
-                val sheetTitle = when {
-                    isAirconBrandBubble -> "제조사 선택"
-                    isAirconInstallBubble -> "설치 옵션 선택"
-                    isTvSizeBubble -> "크기 선택"
-                    isTvInstallBubble -> "설치 옵션 선택"
-                    isSecondBubble -> "제외 옵션 선택"
-                    else -> "옵션 선택"
-                }
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.Center
-                ) {
-                    Image(
-                        painter = painterResource(id = itemPendingOptions!!.iconRes),
-                        contentDescription = itemPendingOptions!!.name,
-                        modifier = Modifier.size(24.dp)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = "${itemPendingOptions!!.name} $sheetTitle",
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .verticalScroll(rememberScrollState())
-                ) {
-                    if (isAirconBrandBubble) {
-                        val brands = listOf("삼성", "LG", "캐리어", "위니아")
-                        brands.forEach { brand ->
-                            BottomSheetItemCard(text = brand) {
-                                onUpdateCountTts("${brand} 선택")
-                                selectedSecondOption = brand
-                                isAirconBrandBubble = false
-                                isAirconInstallBubble = true
-                            }
-                        }
-                    } else if (isAirconInstallBubble) {
-                        val options3 = listOf("협력업체", "A/S센터", "탈착,이동", "미정")
-                        options3.forEach { option ->
-                            BottomSheetItemCard(text = option) {
-                                val displayName = "${itemPendingOptions!!.name} (${selectedFirstOption!!}_${selectedSecondOption!!}_$option)"
-                                val currentCount = roomItems["에어컨"]?.get(displayName) ?: 0
-                                onUpdateCount("에어컨", displayName, currentCount + 1)
-                                onUpdateCountTts("${displayName} 추가")
-                                toastMessage = "${displayName}이 추가되었습니다."
-                                spawnFlyingParticle(itemPendingOptions!!)
-                                itemPendingOptions = null
-                                isAirconInstallBubble = false
-                                selectedFirstOption = null
-                                selectedSecondOption = null
-                            }
-                        }
-                    } else if (isTvSizeBubble) {
-                        val sizes = listOf("65\"이하", "75\"", "85\"이상")
-                        sizes.forEach { size ->
-                            BottomSheetItemCard(text = size) {
-                                if (selectedFirstOption == "벽걸이") {
-                                    onUpdateCountTts("${size} 선택")
-                                    selectedSecondOption = size
-                                    isTvSizeBubble = false
-                                    isTvInstallBubble = true
-                                } else {
-                                    val displayName = "${itemPendingOptions!!.name} (${selectedFirstOption!!}-$size)"
-                                    val currentCount = roomItems[spaceName]?.get(displayName) ?: 0
-                                    onUpdateCount(spaceName, displayName, currentCount + 1)
-                                    onUpdateCountTts("${displayName} 추가")
-                                    toastMessage = "${displayName}이 추가되었습니다."
-                                    spawnFlyingParticle(itemPendingOptions!!)
-                                    itemPendingOptions = null
-                                    isTvSizeBubble = false
-                                    selectedFirstOption = null
-                                }
-                            }
-                        }
-                    } else if (isTvInstallBubble) {
-                        val options3 = listOf("협력업체", "A/S센터", "탈착,이동", "미정")
-                        options3.forEach { option ->
-                            BottomSheetItemCard(text = option) {
-                                val displayName = "${itemPendingOptions!!.name} (${selectedFirstOption!!}_${selectedSecondOption!!}_$option)"
-                                val currentCount = roomItems["TV"]?.get(displayName) ?: 0
-                                onUpdateCount("TV", displayName, currentCount + 1)
-                                onUpdateCountTts("${displayName} 추가")
-                                toastMessage = "${displayName}이 추가되었습니다."
-                                spawnFlyingParticle(itemPendingOptions!!)
-                                itemPendingOptions = null
-                                isTvInstallBubble = false
-                                selectedFirstOption = null
-                                selectedSecondOption = null
-                            }
-                        }
-                    } else if (isSecondBubble) {
-                        val excludeOptions = listOf("폐기", "제자리", "1층")
-                        excludeOptions.forEach { option ->
-                            BottomSheetItemCard(text = option) {
-                                val displayName = "${itemPendingOptions!!.name} ($option)"
-                                val currentCount = roomItems[spaceName]?.get(displayName) ?: 0
-                                onUpdateCount(spaceName, displayName, currentCount + 1)
-                                onUpdateCountTts("${displayName} 추가")
-                                toastMessage = "${displayName}이 추가되었습니다."
-                                spawnFlyingParticle(itemPendingOptions!!)
-                                itemPendingOptions = null
-                                isSecondBubble = false
-                            }
-                        }
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                Button(
-                    onClick = {
-                        onUpdateCountTts("취소")
-                        itemPendingOptions = null
-                        isSecondBubble = false
-                        isAirconBrandBubble = false
-                        isAirconInstallBubble = false
-                        isTvSizeBubble = false
-                        isTvInstallBubble = false
-                        selectedFirstOption = null
-                        selectedSecondOption = null
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFFE040FB).copy(alpha = 0.2f),
-                        contentColor = Color.White
-                    ),
-                    shape = RoundedCornerShape(12.dp)
-                ) {
-                    Text("취소", fontWeight = FontWeight.Bold)
                 }
             }
         }
@@ -4087,35 +3966,6 @@ fun WheelPicker(
                     )
                 }
             }
-        }
-    }
-}
-
-@Composable
-fun BottomSheetItemCard(text: String, onClick: () -> Unit) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 4.dp)
-            .clickable(onClick = onClick),
-        colors = CardDefaults.cardColors(
-            containerColor = Color.White.copy(alpha = 0.08f)
-        ),
-        shape = RoundedCornerShape(12.dp),
-        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.1f))
-    ) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 14.dp),
-            contentAlignment = Alignment.Center
-        ) {
-            Text(
-                text = text,
-                fontSize = 16.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = Color.White
-            )
         }
     }
 }
