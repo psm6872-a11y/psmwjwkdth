@@ -1365,6 +1365,7 @@ fun SpaceCard(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun Step2ItemSelection(
     spaceName: String,
@@ -1888,8 +1889,10 @@ fun Step2ItemSelection(
         }
     }
 
+    val is2ndOr3rdActive = isSecondBubble || isAirconBrandBubble || isAirconInstallBubble || isTvSizeBubble || isTvInstallBubble
+
     // Popup Dialog (Speech Bubble Overlay)
-    if (itemPendingOptions != null) {
+    if (itemPendingOptions != null && !is2ndOr3rdActive) {
         val density = LocalDensity.current
         val bubbleWidth = 280.dp
         var bubbleHeightPx by remember { mutableStateOf(0f) }
@@ -2339,6 +2342,171 @@ fun Step2ItemSelection(
                     ) {
                         Text("취소", color = Color(0xFFE040FB), fontWeight = FontWeight.Bold)
                     }
+                }
+            }
+        }
+    }
+
+    if (itemPendingOptions != null && is2ndOr3rdActive) {
+        ModalBottomSheet(
+            onDismissRequest = {
+                itemPendingOptions = null
+                isSecondBubble = false
+                isAirconBrandBubble = false
+                isAirconInstallBubble = false
+                isTvSizeBubble = false
+                isTvInstallBubble = false
+                selectedFirstOption = null
+                selectedSecondOption = null
+            },
+            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+            containerColor = Color(0xFF1E0F3D),
+            contentColor = Color.White
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 24.dp, vertical = 16.dp)
+                    .navigationBarsPadding()
+            ) {
+                val sheetTitle = when {
+                    isAirconBrandBubble -> "제조사 선택"
+                    isAirconInstallBubble -> "설치 옵션 선택"
+                    isTvSizeBubble -> "크기 선택"
+                    isTvInstallBubble -> "설치 옵션 선택"
+                    isSecondBubble -> "제외 옵션 선택"
+                    else -> "옵션 선택"
+                }
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center
+                ) {
+                    Image(
+                        painter = painterResource(id = itemPendingOptions!!.iconRes),
+                        contentDescription = itemPendingOptions!!.name,
+                        modifier = Modifier.size(24.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "${itemPendingOptions!!.name} $sheetTitle",
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .verticalScroll(rememberScrollState())
+                ) {
+                    if (isAirconBrandBubble) {
+                        val brands = listOf("삼성", "LG", "캐리어", "위니아")
+                        brands.forEach { brand ->
+                            BottomSheetItemCard(text = brand) {
+                                onUpdateCountTts("${brand} 선택")
+                                selectedSecondOption = brand
+                                isAirconBrandBubble = false
+                                isAirconInstallBubble = true
+                            }
+                        }
+                    } else if (isAirconInstallBubble) {
+                        val options3 = listOf("협력업체", "A/S센터", "탈착,이동", "미정")
+                        options3.forEach { option ->
+                            BottomSheetItemCard(text = option) {
+                                val displayName = "${itemPendingOptions!!.name} (${selectedFirstOption!!}_${selectedSecondOption!!}_$option)"
+                                val currentCount = roomItems["에어컨"]?.get(displayName) ?: 0
+                                onUpdateCount("에어컨", displayName, currentCount + 1)
+                                onUpdateCountTts("${displayName} 추가")
+                                toastMessage = "${displayName}이 추가되었습니다."
+                                spawnFlyingParticle(itemPendingOptions!!)
+                                itemPendingOptions = null
+                                isAirconInstallBubble = false
+                                selectedFirstOption = null
+                                selectedSecondOption = null
+                            }
+                        }
+                    } else if (isTvSizeBubble) {
+                        val sizes = listOf("65\"이하", "75\"", "85\"이상")
+                        sizes.forEach { size ->
+                            BottomSheetItemCard(text = size) {
+                                if (selectedFirstOption == "벽걸이") {
+                                    onUpdateCountTts("${size} 선택")
+                                    selectedSecondOption = size
+                                    isTvSizeBubble = false
+                                    isTvInstallBubble = true
+                                } else {
+                                    val displayName = "${itemPendingOptions!!.name} (${selectedFirstOption!!}-$size)"
+                                    val currentCount = roomItems[spaceName]?.get(displayName) ?: 0
+                                    onUpdateCount(spaceName, displayName, currentCount + 1)
+                                    onUpdateCountTts("${displayName} 추가")
+                                    toastMessage = "${displayName}이 추가되었습니다."
+                                    spawnFlyingParticle(itemPendingOptions!!)
+                                    itemPendingOptions = null
+                                    isTvSizeBubble = false
+                                    selectedFirstOption = null
+                                }
+                            }
+                        }
+                    } else if (isTvInstallBubble) {
+                        val options3 = listOf("협력업체", "A/S센터", "탈착,이동", "미정")
+                        options3.forEach { option ->
+                            BottomSheetItemCard(text = option) {
+                                val displayName = "${itemPendingOptions!!.name} (${selectedFirstOption!!}_${selectedSecondOption!!}_$option)"
+                                val currentCount = roomItems["TV"]?.get(displayName) ?: 0
+                                onUpdateCount("TV", displayName, currentCount + 1)
+                                onUpdateCountTts("${displayName} 추가")
+                                toastMessage = "${displayName}이 추가되었습니다."
+                                spawnFlyingParticle(itemPendingOptions!!)
+                                itemPendingOptions = null
+                                isTvInstallBubble = false
+                                selectedFirstOption = null
+                                selectedSecondOption = null
+                            }
+                        }
+                    } else if (isSecondBubble) {
+                        val excludeOptions = listOf("폐기", "제자리", "1층")
+                        excludeOptions.forEach { option ->
+                            BottomSheetItemCard(text = option) {
+                                val displayName = "${itemPendingOptions!!.name} ($option)"
+                                val currentCount = roomItems[spaceName]?.get(displayName) ?: 0
+                                onUpdateCount(spaceName, displayName, currentCount + 1)
+                                onUpdateCountTts("${displayName} 추가")
+                                toastMessage = "${displayName}이 추가되었습니다."
+                                spawnFlyingParticle(itemPendingOptions!!)
+                                itemPendingOptions = null
+                                isSecondBubble = false
+                            }
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Button(
+                    onClick = {
+                        onUpdateCountTts("취소")
+                        itemPendingOptions = null
+                        isSecondBubble = false
+                        isAirconBrandBubble = false
+                        isAirconInstallBubble = false
+                        isTvSizeBubble = false
+                        isTvInstallBubble = false
+                        selectedFirstOption = null
+                        selectedSecondOption = null
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color(0xFFE040FB).copy(alpha = 0.2f),
+                        contentColor = Color.White
+                    ),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Text("취소", fontWeight = FontWeight.Bold)
                 }
             }
         }
@@ -3919,6 +4087,35 @@ fun WheelPicker(
                     )
                 }
             }
+        }
+    }
+}
+
+@Composable
+fun BottomSheetItemCard(text: String, onClick: () -> Unit) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp)
+            .clickable(onClick = onClick),
+        colors = CardDefaults.cardColors(
+            containerColor = Color.White.copy(alpha = 0.08f)
+        ),
+        shape = RoundedCornerShape(12.dp),
+        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.1f))
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 14.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = text,
+                fontSize = 16.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = Color.White
+            )
         }
     }
 }
