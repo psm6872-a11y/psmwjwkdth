@@ -79,6 +79,15 @@ class EstimateViewModel @Inject constructor(
 
     private var estimateId: String = ""
 
+    val copyFromEstimateJson: String?
+        get() {
+            val json = savedStateHandle.get<String>("copyFromEstimateJson")
+            return if (json.isNullOrBlank() || json == "null") null else json
+        }
+
+    val isCopyMode: Boolean
+        get() = copyFromEstimateJson != null
+
     init {
         val today = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(java.util.Date())
         estimateDate.value = today
@@ -115,6 +124,73 @@ class EstimateViewModel @Inject constructor(
             }
         } catch (e: Exception) {
             android.util.Log.e("EstimateViewModel", "Error decoding navigation arguments", e)
+        }
+
+        // 기존 견적서 복사 처리
+        val copyFromEstimateJson = savedStateHandle.get<String>("copyFromEstimateJson")
+        android.util.Log.d("EstimateViewModel", "[COPY] copyFromEstimateJson parameter received: ${copyFromEstimateJson?.length ?: 0} chars")
+        if (!copyFromEstimateJson.isNullOrBlank()) {
+            loadAndCopyEstimateFromJson(copyFromEstimateJson)
+        }
+    }
+
+    private fun loadAndCopyEstimateFromJson(estimateJson: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                android.util.Log.d("EstimateViewModel", "[COPY] Decoding and parsing estimateJson directly...")
+                val decodedJson = try {
+                    java.net.URLDecoder.decode(estimateJson, "UTF-8")
+                } catch (e: Exception) {
+                    estimateJson
+                }
+
+                val gson = com.google.gson.Gson()
+                val originalEstimate = gson.fromJson(decodedJson, Estimate::class.java)
+                android.util.Log.d("EstimateViewModel", "[COPY] Deserialized originalEstimate: ${originalEstimate.customerName}, phone: ${originalEstimate.phoneNumber}")
+                
+                withContext(Dispatchers.Main) {
+                    // UI 필드 복사 (ID는 신규 생성을 위해 의도적으로 빈 값 "" 세팅)
+                    estimateId = "" 
+                    customerName.value = originalEstimate.customerName
+                    phoneNumber.value = originalEstimate.phoneNumber
+                    departure.value = originalEstimate.departure
+                    destination.value = originalEstimate.destination
+                    moveDate.value = originalEstimate.moveDate
+                    moveType.value = originalEstimate.moveType
+                    cargoSize.value = originalEstimate.cargoSize
+                    amount.value = if (originalEstimate.amount > 0) originalEstimate.amount.toString() else ""
+                    memo.value = originalEstimate.memo
+                    estimateDate.value = originalEstimate.estimateDate
+                    startTime.value = originalEstimate.startTime
+                    visitDate.value = originalEstimate.visitDate
+                    moveInfo.value = originalEstimate.moveInfo
+                    totalVolume.value = originalEstimate.totalVolume
+                    workersM.value = originalEstimate.workersM
+                    workersF.value = originalEstimate.workersF
+                    laddersStartFloor.value = originalEstimate.laddersStartFloor
+                    laddersStartCost.value = originalEstimate.laddersStartCost
+                    laddersEndFloor.value = originalEstimate.laddersEndFloor
+                    laddersEndCost.value = originalEstimate.laddersEndCost
+                    extraTruck.value = originalEstimate.extraTruck
+                    moveCost.value = originalEstimate.moveCost
+                    totalCost.value = originalEstimate.totalCost
+                    deposit.value = originalEstimate.deposit
+                    balance.value = originalEstimate.balance
+                    optionCost.value = originalEstimate.optionCost
+
+                    // roomItems 복사 (Long -> Int 변환)
+                    val convertedItems = originalEstimate.roomItems.mapValues { (_, innerMap) ->
+                        innerMap.mapValues { (_, value) -> value.toInt() }
+                    }
+                    _roomItems.value = convertedItems
+                    android.util.Log.d("EstimateViewModel", "[COPY] All fields assigned on Main thread from JSON successfully.")
+                }
+
+                // 복제본 생성 시점에 Firestore에 바로 자동 저장하여 새로운 ID 획득
+                autoSaveToFirestore()
+            } catch (e: Exception) {
+                android.util.Log.e("EstimateViewModel", "[COPY] Failed to parse and copy estimate from JSON", e)
+            }
         }
     }
 

@@ -4,14 +4,23 @@ import android.content.Context
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.unit.DpOffset
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Print
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Share
@@ -56,6 +65,7 @@ import kotlinx.coroutines.launch
 @Composable
 fun EstimateListScreen(
     onNavigateBack: () -> Unit,
+    onNavigateToEstimateCopy: (String) -> Unit,
     viewModel: EstimateListViewModel = hiltViewModel()
 ) {
     val estimateList by viewModel.estimateList.collectAsStateWithLifecycle()
@@ -438,7 +448,10 @@ fun EstimateListScreen(
                                     estimate = estimate,
                                     onItemClick = { selectedEstimate = estimate },
                                     onSyncClick = { viewModel.syncEstimate(estimate) },
-                                    onDeleteClick = { viewModel.deleteEstimate(estimate) }
+                                    onDeleteClick = { viewModel.deleteEstimate(estimate) },
+                                    onCopyClick = { pdf ->
+                                        onNavigateToEstimateCopy(pdf.estimateJson)
+                                    }
                                 )
                             }
                         }
@@ -497,109 +510,203 @@ fun EstimateListScreen(
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun EstimateItemCard(
     estimate: Estimate,
     onItemClick: () -> Unit,
     onSyncClick: () -> Unit,
-    onDeleteClick: () -> Unit
+    onDeleteClick: () -> Unit,
+    onCopyClick: (com.example.danallacalendar.data.EstimatePdf) -> Unit
 ) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable { onItemClick() },
-        colors = CardDefaults.cardColors(
-            containerColor = Color(0xFF1E1045).copy(alpha = 0.8f)
-        ),
-        shape = RoundedCornerShape(12.dp)
-    ) {
-        Row(
+    var showMenu by remember { mutableStateOf(false) }
+    var pressOffset by remember { mutableStateOf(DpOffset.Zero) }
+    val density = LocalDensity.current
+
+    Box {
+        Card(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
+                .pointerInput(Unit) {
+                    detectTapGestures(
+                        onTap = { onItemClick() },
+                        onLongPress = { offset ->
+                            val xDp = with(density) { offset.x.toDp() }
+                            val yDp = with(density) { offset.y.toDp() }
+                            pressOffset = DpOffset(xDp, yDp)
+                            showMenu = true
+                        }
+                    )
+                },
+            colors = CardDefaults.cardColors(
+                containerColor = Color(0xFF1E1045).copy(alpha = 0.8f)
+            ),
+            shape = RoundedCornerShape(12.dp)
         ) {
             Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
                 verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.weight(1f)
+                horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text(
-                            text = "${estimate.customerName} 고객님",
-                            color = Color.White,
-                            fontSize = 15.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                        
-                        val badgeColor = if (estimate.isSynced) Color(0xFFE040FB) else Color(0xFFFF9800)
-                        val badgeText = if (estimate.isSynced) "공유 완료 ☁️" else "로컬 저장"
-                        Surface(
-                            color = badgeColor.copy(alpha = 0.2f),
-                            border = androidx.compose.foundation.BorderStroke(1.dp, badgeColor),
-                            shape = RoundedCornerShape(4.dp),
-                            modifier = Modifier.padding(start = 8.dp)
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            modifier = Modifier.fillMaxWidth()
                         ) {
                             Text(
-                                text = badgeText,
-                                color = badgeColor,
-                                fontSize = 10.sp,
-                                fontWeight = FontWeight.Bold,
-                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                text = "${estimate.customerName} 고객님",
+                                color = Color.White,
+                                fontSize = 15.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                            
+                            val badgeColor = if (estimate.isSynced) Color(0xFFE040FB) else Color(0xFFFF9800)
+                            val badgeText = if (estimate.isSynced) "공유 완료 ☁️" else "로컬 저장"
+                            Surface(
+                                color = badgeColor.copy(alpha = 0.2f),
+                                border = androidx.compose.foundation.BorderStroke(1.dp, badgeColor),
+                                shape = RoundedCornerShape(4.dp),
+                                modifier = Modifier.padding(start = 8.dp)
+                            ) {
+                                Text(
+                                    text = badgeText,
+                                    color = badgeColor,
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                )
+                            }
+                        }
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Text(
+                            text = estimate.estimateDate.ifBlank { "정보 없음" },
+                            color = Color.White.copy(alpha = 0.8f),
+                            fontSize = 13.sp
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = if (estimate.moveDate.isBlank()) "정보 없음" else "${estimate.moveDate} (${estimate.startTime})",
+                            color = Color.White.copy(alpha = 0.8f),
+                            fontSize = 13.sp
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = estimate.departure.ifBlank { "정보 없음" },
+                            color = Color.White.copy(alpha = 0.8f),
+                            fontSize = 13.sp,
+                            maxLines = 1,
+                            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = estimate.phoneNumber.ifBlank { "정보 없음" },
+                            color = Color.White.copy(alpha = 0.8f),
+                            fontSize = 13.sp
+                        )
+                    }
+                }
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    if (!estimate.isSynced) {
+                        IconButton(onClick = onSyncClick) {
+                            Icon(
+                                imageVector = Icons.Default.Share,
+                                contentDescription = "파이어베이스 동기화",
+                                tint = Color(0xFFFF9800)
                             )
                         }
                     }
-                    Spacer(modifier = Modifier.height(6.dp))
-                    Text(
-                        text = estimate.estimateDate.ifBlank { "정보 없음" },
-                        color = Color.White.copy(alpha = 0.8f),
-                        fontSize = 13.sp
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = if (estimate.moveDate.isBlank()) "정보 없음" else "${estimate.moveDate} (${estimate.startTime})",
-                        color = Color.White.copy(alpha = 0.8f),
-                        fontSize = 13.sp
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = estimate.departure.ifBlank { "정보 없음" },
-                        color = Color.White.copy(alpha = 0.8f),
-                        fontSize = 13.sp,
-                        maxLines = 1,
-                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = estimate.phoneNumber.ifBlank { "정보 없음" },
-                        color = Color.White.copy(alpha = 0.8f),
-                        fontSize = 13.sp
-                    )
-                }
-            }
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                if (!estimate.isSynced) {
-                    IconButton(onClick = onSyncClick) {
+                    IconButton(onClick = onDeleteClick) {
                         Icon(
-                            imageVector = Icons.Default.Share,
-                            contentDescription = "파이어베이스 동기화",
-                            tint = Color(0xFFFF9800)
+                            imageVector = Icons.Default.Delete,
+                            contentDescription = "삭제",
+                            tint = Color.Red.copy(alpha = 0.8f)
                         )
                     }
                 }
-                IconButton(onClick = onDeleteClick) {
-                    Icon(
-                        imageVector = Icons.Default.Delete,
-                        contentDescription = "삭제",
-                        tint = Color.Red.copy(alpha = 0.8f)
-                    )
-                }
             }
+        }
+
+        DropdownMenu(
+            expanded = showMenu,
+            onDismissRequest = { showMenu = false },
+            offset = pressOffset,
+            modifier = Modifier
+                .background(Color(0xFF1E1045))
+                .border(1.dp, Color(0xFFE040FB).copy(alpha = 0.3f), RoundedCornerShape(8.dp))
+        ) {
+            DropdownMenuItem(
+                text = {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Edit,
+                            contentDescription = "수정",
+                            tint = Color(0xFFE040FB),
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Text(
+                            text = "수정",
+                            color = Color.White,
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+                },
+                onClick = {
+                    showMenu = false
+                    val tempPdf = com.example.danallacalendar.data.EstimatePdf(
+                        date = estimate.estimateDate,
+                        fileName = "",
+                        filePath = estimate.localFilePath ?: "",
+                        estimateId = estimate.id,
+                        customerName = estimate.customerName,
+                        phoneNumber = estimate.phoneNumber,
+                        moveDate = estimate.moveDate,
+                        departure = estimate.departure,
+                        estimateJson = com.google.gson.Gson().toJson(estimate),
+                        isSynced = estimate.isSynced
+                    )
+                    onCopyClick(tempPdf)
+                },
+                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp)
+            )
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(0.5.dp)
+                    .background(Color.White.copy(alpha = 0.12f))
+            )
+            DropdownMenuItem(
+                text = {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = "취소",
+                            tint = Color.White.copy(alpha = 0.4f),
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Text(
+                            text = "취소",
+                            color = Color.White.copy(alpha = 0.6f),
+                            fontSize = 15.sp
+                        )
+                    }
+                },
+                onClick = { showMenu = false },
+                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp)
+            )
         }
     }
 }
@@ -679,38 +786,58 @@ fun LocalEstimateViewerDialog(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(56.dp)
+                        .height(44.dp)
                         .background(Color(0xFF1E1045))
-                        .padding(horizontal = 16.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
+                        .padding(horizontal = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        IconButton(onClick = onDismiss) {
-                            Icon(
-                                imageVector = Icons.Default.Close,
-                                tint = Color.White,
-                                contentDescription = "닫기"
-                            )
-                        }
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = "견적서 상세 보기",
-                            color = Color.White,
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.Bold
+                    IconButton(
+                        onClick = onDismiss,
+                        modifier = Modifier.size(32.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            tint = Color.White,
+                            contentDescription = "닫기",
+                            modifier = Modifier.size(20.dp)
                         )
                     }
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "견적서 상세 보기",
+                        color = Color.White,
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
 
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        if (isUploading) {
+                // 상단 액션 버튼 행 (아이콘 + 텍스트 정렬 개선 및 높이 축소)
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(Color(0xFF1E1045))
+                        .padding(vertical = 4.dp, horizontal = 8.dp),
+                    horizontalArrangement = Arrangement.SpaceEvenly,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    // 1. 구글 드라이브 백업
+                    if (isUploading) {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center,
+                            modifier = Modifier.weight(1f)
+                        ) {
                             CircularProgressIndicator(
-                                modifier = Modifier.size(24.dp),
-                                color = Color.White,
+                                modifier = Modifier.size(20.dp),
+                                color = Color(0xFFE040FB),
                                 strokeWidth = 2.dp
                             )
-                        } else {
-                            IconButton(onClick = {
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text("백업 중...", color = Color.White.copy(alpha = 0.7f), fontSize = 10.sp)
+                        }
+                    } else {
+                        TextButton(
+                            onClick = {
                                 val account = GoogleDriveHelper.getSignedInAccount(context)
                                 if (account == null) {
                                     Toast.makeText(context, "설정 화면에서 구글 드라이브 로그인을 먼저 진행해주세요.", Toast.LENGTH_LONG).show()
@@ -754,35 +881,71 @@ fun LocalEstimateViewerDialog(
                                         }
                                     }
                                 }
-                            }) {
+                            },
+                            modifier = Modifier.weight(1f),
+                            contentPadding = PaddingValues(vertical = 4.dp)
+                        ) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                 Icon(
                                     imageVector = Icons.Default.AddToDrive,
                                     tint = Color.White,
-                                    contentDescription = "구글 드라이브 백업"
+                                    contentDescription = "구글 드라이브 백업",
+                                    modifier = Modifier.size(20.dp)
                                 )
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text("구글 백업", color = Color.White, fontSize = 11.sp)
                             }
                         }
-                        Spacer(modifier = Modifier.width(4.dp))
-                        IconButton(onClick = {
+                    }
+
+                    // 2. 인쇄 / PDF 저장
+                    TextButton(
+                        onClick = {
                             EstimatePrintHelper.printEstimate(context, htmlContent, estimate)
-                        }) {
+                        },
+                        modifier = Modifier.weight(1f),
+                        contentPadding = PaddingValues(vertical = 4.dp)
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             Icon(
                                 imageVector = Icons.Default.Print,
                                 tint = Color.White,
-                                contentDescription = "인쇄/PDF저장"
+                                contentDescription = "인쇄/PDF저장",
+                                modifier = Modifier.size(20.dp)
                             )
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text("인쇄/PDF", color = Color.White, fontSize = 11.sp)
                         }
-                        IconButton(onClick = {
+                    }
+
+                    // 3. 문자 발송 (MMS)
+                    TextButton(
+                        onClick = {
                             EstimatePrintHelper.shareEstimateAsJpg(context, htmlContent, estimate)
-                        }) {
+                        },
+                        modifier = Modifier.weight(1f),
+                        contentPadding = PaddingValues(vertical = 4.dp)
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             Icon(
                                 imageVector = Icons.Default.Sms,
                                 tint = Color.White,
-                                contentDescription = "문자 발송(MMS)"
+                                contentDescription = "문자 발송(MMS)",
+                                modifier = Modifier.size(20.dp)
                             )
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text("문자 발송", color = Color.White, fontSize = 11.sp)
                         }
                     }
                 }
+
+                // 구분선
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(1.dp)
+                        .background(Color.White.copy(alpha = 0.12f))
+                )
 
                 // WebView
                 AndroidView(

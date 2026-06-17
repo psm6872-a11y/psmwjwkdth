@@ -113,7 +113,7 @@ fun AppNavigation(userPreferences: UserPreferences) {
 
     NavHost(navController = navController, startDestination = initialRoute) {
         composable(
-            route = "estimate?moveDate={moveDate}&departure={departure}&destination={destination}&phone={phone}",
+            route = "estimate?moveDate={moveDate}&departure={departure}&destination={destination}&phone={phone}&copyFromEstimateJson={copyFromEstimateJson}",
             arguments = listOf(
                 navArgument("moveDate") {
                     type = NavType.StringType
@@ -131,6 +131,11 @@ fun AppNavigation(userPreferences: UserPreferences) {
                     defaultValue = null
                 },
                 navArgument("phone") {
+                    type = NavType.StringType
+                    nullable = true
+                    defaultValue = null
+                },
+                navArgument("copyFromEstimateJson") {
                     type = NavType.StringType
                     nullable = true
                     defaultValue = null
@@ -209,7 +214,11 @@ fun AppNavigation(userPreferences: UserPreferences) {
 
         composable("estimate_list") {
             EstimateListScreen(
-                onNavigateBack = { navController.popBackStack() }
+                onNavigateBack = { navController.popBackStack() },
+                onNavigateToEstimateCopy = { estimateJson ->
+                    val encodedJson = android.net.Uri.encode(estimateJson)
+                    navController.navigate("estimate?copyFromEstimateJson=$encodedJson")
+                }
             )
         }
 

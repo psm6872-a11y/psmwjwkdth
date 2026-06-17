@@ -22,4 +22,10 @@ interface EstimatePdfDao {
 
     @Query("DELETE FROM estimate_pdfs WHERE estimateId = :estimateId")
     suspend fun deleteByEstimateId(estimateId: String)
+
+    @Query("SELECT * FROM estimate_pdfs WHERE id = :id")
+    suspend fun getPdfById(id: Int): EstimatePdf?
+
+    @Query("SELECT * FROM estimate_pdfs WHERE estimateId = :estimateId")
+    suspend fun getPdfByEstimateId(estimateId: String): EstimatePdf?
 }
