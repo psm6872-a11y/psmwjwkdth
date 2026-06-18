@@ -551,6 +551,7 @@ class CalendarViewModel @Inject constructor(
     }
 
     suspend fun getEstimateById(estimateId: String): com.example.danallacalendar.estimate.Estimate? {
+        android.util.Log.d("TEST", "getEstimateById 호출됨 id=$estimateId")
         android.util.Log.d("CalendarViewModel", "[getEstimateById] 조회 시작 - linkedEstimateId: $estimateId")
 
         val pdf = estimatePdfDao.getPdfByEstimateId(estimateId)

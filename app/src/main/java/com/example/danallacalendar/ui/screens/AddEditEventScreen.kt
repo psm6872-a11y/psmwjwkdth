@@ -364,6 +364,7 @@ fun AddEditEventScreen(
                                         detectTapGestures(
                                             onTap = {
                                                 coroutineScope.launch {
+                                                    android.util.Log.d("TEST", "견적서 보기 버튼 클릭됨 linkedEstimateId=$linkedEstimateId")
                                                     val est = viewModel.getEstimateById(linkedEstimateId!!)
                                                     if (est != null) {
                                                         selectedEstimateForDetail = est
