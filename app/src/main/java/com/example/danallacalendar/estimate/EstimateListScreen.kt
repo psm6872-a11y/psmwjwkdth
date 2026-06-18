@@ -28,6 +28,7 @@ import androidx.compose.material.icons.filled.AddToDrive
 import androidx.compose.material.icons.filled.Sms
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Chat
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -909,10 +910,11 @@ fun LocalEstimateViewerDialog(
                                     val intent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
                                         type = "image/jpeg"
                                         putExtra(android.content.Intent.EXTRA_STREAM, fileUri)
+                                        setPackage("com.kakao.talk")
                                         addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
                                         addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
                                     }
-                                    context.startActivity(android.content.Intent.createChooser(intent, "카카오톡으로 공유"))
+                                    context.startActivity(intent)
                                 } else {
                                     Toast.makeText(context, "이미지 생성 실패", Toast.LENGTH_SHORT).show()
                                 }
@@ -923,7 +925,7 @@ fun LocalEstimateViewerDialog(
                     ) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             Icon(
-                                imageVector = Icons.Default.Share,
+                                imageVector = Icons.Default.Chat,
                                 tint = Color(0xFFFFE000),
                                 contentDescription = "카카오톡 공유",
                                 modifier = Modifier.size(20.dp)
