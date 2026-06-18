@@ -38,7 +38,8 @@ class EstimateViewModel @Inject constructor(
     private val estimatePdfDao: EstimatePdfDao,
     private val savedStateHandle: SavedStateHandle,
     private val userPreferences: UserPreferences,
-    private val calendarRepository: com.example.danallacalendar.data.repository.CalendarRepository
+    private val calendarRepository: com.example.danallacalendar.data.repository.CalendarRepository,
+    private val firestore: com.google.firebase.firestore.FirebaseFirestore
 ) : ViewModel() {
 
     var isSaved = false
@@ -518,6 +519,25 @@ class EstimateViewModel @Inject constructor(
                             calendarRepository.updateEvent(updatedEvent)
                             android.util.Log.d("EstimateViewModel", "Schedule linked success by scheduleId: eventId=${event.id}, estimateId=${finalEstimate.id}")
                         }
+
+                        // Firestore의 해당 일정 도큐먼트도 함께 업데이트
+                        val roomCode = userPreferences.getLastRoomCode()
+                        if (roomCode.isNotEmpty()) {
+                            val syncId = event?.syncId ?: scheduleIdStr
+                            if (syncId.toIntOrNull() == null) { // 로컬 ID(숫자)가 아닌 Firestore syncId 형태인 경우에만 업데이트
+                                firestore.collection("rooms")
+                                    .document(roomCode)
+                                    .collection("events")
+                                    .document(syncId)
+                                    .update("linkedEstimateId", finalEstimate.id)
+                                    .addOnSuccessListener {
+                                        android.util.Log.d("EstimateViewModel", "Firestore event linkedEstimateId updated successfully: syncId=$syncId, estimateId=${finalEstimate.id}")
+                                    }
+                                    .addOnFailureListener { e ->
+                                        android.util.Log.e("EstimateViewModel", "Failed to update linkedEstimateId in Firestore for syncId=$syncId", e)
+                                    }
+                            }
+                        }
                     }
 
                     val oldId = originalEstimateId
@@ -527,6 +547,23 @@ class EstimateViewModel @Inject constructor(
                             val updatedEvent = event.copy(linkedEstimateId = finalEstimate.id)
                             calendarRepository.updateEvent(updatedEvent)
                             android.util.Log.d("EstimateViewModel", "Schedule linked success by old estimate ID: eventId=${event.id}, estimateId=${finalEstimate.id}")
+
+                            // Firestore의 구 일정 도큐먼트도 함께 업데이트
+                            val roomCode = userPreferences.getLastRoomCode()
+                            val syncId = event.syncId
+                            if (roomCode.isNotEmpty() && !syncId.isNullOrBlank()) {
+                                firestore.collection("rooms")
+                                    .document(roomCode)
+                                    .collection("events")
+                                    .document(syncId)
+                                    .update("linkedEstimateId", finalEstimate.id)
+                                    .addOnSuccessListener {
+                                        android.util.Log.d("EstimateViewModel", "Firestore event linkedEstimateId updated successfully by old ID: syncId=$syncId, estimateId=${finalEstimate.id}")
+                                    }
+                                    .addOnFailureListener { e ->
+                                        android.util.Log.e("EstimateViewModel", "Failed to update linkedEstimateId in Firestore by old ID: syncId=$syncId", e)
+                                    }
+                            }
                         }
                     }
                 } catch (e: Exception) {
