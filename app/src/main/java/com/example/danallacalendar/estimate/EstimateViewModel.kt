@@ -85,7 +85,6 @@ class EstimateViewModel @Inject constructor(
 
     private var estimateId: String = ""
     private var copiedScheduleId: String? = null
-    private var originalEstimateId: String? = null
 
     // 텍스트 입력 debounce용: 빠른 타이핑/한글 IME 조합 중 중복 저장 방지
     private var debounceJob: Job? = null
@@ -212,11 +211,6 @@ class EstimateViewModel @Inject constructor(
             // UI 필드 복사 (ID는 신규 생성을 위해 의도적으로 빈 값 "" 세팅)
             estimateId = "" 
             copiedScheduleId = originalEstimate.scheduleId
-            originalEstimateId = if (!originalEstimate.originalEstimateId.isNullOrBlank()) {
-                originalEstimate.originalEstimateId
-            } else {
-                originalEstimate.id
-            }
             customerName.value = originalEstimate.customerName
             phoneNumber.value = originalEstimate.phoneNumber
             departure.value = originalEstimate.departure
@@ -352,8 +346,7 @@ class EstimateViewModel @Inject constructor(
             balance = balance.value,
             optionCost = optionCost.value,
             roomItems = convertRoomItemsToLong(roomItems.value),
-            scheduleId = savedStateHandle.get<String>("scheduleId") ?: copiedScheduleId,
-            originalEstimateId = originalEstimateId
+            scheduleId = savedStateHandle.get<String>("scheduleId") ?: copiedScheduleId
         )
     }
 
@@ -405,8 +398,7 @@ class EstimateViewModel @Inject constructor(
             balance = balance.value,
             optionCost = optionCost.value,
             roomItems = convertRoomItemsToLong(roomItems.value),
-            scheduleId = resolvedScheduleId,
-            originalEstimateId = originalEstimateId
+            scheduleId = resolvedScheduleId
         )
 
         viewModelScope.launch(Dispatchers.IO) {
@@ -457,8 +449,7 @@ class EstimateViewModel @Inject constructor(
             balance = balance.value,
             optionCost = optionCost.value,
             roomItems = convertRoomItemsToLong(roomItems.value),
-            scheduleId = resolvedScheduleId,
-            originalEstimateId = originalEstimateId
+            scheduleId = resolvedScheduleId
         )
 
         _saveState.value = SaveState.Loading
@@ -551,33 +542,6 @@ class EstimateViewModel @Inject constructor(
                                     }
                                     .addOnFailureListener { e ->
                                         android.util.Log.e("EstimateViewModel", "Failed to update linkedEstimateId in Firestore for syncId=$syncId", e)
-                                    }
-                            }
-                        }
-                    }
-
-                    val oldId = originalEstimateId
-                    if (!oldId.isNullOrBlank()) {
-                        val eventsToUpdate = calendarRepository.eventDao.getAllEventsList().filter { it.linkedEstimateId == oldId }
-                        eventsToUpdate.forEach { event ->
-                            val updatedEvent = event.copy(linkedEstimateId = finalEstimate.id)
-                            calendarRepository.updateEvent(updatedEvent)
-                            android.util.Log.d("EstimateViewModel", "Schedule linked success by old estimate ID: eventId=${event.id}, estimateId=${finalEstimate.id}")
-
-                            // Firestore의 구 일정 도큐먼트도 함께 업데이트
-                            val roomCode = userPreferences.getLastRoomCode()
-                            val syncId = event.syncId
-                            if (roomCode.isNotEmpty() && !syncId.isNullOrBlank()) {
-                                firestore.collection("rooms")
-                                    .document(roomCode)
-                                    .collection("events")
-                                    .document(syncId)
-                                    .update("linkedEstimateId", finalEstimate.id)
-                                    .addOnSuccessListener {
-                                        android.util.Log.d("EstimateViewModel", "Firestore event linkedEstimateId updated successfully by old ID: syncId=$syncId, estimateId=${finalEstimate.id}")
-                                    }
-                                    .addOnFailureListener { e ->
-                                        android.util.Log.e("EstimateViewModel", "Failed to update linkedEstimateId in Firestore by old ID: syncId=$syncId", e)
                                     }
                             }
                         }

@@ -34,6 +34,5 @@ data class Estimate(
     // 추가 필드 (UI 및 동기화 상태 제어용, 기본값 지정)
     val isSynced: Boolean = true,
     val localFilePath: String? = null,
-    val scheduleId: String? = null,
-    val originalEstimateId: String? = null
+    val scheduleId: String? = null
 )
