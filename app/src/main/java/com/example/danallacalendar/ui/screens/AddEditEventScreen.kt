@@ -192,7 +192,7 @@ fun AddEditEventScreen(
                 // linkedEstimateId로 찾은 견적서 (기존 연결)
                 val estById = event.linkedEstimateId?.let { viewModel.getEstimateById(it) }
                 // scheduleId로 가장 최신 견적서 조회 (수정 이력 반영)
-                val estBySchedule = viewModel.getEstimateByScheduleId(eventId.toString())
+                val estBySchedule = viewModel.getEstimateByScheduleId(event.syncId ?: eventId.toString())
                 // 둘 다 있으면 createdAt 기준으로 최신 것 선택, 하나만 있으면 그걸 사용
                 val est = when {
                     estById != null && estBySchedule != null ->
@@ -335,7 +335,7 @@ fun AddEditEventScreen(
                                         // 4. 일정의 전화번호를 스텝3 연락처에 자동입력
                                         val resolvedPhone = notesList.firstOrNull { it.isNotBlank() } ?: ""
 
-                                         onNavigateToEstimate(resolvedMoveDate, resolvedDeparture, resolvedDestination, resolvedPhone, eventId?.toString(), null)
+                                         onNavigateToEstimate(resolvedMoveDate, resolvedDeparture, resolvedDestination, resolvedPhone, syncId ?: eventId?.toString(), null)
                                     }
                                     .padding(horizontal = 8.dp),
                                 contentAlignment = Alignment.Center
@@ -432,7 +432,7 @@ fun AddEditEventScreen(
                                             val est = viewModel.getEstimateById(linkedEstimateId!!)
                                             if (est != null) {
                                                 val estimateJson = com.google.gson.Gson().toJson(est)
-                                                onNavigateToEstimate("", "", "", "", eventId?.toString(), estimateJson)
+                                                onNavigateToEstimate("", "", "", "", syncId ?: eventId?.toString(), estimateJson)
                                             } else {
                                                 Toast.makeText(context, "견적서를 찾을 수 없습니다.", Toast.LENGTH_SHORT).show()
                                             }

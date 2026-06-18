@@ -82,6 +82,7 @@ class EstimateViewModel @Inject constructor(
 
     private var estimateId: String = ""
     private var copiedScheduleId: String? = null
+    private var originalEstimateId: String? = null
 
     val copyFromEstimateJson: String?
         get() {
@@ -190,6 +191,7 @@ class EstimateViewModel @Inject constructor(
             // UI 필드 복사 (ID는 신규 생성을 위해 의도적으로 빈 값 "" 세팅)
             estimateId = "" 
             copiedScheduleId = originalEstimate.scheduleId
+            originalEstimateId = originalEstimate.id
             customerName.value = originalEstimate.customerName
             phoneNumber.value = originalEstimate.phoneNumber
             departure.value = originalEstimate.departure
@@ -488,13 +490,23 @@ class EstimateViewModel @Inject constructor(
 
                 try {
                     val scheduleIdStr = resolvedScheduleId
-                    val scheduleId = scheduleIdStr?.toIntOrNull()
-                    if (scheduleId != null) {
-                        val event = calendarRepository.getEventById(scheduleId)
+                    if (!scheduleIdStr.isNullOrBlank()) {
+                        val event = calendarRepository.eventDao.getEventBySyncId(scheduleIdStr)
+                            ?: scheduleIdStr.toIntOrNull()?.let { calendarRepository.getEventById(it) }
                         if (event != null) {
                             val updatedEvent = event.copy(linkedEstimateId = finalEstimate.id)
                             calendarRepository.updateEvent(updatedEvent)
-                            android.util.Log.d("EstimateViewModel", "Schedule linked success: eventId=$scheduleId, estimateId=${finalEstimate.id}")
+                            android.util.Log.d("EstimateViewModel", "Schedule linked success by scheduleId: eventId=${event.id}, estimateId=${finalEstimate.id}")
+                        }
+                    }
+
+                    val oldId = originalEstimateId
+                    if (!oldId.isNullOrBlank()) {
+                        val eventsToUpdate = calendarRepository.eventDao.getAllEventsList().filter { it.linkedEstimateId == oldId }
+                        eventsToUpdate.forEach { event ->
+                            val updatedEvent = event.copy(linkedEstimateId = finalEstimate.id)
+                            calendarRepository.updateEvent(updatedEvent)
+                            android.util.Log.d("EstimateViewModel", "Schedule linked success by old estimate ID: eventId=${event.id}, estimateId=${finalEstimate.id}")
                         }
                     }
                 } catch (e: Exception) {
