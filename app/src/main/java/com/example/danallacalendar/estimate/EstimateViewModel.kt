@@ -96,45 +96,50 @@ class EstimateViewModel @Inject constructor(
         val today = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(java.util.Date())
         estimateDate.value = today
 
-        // 캘린더 일정 연동 인자 파싱 및 바인딩
-        try {
-            val argMoveDate = savedStateHandle.get<String>("moveDate")
-            val argDeparture = savedStateHandle.get<String>("departure")
-            val argDestination = savedStateHandle.get<String>("destination")
-            val argPhone = savedStateHandle.get<String>("phone")
+        // 기존 견적서 복사 처리 인자 획득
+        val copyFromEstimateJson = savedStateHandle.get<String>("copyFromEstimateJson")
+        val isCopyMode = !copyFromEstimateJson.isNullOrBlank() && copyFromEstimateJson != "null"
 
-            val decodeParam = { value: String? ->
-                if (value == null) ""
-                else {
-                    try {
-                        java.net.URLDecoder.decode(value, "UTF-8")
-                    } catch (e: Exception) {
-                        value
+        if (!isCopyMode) {
+            // 캘린더 일정 연동 인자 파싱 및 바인딩 (복사 모드가 아닐 때만 적용)
+            try {
+                val argMoveDate = savedStateHandle.get<String>("moveDate")
+                val argDeparture = savedStateHandle.get<String>("departure")
+                val argDestination = savedStateHandle.get<String>("destination")
+                val argPhone = savedStateHandle.get<String>("phone")
+
+                val decodeParam = { value: String? ->
+                    if (value == null) ""
+                    else {
+                        try {
+                            java.net.URLDecoder.decode(value, "UTF-8")
+                        } catch (e: Exception) {
+                            value
+                        }
                     }
                 }
-            }
 
-            if (!argMoveDate.isNullOrBlank()) {
-                moveDate.value = decodeParam(argMoveDate)
+                if (!argMoveDate.isNullOrBlank()) {
+                    moveDate.value = decodeParam(argMoveDate)
+                }
+                if (!argDeparture.isNullOrBlank()) {
+                    departure.value = decodeParam(argDeparture)
+                }
+                if (!argDestination.isNullOrBlank()) {
+                    destination.value = decodeParam(argDestination)
+                }
+                if (!argPhone.isNullOrBlank()) {
+                    phoneNumber.value = decodeParam(argPhone)
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("EstimateViewModel", "Error decoding navigation arguments", e)
             }
-            if (!argDeparture.isNullOrBlank()) {
-                departure.value = decodeParam(argDeparture)
-            }
-            if (!argDestination.isNullOrBlank()) {
-                destination.value = decodeParam(argDestination)
-            }
-            if (!argPhone.isNullOrBlank()) {
-                phoneNumber.value = decodeParam(argPhone)
-            }
-        } catch (e: Exception) {
-            android.util.Log.e("EstimateViewModel", "Error decoding navigation arguments", e)
         }
 
         // 기존 견적서 복사 처리
-        val copyFromEstimateJson = savedStateHandle.get<String>("copyFromEstimateJson")
-        android.util.Log.d("EstimateViewModel", "[COPY] copyFromEstimateJson parameter received: ${copyFromEstimateJson?.length ?: 0} chars")
-        if (!copyFromEstimateJson.isNullOrBlank()) {
-            loadAndCopyEstimateFromJson(copyFromEstimateJson)
+        android.util.Log.d("EstimateViewModel", "[COPY] copyFromEstimateJson parameter received: ${copyFromEstimateJson?.length ?: 0} chars, isCopyMode = $isCopyMode")
+        if (isCopyMode) {
+            loadAndCopyEstimateFromJson(copyFromEstimateJson!!)
         }
     }
 
