@@ -459,7 +459,11 @@ fun EstimateListScreen(
                     selectedEstimate?.let { estimate ->
                         LocalEstimateViewerDialog(
                             estimate = estimate,
-                            onDismiss = { selectedEstimate = null }
+                            onDismiss = { selectedEstimate = null },
+                            onEditClick = {
+                                selectedEstimate = null
+                                onNavigateToEstimateCopy(com.google.gson.Gson().toJson(estimate))
+                            }
                         )
                     }
 
