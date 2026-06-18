@@ -265,7 +265,7 @@ class EstimateViewModel @Inject constructor(
             current[space] = spaceMap
         }
         _roomItems.value = current
-        autoSaveToFirestore()
+        debounceAutoSave()
     }
 
     fun formatRoomItemsSummary(): String {

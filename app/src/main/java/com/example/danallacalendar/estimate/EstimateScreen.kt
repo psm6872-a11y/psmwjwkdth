@@ -66,6 +66,8 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.TextFieldValue
+import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.DpOffset
@@ -3028,17 +3030,43 @@ fun Step3CustomerInfo(
                         }
                     }
                 }
+                // departure: TextFieldValue로 내부 관리 → 커서를 텍스트 끝에 위치시켜
+                // 수정 모드에서 기존 텍스트를 사용자가 인식할 수 있도록 함
+                var departureValue by remember(departure) {
+                    mutableStateOf(TextFieldValue(departure, TextRange(departure.length)))
+                }
+                LaunchedEffect(departure) {
+                    if (departureValue.text != departure) {
+                        departureValue = TextFieldValue(departure, TextRange(departure.length))
+                    }
+                }
                 OutlinedTextField(
-                    value = departure,
-                    onValueChange = onDepartureChange,
+                    value = departureValue,
+                    onValueChange = { newVal ->
+                        departureValue = newVal
+                        if (newVal.text != departure) onDepartureChange(newVal.text)
+                    },
                     label = { Text("출발지", maxLines = 1, overflow = TextOverflow.Ellipsis) },
                     colors = textFieldColors,
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true
                 )
+
+                // destination: 동일하게 TextFieldValue로 관리
+                var destinationValue by remember(destination) {
+                    mutableStateOf(TextFieldValue(destination, TextRange(destination.length)))
+                }
+                LaunchedEffect(destination) {
+                    if (destinationValue.text != destination) {
+                        destinationValue = TextFieldValue(destination, TextRange(destination.length))
+                    }
+                }
                 OutlinedTextField(
-                    value = destination,
-                    onValueChange = onDestinationChange,
+                    value = destinationValue,
+                    onValueChange = { newVal ->
+                        destinationValue = newVal
+                        if (newVal.text != destination) onDestinationChange(newVal.text)
+                    },
                     label = { Text("도착지", maxLines = 1, overflow = TextOverflow.Ellipsis) },
                     colors = textFieldColors,
                     modifier = Modifier.fillMaxWidth(),
