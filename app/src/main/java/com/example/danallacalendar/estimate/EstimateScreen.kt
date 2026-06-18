@@ -3049,7 +3049,8 @@ fun Step3CustomerInfo(
                     label = { Text("출발지", maxLines = 1, overflow = TextOverflow.Ellipsis) },
                     colors = textFieldColors,
                     modifier = Modifier.fillMaxWidth(),
-                    singleLine = false
+                    singleLine = false,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text)
                 )
 
                 // destination: 동일하게 TextFieldValue로 관리
@@ -3070,7 +3071,8 @@ fun Step3CustomerInfo(
                     label = { Text("도착지", maxLines = 1, overflow = TextOverflow.Ellipsis) },
                     colors = textFieldColors,
                     modifier = Modifier.fillMaxWidth(),
-                    singleLine = false
+                    singleLine = false,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text)
                 )
             }
         }
