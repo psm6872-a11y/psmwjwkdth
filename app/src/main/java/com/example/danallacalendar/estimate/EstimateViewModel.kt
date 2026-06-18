@@ -363,6 +363,14 @@ class EstimateViewModel @Inject constructor(
             return
         }
 
+        // 신규 작성 모드에서는 Firestore 자동저장 비활성화
+        // 미완성 견적서가 견적목록에 쌓이는 문제 방지
+        // 최종 저장(saveEstimate)에서만 Firestore에 업로드됨
+        if (!isCopyMode) {
+            android.util.Log.d("EstimateViewModel", "Auto save to Firestore skipped: new estimate mode (not copy mode). Will save on final submit only.")
+            return
+        }
+
         val amt = amount.value.toLongOrNull() ?: 0L
         val actualMemo = memo.value.trim()
         val scheduleIdParam = savedStateHandle.get<String>("scheduleId")
