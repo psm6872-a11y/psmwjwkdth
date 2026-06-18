@@ -550,18 +550,49 @@ class CalendarViewModel @Inject constructor(
 
     suspend fun getEstimateById(estimateId: String): com.example.danallacalendar.estimate.Estimate? {
         val pdf = estimatePdfDao.getPdfByEstimateId(estimateId)
-        if (pdf != null) {
-            return try {
+        val initialEstimate = if (pdf != null) {
+            try {
                 com.google.gson.Gson().fromJson(pdf.estimateJson, com.example.danallacalendar.estimate.Estimate::class.java)
             } catch (e: Exception) {
                 null
             }
+        } else {
+            estimateRepository.getEstimateFromFirestore(estimateId)
         }
-        return estimateRepository.getEstimateFromFirestore(estimateId)
+
+        if (initialEstimate != null) {
+            val sId = initialEstimate.scheduleId
+            if (!sId.isNullOrBlank()) {
+                val latest = getEstimateByScheduleId(sId)
+                if (latest != null) {
+                    return latest
+                }
+            }
+            return initialEstimate
+        }
+        return null
     }
 
     suspend fun getEstimateByScheduleId(scheduleId: String): com.example.danallacalendar.estimate.Estimate? {
-        return estimateRepository.getEstimateByScheduleId(scheduleId)
+        val remoteLatest = estimateRepository.getEstimateByScheduleId(scheduleId)
+        
+        val allPdfs = estimatePdfDao.getAllPdfs().first()
+        val localLatest = allPdfs.mapNotNull { p ->
+            try {
+                com.google.gson.Gson().fromJson(p.estimateJson, com.example.danallacalendar.estimate.Estimate::class.java)
+            } catch (e: Exception) {
+                null
+            }
+        }.filter { it.scheduleId == scheduleId }
+         .maxByOrNull { it.createdAt }
+
+        return when {
+            localLatest != null && remoteLatest != null ->
+                if (remoteLatest.createdAt >= localLatest.createdAt) remoteLatest else localLatest
+            remoteLatest != null -> remoteLatest
+            localLatest != null -> localLatest
+            else -> null
+        }
     }
 }
 
