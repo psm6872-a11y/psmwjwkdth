@@ -23,6 +23,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
+import kotlinx.coroutines.tasks.await
 
 enum class CalendarViewMode {
     MONTH, WEEK
@@ -38,7 +39,8 @@ class CalendarViewModel @Inject constructor(
     private val userPreferences: UserPreferences,
     private val estimatePdfDao: com.example.danallacalendar.data.EstimatePdfDao,
     private val estimateRepository: com.example.danallacalendar.estimate.EstimateRepository,
-    @ApplicationContext private val context: Context
+    @ApplicationContext private val context: Context,
+    private val firestore: com.google.firebase.firestore.FirebaseFirestore
 ) : ViewModel() {
 
 
@@ -561,12 +563,42 @@ class CalendarViewModel @Inject constructor(
         }
 
         if (initialEstimate != null) {
-            val sId = initialEstimate.scheduleId
-            if (!sId.isNullOrBlank()) {
-                val latest = getEstimateByScheduleId(sId)
-                if (latest != null) {
-                    return latest
+            val rootId = initialEstimate.originalEstimateId.takeIf { !it.isNullOrBlank() } ?: initialEstimate.id
+            
+            // Firestore에서 originalEstimateId = rootId 인 견적서들 조회
+            val roomCode = userPreferences.getLastRoomCode()
+            val collectionRef = if (roomCode.isNotEmpty()) {
+                firestore.collection("rooms").document(roomCode).collection("estimates")
+            } else {
+                firestore.collection("estimates")
+            }
+
+            val remoteEstimates = try {
+                val snapshot = collectionRef
+                    .whereEqualTo("originalEstimateId", rootId)
+                    .get().await()
+                snapshot.documents.mapNotNull { it.toObject(com.example.danallacalendar.estimate.Estimate::class.java) }
+            } catch (e: Exception) {
+                android.util.Log.e("CalendarViewModel", "Failed to query estimates by originalEstimateId from Firestore", e)
+                emptyList()
+            }
+
+            // Room DB(로컬 캐시)에서도 동일하게 originalEstimateId = rootId 또는 id = rootId 인 견적서들 조회
+            val allPdfs = estimatePdfDao.getAllPdfs().first()
+            val localEstimates = allPdfs.mapNotNull { p ->
+                try {
+                    com.google.gson.Gson().fromJson(p.estimateJson, com.example.danallacalendar.estimate.Estimate::class.java)
+                } catch (e: Exception) {
+                    null
                 }
+            }.filter { it.originalEstimateId == rootId || it.id == rootId }
+
+            // 전체 수집된 목록에서 가장 최신 것 선택
+            val allGathered = (remoteEstimates + localEstimates + initialEstimate)
+            val latest = allGathered.maxByOrNull { it.createdAt }
+
+            if (latest != null) {
+                return latest
             }
             return initialEstimate
         }

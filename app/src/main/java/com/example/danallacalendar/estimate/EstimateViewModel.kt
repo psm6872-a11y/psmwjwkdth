@@ -212,7 +212,11 @@ class EstimateViewModel @Inject constructor(
             // UI 필드 복사 (ID는 신규 생성을 위해 의도적으로 빈 값 "" 세팅)
             estimateId = "" 
             copiedScheduleId = originalEstimate.scheduleId
-            originalEstimateId = originalEstimate.id
+            originalEstimateId = if (!originalEstimate.originalEstimateId.isNullOrBlank()) {
+                originalEstimate.originalEstimateId
+            } else {
+                originalEstimate.id
+            }
             customerName.value = originalEstimate.customerName
             phoneNumber.value = originalEstimate.phoneNumber
             departure.value = originalEstimate.departure
@@ -347,7 +351,9 @@ class EstimateViewModel @Inject constructor(
             deposit = deposit.value,
             balance = balance.value,
             optionCost = optionCost.value,
-            roomItems = convertRoomItemsToLong(roomItems.value)
+            roomItems = convertRoomItemsToLong(roomItems.value),
+            scheduleId = savedStateHandle.get<String>("scheduleId") ?: copiedScheduleId,
+            originalEstimateId = originalEstimateId
         )
     }
 
@@ -391,7 +397,8 @@ class EstimateViewModel @Inject constructor(
             balance = balance.value,
             optionCost = optionCost.value,
             roomItems = convertRoomItemsToLong(roomItems.value),
-            scheduleId = resolvedScheduleId
+            scheduleId = resolvedScheduleId,
+            originalEstimateId = originalEstimateId
         )
 
         viewModelScope.launch(Dispatchers.IO) {
@@ -442,7 +449,8 @@ class EstimateViewModel @Inject constructor(
             balance = balance.value,
             optionCost = optionCost.value,
             roomItems = convertRoomItemsToLong(roomItems.value),
-            scheduleId = resolvedScheduleId
+            scheduleId = resolvedScheduleId,
+            originalEstimateId = originalEstimateId
         )
 
         _saveState.value = SaveState.Loading
