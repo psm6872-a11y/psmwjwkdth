@@ -551,6 +551,8 @@ class CalendarViewModel @Inject constructor(
     }
 
     suspend fun getEstimateById(estimateId: String): com.example.danallacalendar.estimate.Estimate? {
+        android.util.Log.d("CalendarViewModel", "[getEstimateById] 조회 시작 - linkedEstimateId: $estimateId")
+
         val pdf = estimatePdfDao.getPdfByEstimateId(estimateId)
         val initialEstimate = if (pdf != null) {
             try {
@@ -564,6 +566,7 @@ class CalendarViewModel @Inject constructor(
 
         if (initialEstimate != null) {
             val rootId = initialEstimate.originalEstimateId.takeIf { !it.isNullOrBlank() } ?: initialEstimate.id
+            android.util.Log.d("CalendarViewModel", "[getEstimateById] 기준 rootId: $rootId (originalEstimateId: ${initialEstimate.originalEstimateId}, id: ${initialEstimate.id})")
             
             // Firestore에서 originalEstimateId = rootId 인 견적서들 조회
             val roomCode = userPreferences.getLastRoomCode()
@@ -583,6 +586,11 @@ class CalendarViewModel @Inject constructor(
                 emptyList()
             }
 
+            android.util.Log.d("CalendarViewModel", "[getEstimateById] Firestore 조회 결과: ${remoteEstimates.size}개")
+            remoteEstimates.forEachIndexed { i, est ->
+                android.util.Log.d("CalendarViewModel", "[getEstimateById]   Firestore[$i] estimateId=${est.id}, originalEstimateId=${est.originalEstimateId}, createdAt=${est.createdAt}")
+            }
+
             // Room DB(로컬 캐시)에서도 동일하게 originalEstimateId = rootId 또는 id = rootId 인 견적서들 조회
             val allPdfs = estimatePdfDao.getAllPdfs().first()
             val localEstimates = allPdfs.mapNotNull { p ->
@@ -593,20 +601,32 @@ class CalendarViewModel @Inject constructor(
                 }
             }.filter { it.originalEstimateId == rootId || it.id == rootId }
 
+            android.util.Log.d("CalendarViewModel", "[getEstimateById] Room DB 조회 결과: ${localEstimates.size}개")
+            localEstimates.forEachIndexed { i, est ->
+                android.util.Log.d("CalendarViewModel", "[getEstimateById]   Local[$i] estimateId=${est.id}, originalEstimateId=${est.originalEstimateId}, createdAt=${est.createdAt}")
+            }
+
             // 전체 수집된 목록에서 가장 최신 것 선택
             val allGathered = (remoteEstimates + localEstimates + initialEstimate)
             val latest = allGathered.maxByOrNull { it.createdAt }
+
+            android.util.Log.d("CalendarViewModel", "[getEstimateById] 전체 후보 ${allGathered.size}개 중 최신 선택 → estimateId=${latest?.id}, createdAt=${latest?.createdAt}")
 
             if (latest != null) {
                 return latest
             }
             return initialEstimate
         }
+
+        android.util.Log.d("CalendarViewModel", "[getEstimateById] initialEstimate 조회 실패 - 결과 null 반환")
         return null
     }
 
     suspend fun getEstimateByScheduleId(scheduleId: String): com.example.danallacalendar.estimate.Estimate? {
+        android.util.Log.d("CalendarViewModel", "[getEstimateByScheduleId] 조회 시작 - scheduleId: $scheduleId")
+
         val remoteLatest = estimateRepository.getEstimateByScheduleId(scheduleId)
+        android.util.Log.d("CalendarViewModel", "[getEstimateByScheduleId] Firestore 결과: estimateId=${remoteLatest?.id}, createdAt=${remoteLatest?.createdAt}")
         
         val allPdfs = estimatePdfDao.getAllPdfs().first()
         val localLatest = allPdfs.mapNotNull { p ->
@@ -618,13 +638,18 @@ class CalendarViewModel @Inject constructor(
         }.filter { it.scheduleId == scheduleId }
          .maxByOrNull { it.createdAt }
 
-        return when {
+        android.util.Log.d("CalendarViewModel", "[getEstimateByScheduleId] Room DB 결과: estimateId=${localLatest?.id}, createdAt=${localLatest?.createdAt}")
+
+        val result = when {
             localLatest != null && remoteLatest != null ->
                 if (remoteLatest.createdAt >= localLatest.createdAt) remoteLatest else localLatest
             remoteLatest != null -> remoteLatest
             localLatest != null -> localLatest
             else -> null
         }
+
+        android.util.Log.d("CalendarViewModel", "[getEstimateByScheduleId] 최종 선택 → estimateId=${result?.id}, createdAt=${result?.createdAt}")
+        return result
     }
 }
 
