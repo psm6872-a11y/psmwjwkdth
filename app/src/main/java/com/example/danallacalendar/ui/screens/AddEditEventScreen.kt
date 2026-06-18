@@ -189,9 +189,17 @@ fun AddEditEventScreen(
                 isCompleted = event.isCompleted
                 createdAt = if (event.createdAt <= 0L) System.currentTimeMillis() else event.createdAt
                 updatedAt = if (event.updatedAt <= 0L) System.currentTimeMillis() else event.updatedAt
-                var est = event.linkedEstimateId?.let { viewModel.getEstimateById(it) }
-                if (est == null) {
-                    est = viewModel.getEstimateByScheduleId(eventId.toString())
+                // linkedEstimateId로 찾은 견적서 (기존 연결)
+                val estById = event.linkedEstimateId?.let { viewModel.getEstimateById(it) }
+                // scheduleId로 가장 최신 견적서 조회 (수정 이력 반영)
+                val estBySchedule = viewModel.getEstimateByScheduleId(eventId.toString())
+                // 둘 다 있으면 createdAt 기준으로 최신 것 선택, 하나만 있으면 그걸 사용
+                val est = when {
+                    estById != null && estBySchedule != null ->
+                        if (estBySchedule.createdAt >= estById.createdAt) estBySchedule else estById
+                    estBySchedule != null -> estBySchedule
+                    estById != null -> estById
+                    else -> null
                 }
                 if (est != null) {
                     linkedEstimateId = est.id

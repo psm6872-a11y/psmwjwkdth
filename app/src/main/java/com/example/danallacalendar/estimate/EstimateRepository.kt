@@ -100,7 +100,11 @@ class EstimateRepository @Inject constructor(
             firestore.collection("estimates")
         }
         return try {
-            val snapshot = collectionRef.whereEqualTo("scheduleId", scheduleId).limit(1).get().await()
+            val snapshot = collectionRef
+                .whereEqualTo("scheduleId", scheduleId)
+                .orderBy("createdAt", com.google.firebase.firestore.Query.Direction.DESCENDING)
+                .limit(1)
+                .get().await()
             val doc = snapshot.documents.firstOrNull()
             doc?.toObject(Estimate::class.java)
         } catch (e: Exception) {

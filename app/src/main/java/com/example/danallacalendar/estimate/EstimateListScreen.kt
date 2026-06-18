@@ -585,11 +585,30 @@ fun EstimateItemCard(
                             }
                         }
                         Spacer(modifier = Modifier.height(6.dp))
-                        Text(
-                            text = estimate.estimateDate.ifBlank { "정보 없음" },
-                            color = Color.White.copy(alpha = 0.8f),
-                            fontSize = 13.sp
-                        )
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text(
+                                text = estimate.estimateDate.ifBlank { "정보 없음" },
+                                color = Color.White.copy(alpha = 0.8f),
+                                fontSize = 13.sp
+                            )
+                            val createdTime = remember(estimate.createdAt) {
+                                if (estimate.createdAt > 0L) {
+                                    java.text.SimpleDateFormat("HH:mm", java.util.Locale.getDefault())
+                                        .format(java.util.Date(estimate.createdAt))
+                                } else ""
+                            }
+                            if (createdTime.isNotBlank()) {
+                                Text(
+                                    text = createdTime,
+                                    color = Color.White.copy(alpha = 0.45f),
+                                    fontSize = 12.sp
+                                )
+                            }
+                        }
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
                             text = if (estimate.moveDate.isBlank()) "정보 없음" else "${estimate.moveDate} (${estimate.startTime})",
