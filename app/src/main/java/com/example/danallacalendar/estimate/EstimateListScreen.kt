@@ -891,6 +891,47 @@ fun LocalEstimateViewerDialog(
                             Text("문자 발송", color = Color.White, fontSize = 11.sp)
                         }
                     }
+
+                    // 4. 카카오톡 공유
+                    TextButton(
+                        onClick = {
+                            Toast.makeText(context, "카카오톡 공유용 이미지 생성 중...", Toast.LENGTH_SHORT).show()
+                            val scope = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Main)
+                            scope.launch {
+                                val jpgPath = EstimatePrintHelper.renderHtmlToJpg(context, htmlContent, estimate)
+                                if (jpgPath != null) {
+                                    val jpgFile = java.io.File(jpgPath)
+                                    val fileUri = androidx.core.content.FileProvider.getUriForFile(
+                                        context,
+                                        "${context.packageName}.fileprovider",
+                                        jpgFile
+                                    )
+                                    val intent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+                                        type = "image/jpeg"
+                                        putExtra(android.content.Intent.EXTRA_STREAM, fileUri)
+                                        addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                                        addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                                    }
+                                    context.startActivity(android.content.Intent.createChooser(intent, "카카오톡으로 공유"))
+                                } else {
+                                    Toast.makeText(context, "이미지 생성 실패", Toast.LENGTH_SHORT).show()
+                                }
+                            }
+                        },
+                        modifier = Modifier.weight(1f),
+                        contentPadding = PaddingValues(vertical = 4.dp)
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Icon(
+                                imageVector = Icons.Default.Share,
+                                tint = Color(0xFFFFE000),
+                                contentDescription = "카카오톡 공유",
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text("카톡", color = Color(0xFFFFE000), fontSize = 11.sp)
+                        }
+                    }
                 }
 
                 // 구분선
