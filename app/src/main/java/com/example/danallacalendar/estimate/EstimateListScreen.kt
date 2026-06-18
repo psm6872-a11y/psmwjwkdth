@@ -519,9 +519,6 @@ fun EstimateItemCard(
     onDeleteClick: () -> Unit,
     onCopyClick: (com.example.danallacalendar.data.EstimatePdf) -> Unit
 ) {
-    var showMenu by remember { mutableStateOf(false) }
-    var pressOffset by remember { mutableStateOf(DpOffset.Zero) }
-    val density = LocalDensity.current
 
     Box {
         Card(
@@ -529,13 +526,7 @@ fun EstimateItemCard(
                 .fillMaxWidth()
                 .pointerInput(Unit) {
                     detectTapGestures(
-                        onTap = { onItemClick() },
-                        onLongPress = { offset ->
-                            val xDp = with(density) { offset.x.toDp() }
-                            val yDp = with(density) { offset.y.toDp() }
-                            pressOffset = DpOffset(xDp, yDp)
-                            showMenu = true
-                        }
+                        onTap = { onItemClick() }
                     )
                 },
             colors = CardDefaults.cardColors(
@@ -642,81 +633,6 @@ fun EstimateItemCard(
             }
         }
 
-        DropdownMenu(
-            expanded = showMenu,
-            onDismissRequest = { showMenu = false },
-            offset = pressOffset,
-            modifier = Modifier
-                .background(Color(0xFF1E1045))
-                .border(1.dp, Color(0xFFE040FB).copy(alpha = 0.3f), RoundedCornerShape(8.dp))
-        ) {
-            DropdownMenuItem(
-                text = {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Edit,
-                            contentDescription = "수정",
-                            tint = Color(0xFFE040FB),
-                            modifier = Modifier.size(20.dp)
-                        )
-                        Text(
-                            text = "수정",
-                            color = Color.White,
-                            fontSize = 15.sp,
-                            fontWeight = FontWeight.SemiBold
-                        )
-                    }
-                },
-                onClick = {
-                    showMenu = false
-                    val tempPdf = com.example.danallacalendar.data.EstimatePdf(
-                        date = estimate.estimateDate,
-                        fileName = "",
-                        filePath = estimate.localFilePath ?: "",
-                        estimateId = estimate.id,
-                        customerName = estimate.customerName,
-                        phoneNumber = estimate.phoneNumber,
-                        moveDate = estimate.moveDate,
-                        departure = estimate.departure,
-                        estimateJson = com.google.gson.Gson().toJson(estimate),
-                        isSynced = estimate.isSynced
-                    )
-                    onCopyClick(tempPdf)
-                },
-                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp)
-            )
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(0.5.dp)
-                    .background(Color.White.copy(alpha = 0.12f))
-            )
-            DropdownMenuItem(
-                text = {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Close,
-                            contentDescription = "취소",
-                            tint = Color.White.copy(alpha = 0.4f),
-                            modifier = Modifier.size(20.dp)
-                        )
-                        Text(
-                            text = "취소",
-                            color = Color.White.copy(alpha = 0.6f),
-                            fontSize = 15.sp
-                        )
-                    }
-                },
-                onClick = { showMenu = false },
-                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp)
-            )
-        }
     }
 }
 
@@ -821,18 +737,25 @@ fun LocalEstimateViewerDialog(
                         modifier = Modifier.weight(1f)
                     )
                     if (onEditClick != null) {
-                        IconButton(
+                        TextButton(
                             onClick = {
                                 onDismiss()
                                 onEditClick()
                             },
-                            modifier = Modifier.size(32.dp)
+                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Edit,
-                                tint = Color.White,
+                                tint = Color(0xFFE040FB),
                                 contentDescription = "수정",
-                                modifier = Modifier.size(20.dp)
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = "수정",
+                                color = Color(0xFFE040FB),
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Bold
                             )
                         }
                     }
