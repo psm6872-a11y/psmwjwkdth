@@ -13,6 +13,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -83,6 +85,22 @@ class EstimateViewModel @Inject constructor(
     private var estimateId: String = ""
     private var copiedScheduleId: String? = null
     private var originalEstimateId: String? = null
+
+    // 텍스트 입력 debounce용: 빠른 타이핑/한글 IME 조합 중 중복 저장 방지
+    private var debounceJob: Job? = null
+
+    /**
+     * 텍스트 필드 입력 시 호출하는 debounce 자동저장.
+     * 마지막 호출 후 400ms 이내에 새 호출이 오면 이전 저장을 취소하고 다시 대기합니다.
+     * 한글 IME 조합 문자 중복 저장 문제를 방지합니다.
+     */
+    fun debounceAutoSave() {
+        debounceJob?.cancel()
+        debounceJob = viewModelScope.launch {
+            delay(400L)
+            autoSaveToFirestore()
+        }
+    }
 
     val copyFromEstimateJson: String?
         get() {
