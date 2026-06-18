@@ -554,8 +554,9 @@ class CalendarViewModel @Inject constructor(
         android.util.Log.d("TEST", "getEstimateById 호출됨 id=$estimateId")
         android.util.Log.d("CalendarViewModel", "[getEstimateById] 조회 시작 - linkedEstimateId: $estimateId")
 
+        // 1. linkedEstimateId로 원본 견적서 조회 (Room DB 우선, 없으면 Firestore)
         val pdf = estimatePdfDao.getPdfByEstimateId(estimateId)
-        val initialEstimate = if (pdf != null) {
+        val originalEstimate = if (pdf != null) {
             try {
                 com.google.gson.Gson().fromJson(pdf.estimateJson, com.example.danallacalendar.estimate.Estimate::class.java)
             } catch (e: Exception) {
@@ -565,63 +566,52 @@ class CalendarViewModel @Inject constructor(
             estimateRepository.getEstimateFromFirestore(estimateId)
         }
 
-        if (initialEstimate != null) {
-            val rootId = initialEstimate.originalEstimateId.takeIf { !it.isNullOrBlank() } ?: initialEstimate.id
-            android.util.Log.d("CalendarViewModel", "[getEstimateById] 기준 rootId: $rootId (originalEstimateId: ${initialEstimate.originalEstimateId}, id: ${initialEstimate.id})")
-            
-            // Firestore에서 originalEstimateId = rootId 인 견적서들 조회
-            val roomCode = userPreferences.getLastRoomCode()
-            val collectionRef = if (roomCode.isNotEmpty()) {
-                firestore.collection("rooms").document(roomCode).collection("estimates")
-            } else {
-                firestore.collection("estimates")
-            }
-
-            val remoteEstimates = try {
-                val snapshot = collectionRef
-                    .whereEqualTo("originalEstimateId", rootId)
-                    .get().await()
-                snapshot.documents.mapNotNull { it.toObject(com.example.danallacalendar.estimate.Estimate::class.java) }
-            } catch (e: Exception) {
-                android.util.Log.e("CalendarViewModel", "Failed to query estimates by originalEstimateId from Firestore", e)
-                emptyList()
-            }
-
-            android.util.Log.d("CalendarViewModel", "[getEstimateById] Firestore 조회 결과: ${remoteEstimates.size}개")
-            remoteEstimates.forEachIndexed { i, est ->
-                android.util.Log.d("CalendarViewModel", "[getEstimateById]   Firestore[$i] estimateId=${est.id}, originalEstimateId=${est.originalEstimateId}, createdAt=${est.createdAt}")
-            }
-
-            // Room DB(로컬 캐시)에서도 동일하게 originalEstimateId = rootId 또는 id = rootId 인 견적서들 조회
-            val allPdfs = estimatePdfDao.getAllPdfs().first()
-            val localEstimates = allPdfs.mapNotNull { p ->
-                try {
-                    com.google.gson.Gson().fromJson(p.estimateJson, com.example.danallacalendar.estimate.Estimate::class.java)
-                } catch (e: Exception) {
-                    null
-                }
-            }.filter { it.originalEstimateId == rootId || it.id == rootId }
-
-            android.util.Log.d("CalendarViewModel", "[getEstimateById] Room DB 조회 결과: ${localEstimates.size}개")
-            localEstimates.forEachIndexed { i, est ->
-                android.util.Log.d("CalendarViewModel", "[getEstimateById]   Local[$i] estimateId=${est.id}, originalEstimateId=${est.originalEstimateId}, createdAt=${est.createdAt}")
-            }
-
-            // 전체 수집된 목록에서 가장 최신 것 선택
-            val allGathered = (remoteEstimates + localEstimates + initialEstimate)
-            val latest = allGathered.maxByOrNull { it.createdAt }
-
-            android.util.Log.d("CalendarViewModel", "[getEstimateById] 전체 후보 ${allGathered.size}개 중 최신 선택 → estimateId=${latest?.id}, createdAt=${latest?.createdAt}")
-
-            if (latest != null) {
-                return latest
-            }
-            return initialEstimate
+        if (originalEstimate == null) {
+            android.util.Log.d("CalendarViewModel", "[getEstimateById] 원본 견적서 조회 실패 - null 반환")
+            return null
         }
 
-        android.util.Log.d("CalendarViewModel", "[getEstimateById] initialEstimate 조회 실패 - 결과 null 반환")
-        return null
+        android.util.Log.d("CalendarViewModel", "[getEstimateById] 원본 견적서 조회 성공 - estimateId=${originalEstimate.id}, phoneNumber=${originalEstimate.phoneNumber}, createdAt=${originalEstimate.createdAt}")
+
+        // 2. phoneNumber가 비어있으면 원본 그대로 반환
+        val phoneNumber = originalEstimate.phoneNumber
+        if (phoneNumber.isBlank()) {
+            android.util.Log.d("CalendarViewModel", "[getEstimateById] phoneNumber 없음 - 원본 견적서 반환")
+            return originalEstimate
+        }
+
+        // 3. Firestore에서 phoneNumber가 같은 견적서 전체 조회
+        val roomCode = userPreferences.getLastRoomCode()
+        val collectionRef = if (roomCode.isNotEmpty()) {
+            firestore.collection("rooms").document(roomCode).collection("estimates")
+        } else {
+            firestore.collection("estimates")
+        }
+
+        val remoteEstimates = try {
+            val snapshot = collectionRef
+                .whereEqualTo("phoneNumber", phoneNumber)
+                .get().await()
+            snapshot.documents.mapNotNull { it.toObject(com.example.danallacalendar.estimate.Estimate::class.java) }
+        } catch (e: Exception) {
+            android.util.Log.e("CalendarViewModel", "[getEstimateById] Firestore phoneNumber 조회 실패", e)
+            emptyList()
+        }
+
+        android.util.Log.d("CalendarViewModel", "[getEstimateById] Firestore 조회 결과: ${remoteEstimates.size}개")
+        remoteEstimates.forEachIndexed { i, est ->
+            android.util.Log.d("CalendarViewModel", "[getEstimateById]   Firestore[$i] estimateId=${est.id}, phoneNumber=${est.phoneNumber}, createdAt=${est.createdAt}")
+        }
+
+        // 4. createdAt 기준 가장 최신 견적서 반환
+        val latest = (remoteEstimates + originalEstimate).maxByOrNull { it.createdAt }
+
+        android.util.Log.d("CalendarViewModel", "[getEstimateById] 최종 선택 → estimateId=${latest?.id}, createdAt=${latest?.createdAt}")
+
+        // 5. 없으면 원본 그대로 반환
+        return latest ?: originalEstimate
     }
+
 
     suspend fun getEstimateByScheduleId(scheduleId: String): com.example.danallacalendar.estimate.Estimate? {
         android.util.Log.d("CalendarViewModel", "[getEstimateByScheduleId] 조회 시작 - scheduleId: $scheduleId")
