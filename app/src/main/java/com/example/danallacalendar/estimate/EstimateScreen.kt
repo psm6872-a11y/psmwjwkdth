@@ -3384,7 +3384,7 @@ fun Step3CustomerInfo(
                     value = phoneNumber,
                     onValueChange = onPhoneNumberChange,
                     label = { Text("전화번호", maxLines = 1, overflow = TextOverflow.Ellipsis) },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text),
                     colors = textFieldColors,
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true
