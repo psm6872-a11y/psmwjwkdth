@@ -141,17 +141,19 @@ class EstimateViewModel @Inject constructor(
                     }
                 }
 
-                if (!argMoveDate.isNullOrBlank()) {
-                    moveDate.value = decodeParam(argMoveDate)
-                }
-                if (!argDeparture.isNullOrBlank()) {
-                    departure.value = decodeParam(argDeparture)
-                }
-                if (!argDestination.isNullOrBlank()) {
-                    destination.value = decodeParam(argDestination)
-                }
-                if (!argPhone.isNullOrBlank()) {
-                    phoneNumber.value = decodeParam(argPhone)
+                if (!isCopyMode) {
+                    if (!argMoveDate.isNullOrBlank()) {
+                        moveDate.value = decodeParam(argMoveDate)
+                    }
+                    if (!argDeparture.isNullOrBlank()) {
+                        departure.value = decodeParam(argDeparture)
+                    }
+                    if (!argDestination.isNullOrBlank()) {
+                        destination.value = decodeParam(argDestination)
+                    }
+                    if (!argPhone.isNullOrBlank()) {
+                        phoneNumber.value = decodeParam(argPhone)
+                    }
                 }
             } catch (e: Exception) {
                 android.util.Log.e("EstimateViewModel", "Error decoding navigation arguments", e)
