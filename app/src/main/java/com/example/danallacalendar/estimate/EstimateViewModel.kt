@@ -93,12 +93,15 @@ class EstimateViewModel @Inject constructor(
         get() = copyFromEstimateJson != null
 
     init {
-        val today = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(java.util.Date())
-        estimateDate.value = today
-
         // 기존 견적서 복사 처리 인자 획득
         val copyFromEstimateJson = savedStateHandle.get<String>("copyFromEstimateJson")
         val isCopyMode = !copyFromEstimateJson.isNullOrBlank() && copyFromEstimateJson != "null"
+
+        // 복사 모드가 아닐 때만 오늘 날짜로 초기화 (복사 모드에서는 loadAndCopyEstimateFromJson이 직접 설정)
+        if (!isCopyMode) {
+            val today = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(java.util.Date())
+            estimateDate.value = today
+        }
 
         if (!isCopyMode) {
             // 캘린더 일정 연동 인자 파싱 및 바인딩 (복사 모드가 아닐 때만 적용)

@@ -987,10 +987,14 @@ fun LocalEstimateViewerDialog(
                             settings.setSupportZoom(true)
                             settings.builtInZoomControls = true
                             settings.displayZoomControls = false
+                            settings.cacheMode = android.webkit.WebSettings.LOAD_NO_CACHE
+                            clearCache(true)
                             loadDataWithBaseURL("file:///android_asset/", htmlContent, "text/html", "UTF-8", null)
                         }
                     },
                     update = { webView ->
+                        webView.settings.cacheMode = android.webkit.WebSettings.LOAD_NO_CACHE
+                        webView.clearCache(true)
                         webView.loadDataWithBaseURL("file:///android_asset/", htmlContent, "text/html", "UTF-8", null)
                     },
                     modifier = Modifier.fillMaxSize()
