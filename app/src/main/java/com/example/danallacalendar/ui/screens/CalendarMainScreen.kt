@@ -1438,7 +1438,7 @@ fun EventItemCard(
 
         if (showContextMenu) {
             val popupOffset = with(density) {
-                -(52.dp + 8.dp).roundToPx()
+                -(108.dp + 8.dp).roundToPx()
             }
 
             Popup(
@@ -1452,154 +1452,154 @@ fun EventItemCard(
             ) {
                 Column(
                     modifier = Modifier.width(cardWidth),
-                    horizontalAlignment = Alignment.CenterHorizontally
+                    horizontalAlignment = Alignment.Start
                 ) {
-                    // 상단 말풍선 버튼 2개 (1차 말풍선)
-                    Row(
-                        modifier = Modifier.fillMaxWidth()
+                    // 상단 말풍선 버튼 2개 (1차 말풍선 - 세로 배치)
+                    // 계약확정(상)
+                    Box(
+                        modifier = Modifier.padding(start = 12.dp)
+                    ) {
+                        BubbleButton(
+                            text = "계약확정",
+                            onClick = {
+                                showConfirmConfirmDialog = true
+                            },
+                            containerColor = Color(0xFF81C784),
+                            contentColor = Color(0xFF36221A),
+                            arrowOnTop = false,
+                            arrowPositionLeft = true
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    // 방문예약(하)
+                    Box(
+                        modifier = Modifier.padding(start = 12.dp)
                     ) {
                         Box(
-                            modifier = Modifier.weight(1f).padding(end = 6.dp),
-                            contentAlignment = Alignment.CenterEnd
+                            modifier = Modifier.onGloballyPositioned { coords ->
+                                visitButtonWidth = with(density) { coords.size.width.toDp() }
+                            }
                         ) {
-                            Box(
-                                modifier = Modifier.onGloballyPositioned { coords ->
-                                    visitButtonWidth = with(density) { coords.size.width.toDp() }
-                                }
-                            ) {
-                                BubbleButton(
-                                    text = "방문예약",
-                                    onClick = {
-                                        showSecondBubble = !showSecondBubble
+                            BubbleButton(
+                                text = "방문예약",
+                                onClick = {
+                                    showSecondBubble = !showSecondBubble
+                                },
+                                containerColor = Color(0xFF64B5F6),
+                                contentColor = Color(0xFF36221A),
+                                arrowOnTop = false,
+                                arrowPositionLeft = true
+                            )
+
+                            if (showSecondBubble) {
+                                Popup(
+                                    alignment = Alignment.TopStart,
+                                    onDismissRequest = {
+                                        showSecondBubble = false
                                     },
-                                    containerColor = Color(0xFF64B5F6),
-                                    contentColor = Color(0xFF36221A),
-                                    arrowPositionLeft = false
-                                )
-
-                                if (showSecondBubble) {
-                                    Popup(
-                                        alignment = Alignment.TopCenter,
-                                        onDismissRequest = {
-                                            showSecondBubble = false
-                                        },
-                                        offset = IntOffset(0, with(density) { -(secondBubbleHeight + 2.dp).roundToPx() }),
-                                        properties = PopupProperties(focusable = false)
+                                    offset = IntOffset(
+                                        x = with(density) { (visitButtonWidth + 8.dp).roundToPx() },
+                                        y = 0
+                                    ),
+                                    properties = PopupProperties(focusable = false)
+                                ) {
+                                    val animVisible = remember { MutableTransitionState(false) }.apply {
+                                        targetState = true
+                                    }
+                                    androidx.compose.animation.AnimatedVisibility(
+                                        visibleState = animVisible,
+                                        enter = slideInHorizontally(
+                                            animationSpec = tween(durationMillis = 1200, easing = LinearOutSlowInEasing),
+                                            initialOffsetX = { fullWidth -> -fullWidth }
+                                        )
                                     ) {
-                                        val animVisible = remember { MutableTransitionState(false) }.apply {
-                                            targetState = true
-                                        }
-                                        androidx.compose.animation.AnimatedVisibility(
-                                            visibleState = animVisible,
-                                            enter = slideInVertically(
-                                                animationSpec = tween(durationMillis = 1200, easing = LinearOutSlowInEasing),
-                                                initialOffsetY = { fullHeight -> fullHeight }
-                                            )
+                                        Column(
+                                            modifier = Modifier.wrapContentSize(unbounded = true),
+                                            verticalArrangement = Arrangement.Center,
+                                            horizontalAlignment = Alignment.Start
                                         ) {
-                                            Row(
-                                                modifier = Modifier
-                                                    .wrapContentSize(unbounded = true)
-                                                    .onGloballyPositioned { coords ->
-                                                        secondBubbleHeight = with(density) { coords.size.height.toDp() }
-                                                    },
-                                                horizontalArrangement = Arrangement.Center,
-                                                verticalAlignment = Alignment.CenterVertically
-                                            ) {
-                                                BubbleButton(
-                                                    text = "문구수정",
-                                                    onClick = {
-                                                        showSecondBubble = false
-                                                        showContextMenu = false
-                                                        showEditTemplateDialog = true
-                                                    },
-                                                    containerColor = Color(0xFFFFF176),
-                                                    contentColor = Color(0xFF36221A),
-                                                    arrowPositionLeft = false
-                                                )
-                                                Spacer(modifier = Modifier.width(12.dp))
-                                                BubbleButton(
-                                                    text = "문자발송",
-                                                    onClick = {
-                                                        showSecondBubble = false
-                                                        showContextMenu = false
-                                                        scope.launch {
-                                                            val template = context.dataStore.data.map { prefs ->
-                                                                prefs[VISIT_MESSAGE_TEMPLATE_KEY]
-                                                            }.first() ?: DEFAULT_VISIT_MESSAGE_TEMPLATE
+                                            BubbleButton(
+                                                text = "문자발송",
+                                                onClick = {
+                                                    showSecondBubble = false
+                                                    showContextMenu = false
+                                                    scope.launch {
+                                                        val template = context.dataStore.data.map { prefs ->
+                                                            prefs[VISIT_MESSAGE_TEMPLATE_KEY]
+                                                        }.first() ?: DEFAULT_VISIT_MESSAGE_TEMPLATE
 
-                                                            val dateFormat = SimpleDateFormat("M월 d일 (E) HH:mm", Locale.KOREAN)
-                                                            val timeStr = dateFormat.format(Date(event.startMillis))
-                                                            val body = template.replace("{시작시간}", timeStr)
+                                                        val dateFormat = SimpleDateFormat("M월 d일 (E) HH:mm", Locale.KOREAN)
+                                                        val timeStr = dateFormat.format(Date(event.startMillis))
+                                                        val body = template.replace("{시작시간}", timeStr)
 
-                                                            val phone = extractPhoneNumber(event.title) ?: extractPhoneNumber(event.location) ?: extractPhoneNumber(event.notes) ?: ""
-                                                            try {
-                                                                val intent = Intent(Intent.ACTION_SENDTO).apply {
-                                                                    data = Uri.parse("smsto:$phone")
-                                                                    putExtra("sms_body", body)
-                                                                }
-                                                                context.startActivity(intent)
-                                                            } catch (e: Exception) {
-                                                                Toast.makeText(context, "SMS 앱을 열 수 없습니다.", Toast.LENGTH_SHORT).show()
+                                                        val phone = extractPhoneNumber(event.title) ?: extractPhoneNumber(event.location) ?: extractPhoneNumber(event.notes) ?: ""
+                                                        try {
+                                                            val intent = Intent(Intent.ACTION_SENDTO).apply {
+                                                                data = Uri.parse("smsto:$phone")
+                                                                putExtra("sms_body", body)
                                                             }
+                                                            context.startActivity(intent)
+                                                        } catch (e: Exception) {
+                                                            Toast.makeText(context, "SMS 앱을 열 수 없습니다.", Toast.LENGTH_SHORT).show()
                                                         }
-                                                    },
-                                                    containerColor = Color(0xFF80DEEA),
-                                                    contentColor = Color(0xFF36221A),
-                                                    arrowPositionLeft = true
-                                                )
-                                            }
+                                                    }
+                                                },
+                                                containerColor = Color(0xFF80DEEA),
+                                                contentColor = Color(0xFF36221A),
+                                                arrowOnTop = false,
+                                                arrowPositionLeft = true,
+                                                arrowOnLeft = true,
+                                                arrowPositionTop = true
+                                            )
+                                            Spacer(modifier = Modifier.height(8.dp))
+                                            BubbleButton(
+                                                text = "문구수정",
+                                                onClick = {
+                                                    showSecondBubble = false
+                                                    showContextMenu = false
+                                                    showEditTemplateDialog = true
+                                                },
+                                                containerColor = Color(0xFFFFF176),
+                                                contentColor = Color(0xFF36221A),
+                                                arrowOnTop = false,
+                                                arrowPositionLeft = true,
+                                                arrowOnLeft = true,
+                                                arrowPositionTop = true
+                                            )
                                         }
                                     }
                                 }
                             }
-                        }
-                        Box(
-                            modifier = Modifier.weight(1f).padding(start = 6.dp),
-                            contentAlignment = Alignment.CenterStart
-                        ) {
-                            BubbleButton(
-                                text = "계약확정",
-                                onClick = {
-                                    showConfirmConfirmDialog = true
-                                },
-                                containerColor = Color(0xFF81C784),
-                                contentColor = Color(0xFF36221A),
-                                arrowPositionLeft = true
-                            )
                         }
                     }
 
                     // 카드 높이 만큼의 공간 확보
                     Spacer(modifier = Modifier.height(cardHeight + 8.dp))
 
-                    // 하단 삭제 버튼 (방문 버튼과 동일한 X축 위치)
-                    Row(
-                        modifier = Modifier.fillMaxWidth()
+                    // 하단 삭제 버튼
+                    Box(
+                        modifier = Modifier.padding(start = 12.dp)
                     ) {
-                        Box(
-                            modifier = Modifier.weight(1f).padding(end = 6.dp),
-                            contentAlignment = Alignment.CenterEnd
-                        ) {
-                            BubbleButton(
-                                text = "삭제",
-                                onClick = {
-                                    showDeleteConfirmDialog = true
-                                },
-                                containerColor = Color(0xFFE57373),
-                                contentColor = Color(0xFF36221A),
-                                arrowOnTop = true,
-                                arrowPositionLeft = false,
-                                icon = {
-                                    Icon(
-                                        imageVector = Icons.Default.Delete,
-                                        contentDescription = "삭제",
-                                        tint = Color(0xFF36221A),
-                                        modifier = Modifier.size(16.dp)
-                                    )
-                                }
-                            )
-                        }
-                        Spacer(modifier = Modifier.weight(1f))
+                        BubbleButton(
+                            text = "삭제",
+                            onClick = {
+                                showDeleteConfirmDialog = true
+                            },
+                            containerColor = Color(0xFFE57373),
+                            contentColor = Color(0xFF36221A),
+                            arrowOnTop = true,
+                            arrowPositionLeft = true,
+                            icon = {
+                                Icon(
+                                    imageVector = Icons.Default.Delete,
+                                    contentDescription = "삭제",
+                                    tint = Color(0xFF36221A),
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            }
+                        )
                     }
                 }
             }
@@ -1827,7 +1827,9 @@ class SpeechBubbleShape(
     private val arrowWidth: Dp = 20.dp,
     private val arrowHeight: Dp = 16.dp,
     private val arrowOnTop: Boolean = false,
-    private val arrowPositionLeft: Boolean = true
+    private val arrowPositionLeft: Boolean = true,
+    private val arrowOnLeft: Boolean = false,
+    private val arrowPositionTop: Boolean = true
 ) : Shape {
     override fun createOutline(
         size: Size,
@@ -1839,7 +1841,49 @@ class SpeechBubbleShape(
             val arrowW = with(density) { arrowWidth.toPx() }
             val arrowH = with(density) { arrowHeight.toPx() }
 
-            if (arrowOnTop) {
+            if (arrowOnLeft) {
+                val rectLeft = arrowH
+                
+                // Start drawing from top-left corner of the content rectangle
+                moveTo(rectLeft + r, 0f)
+                
+                // Top edge to top-right corner
+                lineTo(size.width - r, 0f)
+                quadraticTo(size.width, 0f, size.width, r)
+                
+                // Right edge to bottom-right corner
+                lineTo(size.width, size.height - r)
+                quadraticTo(size.width, size.height, size.width - r, size.height)
+                
+                // Bottom edge to bottom-left corner
+                lineTo(rectLeft + r, size.height)
+                quadraticTo(rectLeft, size.height, rectLeft, size.height - r)
+                
+                // Left edge with curved cartoon tail pointing left
+                if (arrowPositionTop) {
+                    val arrowStart = r
+                    val arrowPeakY = r + arrowW * 0.5f
+                    val arrowEnd = r + arrowW
+                    
+                    lineTo(rectLeft, arrowEnd)
+                    quadraticTo(rectLeft - arrowH * 0.7f, r + arrowW * 0.8f, 0f, arrowPeakY)
+                    quadraticTo(rectLeft - arrowH * 0.4f, r + arrowW * 0.1f, rectLeft, arrowStart)
+                } else {
+                    val arrowStart = size.height - r - arrowW
+                    val arrowPeakY = size.height - r - arrowW * 0.5f
+                    val arrowEnd = size.height - r
+                    
+                    lineTo(rectLeft, arrowEnd)
+                    quadraticTo(rectLeft - arrowH * 0.4f, size.height - r - arrowW * 0.1f, 0f, arrowPeakY)
+                    quadraticTo(rectLeft - arrowH * 0.7f, size.height - r - arrowW * 0.8f, rectLeft, arrowStart)
+                }
+                
+                // Left edge up to top-left corner
+                lineTo(rectLeft, r)
+                quadraticTo(rectLeft, 0f, rectLeft + r, 0f)
+                
+                close()
+            } else if (arrowOnTop) {
                 val rectTop = arrowH
                 
                 // Start drawing from left edge below top-left corner
@@ -1941,12 +1985,25 @@ fun BubbleButton(
     contentColor: Color,
     arrowOnTop: Boolean = false,
     arrowPositionLeft: Boolean = true,
+    arrowOnLeft: Boolean = false,
+    arrowPositionTop: Boolean = true,
     icon: @Composable (() -> Unit)? = null
 ) {
-    val shape = remember(arrowOnTop, arrowPositionLeft) { 
-        SpeechBubbleShape(arrowOnTop = arrowOnTop, arrowPositionLeft = arrowPositionLeft) 
+    val shape = remember(arrowOnTop, arrowPositionLeft, arrowOnLeft, arrowPositionTop) { 
+        SpeechBubbleShape(
+            arrowOnTop = arrowOnTop,
+            arrowPositionLeft = arrowPositionLeft,
+            arrowOnLeft = arrowOnLeft,
+            arrowPositionTop = arrowPositionTop
+        ) 
     }
     val borderColor = Color(0xFF36221A) // Kawaii-style dark brown border
+    
+    val topPadding = if (arrowOnTop) 10.dp + 16.dp else 10.dp
+    val bottomPadding = if (arrowOnLeft) 10.dp else (if (arrowOnTop) 10.dp else 10.dp + 16.dp)
+    val startPadding = if (arrowOnLeft) 16.dp + 16.dp else 16.dp
+    val endPadding = 16.dp
+
     Box(
         modifier = Modifier
             .shadow(elevation = 6.dp, shape = shape)
@@ -1954,10 +2011,10 @@ fun BubbleButton(
             .border(width = 2.dp, color = borderColor, shape = shape)
             .clickable { onClick() }
             .padding(
-                start = 16.dp,
-                end = 16.dp,
-                top = if (arrowOnTop) 10.dp + 16.dp else 10.dp,
-                bottom = if (arrowOnTop) 10.dp else 10.dp + 16.dp
+                start = startPadding,
+                end = endPadding,
+                top = topPadding,
+                bottom = bottomPadding
             ),
         contentAlignment = Alignment.Center
     ) {
