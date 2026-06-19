@@ -69,6 +69,20 @@ import androidx.compose.ui.window.Dialog
 import com.example.danallacalendar.members.MemberViewModel
 import com.example.danallacalendar.members.MemberPanel
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.compose.ui.window.Popup
+import androidx.compose.ui.window.PopupProperties
+import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.Outline
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.LayoutDirection
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.draw.shadow
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.IntOffset
 
 
 data class CalendarDay(
@@ -307,6 +321,7 @@ fun CalendarMainScreen(
                     onEventClick = { onNavigateToAddEditEvent(it.id) },
                     onDeleteEvent = { viewModel.deleteEvent(it) },
                     onToggleComplete = { viewModel.updateEvent(it.copy(isCompleted = !it.isCompleted)) },
+                    onUpdateEvent = { viewModel.updateEvent(it) },
                     isDeadlineSet = deadlineDates.any { isSameDay(it, selectedDate) },
                     onDeadlineToggle = { dateMillis ->
                         viewModel.toggleDeadlineDate(dateMillis)
@@ -977,6 +992,7 @@ fun EventListSection(
     onEventClick: (Event) -> Unit,
     onDeleteEvent: (Event) -> Unit,
     onToggleComplete: (Event) -> Unit,
+    onUpdateEvent: (Event) -> Unit,
     isDeadlineSet: Boolean = false,
     onDeadlineToggle: (Long) -> Unit = {},
     viewMode: CalendarViewMode = CalendarViewMode.MONTH,
@@ -1186,7 +1202,8 @@ fun EventListSection(
                                 category = category,
                                 onClick = { onEventClick(event) },
                                 onDelete = { onDeleteEvent(event) },
-                                onToggleComplete = { onToggleComplete(event) }
+                                onToggleComplete = { onToggleComplete(event) },
+                                onUpdate = onUpdateEvent
                             )
                         }
                     }
@@ -1203,7 +1220,8 @@ fun EventItemCard(
     category: CalendarCategory?,
     onClick: () -> Unit,
     onDelete: () -> Unit,
-    onToggleComplete: () -> Unit
+    onToggleComplete: () -> Unit,
+    onUpdate: (Event) -> Unit = {}
 ) {
     val configuration = androidx.compose.ui.platform.LocalConfiguration.current
     val screenWidth = configuration.screenWidthDp.dp
@@ -1225,10 +1243,17 @@ fun EventItemCard(
 
     var showContextMenu by remember { mutableStateOf(false) }
 
-    Box(modifier = Modifier.fillMaxWidth()) {
+    BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+        val cardWidth = maxWidth
+        var cardHeight by remember { mutableStateOf(0.dp) }
+        val density = LocalDensity.current
+
         Card(
             modifier = Modifier
                 .fillMaxWidth()
+                .onGloballyPositioned { coordinates ->
+                    cardHeight = with(density) { coordinates.size.height.toDp() }
+                }
                 .combinedClickable(
                     onClick = onClick,
                     onLongClick = { showContextMenu = true }
@@ -1373,20 +1398,167 @@ fun EventItemCard(
             }
         }
 
-        // 꾹 누르고 있을 때 뜨는 "삭제" 말풍선
-        DropdownMenu(
-            expanded = showContextMenu,
-            onDismissRequest = { showContextMenu = false },
-            modifier = Modifier.background(MaterialTheme.colorScheme.surface)
-        ) {
-            DropdownMenuItem(
-                text = { Text("삭제", color = MaterialTheme.colorScheme.error) },
-                onClick = {
-                    showContextMenu = false
-                    onDelete()
+        if (showContextMenu) {
+            val popupOffset = with(density) {
+                // bubble height (40.dp) + gap (8.dp) = 48.dp
+                -48.dp.roundToPx()
+            }
+
+            Popup(
+                alignment = Alignment.TopCenter,
+                onDismissRequest = { showContextMenu = false },
+                offset = IntOffset(0, popupOffset),
+                properties = PopupProperties(focusable = true)
+            ) {
+                Column(
+                    modifier = Modifier.width(cardWidth),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    // 상단 말풍선 버튼 2개
+                    Row(
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Box(
+                            modifier = Modifier.weight(1f),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            BubbleButton(
+                                text = "방문 💬",
+                                onClick = {
+                                    showContextMenu = false
+                                    onUpdate(event.copy(isAllDay = false))
+                                },
+                                containerColor = MaterialTheme.colorScheme.primaryContainer,
+                                contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                            )
+                        }
+                        Box(
+                            modifier = Modifier.weight(1f),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            BubbleButton(
+                                text = "계약 💬",
+                                onClick = {
+                                    showContextMenu = false
+                                    onUpdate(event.copy(isAllDay = true))
+                                },
+                                containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                                contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+                            )
+                        }
+                    }
+
+                    // 카드 높이 만큼의 공간 확보
+                    Spacer(modifier = Modifier.height(cardHeight + 8.dp))
+
+                    // 하단 삭제 버튼 (방문 버튼과 동일한 X축 위치)
+                    Row(
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Box(
+                            modifier = Modifier.weight(1f),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            TextButton(
+                                onClick = {
+                                    showContextMenu = false
+                                    onDelete()
+                                },
+                                colors = ButtonDefaults.textButtonColors(
+                                    contentColor = MaterialTheme.colorScheme.error
+                                ),
+                                modifier = Modifier.padding(horizontal = 8.dp)
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(
+                                        imageVector = Icons.Default.Delete,
+                                        contentDescription = "삭제",
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text("삭제", fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                                }
+                            }
+                        }
+                        Spacer(modifier = Modifier.weight(1f))
+                    }
                 }
-            )
+            }
         }
+    }
+}
+
+class SpeechBubbleShape(
+    private val cornerRadius: Dp = 12.dp,
+    private val arrowWidth: Dp = 12.dp,
+    private val arrowHeight: Dp = 8.dp
+) : Shape {
+    override fun createOutline(
+        size: Size,
+        layoutDirection: LayoutDirection,
+        density: Density
+    ): Outline {
+        val path = Path().apply {
+            val r = with(density) { cornerRadius.toPx() }
+            val arrowW = with(density) { arrowWidth.toPx() }
+            val arrowH = with(density) { arrowHeight.toPx() }
+            
+            val rectHeight = size.height - arrowH
+            
+            // Top-left round corner
+            moveTo(0f, r)
+            quadraticTo(0f, 0f, r, 0f)
+            
+            // Top edge to top-right corner
+            lineTo(size.width - r, 0f)
+            quadraticTo(size.width, 0f, size.width, r)
+            
+            // Right edge to bottom-right corner
+            lineTo(size.width, rectHeight - r)
+            quadraticTo(size.width, rectHeight, size.width - r, rectHeight)
+            
+            // Bottom edge from right corner to arrow start
+            val arrowStart = size.width / 2f + arrowW / 2f
+            val arrowEnd = size.width / 2f - arrowW / 2f
+            val arrowPeak = size.width / 2f
+            
+            lineTo(arrowStart, rectHeight)
+            // Arrow tail to the peak
+            lineTo(arrowPeak, size.height)
+            // Arrow tail back to bottom edge
+            lineTo(arrowEnd, rectHeight)
+            
+            // Bottom edge to bottom-left corner
+            lineTo(r, rectHeight)
+            quadraticTo(0f, rectHeight, 0f, rectHeight - r)
+            
+            close()
+        }
+        return Outline.Generic(path)
+    }
+}
+
+@Composable
+fun BubbleButton(
+    text: String,
+    onClick: () -> Unit,
+    containerColor: Color,
+    contentColor: Color
+) {
+    Box(
+        modifier = Modifier
+            .shadow(elevation = 6.dp, shape = SpeechBubbleShape())
+            .background(color = containerColor, shape = SpeechBubbleShape())
+            .clickable { onClick() }
+            .padding(start = 16.dp, end = 16.dp, top = 10.dp, bottom = 10.dp + 8.dp), // extra 8.dp for arrow tail
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = text,
+            color = contentColor,
+            fontSize = 14.sp,
+            fontWeight = FontWeight.Bold
+        )
     }
 }
 

@@ -895,16 +895,16 @@ fun AddEditEventScreen(
                                             Toast.makeText(context, "전화번호를 입력해주세요.", Toast.LENGTH_SHORT).show()
                                         }
                                     },
-                                    modifier = Modifier.size(36.dp)
+                                    modifier = Modifier.size(28.dp)
                                 ) {
                                     Icon(
                                         imageVector = Icons.Default.Phone,
                                         contentDescription = "전화 걸기",
                                         tint = MaterialTheme.colorScheme.primary,
-                                        modifier = Modifier.size(20.dp)
+                                        modifier = Modifier.size(16.dp)
                                     )
                                 }
-                                Spacer(modifier = Modifier.width(6.dp))
+                                Spacer(modifier = Modifier.width(4.dp))
                                 Box(
                                     modifier = Modifier
                                         .weight(1f)
