@@ -1443,163 +1443,153 @@ fun EventItemCard(
 
             Popup(
                 alignment = Alignment.TopCenter,
-                onDismissRequest = { 
+                onDismissRequest = {
                     showContextMenu = false
                     showSecondBubble = false
                 },
                 offset = IntOffset(0, popupOffset),
                 properties = PopupProperties(focusable = true)
             ) {
-                Column(
-                    modifier = Modifier.width(cardWidth),
-                    horizontalAlignment = Alignment.Start
+                // 전체를 카드 너비만큼의 Row로 구성:
+                // 좌측 절반: 1차 말풍선(계약확정/방문예약) + 삭제
+                // 우측 절반: 2차 말풍선(문자발송/문구수정)
+                Row(
+                    modifier = Modifier.width(cardWidth)
                 ) {
-                    // 상단 말풍선 버튼 2개 (1차 말풍선 - 세로 배치)
-                    // 계약확정(상)
-                    Box(
-                        modifier = Modifier.padding(start = 12.dp)
+                    // ── 좌측 절반 ──
+                    Column(
+                        modifier = Modifier.weight(1f),
+                        horizontalAlignment = Alignment.Start
                     ) {
-                        BubbleButton(
-                            text = "계약확정",
-                            onClick = {
-                                showConfirmConfirmDialog = true
-                            },
-                            containerColor = Color(0xFF81C784),
-                            contentColor = Color(0xFF36221A),
-                            arrowOnTop = false,
-                            arrowPositionLeft = true
-                        )
-                    }
+                        // 계약확정 (상)
+                        Box(modifier = Modifier.padding(start = 8.dp)) {
+                            BubbleButton(
+                                text = "계약확정",
+                                onClick = { showConfirmConfirmDialog = true },
+                                containerColor = Color(0xFF81C784),
+                                contentColor = Color(0xFF36221A),
+                                arrowOnTop = false,
+                                arrowPositionLeft = true
+                            )
+                        }
 
-                    Spacer(modifier = Modifier.height(8.dp))
+                        Spacer(modifier = Modifier.height(8.dp))
 
-                    // 방문예약(하)
-                    Box(
-                        modifier = Modifier.padding(start = 12.dp)
-                    ) {
+                        // 방문예약 (하)
                         Box(
-                            modifier = Modifier.onGloballyPositioned { coords ->
-                                visitButtonWidth = with(density) { coords.size.width.toDp() }
-                            }
+                            modifier = Modifier
+                                .padding(start = 8.dp)
+                                .onGloballyPositioned { coords ->
+                                    visitButtonWidth = with(density) { coords.size.width.toDp() }
+                                }
                         ) {
                             BubbleButton(
                                 text = "방문예약",
-                                onClick = {
-                                    showSecondBubble = !showSecondBubble
-                                },
+                                onClick = { showSecondBubble = !showSecondBubble },
                                 containerColor = Color(0xFF64B5F6),
                                 contentColor = Color(0xFF36221A),
                                 arrowOnTop = false,
                                 arrowPositionLeft = true
                             )
+                        }
 
-                            if (showSecondBubble) {
-                                Popup(
-                                    alignment = Alignment.TopStart,
-                                    onDismissRequest = {
-                                        showSecondBubble = false
-                                    },
-                                    offset = IntOffset(
-                                        x = with(density) { (visitButtonWidth + 8.dp).roundToPx() },
-                                        y = 0
-                                    ),
-                                    properties = PopupProperties(focusable = false)
-                                ) {
-                                    val animVisible = remember { MutableTransitionState(false) }.apply {
-                                        targetState = true
-                                    }
-                                    androidx.compose.animation.AnimatedVisibility(
-                                        visibleState = animVisible,
-                                        enter = slideInHorizontally(
-                                            animationSpec = tween(durationMillis = 1200, easing = LinearOutSlowInEasing),
-                                            initialOffsetX = { fullWidth -> -fullWidth }
-                                        )
-                                    ) {
-                                        Column(
-                                            modifier = Modifier.wrapContentSize(unbounded = true),
-                                            verticalArrangement = Arrangement.Center,
-                                            horizontalAlignment = Alignment.Start
-                                        ) {
-                                            BubbleButton(
-                                                text = "문자발송",
-                                                onClick = {
-                                                    showSecondBubble = false
-                                                    showContextMenu = false
-                                                    scope.launch {
-                                                        val template = context.dataStore.data.map { prefs ->
-                                                            prefs[VISIT_MESSAGE_TEMPLATE_KEY]
-                                                        }.first() ?: DEFAULT_VISIT_MESSAGE_TEMPLATE
+                        // 카드 높이만큼 공간 확보
+                        Spacer(modifier = Modifier.height(cardHeight + 8.dp))
 
-                                                        val dateFormat = SimpleDateFormat("M월 d일 (E) HH:mm", Locale.KOREAN)
-                                                        val timeStr = dateFormat.format(Date(event.startMillis))
-                                                        val body = template.replace("{시작시간}", timeStr)
-
-                                                        val phone = extractPhoneNumber(event.title) ?: extractPhoneNumber(event.location) ?: extractPhoneNumber(event.notes) ?: ""
-                                                        try {
-                                                            val intent = Intent(Intent.ACTION_SENDTO).apply {
-                                                                data = Uri.parse("smsto:$phone")
-                                                                putExtra("sms_body", body)
-                                                            }
-                                                            context.startActivity(intent)
-                                                        } catch (e: Exception) {
-                                                            Toast.makeText(context, "SMS 앱을 열 수 없습니다.", Toast.LENGTH_SHORT).show()
-                                                        }
-                                                    }
-                                                },
-                                                containerColor = Color(0xFF80DEEA),
-                                                contentColor = Color(0xFF36221A),
-                                                arrowOnTop = false,
-                                                arrowPositionLeft = true,
-                                                arrowOnLeft = true,
-                                                arrowPositionTop = true
-                                            )
-                                            Spacer(modifier = Modifier.height(8.dp))
-                                            BubbleButton(
-                                                text = "문구수정",
-                                                onClick = {
-                                                    showSecondBubble = false
-                                                    showContextMenu = false
-                                                    showEditTemplateDialog = true
-                                                },
-                                                containerColor = Color(0xFFFFF176),
-                                                contentColor = Color(0xFF36221A),
-                                                arrowOnTop = false,
-                                                arrowPositionLeft = true,
-                                                arrowOnLeft = true,
-                                                arrowPositionTop = true
-                                            )
-                                        }
-                                    }
+                        // 삭제 버튼 (하단)
+                        Box(modifier = Modifier.padding(start = 8.dp)) {
+                            BubbleButton(
+                                text = "삭제",
+                                onClick = { showDeleteConfirmDialog = true },
+                                containerColor = Color(0xFFE57373),
+                                contentColor = Color(0xFF36221A),
+                                arrowOnTop = true,
+                                arrowPositionLeft = true,
+                                icon = {
+                                    Icon(
+                                        imageVector = Icons.Default.Delete,
+                                        contentDescription = "삭제",
+                                        tint = Color(0xFF36221A),
+                                        modifier = Modifier.size(16.dp)
+                                    )
                                 }
-                            }
+                            )
                         }
                     }
 
-                    // 카드 높이 만큼의 공간 확보
-                    Spacer(modifier = Modifier.height(cardHeight + 8.dp))
-
-                    // 하단 삭제 버튼
-                    Box(
-                        modifier = Modifier.padding(start = 12.dp)
+                    // ── 우측 절반: 2차 말풍선 ──
+                    Column(
+                        modifier = Modifier.weight(1f),
+                        horizontalAlignment = Alignment.Start
                     ) {
-                        BubbleButton(
-                            text = "삭제",
-                            onClick = {
-                                showDeleteConfirmDialog = true
-                            },
-                            containerColor = Color(0xFFE57373),
-                            contentColor = Color(0xFF36221A),
-                            arrowOnTop = true,
-                            arrowPositionLeft = true,
-                            icon = {
-                                Icon(
-                                    imageVector = Icons.Default.Delete,
-                                    contentDescription = "삭제",
-                                    tint = Color(0xFF36221A),
-                                    modifier = Modifier.size(16.dp)
-                                )
+                        if (showSecondBubble) {
+                            val animVisible = remember { MutableTransitionState(false) }.apply {
+                                targetState = true
                             }
-                        )
+                            androidx.compose.animation.AnimatedVisibility(
+                                visibleState = animVisible,
+                                enter = slideInHorizontally(
+                                    animationSpec = tween(durationMillis = 500, easing = LinearOutSlowInEasing),
+                                    initialOffsetX = { fullWidth -> -fullWidth }
+                                )
+                            ) {
+                                Column(
+                                    horizontalAlignment = Alignment.Start
+                                ) {
+                                    // 문자발송 (상)
+                                    BubbleButton(
+                                        text = "문자발송",
+                                        onClick = {
+                                            showSecondBubble = false
+                                            showContextMenu = false
+                                            scope.launch {
+                                                val template = context.dataStore.data.map { prefs ->
+                                                    prefs[VISIT_MESSAGE_TEMPLATE_KEY]
+                                                }.first() ?: DEFAULT_VISIT_MESSAGE_TEMPLATE
+
+                                                val dateFormat = SimpleDateFormat("M월 d일 (E) HH:mm", Locale.KOREAN)
+                                                val timeStr = dateFormat.format(Date(event.startMillis))
+                                                val body = template.replace("{시작시간}", timeStr)
+
+                                                val phone = extractPhoneNumber(event.title)
+                                                    ?: extractPhoneNumber(event.location)
+                                                    ?: extractPhoneNumber(event.notes)
+                                                    ?: ""
+                                                try {
+                                                    val intent = Intent(Intent.ACTION_SENDTO).apply {
+                                                        data = Uri.parse("smsto:$phone")
+                                                        putExtra("sms_body", body)
+                                                    }
+                                                    context.startActivity(intent)
+                                                } catch (e: Exception) {
+                                                    Toast.makeText(context, "SMS 앱을 열 수 없습니다.", Toast.LENGTH_SHORT).show()
+                                                }
+                                            }
+                                        },
+                                        containerColor = Color(0xFF80DEEA),
+                                        contentColor = Color(0xFF36221A),
+                                        arrowOnLeft = true,
+                                        arrowPositionTop = true
+                                    )
+
+                                    Spacer(modifier = Modifier.height(8.dp))
+
+                                    // 문구수정 (하)
+                                    BubbleButton(
+                                        text = "문구수정",
+                                        onClick = {
+                                            showSecondBubble = false
+                                            showContextMenu = false
+                                            showEditTemplateDialog = true
+                                        },
+                                        containerColor = Color(0xFFFFF176),
+                                        contentColor = Color(0xFF36221A),
+                                        arrowOnLeft = true,
+                                        arrowPositionTop = true
+                                    )
+                                }
+                            }
+                        }
                     }
                 }
             }
