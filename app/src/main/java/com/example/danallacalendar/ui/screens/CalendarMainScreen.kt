@@ -1459,10 +1459,10 @@ fun EventItemCard(
                     // ── 좌측 절반 ──
                     Column(
                         modifier = Modifier.weight(1f),
-                        horizontalAlignment = Alignment.Start
+                        horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         // 계약확정 (상)
-                        Box(modifier = Modifier.padding(start = 8.dp)) {
+                        Box {
                             BubbleButton(
                                 text = "계약확정",
                                 onClick = { showConfirmConfirmDialog = true },
@@ -1477,11 +1477,9 @@ fun EventItemCard(
 
                         // 방문예약 (하)
                         Box(
-                            modifier = Modifier
-                                .padding(start = 8.dp)
-                                .onGloballyPositioned { coords ->
-                                    visitButtonWidth = with(density) { coords.size.width.toDp() }
-                                }
+                            modifier = Modifier.onGloballyPositioned { coords ->
+                                visitButtonWidth = with(density) { coords.size.width.toDp() }
+                            }
                         ) {
                             BubbleButton(
                                 text = "방문예약",
@@ -1497,7 +1495,7 @@ fun EventItemCard(
                         Spacer(modifier = Modifier.height(cardHeight + 8.dp))
 
                         // 삭제 버튼 (하단)
-                        Box(modifier = Modifier.padding(start = 8.dp)) {
+                        Box {
                             BubbleButton(
                                 text = "삭제",
                                 onClick = { showDeleteConfirmDialog = true },
@@ -1520,7 +1518,7 @@ fun EventItemCard(
                     // ── 우측 절반: 2차 말풍선 ──
                     Column(
                         modifier = Modifier.weight(1f),
-                        horizontalAlignment = Alignment.Start
+                        horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         if (showSecondBubble) {
                             val animVisible = remember { MutableTransitionState(false) }.apply {
@@ -1534,7 +1532,7 @@ fun EventItemCard(
                                 )
                             ) {
                                 Column(
-                                    horizontalAlignment = Alignment.Start
+                                    horizontalAlignment = Alignment.CenterHorizontally
                                 ) {
                                     // 문자발송 (상)
                                     BubbleButton(
