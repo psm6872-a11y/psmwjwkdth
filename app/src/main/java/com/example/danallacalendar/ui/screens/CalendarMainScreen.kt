@@ -1473,10 +1473,9 @@ fun EventItemCard(
                                 onClick = { showConfirmConfirmDialog = true },
                                 containerColor = Color(0xFF81C784),
                                 contentColor = Color(0xFF36221A),
-                                arrowOnLeft = false,   // 꼬리: 아래
+                                arrowOnLeft = false,
                                 arrowOnTop = false,
-                                arrowPositionLeft = true,
-                                arrowPositionTop = true
+                                arrowPositionCenter = true
                             )
                         }
 
@@ -1493,10 +1492,9 @@ fun EventItemCard(
                                 onClick = { showSecondBubble = !showSecondBubble },
                                 containerColor = Color(0xFF64B5F6),
                                 contentColor = Color(0xFF36221A),
-                                arrowOnLeft = false,   // 꼬리: 아래
+                                arrowOnLeft = false,
                                 arrowOnTop = false,
-                                arrowPositionLeft = true,
-                                arrowPositionTop = true
+                                arrowPositionCenter = true
                             )
                         }
 
@@ -1510,10 +1508,9 @@ fun EventItemCard(
                                 onClick = { showDeleteConfirmDialog = true },
                                 containerColor = Color(0xFFE57373),
                                 contentColor = Color(0xFF36221A),
-                                arrowOnLeft = false,   // 꼬리: 위
+                                arrowOnLeft = false,
                                 arrowOnTop = true,
-                                arrowPositionLeft = true,
-                                arrowPositionTop = true,
+                                arrowPositionCenter = true,
                                 icon = {
                                     Icon(
                                         imageVector = Icons.Default.Delete,
@@ -1580,7 +1577,7 @@ fun EventItemCard(
                                         containerColor = Color(0xFF80DEEA),
                                         contentColor = Color(0xFF36221A),
                                         arrowOnLeft = true,
-                                        arrowPositionTop = true
+                                        arrowPositionCenter = true
                                     )
 
                                     Spacer(modifier = Modifier.height(8.dp))
@@ -1595,10 +1592,9 @@ fun EventItemCard(
                                         },
                                         containerColor = Color(0xFFFFF176),
                                         contentColor = Color(0xFF36221A),
-                                        arrowOnLeft = true,    // 꼬리: 좌상
-                                        arrowOnTop = false,
-                                        arrowPositionLeft = true,
-                                        arrowPositionTop = true
+                                        arrowOnLeft = true,
+                                        arrowPositionTop = true,
+                                        arrowPositionCenter = false
                                     )
                                 }
                             }
@@ -1832,7 +1828,8 @@ class SpeechBubbleShape(
     private val arrowOnTop: Boolean = false,
     private val arrowPositionLeft: Boolean = true,
     private val arrowOnLeft: Boolean = false,
-    private val arrowPositionTop: Boolean = true
+    private val arrowPositionTop: Boolean = true,
+    private val arrowPositionCenter: Boolean = false
 ) : Shape {
     override fun createOutline(
         size: Size,
@@ -1841,7 +1838,10 @@ class SpeechBubbleShape(
     ): Outline {
         val path = Path().apply {
             val r = with(density) { cornerRadius.toPx() }
-            val arrowW = with(density) { arrowWidth.toPx() }
+            val arrowW = minOf(
+                with(density) { arrowWidth.toPx() },
+                maxOf(0f, if (arrowOnLeft) size.height - 2 * r else size.width - 2 * r)
+            )
             val arrowH = with(density) { arrowHeight.toPx() }
 
             if (arrowOnLeft) {
@@ -1863,7 +1863,15 @@ class SpeechBubbleShape(
                 quadraticTo(rectLeft, size.height, rectLeft, size.height - r)
                 
                 // Left edge with curved cartoon tail pointing left
-                if (arrowPositionTop) {
+                if (arrowPositionCenter) {
+                    val arrowStart = (size.height - arrowW) / 2f
+                    val arrowPeakY = size.height / 2f
+                    val arrowEnd = (size.height + arrowW) / 2f
+                    
+                    lineTo(rectLeft, arrowEnd)
+                    quadraticTo(rectLeft - arrowH * 0.5f, arrowEnd - arrowW * 0.2f, 0f, arrowPeakY)
+                    quadraticTo(rectLeft - arrowH * 0.5f, arrowStart + arrowW * 0.2f, rectLeft, arrowStart)
+                } else if (arrowPositionTop) {
                     val arrowStart = r
                     val arrowPeakY = r + arrowW * 0.5f
                     val arrowEnd = r + arrowW
@@ -1896,7 +1904,15 @@ class SpeechBubbleShape(
                 quadraticTo(0f, rectTop, r, rectTop)
                 
                 // Top edge with curved cartoon tail
-                if (arrowPositionLeft) {
+                if (arrowPositionCenter) {
+                    val arrowStart = (size.width - arrowW) / 2f
+                    val arrowPeakX = size.width / 2f
+                    val arrowEnd = (size.width + arrowW) / 2f
+                    
+                    lineTo(arrowStart, rectTop)
+                    quadraticTo(arrowStart + arrowW * 0.2f, rectTop - arrowH * 0.5f, arrowPeakX, 0f)
+                    quadraticTo(arrowEnd - arrowW * 0.2f, rectTop - arrowH * 0.5f, arrowEnd, rectTop)
+                } else if (arrowPositionLeft) {
                     val arrowStart = r
                     val arrowPeakX = r - arrowW * 0.15f
                     val arrowEnd = r + arrowW
@@ -1947,7 +1963,15 @@ class SpeechBubbleShape(
                 quadraticTo(size.width, rectHeight, size.width - r, rectHeight)
                 
                 // Bottom edge with curved cartoon tail
-                if (arrowPositionLeft) {
+                if (arrowPositionCenter) {
+                    val arrowStart = (size.width - arrowW) / 2f
+                    val arrowPeakX = size.width / 2f
+                    val arrowEnd = (size.width + arrowW) / 2f
+                    
+                    lineTo(arrowEnd, rectHeight)
+                    quadraticTo(arrowEnd - arrowW * 0.2f, rectHeight + arrowH * 0.5f, arrowPeakX, size.height)
+                    quadraticTo(arrowStart + arrowW * 0.2f, rectHeight + arrowH * 0.5f, arrowStart, rectHeight)
+                } else if (arrowPositionLeft) {
                     val arrowStart = r
                     val arrowPeakX = r - arrowW * 0.15f
                     val arrowEnd = r + arrowW
@@ -1990,14 +2014,16 @@ fun BubbleButton(
     arrowPositionLeft: Boolean = true,
     arrowOnLeft: Boolean = false,
     arrowPositionTop: Boolean = true,
+    arrowPositionCenter: Boolean = false,
     icon: @Composable (() -> Unit)? = null
 ) {
-    val shape = remember(arrowOnTop, arrowPositionLeft, arrowOnLeft, arrowPositionTop) { 
+    val shape = remember(arrowOnTop, arrowPositionLeft, arrowOnLeft, arrowPositionTop, arrowPositionCenter) { 
         SpeechBubbleShape(
             arrowOnTop = arrowOnTop,
             arrowPositionLeft = arrowPositionLeft,
             arrowOnLeft = arrowOnLeft,
-            arrowPositionTop = arrowPositionTop
+            arrowPositionTop = arrowPositionTop,
+            arrowPositionCenter = arrowPositionCenter
         ) 
     }
     val borderColor = Color(0xFF36221A) // Kawaii-style dark brown border
