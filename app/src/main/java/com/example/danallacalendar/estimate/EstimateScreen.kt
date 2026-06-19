@@ -3030,22 +3030,9 @@ fun Step3CustomerInfo(
                         }
                     }
                 }
-                // departure: TextFieldValue로 내부 관리 → 커서를 텍스트 끝에 위치시켜
-                // 수정 모드에서 기존 텍스트를 사용자가 인식할 수 있도록 함
-                var departureValue by remember(departure) {
-                    mutableStateOf(TextFieldValue(departure, TextRange(departure.length)))
-                }
-                LaunchedEffect(departure) {
-                    if (departureValue.text != departure) {
-                        departureValue = TextFieldValue(departure, TextRange(departure.length))
-                    }
-                }
                 OutlinedTextField(
-                    value = departureValue,
-                    onValueChange = { newVal ->
-                        departureValue = newVal
-                        if (newVal.text != departure) onDepartureChange(newVal.text)
-                    },
+                    value = departure,
+                    onValueChange = onDepartureChange,
                     label = { Text("출발지", maxLines = 1, overflow = TextOverflow.Ellipsis) },
                     colors = textFieldColors,
                     modifier = Modifier.fillMaxWidth(),
@@ -3053,21 +3040,9 @@ fun Step3CustomerInfo(
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text)
                 )
 
-                // destination: 동일하게 TextFieldValue로 관리
-                var destinationValue by remember(destination) {
-                    mutableStateOf(TextFieldValue(destination, TextRange(destination.length)))
-                }
-                LaunchedEffect(destination) {
-                    if (destinationValue.text != destination) {
-                        destinationValue = TextFieldValue(destination, TextRange(destination.length))
-                    }
-                }
                 OutlinedTextField(
-                    value = destinationValue,
-                    onValueChange = { newVal ->
-                        destinationValue = newVal
-                        if (newVal.text != destination) onDestinationChange(newVal.text)
-                    },
+                    value = destination,
+                    onValueChange = onDestinationChange,
                     label = { Text("도착지", maxLines = 1, overflow = TextOverflow.Ellipsis) },
                     colors = textFieldColors,
                     modifier = Modifier.fillMaxWidth(),
