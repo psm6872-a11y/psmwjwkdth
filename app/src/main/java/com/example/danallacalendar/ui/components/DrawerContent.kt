@@ -13,6 +13,8 @@ import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.*
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.mutableStateOf
@@ -91,6 +93,24 @@ fun DrawerContent(
     
     var memberToRemove: Member? by remember { mutableStateOf(null) }
     var memberToTransferHost: Member? by remember { mutableStateOf(null) }
+    var showSettingsScreen by remember { mutableStateOf(false) }
+
+    if (showSettingsScreen) {
+        Dialog(
+            onDismissRequest = { showSettingsScreen = false },
+            properties = DialogProperties(usePlatformDefaultWidth = false)
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(MaterialTheme.colorScheme.background)
+            ) {
+                com.example.danallacalendar.ui.screens.SettingsScreen(
+                    onNavigateBack = { showSettingsScreen = false }
+                )
+            }
+        }
+    }
     
     if (memberToRemove != null) {
         AlertDialog(
@@ -211,13 +231,31 @@ fun DrawerContent(
         Spacer(modifier = Modifier.height(16.dp))
 
         // Accounts and Categories list under a single header
-        Text(
-            text = "캘린더 선택",
-            fontSize = 14.sp,
-            fontWeight = FontWeight.SemiBold,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(vertical = 8.dp)
-        )
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 8.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "캘린더 선택",
+                fontSize = 14.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            IconButton(
+                onClick = { showSettingsScreen = true },
+                modifier = Modifier.size(24.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Settings,
+                    contentDescription = "설정",
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(18.dp)
+                )
+            }
+        }
 
         val targetNames = listOf("공유 캘린더", "내 캘린더", "공휴일")
         val filteredCategories = categories

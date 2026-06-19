@@ -536,8 +536,12 @@ fun EstimateScreen(
                                         // WebView createPrintDocumentAdapter 방식: HTML을 직접 PrintManager에 전달
                                         // 이 방식은 Android가 A4 크기에 맞게 렌더링하므로 이미지 축소 문제 없음
                                         val estimate = viewModel.buildCurrentEstimate()
-                                        val html = com.example.danallacalendar.estimate.EstimateHtmlGenerator.generateEstimateHtml(context, estimate)
-                                        EstimatePrintHelper.printEstimate(context, html, estimate)
+                                        val printedEstimate = estimate.copy(
+                                            departure = estimate.departure.replace("|", " "),
+                                            destination = estimate.destination.replace("|", " ")
+                                        )
+                                        val html = com.example.danallacalendar.estimate.EstimateHtmlGenerator.generateEstimateHtml(context, printedEstimate)
+                                        EstimatePrintHelper.printEstimate(context, html, printedEstimate)
                                     },
                                     onSendSms = { smsText ->
                                         if (savedJpgPath != null) {
@@ -3030,23 +3034,59 @@ fun Step3CustomerInfo(
                         }
                     }
                 }
+                val departureParts = remember(departure) { departure.split("|") }
+                val departureAddr = remember(departureParts) { departureParts.getOrNull(0) ?: "" }
+                val departureDetail = remember(departureParts) { departureParts.getOrNull(1) ?: "" }
+
+                val destinationParts = remember(destination) { destination.split("|") }
+                val destinationAddr = remember(destinationParts) { destinationParts.getOrNull(0) ?: "" }
+                val destinationDetail = remember(destinationParts) { destinationParts.getOrNull(1) ?: "" }
+
                 OutlinedTextField(
-                    value = departure,
-                    onValueChange = onDepartureChange,
-                    label = { Text("출발지", maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                    value = departureAddr,
+                    onValueChange = { newAddr ->
+                        onDepartureChange("$newAddr|$departureDetail")
+                    },
+                    label = { Text("출발지 주소", maxLines = 1, overflow = TextOverflow.Ellipsis) },
                     colors = textFieldColors,
                     modifier = Modifier.fillMaxWidth(),
-                    singleLine = false,
+                    singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text)
                 )
 
                 OutlinedTextField(
-                    value = destination,
-                    onValueChange = onDestinationChange,
-                    label = { Text("도착지", maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                    value = departureDetail,
+                    onValueChange = { newDetail ->
+                        onDepartureChange("$departureAddr|$newDetail")
+                    },
+                    label = { Text("출발지 동호수", maxLines = 1, overflow = TextOverflow.Ellipsis) },
                     colors = textFieldColors,
                     modifier = Modifier.fillMaxWidth(),
-                    singleLine = false,
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text)
+                )
+
+                OutlinedTextField(
+                    value = destinationAddr,
+                    onValueChange = { newAddr ->
+                        onDestinationChange("$newAddr|$destinationDetail")
+                    },
+                    label = { Text("도착지 주소", maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                    colors = textFieldColors,
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text)
+                )
+
+                OutlinedTextField(
+                    value = destinationDetail,
+                    onValueChange = { newDetail ->
+                        onDestinationChange("$destinationAddr|$newDetail")
+                    },
+                    label = { Text("도착지 동호수", maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                    colors = textFieldColors,
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text)
                 )
             }

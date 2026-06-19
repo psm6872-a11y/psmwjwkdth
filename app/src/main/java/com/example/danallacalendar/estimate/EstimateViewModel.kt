@@ -473,12 +473,16 @@ class EstimateViewModel @Inject constructor(
 
                 android.util.Log.d("EstimateViewModel", "[LOG] [THREAD: ${Thread.currentThread().name}] Step 2: Generating HTML template starting...")
                 // 2. Generate populated HTML template locally
-                val htmlContent = EstimateHtmlGenerator.generateEstimateHtml(context, finalEstimate)
+                val printedEstimate = finalEstimate.copy(
+                    departure = finalEstimate.departure.replace("|", " "),
+                    destination = finalEstimate.destination.replace("|", " ")
+                )
+                val htmlContent = EstimateHtmlGenerator.generateEstimateHtml(context, printedEstimate)
                 android.util.Log.d("EstimateViewModel", "[LOG] [THREAD: ${Thread.currentThread().name}] Step 2: Generating HTML template success (size: ${htmlContent.length} chars)")
 
                 android.util.Log.d("EstimateViewModel", "[LOG] [THREAD: ${Thread.currentThread().name}] Step 3: Rendering HTML to JPG starting...")
                 // 3. Render HTML to PDF and convert to JPG programmatically on main thread
-                val jpgPath = EstimatePrintHelper.renderHtmlToJpg(context, htmlContent, finalEstimate)
+                val jpgPath = EstimatePrintHelper.renderHtmlToJpg(context, htmlContent, printedEstimate)
                 android.util.Log.d("EstimateViewModel", "[LOG] [THREAD: ${Thread.currentThread().name}] Step 3: Rendering HTML to JPG success, path = $jpgPath")
 
                 // 4. Save metadata to Room database (legacy support)

@@ -394,6 +394,8 @@ class CalendarRepository @Inject constructor(
                                 val linkedEstimateId = doc.getString("linkedEstimateId")
                                 val createdAt = doc.getLong("createdAt") ?: System.currentTimeMillis()
                                 val updatedAt = doc.getLong("updatedAt") ?: System.currentTimeMillis()
+                                val teamId = doc.getLong("teamId")?.toInt()
+                                val slotPosition = doc.getString("slotPosition")
                                 
                                 Event(
                                     title = title,
@@ -411,7 +413,9 @@ class CalendarRepository @Inject constructor(
                                     isCompleted = isCompleted,
                                     createdAt = createdAt,
                                     updatedAt = updatedAt,
-                                    linkedEstimateId = linkedEstimateId
+                                    linkedEstimateId = linkedEstimateId,
+                                    teamId = teamId,
+                                    slotPosition = slotPosition
                                 )
                             }
                             
@@ -430,7 +434,9 @@ class CalendarRepository @Inject constructor(
                                         existing.isCompleted != remote.isCompleted ||
                                         existing.createdAt != remote.createdAt ||
                                         existing.updatedAt != remote.updatedAt ||
-                                        existing.linkedEstimateId != remote.linkedEstimateId
+                                        existing.linkedEstimateId != remote.linkedEstimateId ||
+                                        existing.teamId != remote.teamId ||
+                                        existing.slotPosition != remote.slotPosition
                                     ) {
                                         eventDao.updateEvent(updated)
                                     }
@@ -477,7 +483,9 @@ class CalendarRepository @Inject constructor(
             "lastUpdatedBy" to userPreferences.getDeviceUUID(),
             "createdBy" to userPreferences.getDeviceUUID(),
             "createdAt" to event.createdAt,
-            "updatedAt" to event.updatedAt
+            "updatedAt" to event.updatedAt,
+            "teamId" to event.teamId,
+            "slotPosition" to event.slotPosition
         )
         
         firestore.collection("rooms")

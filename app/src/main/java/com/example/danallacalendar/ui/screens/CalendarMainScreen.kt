@@ -131,6 +131,26 @@ fun CalendarMainScreen(
     val userName by viewModel.userName.collectAsStateWithLifecycle()
     var showPermissionGuideDialog by remember { mutableStateOf(false) }
 
+    val teamCountFlow = remember(context) {
+        context.settingsDataStore.data.map { preferences ->
+            preferences[TEAM_COUNT_KEY] ?: 1
+        }
+    }
+    val slotCount by teamCountFlow.collectAsState(initial = 1)
+
+    val teamConfigsFlow = remember(context) {
+        context.settingsDataStore.data.map { preferences ->
+            TeamConfigs.map { config ->
+                val name = preferences[config.nameKey] ?: config.defaultName
+                val color = preferences[config.colorKey] ?: config.defaultColor
+                name to color
+            }
+        }
+    }
+    val teamPrefsList by teamConfigsFlow.collectAsState(
+        initial = TeamConfigs.map { it.defaultName to it.defaultColor }
+    )
+
     val memberViewModel: MemberViewModel = hiltViewModel()
     val members by memberViewModel.members.collectAsStateWithLifecycle()
     val isCreator by memberViewModel.isCreator.collectAsStateWithLifecycle()
@@ -326,6 +346,8 @@ fun CalendarMainScreen(
                     monthlyEvents = monthlyEvents,
                     categories = categories,
                     deadlineDates = deadlineDates,
+                    slotCount = slotCount,
+                    teamPrefsList = teamPrefsList,
                     onDaySelected = { viewModel.selectDate(it) },
                     onMonthChanged = { viewModel.selectDate(it.timeInMillis) },
                     onWeekSelected = { viewModel.selectDate(it) },
@@ -341,6 +363,106 @@ fun CalendarMainScreen(
                     onDeleteEvent = { viewModel.deleteEvent(it) },
                     onToggleComplete = { viewModel.updateEvent(it.copy(isCompleted = !it.isCompleted)) },
                     onUpdateEvent = { viewModel.updateEvent(it) },
+                    onConfirmContract = { evt, teamId, slotPos ->
+                        val estimateId = evt.linkedEstimateId
+                        if (!estimateId.isNullOrBlank()) {
+                            scope.launch {
+                                try {
+                                    val estimate = viewModel.getEstimateById(estimateId)
+                                    if (estimate != null) {
+                                        val sharedCategoryId = viewModel.getOrCreateSharedCategory()
+                                        
+                                        // date 파싱 (yyyy-MM-dd)
+                                        val dateCal = Calendar.getInstance()
+                                        val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.KOREAN)
+                                        try {
+                                            val parsedDate = dateFormat.parse(estimate.moveDate)
+                                            if (parsedDate != null) {
+                                                dateCal.time = parsedDate
+                                            }
+                                        } catch (e: Exception) {
+                                            android.util.Log.e("CalendarMainScreen", "Error parsing moveDate: ${estimate.moveDate}", e)
+                                        }
+                                        
+                                        dateCal.set(Calendar.HOUR_OF_DAY, 0)
+                                        dateCal.set(Calendar.MINUTE, 0)
+                                        dateCal.set(Calendar.SECOND, 0)
+                                        dateCal.set(Calendar.MILLISECOND, 0)
+                                        val startMillis = dateCal.timeInMillis
+                                        
+                                        dateCal.set(Calendar.HOUR_OF_DAY, 23)
+                                        dateCal.set(Calendar.MINUTE, 59)
+                                        dateCal.set(Calendar.SECOND, 59)
+                                        dateCal.set(Calendar.MILLISECOND, 999)
+                                        val endMillis = dateCal.timeInMillis
+                                        
+                                        // 선택한 팀 이름 및 색상
+                                        val teamPref = teamPrefsList.getOrNull(teamId - 1) ?: (TeamConfigs.getOrNull(teamId - 1)?.let { it.defaultName to it.defaultColor } ?: ("" to 0xFF4CAF50L))
+                                        val teamName = teamPref.first
+                                        val teamColorLong = teamPref.second
+                                        
+                                        // 시작시간 & 물량 폴백 처리 및 단위 결합
+                                        val resolvedStartTime = if (estimate.startTime.isNotBlank()) estimate.startTime else "-"
+                                        val resolvedVolume = if (estimate.totalVolume.isNotBlank()) {
+                                            if (estimate.totalVolume.contains("톤")) estimate.totalVolume else "${estimate.totalVolume}톤"
+                                        } else {
+                                            "-"
+                                        }
+                                        val titleText = "$teamName. $resolvedStartTime. $resolvedVolume. -"
+                                        
+                                        // 출발지/도착지 및 동호수 처리 -> ||| 로 결합
+                                        val departureAddr: String
+                                        val departureDetail: String
+                                        if (estimate.departure.contains("|")) {
+                                            val parts = estimate.departure.split("|")
+                                            departureAddr = parts.getOrNull(0) ?: ""
+                                            departureDetail = parts.getOrNull(1) ?: ""
+                                        } else {
+                                            departureAddr = estimate.departure
+                                            departureDetail = ""
+                                        }
+                                        
+                                        val destinationAddr: String
+                                        val destinationDetail: String
+                                        if (estimate.destination.contains("|")) {
+                                            val parts = estimate.destination.split("|")
+                                            destinationAddr = parts.getOrNull(0) ?: ""
+                                            destinationDetail = parts.getOrNull(1) ?: ""
+                                        } else {
+                                            destinationAddr = estimate.destination
+                                            destinationDetail = ""
+                                        }
+                                        
+                                        val locationField = "$departureAddr|||$departureDetail|||$destinationAddr|||$destinationDetail"
+                                        
+                                        val notesField = estimate.phoneNumber
+                                        val colorHexField = String.format("#%08X", teamColorLong)
+                                        
+                                        val newEvent = com.example.danallacalendar.data.Event(
+                                            title = titleText,
+                                            startMillis = startMillis,
+                                            endMillis = endMillis,
+                                            isAllDay = true,
+                                            location = locationField,
+                                            notes = notesField,
+                                            colorHex = colorHexField,
+                                            calendarId = sharedCategoryId,
+                                            syncId = java.util.UUID.randomUUID().toString(),
+                                            isSynced = true,
+                                            linkedEstimateId = estimateId,
+                                            teamId = teamId,
+                                            slotPosition = slotPos,
+                                            createdAt = System.currentTimeMillis(),
+                                            updatedAt = System.currentTimeMillis()
+                                        )
+                                        viewModel.addEvent(newEvent)
+                                    }
+                                } catch (e: Exception) {
+                                    android.util.Log.e("CalendarMainScreen", "Failed to auto-create move schedule", e)
+                                }
+                            }
+                        }
+                    },
                     isDeadlineSet = deadlineDates.any { isSameDay(it, selectedDate) },
                     onDeadlineToggle = { dateMillis ->
                         viewModel.toggleDeadlineDate(dateMillis)
@@ -556,6 +678,8 @@ fun CalendarGridSection(
     monthlyEvents: List<Event>,
     categories: List<CalendarCategory>,
     deadlineDates: Set<Long> = emptySet(),
+    slotCount: Int,
+    teamPrefsList: List<Pair<String, Long>>,
     onDaySelected: (Long) -> Unit,
     onMonthChanged: (Calendar) -> Unit,
     onWeekSelected: (Long) -> Unit,
@@ -777,6 +901,8 @@ fun CalendarGridSection(
                                                 isDeadline = deadlineDates.any { isSameDay(it, day.dateInMillis) },
                                                 dayEvents = dayEvents,
                                                 categories = categories,
+                                                slotCount = slotCount,
+                                                teamPrefsList = teamPrefsList,
                                                 onClick = { onDaySelected(day.dateInMillis) },
                                                 modifier = Modifier.weight(1f)
                                             )
@@ -808,6 +934,8 @@ fun CalendarGridSection(
                                         isDeadline = deadlineDates.any { isSameDay(it, day.dateInMillis) },
                                         dayEvents = dayEvents,
                                         categories = categories,
+                                        slotCount = slotCount,
+                                        teamPrefsList = teamPrefsList,
                                         onClick = { onDaySelected(day.dateInMillis) },
                                         modifier = Modifier.weight(1f)
                                     )
@@ -828,6 +956,8 @@ fun CalendarDayCell(
     isDeadline: Boolean = false,
     dayEvents: List<Event>,
     categories: List<CalendarCategory>,
+    slotCount: Int,
+    teamPrefsList: List<Pair<String, Long>>,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -900,36 +1030,51 @@ fun CalendarDayCell(
                     start = minOf(screenWidth, 400.dp) * 0.005f,
                     top = 0.dp,
                     end = minOf(screenWidth, 400.dp) * 0.005f,
-                    bottom = 0.dp
+                    bottom = 2.dp
                 )
-                .height(screenHeight * 0.015f),
-            verticalArrangement = Arrangement.spacedBy(screenHeight * 0.0015f),
+                .height(screenHeight * 0.012f),
+            verticalArrangement = Arrangement.Center,
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Display up to 2 items
-            val displayEvents = dayEvents.take(2)
-            val barAlpha = if (day.isCurrentMonth) 1.0f else 0.3f
-            displayEvents.forEach { event ->
-                val category = categories.find { it.id == event.calendarId }
-                val colorHex = event.colorHex ?: category?.colorHex ?: "#1c62f2"
-                val catColor = Color(android.graphics.Color.parseColor(colorHex))
+            val confirmEvents = dayEvents.filter { it.isAllDay && it.teamId != null }
+            val barAlpha = if (day.isCurrentMonth) 1.0f else 0.35f
+            val defaultGray = Color(0xFFE0E0E0).copy(alpha = barAlpha)
 
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(screenHeight * 0.004f)
-                        .clip(RoundedCornerShape(1.dp))
-                        .background(catColor.copy(alpha = barAlpha))
-                )
-            }
-            if (dayEvents.size > 2) {
-                // Small indicator dot at the center for overflow
-                Box(
-                    modifier = Modifier
-                        .size(screenHeight * 0.004f)
-                        .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = barAlpha))
-                )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(1.dp)
+            ) {
+                repeat(slotCount) { index ->
+                    val currentTeamId = index + 1
+                    val teamEvents = confirmEvents.filter { it.teamId == currentTeamId }
+                    
+                    val hasTop = teamEvents.any { it.slotPosition == "top" || it.slotPosition == "both" }
+                    val hasBottom = teamEvents.any { it.slotPosition == "bottom" || it.slotPosition == "both" }
+
+                    val teamPref = teamPrefsList.getOrNull(index) ?: (TeamConfigs.getOrNull(index)?.let { it.defaultName to it.defaultColor } ?: ("" to 0xFF4CAF50L))
+                    val teamColor = Color(teamPref.second).copy(alpha = barAlpha)
+
+                    Column(
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxHeight()
+                            .clip(RoundedCornerShape(1.dp))
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .weight(1f)
+                                .background(if (hasTop) teamColor else defaultGray)
+                        )
+                        Spacer(modifier = Modifier.height(0.5.dp))
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .weight(1f)
+                                .background(if (hasBottom) teamColor else defaultGray)
+                        )
+                    }
+                }
             }
         }
 
@@ -1012,6 +1157,7 @@ fun EventListSection(
     onDeleteEvent: (Event) -> Unit,
     onToggleComplete: (Event) -> Unit,
     onUpdateEvent: (Event) -> Unit,
+    onConfirmContract: (Event, Int, String) -> Unit = { _, _, _ -> },
     isDeadlineSet: Boolean = false,
     onDeadlineToggle: (Long) -> Unit = {},
     viewMode: CalendarViewMode = CalendarViewMode.MONTH,
@@ -1222,7 +1368,8 @@ fun EventListSection(
                                 onClick = { onEventClick(event) },
                                 onDelete = { onDeleteEvent(event) },
                                 onToggleComplete = { onToggleComplete(event) },
-                                onUpdate = onUpdateEvent
+                                onUpdate = onUpdateEvent,
+                                onConfirmContract = onConfirmContract
                             )
                         }
                     }
@@ -1240,12 +1387,41 @@ fun EventItemCard(
     onClick: () -> Unit,
     onDelete: () -> Unit,
     onToggleComplete: () -> Unit,
-    onUpdate: (Event) -> Unit = {}
+    onUpdate: (Event) -> Unit = {},
+    onConfirmContract: (Event, Int, String) -> Unit = { _, _, _ -> }
 ) {
     val context = LocalContext.current
     val configuration = androidx.compose.ui.platform.LocalConfiguration.current
     val screenWidth = configuration.screenWidthDp.dp
     val screenHeight = configuration.screenHeightDp.dp
+
+    val teamCountFlow = remember(context) {
+        context.settingsDataStore.data.map { preferences ->
+            preferences[TEAM_COUNT_KEY] ?: 1
+        }
+    }
+    val slotCount by teamCountFlow.collectAsState(initial = 1)
+
+    val teamConfigsFlow = remember(context) {
+        context.settingsDataStore.data.map { preferences ->
+            TeamConfigs.map { config ->
+                val name = preferences[config.nameKey] ?: config.defaultName
+                val color = preferences[config.colorKey] ?: config.defaultColor
+                name to color
+            }
+        }
+    }
+    val teamPrefsList by teamConfigsFlow.collectAsState(
+        initial = TeamConfigs.map { it.defaultName to it.defaultColor }
+    )
+
+    var selectedTeamId by remember(event.teamId) { mutableStateOf(event.teamId) }
+    var isAmSelected by remember(event.slotPosition) {
+        mutableStateOf(event.slotPosition == "top" || event.slotPosition == "both" || event.slotPosition == null)
+    }
+    var isPmSelected by remember(event.slotPosition) {
+        mutableStateOf(event.slotPosition == "bottom" || event.slotPosition == "both" || event.slotPosition == null)
+    }
 
     val colorHex = event.colorHex ?: category?.colorHex ?: "#1c62f2"
     val catColor = Color(android.graphics.Color.parseColor(colorHex))
@@ -1617,21 +1793,156 @@ fun EventItemCard(
                 Column(
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Box(
+                    Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 24.dp, vertical = 32.dp),
-                        contentAlignment = Alignment.Center
+                            .padding(24.dp),
+                        verticalArrangement = Arrangement.spacedBy(20.dp)
                     ) {
+                        // Title
                         Text(
                             text = "계약을 확정하시겠습니까?",
                             fontSize = 20.sp,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier.fillMaxWidth(),
                             textAlign = TextAlign.Center
                         )
+
+                        // Team Selection
+                        Column(
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Text(
+                                text = "팀 선택",
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                            
+                            val teamChunks = (0 until slotCount).chunked(3)
+                            teamChunks.forEach { chunk ->
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    chunk.forEach { index ->
+                                        val teamIdVal = index + 1
+                                        val teamPref = teamPrefsList.getOrNull(index) ?: (TeamConfigs[index].defaultName to TeamConfigs[index].defaultColor)
+                                        val teamName = teamPref.first
+                                        val teamColor = teamPref.second
+                                        val isSelected = selectedTeamId == teamIdVal
+
+                                        val containerColor = if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.2f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                                        val borderColor = if (isSelected) MaterialTheme.colorScheme.primary else Color.Transparent
+
+                                        Row(
+                                            modifier = Modifier
+                                                .weight(1f)
+                                                .clip(RoundedCornerShape(12.dp))
+                                                .background(containerColor)
+                                                .border(1.5.dp, borderColor, RoundedCornerShape(12.dp))
+                                                .clickable { selectedTeamId = teamIdVal }
+                                                .padding(horizontal = 8.dp, vertical = 10.dp),
+                                            horizontalArrangement = Arrangement.Center,
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .size(10.dp)
+                                                    .clip(CircleShape)
+                                                    .background(Color(teamColor))
+                                            )
+                                            Spacer(modifier = Modifier.width(6.dp))
+                                            Text(
+                                                text = teamName,
+                                                fontSize = 13.sp,
+                                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                                color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis
+                                            )
+                                        }
+                                    }
+                                    if (chunk.size < 3) {
+                                        repeat(3 - chunk.size) {
+                                            Spacer(modifier = Modifier.weight(1f))
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        // AM/PM Selection
+                        Column(
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Text(
+                                text = "오전/오후 선택",
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                val amContainerColor = if (isAmSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.2f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                                val amBorderColor = if (isAmSelected) MaterialTheme.colorScheme.primary else Color.Transparent
+                                Box(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .clip(RoundedCornerShape(12.dp))
+                                        .background(amContainerColor)
+                                        .border(1.5.dp, amBorderColor, RoundedCornerShape(12.dp))
+                                        .clickable {
+                                            if (isAmSelected) {
+                                                if (isPmSelected) isAmSelected = false
+                                            } else {
+                                                isAmSelected = true
+                                            }
+                                        }
+                                        .padding(vertical = 10.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = "오전",
+                                        fontSize = 13.sp,
+                                        fontWeight = if (isAmSelected) FontWeight.Bold else FontWeight.Medium,
+                                        color = if (isAmSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
+                                    )
+                                }
+
+                                val pmContainerColor = if (isPmSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.2f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                                val pmBorderColor = if (isPmSelected) MaterialTheme.colorScheme.primary else Color.Transparent
+                                Box(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .clip(RoundedCornerShape(12.dp))
+                                        .background(pmContainerColor)
+                                        .border(1.5.dp, pmBorderColor, RoundedCornerShape(12.dp))
+                                        .clickable {
+                                            if (isPmSelected) {
+                                                if (isAmSelected) isPmSelected = false
+                                            } else {
+                                                isPmSelected = true
+                                            }
+                                        }
+                                        .padding(vertical = 10.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = "오후",
+                                        fontSize = 13.sp,
+                                        fontWeight = if (isPmSelected) FontWeight.Bold else FontWeight.Medium,
+                                        color = if (isPmSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
+                                    )
+                                }
+                            }
+                        }
                     }
 
+                    // Bottom Buttons Row
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -1660,6 +1971,20 @@ fun EventItemCard(
                                 .fillMaxHeight()
                                 .background(MaterialTheme.colorScheme.primary)
                                 .clickable {
+                                    val finalSlotPosition = when {
+                                        isAmSelected && isPmSelected -> "both"
+                                        isAmSelected -> "top"
+                                        isPmSelected -> "bottom"
+                                        else -> "both"
+                                    }
+                                    val teamId = selectedTeamId ?: 1
+                                    onUpdate(
+                                        event.copy(
+                                            teamId = teamId,
+                                            slotPosition = finalSlotPosition
+                                        )
+                                    )
+                                    onConfirmContract(event, teamId, finalSlotPosition)
                                     showConfirmConfirmDialog = false
                                     showContextMenu = false
                                 },
