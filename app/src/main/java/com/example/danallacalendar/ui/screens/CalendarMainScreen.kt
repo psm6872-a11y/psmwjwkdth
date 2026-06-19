@@ -1267,6 +1267,7 @@ fun EventItemCard(
     var showDeleteConfirmDialog by remember { mutableStateOf(false) }
     var visitButtonWidth by remember { mutableStateOf(90.dp) }
     var secondBubbleHeight by remember { mutableStateOf(54.dp) }
+    var contractButtonHeight by remember { mutableStateOf(0.dp) }
 
     val scope = rememberCoroutineScope()
     var showEditTemplateDialog by remember { mutableStateOf(false) }
@@ -1459,17 +1460,23 @@ fun EventItemCard(
                     // ── 좌측 절반 ──
                     Column(
                         modifier = Modifier.weight(1f),
-                        horizontalAlignment = Alignment.CenterHorizontally
+                        horizontalAlignment = Alignment.End
                     ) {
                         // 계약확정 (상)
-                        Box {
+                        Box(
+                            modifier = Modifier.onGloballyPositioned { coords ->
+                                contractButtonHeight = with(density) { coords.size.height.toDp() }
+                            }
+                        ) {
                             BubbleButton(
                                 text = "계약확정",
                                 onClick = { showConfirmConfirmDialog = true },
                                 containerColor = Color(0xFF81C784),
                                 contentColor = Color(0xFF36221A),
+                                arrowOnLeft = false,   // 꼬리: 아래
                                 arrowOnTop = false,
-                                arrowPositionLeft = true
+                                arrowPositionLeft = true,
+                                arrowPositionTop = true
                             )
                         }
 
@@ -1486,8 +1493,10 @@ fun EventItemCard(
                                 onClick = { showSecondBubble = !showSecondBubble },
                                 containerColor = Color(0xFF64B5F6),
                                 contentColor = Color(0xFF36221A),
+                                arrowOnLeft = false,   // 꼬리: 아래
                                 arrowOnTop = false,
-                                arrowPositionLeft = true
+                                arrowPositionLeft = true,
+                                arrowPositionTop = true
                             )
                         }
 
@@ -1501,8 +1510,10 @@ fun EventItemCard(
                                 onClick = { showDeleteConfirmDialog = true },
                                 containerColor = Color(0xFFE57373),
                                 contentColor = Color(0xFF36221A),
+                                arrowOnLeft = false,   // 꼬리: 위
                                 arrowOnTop = true,
                                 arrowPositionLeft = true,
+                                arrowPositionTop = true,
                                 icon = {
                                     Icon(
                                         imageVector = Icons.Default.Delete,
@@ -1518,8 +1529,10 @@ fun EventItemCard(
                     // ── 우측 절반: 2차 말풍선 ──
                     Column(
                         modifier = Modifier.weight(1f),
-                        horizontalAlignment = Alignment.CenterHorizontally
+                        horizontalAlignment = Alignment.Start
                     ) {
+                        // 계약확정 높이 + 간격 만큼 내려서 방문예약과 동일 Y위치에 문자발송 정렬
+                        Spacer(modifier = Modifier.height(contractButtonHeight + 8.dp))
                         if (showSecondBubble) {
                             val animVisible = remember { MutableTransitionState(false) }.apply {
                                 targetState = true
@@ -1532,7 +1545,7 @@ fun EventItemCard(
                                 )
                             ) {
                                 Column(
-                                    horizontalAlignment = Alignment.CenterHorizontally
+                                    horizontalAlignment = Alignment.Start
                                 ) {
                                     // 문자발송 (상)
                                     BubbleButton(
@@ -1582,7 +1595,9 @@ fun EventItemCard(
                                         },
                                         containerColor = Color(0xFFFFF176),
                                         contentColor = Color(0xFF36221A),
-                                        arrowOnLeft = true,
+                                        arrowOnLeft = true,    // 꼬리: 좌상
+                                        arrowOnTop = false,
+                                        arrowPositionLeft = true,
                                         arrowPositionTop = true
                                     )
                                 }
