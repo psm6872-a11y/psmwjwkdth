@@ -95,8 +95,8 @@ import android.content.Context
 private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "settings")
 private val VISIT_MESSAGE_TEMPLATE_KEY = stringPreferencesKey("visit_message_template")
 private val DEFAULT_VISIT_MESSAGE_TEMPLATE = """
-다날라 익스프레스
 [방문예약]
+다날라 익스프레스
 {시작시간}
 방문 예정입니다.
 30분~1시간 전 미리 전화 드리고 방문 하겠습니다.
