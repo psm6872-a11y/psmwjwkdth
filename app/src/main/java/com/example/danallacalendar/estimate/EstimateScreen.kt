@@ -54,6 +54,8 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.ArrowDropUp
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -240,6 +242,8 @@ fun EstimateScreen(
     val phoneNumber by viewModel.phoneNumber.collectAsStateWithLifecycle()
     val departure by viewModel.departure.collectAsStateWithLifecycle()
     val destination by viewModel.destination.collectAsStateWithLifecycle()
+    val departureFloorType by viewModel.departureFloorType.collectAsStateWithLifecycle()
+    val destinationFloorType by viewModel.destinationFloorType.collectAsStateWithLifecycle()
     val moveDate by viewModel.moveDate.collectAsStateWithLifecycle()
     val moveType by viewModel.moveType.collectAsStateWithLifecycle()
     val cargoSize by viewModel.cargoSize.collectAsStateWithLifecycle()
@@ -452,8 +456,12 @@ fun EstimateScreen(
                                 onPhoneNumberChange = { viewModel.phoneNumber.value = it; viewModel.debounceAutoSave() },
                                 departure = departure,
                                 onDepartureChange = { viewModel.departure.value = it; viewModel.debounceAutoSave() },
+                                departureFloorType = departureFloorType,
+                                onDepartureFloorTypeChange = { viewModel.departureFloorType.value = it; viewModel.debounceAutoSave() },
                                 destination = destination,
                                 onDestinationChange = { viewModel.destination.value = it; viewModel.debounceAutoSave() },
+                                destinationFloorType = destinationFloorType,
+                                onDestinationFloorTypeChange = { viewModel.destinationFloorType.value = it; viewModel.debounceAutoSave() },
                                 moveDate = moveDate,
                                 onSelectMoveDate = {
                                     showDatePicker(moveDate) {
@@ -2769,8 +2777,12 @@ fun Step3CustomerInfo(
     onPhoneNumberChange: (String) -> Unit,
     departure: String,
     onDepartureChange: (String) -> Unit,
+    departureFloorType: String,
+    onDepartureFloorTypeChange: (String) -> Unit,
     destination: String,
     onDestinationChange: (String) -> Unit,
+    destinationFloorType: String,
+    onDestinationFloorTypeChange: (String) -> Unit,
     moveDate: String,
     onSelectMoveDate: () -> Unit,
     startTime: String,
@@ -3050,21 +3062,93 @@ fun Step3CustomerInfo(
                     label = { Text("출발지 주소", maxLines = 1, overflow = TextOverflow.Ellipsis) },
                     colors = textFieldColors,
                     modifier = Modifier.fillMaxWidth(),
-                    singleLine = true,
+                    singleLine = false,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text)
                 )
 
-                OutlinedTextField(
-                    value = departureDetail,
-                    onValueChange = { newDetail ->
-                        onDepartureChange("$departureAddr|$newDetail")
-                    },
-                    label = { Text("출발지 동호수", maxLines = 1, overflow = TextOverflow.Ellipsis) },
-                    colors = textFieldColors,
+                Row(
                     modifier = Modifier.fillMaxWidth(),
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text)
-                )
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    OutlinedTextField(
+                        value = departureDetail,
+                        onValueChange = { newDetail ->
+                            onDepartureChange("$departureAddr|$newDetail")
+                        },
+                        label = { Text("동/호수", maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                        colors = textFieldColors,
+                        modifier = Modifier.weight(0.7f),
+                        singleLine = false,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text)
+                    )
+
+                    var departureFloorMenuExpanded by remember { mutableStateOf(false) }
+                    val floorOptions = listOf("저층", "중층", "고층", "E/V", "수작업")
+
+                    Box(modifier = Modifier.width(120.dp)) {
+                        OutlinedTextField(
+                            value = departureFloorType,
+                            onValueChange = {},
+                            readOnly = true,
+                            label = { Text("층타입", maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                            colors = textFieldColors,
+                            modifier = Modifier.fillMaxWidth(),
+                            trailingIcon = {
+                                Icon(
+                                    imageVector = Icons.Default.KeyboardArrowDown,
+                                    contentDescription = null,
+                                    tint = Color(0xFFE040FB)
+                                )
+                            },
+                            singleLine = true,
+                            enabled = false
+                        )
+                        Box(
+                            modifier = Modifier
+                                .matchParentSize()
+                                .clickable { departureFloorMenuExpanded = !departureFloorMenuExpanded }
+                        )
+                        DropdownMenu(
+                            expanded = departureFloorMenuExpanded,
+                            onDismissRequest = { departureFloorMenuExpanded = false },
+                            modifier = Modifier
+                                .width(120.dp)
+                                .background(
+                                    color = Color(0xFF2D1B69),
+                                    shape = RoundedCornerShape(12.dp)
+                                )
+                                .border(1.dp, Color(0xFFE040FB).copy(alpha = 0.4f), RoundedCornerShape(12.dp))
+                        ) {
+                            floorOptions.forEach { option ->
+                                DropdownMenuItem(
+                                    text = {
+                                        Text(
+                                            text = option,
+                                            color = Color.White,
+                                            fontSize = 15.sp,
+                                            fontWeight = FontWeight.Medium,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+                                    },
+                                    onClick = {
+                                        onDepartureFloorTypeChange(option)
+                                        departureFloorMenuExpanded = false
+                                    },
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .background(
+                                            if (option == departureFloorType)
+                                                Color(0xFFE040FB).copy(alpha = 0.2f)
+                                            else
+                                                Color.Transparent
+                                        )
+                                )
+                            }
+                        }
+                    }
+                }
 
                 OutlinedTextField(
                     value = destinationAddr,
@@ -3074,21 +3158,93 @@ fun Step3CustomerInfo(
                     label = { Text("도착지 주소", maxLines = 1, overflow = TextOverflow.Ellipsis) },
                     colors = textFieldColors,
                     modifier = Modifier.fillMaxWidth(),
-                    singleLine = true,
+                    singleLine = false,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text)
                 )
 
-                OutlinedTextField(
-                    value = destinationDetail,
-                    onValueChange = { newDetail ->
-                        onDestinationChange("$destinationAddr|$newDetail")
-                    },
-                    label = { Text("도착지 동호수", maxLines = 1, overflow = TextOverflow.Ellipsis) },
-                    colors = textFieldColors,
+                Row(
                     modifier = Modifier.fillMaxWidth(),
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text)
-                )
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    OutlinedTextField(
+                        value = destinationDetail,
+                        onValueChange = { newDetail ->
+                            onDestinationChange("$destinationAddr|$newDetail")
+                        },
+                        label = { Text("동/호수", maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                        colors = textFieldColors,
+                        modifier = Modifier.weight(0.7f),
+                        singleLine = false,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text)
+                    )
+
+                    var destinationFloorMenuExpanded by remember { mutableStateOf(false) }
+                    val floorOptions = listOf("저층", "중층", "고층", "E/V", "수작업")
+
+                    Box(modifier = Modifier.width(120.dp)) {
+                        OutlinedTextField(
+                            value = destinationFloorType,
+                            onValueChange = {},
+                            readOnly = true,
+                            label = { Text("층타입", maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                            colors = textFieldColors,
+                            modifier = Modifier.fillMaxWidth(),
+                            trailingIcon = {
+                                Icon(
+                                    imageVector = Icons.Default.KeyboardArrowDown,
+                                    contentDescription = null,
+                                    tint = Color(0xFFE040FB)
+                                )
+                            },
+                            singleLine = true,
+                            enabled = false
+                        )
+                        Box(
+                            modifier = Modifier
+                                .matchParentSize()
+                                .clickable { destinationFloorMenuExpanded = !destinationFloorMenuExpanded }
+                        )
+                        DropdownMenu(
+                            expanded = destinationFloorMenuExpanded,
+                            onDismissRequest = { destinationFloorMenuExpanded = false },
+                            modifier = Modifier
+                                .width(120.dp)
+                                .background(
+                                    color = Color(0xFF2D1B69),
+                                    shape = RoundedCornerShape(12.dp)
+                                )
+                                .border(1.dp, Color(0xFFE040FB).copy(alpha = 0.4f), RoundedCornerShape(12.dp))
+                        ) {
+                            floorOptions.forEach { option ->
+                                DropdownMenuItem(
+                                    text = {
+                                        Text(
+                                            text = option,
+                                            color = Color.White,
+                                            fontSize = 15.sp,
+                                            fontWeight = FontWeight.Medium,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+                                    },
+                                    onClick = {
+                                        onDestinationFloorTypeChange(option)
+                                        destinationFloorMenuExpanded = false
+                                    },
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .background(
+                                            if (option == destinationFloorType)
+                                                Color(0xFFE040FB).copy(alpha = 0.2f)
+                                            else
+                                                Color.Transparent
+                                        )
+                                )
+                            }
+                        }
+                    }
+                }
             }
         }
 

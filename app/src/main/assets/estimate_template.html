@@ -72,17 +72,19 @@ td, th { border:1px solid #000; padding:2px 4px; vertical-align:middle; font-siz
   <!-- 기본정보 -->
   <table style="border:2px solid #000;">
     <colgroup>
-      <col style="width:72px"><col><col style="width:65px"><col><col style="width:70px"><col style="width:115px">
+      <col style="width:72px"><col><col style="width:65px"><col><col style="width:50px"><col style="width:70px"><col style="width:115px">
     </colgroup>
     <tr style="height:32px;">
       <td class="lbl" style="font-size:11pt;">출발지</td>
       <td colspan="3" style="font-size:12pt; padding-left:10px;">{{departure}}</td>
+      <td style="font-size:11pt; text-align:center;">{{departureFloorType}}</td>
       <td style="font-size:11pt; text-align:center; background:#d9d9d9; font-weight:400;">견적일</td>
       <td style="font-size:11pt; text-align:center;">{{estimateDate}}</td>
     </tr>
     <tr style="height:32px;">
       <td class="lbl" style="font-size:11pt;">도착지</td>
       <td colspan="3" style="font-size:12pt; padding-left:10px;">{{destination}}</td>
+      <td style="font-size:11pt; text-align:center;">{{destinationFloorType}}</td>
       <td class="lbl" style="font-size:11pt;">이사일</td>
       <td style="font-size:11pt; text-align:center;">{{moveDate}}</td>
     </tr>
@@ -90,7 +92,7 @@ td, th { border:1px solid #000; padding:2px 4px; vertical-align:middle; font-siz
       <td class="lbl" style="font-size:11pt;">연락처</td>
       <td style="font-size:12pt; text-align:left; padding-left:10px;">{{phoneNumber}}</td>
       <td style="font-size:11pt; text-align:center; background:#d9d9d9; font-weight:400;">이사종류</td>
-      <td style="font-size:11pt; text-align:center;">{{moveInfo}}</td>
+      <td colspan="2" style="font-size:11pt; text-align:center;">{{moveInfo}}</td>
       <td style="font-size:11pt; text-align:center; background:#d9d9d9; font-weight:400;">시작시간</td>
       <td style="font-size:11pt; text-align:center;">{{startTime}}</td>
     </tr>
@@ -216,5 +218,20 @@ td, th { border:1px solid #000; padding:2px 4px; vertical-align:middle; font-siz
   </table>
 
 </div>
+<script>
+window.addEventListener('load', function() {
+  var page = document.querySelector('.page');
+  if (page) {
+    var a4Height = 1122;
+    var currentHeight = page.offsetHeight;
+    if (currentHeight > a4Height) {
+      var scale = a4Height / currentHeight;
+      page.style.transform = 'scale(' + scale + ')';
+      page.style.transformOrigin = 'top left';
+      page.style.height = a4Height + 'px';
+    }
+  }
+});
+</script>
 </body>
 </html>

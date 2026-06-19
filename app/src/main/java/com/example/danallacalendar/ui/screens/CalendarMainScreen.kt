@@ -402,13 +402,12 @@ fun CalendarMainScreen(
                                         val teamColorLong = teamPref.second
                                         
                                         // 시작시간 & 물량 폴백 처리 및 단위 결합
-                                        val resolvedStartTime = if (estimate.startTime.isNotBlank()) estimate.startTime else "-"
                                         val resolvedVolume = if (estimate.totalVolume.isNotBlank()) {
                                             if (estimate.totalVolume.contains("톤")) estimate.totalVolume else "${estimate.totalVolume}톤"
                                         } else {
                                             "-"
                                         }
-                                        val titleText = "$teamName. $resolvedStartTime. $resolvedVolume. -"
+                                        val titleText = teamName
                                         
                                         // 출발지/도착지 및 동호수 처리 -> ||| 로 결합
                                         val departureAddr: String

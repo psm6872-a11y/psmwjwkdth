@@ -49,6 +49,8 @@ class EstimateViewModel @Inject constructor(
     val phoneNumber = MutableStateFlow("")
     val departure = MutableStateFlow("")
     val destination = MutableStateFlow("")
+    val departureFloorType = MutableStateFlow("")
+    val destinationFloorType = MutableStateFlow("")
     val moveDate = MutableStateFlow("")
     val moveType = MutableStateFlow("가정이사")
     val cargoSize = MutableStateFlow("중")
@@ -185,6 +187,8 @@ class EstimateViewModel @Inject constructor(
             phoneNumber.value = ""
             departure.value = ""
             destination.value = ""
+            departureFloorType.value = ""
+            destinationFloorType.value = ""
             moveDate.value = ""
             moveType.value = "가정이사"
             cargoSize.value = "중"
@@ -215,6 +219,8 @@ class EstimateViewModel @Inject constructor(
             phoneNumber.value = originalEstimate.phoneNumber
             departure.value = originalEstimate.departure
             destination.value = originalEstimate.destination
+            departureFloorType.value = originalEstimate.departureFloorType
+            destinationFloorType.value = originalEstimate.destinationFloorType
             moveDate.value = originalEstimate.moveDate
             moveType.value = originalEstimate.moveType
             cargoSize.value = originalEstimate.cargoSize
@@ -323,6 +329,8 @@ class EstimateViewModel @Inject constructor(
             phoneNumber = phoneNumber.value,
             departure = departure.value,
             destination = destination.value,
+            departureFloorType = departureFloorType.value,
+            destinationFloorType = destinationFloorType.value,
             moveDate = moveDate.value,
             moveType = moveType.value,
             cargoSize = cargoSize.value,
@@ -426,6 +434,8 @@ class EstimateViewModel @Inject constructor(
             phoneNumber = phoneNumber.value,
             departure = departure.value,
             destination = destination.value,
+            departureFloorType = departureFloorType.value,
+            destinationFloorType = destinationFloorType.value,
             moveDate = moveDate.value,
             moveType = moveType.value,
             cargoSize = cargoSize.value,

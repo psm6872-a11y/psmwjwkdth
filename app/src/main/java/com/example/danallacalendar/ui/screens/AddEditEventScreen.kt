@@ -314,23 +314,19 @@ fun AddEditEventScreen(
                                             ""
                                         }
 
-                                        // 2. 일정의 출발지 주소 + 동/호수 이어붙여서 스텝3 출발지에 자동입력
-                                        val resolvedDeparture = buildString {
-                                            append(location)
-                                            if (location1b.isNotBlank()) {
-                                                if (isNotEmpty() && !endsWith(" ")) append(" ")
-                                                append(location1b)
-                                            }
-                                        }.trim()
+                                        // 2. 일정의 출발지 주소 + 동/호수 구분자(|)로 결합하여 자동입력
+                                        val resolvedDeparture = if (location1b.isNotBlank()) {
+                                            "$location|$location1b"
+                                        } else {
+                                            location
+                                        }
 
-                                        // 3. 일정의 도착지 주소 + 동/호수 이어붙여서 스텝3 도착지에 자동입력
-                                        val resolvedDestination = buildString {
-                                            append(location2)
-                                            if (location2b.isNotBlank()) {
-                                                if (isNotEmpty() && !endsWith(" ")) append(" ")
-                                                append(location2b)
-                                            }
-                                        }.trim()
+                                        // 3. 일정의 도착지 주소 + 동/호수 구분자(|)로 결합하여 자동입력
+                                        val resolvedDestination = if (location2b.isNotBlank()) {
+                                            "$location2|$location2b"
+                                        } else {
+                                            location2
+                                        }
 
                                         // 4. 일정의 전화번호를 스텝3 연락처에 자동입력
                                         val resolvedPhone = notesList.firstOrNull { it.isNotBlank() } ?: ""

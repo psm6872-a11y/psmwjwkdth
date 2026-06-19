@@ -20,6 +20,8 @@ object EstimateHtmlGenerator {
         var html = template
             .replace("{{departure}}", estimate.departure)
             .replace("{{destination}}", estimate.destination)
+            .replace("{{departureFloorType}}", estimate.departureFloorType)
+            .replace("{{destinationFloorType}}", estimate.destinationFloorType)
             .replace("{{estimateDate}}", estimate.estimateDate)
             .replace("{{moveDate}}", estimate.moveDate)
             .replace("{{phoneNumber}}", estimate.phoneNumber)

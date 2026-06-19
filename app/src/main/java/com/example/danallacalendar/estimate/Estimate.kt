@@ -30,6 +30,8 @@ data class Estimate(
     val optionCost: String = "",
     val roomItems: Map<String, Map<String, Long>> = emptyMap(),
     val createdAt: Long = System.currentTimeMillis(),
+    val departureFloorType: String = "",
+    val destinationFloorType: String = "",
     
     // 추가 필드 (UI 및 동기화 상태 제어용, 기본값 지정)
     val isSynced: Boolean = true,
