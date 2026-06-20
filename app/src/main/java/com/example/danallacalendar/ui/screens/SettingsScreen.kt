@@ -326,9 +326,9 @@ fun SettingsScreen(
             ) {
                 Text(
                     text = "━━ 업체 정보 설정 ━━",
-                    fontSize = 18.sp,
+                    fontSize = 20.sp,
                     fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.secondary,
+                    color = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp)
                 )
 
@@ -342,9 +342,9 @@ fun SettingsScreen(
                 ) {
                     Text(
                         text = "견적서 업체 정보 설정 ${if (isCompanySettingsExpanded) "▲" else "▼"}",
-                        fontSize = 14.sp,
+                        fontSize = 16.sp,
                         fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary
+                        color = MaterialTheme.colorScheme.onSurface
                     )
                 }
 
@@ -457,9 +457,9 @@ fun SettingsScreen(
             ) {
                 Text(
                     text = "━━ 캘린더 하단바 설정 ━━",
-                    fontSize = 18.sp,
+                    fontSize = 20.sp,
                     fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.secondary,
+                    color = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp)
                 )
 
@@ -473,9 +473,9 @@ fun SettingsScreen(
                 ) {
                     Text(
                         text = "계약슬롯 설정 ${if (isTeamSettingsExpanded) "▲" else "▼"}",
-                        fontSize = 14.sp,
+                        fontSize = 16.sp,
                         fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary
+                        color = MaterialTheme.colorScheme.onSurface
                     )
                 }
 
@@ -705,9 +705,9 @@ fun SettingsScreen(
                 ) {
                     Text(
                         text = "방문슬롯 설정 ${if (isVisitSettingsExpanded) "▲" else "▼"}",
-                        fontSize = 14.sp,
+                        fontSize = 16.sp,
                         fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary
+                        color = MaterialTheme.colorScheme.onSurface
                     )
                 }
 
