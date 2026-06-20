@@ -26,5 +26,10 @@ service cloud.firestore {
     match /estimates/{document} {
       allow read, write: if true;
     }
+
+    // 업체 정보 데이터 (누구나 읽기/쓰기 허용)
+    match /company_info/{document} {
+      allow read, write: if true;
+    }
   }
 }

@@ -34,9 +34,47 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.ui.focus.onFocusChanged
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import android.graphics.BitmapFactory
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.BorderStroke
+import java.io.File
+import java.io.FileOutputStream
+import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.ListenerRegistration
+import com.google.firebase.firestore.SetOptions
+import com.example.danallacalendar.data.local.UserPreferences
+import androidx.compose.ui.text.input.TextFieldValue
+import kotlinx.coroutines.delay
+
 // Define the DataStore in SettingsScreen.kt
 val Context.settingsDataStore: DataStore<Preferences> by preferencesDataStore(name = "team_settings")
 val TEAM_COUNT_KEY = intPreferencesKey("team_count")
+
+fun uriToBase64(context: Context, uri: android.net.Uri): String? {
+    return try {
+        context.contentResolver.openInputStream(uri)?.use { inputStream ->
+            val bytes = inputStream.readBytes()
+            android.util.Base64.encodeToString(bytes, android.util.Base64.NO_WRAP)
+        }
+    } catch (e: Exception) {
+        e.printStackTrace()
+        null
+    }
+}
+
+fun updateCompanyInfo(roomCode: String, field: String, value: String) {
+    if (roomCode.isEmpty()) return
+    val firestore = FirebaseFirestore.getInstance()
+    val docRef = firestore.collection("company_info").document(roomCode)
+    val data = mapOf(field to value)
+    docRef.set(data, SetOptions.merge())
+        .addOnFailureListener { e ->
+            e.printStackTrace()
+        }
+}
 
 val TEAM_1_NAME_KEY = stringPreferencesKey("team_1_name")
 val TEAM_1_COLOR_KEY = longPreferencesKey("team_1_color")
@@ -100,8 +138,118 @@ fun SettingsScreen(
         }
     }
     val teamCount by teamCountFlow.collectAsState(initial = 1)
+    var isCompanySettingsExpanded by remember { mutableStateOf(false) }
     var isTeamSettingsExpanded by remember { mutableStateOf(false) }
     var isVisitSettingsExpanded by remember { mutableStateOf(false) }
+       val firestore = remember { FirebaseFirestore.getInstance() }
+    val userPreferences = remember { UserPreferences(context) }
+    val roomCode = remember { userPreferences.getLastRoomCode() }
+
+    var companyName by remember { mutableStateOf("") }
+    var licenseNumber by remember { mutableStateOf("") }
+    var ceoNickname by remember { mutableStateOf("") }
+    var companyPhone by remember { mutableStateOf("") }
+    var ceoName by remember { mutableStateOf("") }
+    var bizNumber by remember { mutableStateOf("") }
+    var bankAccount by remember { mutableStateOf("") }
+    var logoBase64 by remember { mutableStateOf("") }
+    var stampBase64 by remember { mutableStateOf("") }
+
+    var isLoading by remember { mutableStateOf(false) }
+
+    // 진입 시 단 1회 Firestore에서 데이터 로드
+    LaunchedEffect(roomCode) {
+        if (roomCode.isNotEmpty()) {
+            isLoading = true
+            firestore.collection("company_info").document(roomCode)
+                .get()
+                .addOnSuccessListener { snapshot ->
+                    if (snapshot != null && snapshot.exists()) {
+                        companyName = snapshot.getString("companyName") ?: ""
+                        licenseNumber = snapshot.getString("licenseNumber") ?: ""
+                        ceoNickname = snapshot.getString("ceoNickname") ?: ""
+                        companyPhone = snapshot.getString("companyPhone") ?: ""
+                        ceoName = snapshot.getString("ceoName") ?: ""
+                        bizNumber = snapshot.getString("bizNumber") ?: ""
+                        bankAccount = snapshot.getString("bankAccount") ?: ""
+                        logoBase64 = snapshot.getString("logoBase64") ?: ""
+                        stampBase64 = snapshot.getString("stampBase64") ?: ""
+                        android.util.Log.d("SettingsScreen", "Firestore 업체 정보 로드 완료 (상호명: $companyName)")
+                    } else {
+                        android.util.Log.d("SettingsScreen", "Firestore에 업체 정보 문서가 존재하지 않습니다. 신규 작성이 필요합니다. (방코드: $roomCode)")
+                    }
+                    isLoading = false
+                }
+                .addOnFailureListener { e ->
+                    android.util.Log.e("SettingsScreen", "Firestore 업체 정보 로드 중 예외 발생", e)
+                    android.widget.Toast.makeText(context, "업체 정보를 불러오지 못했습니다: ${e.localizedMessage}", android.widget.Toast.LENGTH_SHORT).show()
+                    isLoading = false
+                }
+        } else {
+            android.util.Log.w("SettingsScreen", "방코드(roomCode)가 설정되지 않아 Firestore에서 업체 정보를 로드할 수 없습니다.")
+        }
+    }
+
+    // 갤러리 이미지 로드 후 로컬 상태만 변경 (백그라운드 스레드 처리로 UI 프리징 방지)
+    val logoLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri ->
+        uri?.let {
+            scope.launch(kotlinx.coroutines.Dispatchers.IO) {
+                val base64Str = uriToBase64(context, it)
+                if (base64Str != null) {
+                    val mimeType = context.contentResolver.getType(it) ?: "image/png"
+                    scope.launch(kotlinx.coroutines.Dispatchers.Main) {
+                        logoBase64 = "data:$mimeType;base64,$base64Str"
+                    }
+                }
+            }
+        }
+    }
+
+    val stampLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri ->
+        uri?.let {
+            scope.launch(kotlinx.coroutines.Dispatchers.IO) {
+                val base64Str = uriToBase64(context, it)
+                if (base64Str != null) {
+                    val mimeType = context.contentResolver.getType(it) ?: "image/png"
+                    scope.launch(kotlinx.coroutines.Dispatchers.Main) {
+                        stampBase64 = "data:$mimeType;base64,$base64Str"
+                    }
+                }
+            }
+        }
+    }
+
+    // 일괄 저장 헬퍼 함수
+    val saveCompanyInfo = {
+        if (roomCode.isNotEmpty()) {
+            val data = mapOf(
+                "companyName" to companyName,
+                "licenseNumber" to licenseNumber,
+                "ceoNickname" to ceoNickname,
+                "companyPhone" to companyPhone,
+                "ceoName" to ceoName,
+                "bizNumber" to bizNumber,
+                "bankAccount" to bankAccount,
+                "logoBase64" to logoBase64,
+                "stampBase64" to stampBase64
+            )
+            firestore.collection("company_info").document(roomCode)
+                .set(data, SetOptions.merge())
+                .addOnSuccessListener {
+                    android.widget.Toast.makeText(context, "업체 정보가 저장되었습니다.", android.widget.Toast.LENGTH_SHORT).show()
+                }
+                .addOnFailureListener { e ->
+                    android.widget.Toast.makeText(context, "저장에 실패했습니다: ${e.localizedMessage}", android.widget.Toast.LENGTH_SHORT).show()
+                }
+        } else {
+            android.widget.Toast.makeText(context, "방코드가 설정되지 않았습니다.", android.widget.Toast.LENGTH_SHORT).show()
+        }
+    }
+
 
     val teamConfigsFlow = remember(context) {
         context.settingsDataStore.data.map { preferences ->
@@ -172,6 +320,137 @@ fun SettingsScreen(
                 .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
+            // Category: 업체 정보 설정
+            Column(
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Text(
+                    text = "━━ 업체 정보 설정 ━━",
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.padding(horizontal = 4.dp)
+                )
+
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { isCompanySettingsExpanded = !isCompanySettingsExpanded }
+                        .padding(start = 4.dp, end = 4.dp, top = 8.dp, bottom = 4.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "견적서 업체 정보 설정 ${if (isCompanySettingsExpanded) "▲" else "▼"}",
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+
+                if (isCompanySettingsExpanded) {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(16.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.surface
+                        ),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            SettingsInputField(
+                                label = "상호명",
+                                value = companyName,
+                                onValueChange = { companyName = it }
+                            )
+
+                            SettingsInputField(
+                                label = "관허 번호",
+                                value = licenseNumber,
+                                onValueChange = { licenseNumber = it }
+                            )
+
+                            SettingsInputField(
+                                label = "대표자 닉네임",
+                                value = ceoNickname,
+                                onValueChange = { ceoNickname = it }
+                            )
+
+                            SettingsInputField(
+                                label = "전화번호",
+                                value = companyPhone,
+                                onValueChange = { companyPhone = it }
+                            )
+
+                            SettingsInputField(
+                                label = "대표자명",
+                                value = ceoName,
+                                onValueChange = { ceoName = it }
+                            )
+
+                            SettingsInputField(
+                                label = "사업자번호",
+                                value = bizNumber,
+                                onValueChange = { bizNumber = it }
+                            )
+
+                            SettingsInputField(
+                                label = "계좌번호",
+                                value = bankAccount,
+                                onValueChange = { bankAccount = it }
+                            )
+
+                            HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
+
+                            SettingsImageField(
+                                label = "로고 이미지",
+                                base64Str = logoBase64,
+                                onSelectClick = {
+                                    logoLauncher.launch("image/*")
+                                },
+                                onClearClick = {
+                                    logoBase64 = ""
+                                }
+                            )
+
+                            SettingsImageField(
+                                label = "도장 이미지",
+                                base64Str = stampBase64,
+                                onSelectClick = {
+                                    stampLauncher.launch("image/*")
+                                },
+                                onClearClick = {
+                                    stampBase64 = ""
+                                }
+                            )
+
+                            Spacer(modifier = Modifier.height(8.dp))
+
+                            Button(
+                                onClick = { saveCompanyInfo() },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(48.dp),
+                                shape = RoundedCornerShape(12.dp),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = MaterialTheme.colorScheme.primary,
+                                    contentColor = MaterialTheme.colorScheme.onPrimary
+                                )
+                            ) {
+                                Text(
+                                    text = "설정 저장",
+                                    fontSize = 16.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
             // Category: 화면 설정
             Column(
                 verticalArrangement = Arrangement.spacedBy(8.dp)
@@ -688,3 +967,162 @@ fun SettingsScreen(
         }
     }
 }
+
+@Composable
+fun Base64Thumbnail(base64Str: String, modifier: Modifier = Modifier) {
+    val bitmap = remember(base64Str) {
+        if (base64Str.isNotEmpty()) {
+            try {
+                val cleanBase64 = if (base64Str.contains(",")) {
+                    base64Str.substringAfter(",")
+                } else {
+                    base64Str
+                }
+                val decodedString = android.util.Base64.decode(cleanBase64, android.util.Base64.DEFAULT)
+                BitmapFactory.decodeByteArray(decodedString, 0, decodedString.size)
+            } catch (e: Exception) {
+                e.printStackTrace()
+                null
+            }
+        } else {
+            null
+        }
+    }
+    if (bitmap != null) {
+        Image(
+            bitmap = bitmap.asImageBitmap(),
+            contentDescription = "Thumbnail",
+            modifier = modifier,
+            contentScale = androidx.compose.ui.layout.ContentScale.Fit
+        )
+    } else {
+        Box(
+            modifier = modifier.background(MaterialTheme.colorScheme.surfaceVariant),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = "이미지 없음",
+                fontSize = 10.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
+@Composable
+fun SettingsInputField(
+    label: String,
+    value: String,
+    onValueChange: (String) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    var isFocused by remember { mutableStateOf(false) }
+    Row(
+        modifier = modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        Text(
+            text = label,
+            fontSize = 14.sp,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier.width(90.dp)
+        )
+
+        Box(
+            modifier = Modifier
+                .weight(1f)
+                .height(38.dp)
+                .border(
+                    width = if (isFocused) 2.dp else 1.dp,
+                    color = if (isFocused) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
+                    shape = RoundedCornerShape(8.dp)
+                )
+                .padding(horizontal = 12.dp),
+            contentAlignment = Alignment.CenterStart
+        ) {
+            BasicTextField(
+                value = value,
+                onValueChange = onValueChange,
+                singleLine = true,
+                textStyle = LocalTextStyle.current.copy(
+                    fontSize = 14.sp,
+                    color = MaterialTheme.colorScheme.onSurface
+                ),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .onFocusChanged {
+                        isFocused = it.isFocused
+                    }
+            )
+        }
+    }
+}
+
+@Composable
+fun SettingsImageField(
+    label: String,
+    base64Str: String,
+    onSelectClick: () -> Unit,
+    onClearClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        modifier = modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        Text(
+            text = label,
+            fontSize = 14.sp,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier.width(90.dp)
+        )
+
+        Row(
+            modifier = Modifier.weight(1f),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Base64Thumbnail(
+                base64Str = base64Str,
+                modifier = Modifier
+                    .size(50.dp)
+                    .clip(RoundedCornerShape(8.dp))
+                    .border(1.dp, MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(8.dp))
+                    .clickable { onSelectClick() }
+            )
+
+            Button(
+                onClick = onSelectClick,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary
+                ),
+                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                shape = RoundedCornerShape(8.dp),
+                modifier = Modifier.height(36.dp)
+            ) {
+                Text("선택", fontSize = 12.sp)
+            }
+
+            if (base64Str.isNotEmpty()) {
+                OutlinedButton(
+                    onClick = onClearClick,
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        contentColor = MaterialTheme.colorScheme.error
+                    ),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.5f)),
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                    shape = RoundedCornerShape(8.dp),
+                    modifier = Modifier.height(36.dp)
+                ) {
+                    Text("삭제", fontSize = 12.sp)
+                }
+            }
+        }
+    }
+}
+

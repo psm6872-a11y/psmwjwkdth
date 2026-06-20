@@ -1,6 +1,10 @@
 package com.example.danallacalendar.estimate
 
 import android.content.Context
+import android.util.Base64
+import com.google.firebase.firestore.FirebaseFirestore
+import com.google.android.gms.tasks.Tasks
+import com.example.danallacalendar.data.local.UserPreferences
 
 object EstimateHtmlGenerator {
 
@@ -8,6 +12,69 @@ object EstimateHtmlGenerator {
         val template = context.assets.open("estimate_template.html").use { inputStream ->
             inputStream.bufferedReader().use { it.readText() }
         }
+
+        // UserPreferences에서 방코드(roomCode) 획득
+        val userPreferences = UserPreferences(context)
+        val roomCode = userPreferences.getLastRoomCode()
+
+        var companyName = "다날라 익스프레스"
+        var licenseNumber = ""
+        var ceoNickname = ""
+        var companyPhone = ""
+        var ceoName = ""
+        var bizNumber = ""
+        var bankAccount = ""
+        var logoBase64 = ""
+        var stampBase64 = ""
+
+        if (roomCode.isNotEmpty()) {
+            try {
+                // Tasks.await가 메인 스레드에서 불릴 때의 IllegalStateException을 피하기 위해 
+                // 백그라운드 싱글 스레드 Executor를 생성하여 Tasks.await를 그 위에서 실행시키고 메인 스레드에서 future.get()으로 대기합니다.
+                val executor = java.util.concurrent.Executors.newSingleThreadExecutor()
+                val future = executor.submit(java.util.concurrent.Callable {
+                    val firestore = FirebaseFirestore.getInstance()
+                    val task = firestore.collection("company_info").document(roomCode).get()
+                    Tasks.await(task)
+                })
+                val documentSnapshot = future.get()
+                executor.shutdown()
+                
+                if (documentSnapshot != null && documentSnapshot.exists()) {
+                    companyName = documentSnapshot.getString("companyName")?.ifBlank { "다날라 익스프레스" } ?: "다날라 익스프레스"
+                    licenseNumber = documentSnapshot.getString("licenseNumber") ?: ""
+                    ceoNickname = documentSnapshot.getString("ceoNickname") ?: ""
+                    companyPhone = documentSnapshot.getString("companyPhone") ?: ""
+                    ceoName = documentSnapshot.getString("ceoName") ?: ""
+                    bizNumber = documentSnapshot.getString("bizNumber") ?: ""
+                    bankAccount = documentSnapshot.getString("bankAccount") ?: ""
+                    logoBase64 = documentSnapshot.getString("logoBase64") ?: ""
+                    stampBase64 = documentSnapshot.getString("stampBase64") ?: ""
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+
+        // assets 파일 -> Base64 헬퍼 함수
+        fun assetToBase64(assetName: String): String {
+            return try {
+                context.assets.open(assetName).use { inputStream ->
+                    val bytes = inputStream.readBytes()
+                    val base64Encoded = Base64.encodeToString(bytes, Base64.NO_WRAP)
+                    "data:image/png;base64,$base64Encoded"
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+                ""
+            }
+        }
+
+        // 로고 이미지 처리 (미지정 시 1x1 투명 GIF)
+        val logoFinal = if (logoBase64.isNotEmpty()) logoBase64 else "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7"
+
+        // 도장 이미지 처리 (미지정 시 blank_stamp.png)
+        val stampFinal = if (stampBase64.isNotEmpty()) stampBase64 else assetToBase64("blank_stamp.png")
 
         // Helper to format currency
         fun formatCurrency(valStr: String): String {
@@ -18,8 +85,18 @@ object EstimateHtmlGenerator {
 
         // Replace basic fields
         var html = template
+            .replace("{{companyName}}", companyName)
+            .replace("{{licenseNumber}}", licenseNumber)
+            .replace("{{ceoNickname}}", ceoNickname)
+            .replace("{{companyPhone}}", companyPhone)
+            .replace("{{ceoName}}", ceoName)
+            .replace("{{bizNumber}}", bizNumber)
+            .replace("{{bankAccount}}", bankAccount)
+            .replace("{{logoBase64}}", logoFinal)
+            .replace("{{stampBase64}}", stampFinal)
             .replace("{{departure}}", estimate.departure)
             .replace("{{destination}}", estimate.destination)
+
             .replace("{{departureFloorType}}", estimate.departureFloorType)
             .replace("{{destinationFloorType}}", estimate.destinationFloorType)
             .replace("{{estimateDate}}", estimate.estimateDate)
