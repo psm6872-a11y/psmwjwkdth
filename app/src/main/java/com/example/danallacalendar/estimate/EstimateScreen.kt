@@ -56,6 +56,9 @@ import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.ArrowDropUp
+import androidx.compose.material.icons.filled.Mic
+import android.speech.RecognizerIntent
+import java.util.Locale
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -2835,6 +2838,62 @@ fun Step3CustomerInfo(
         }
     }
 
+    val context = LocalContext.current
+
+    val speechRecognizerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode == Activity.RESULT_OK) {
+            val data = result.data
+            val results = data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)
+            val recognizedText = results?.firstOrNull() ?: ""
+            if (recognizedText.isNotEmpty()) {
+                val newMemo = if (memo.isNotEmpty()) "$memo\n$recognizedText" else recognizedText
+                onMemoChange(newMemo)
+            }
+        }
+    }
+
+    val recordAudioPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        if (isGranted) {
+            try {
+                val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+                    putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+                    putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale.KOREAN.toString())
+                    putExtra(RecognizerIntent.EXTRA_PROMPT, "음성 인식을 시작합니다. 말씀해 주세요.")
+                }
+                speechRecognizerLauncher.launch(intent)
+            } catch (e: Exception) {
+                Toast.makeText(context, "음성인식 기능을 사용할 수 없습니다.", Toast.LENGTH_SHORT).show()
+            }
+        } else {
+            Toast.makeText(context, "마이크 권한이 거부되었습니다.", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    val onMicClick = {
+        val permissionCheck = androidx.core.content.ContextCompat.checkSelfPermission(
+            context,
+            android.Manifest.permission.RECORD_AUDIO
+        )
+        if (permissionCheck == android.content.pm.PackageManager.PERMISSION_GRANTED) {
+            try {
+                val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+                    putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+                    putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale.KOREAN.toString())
+                    putExtra(RecognizerIntent.EXTRA_PROMPT, "음성 인식을 시작합니다. 말씀해 주세요.")
+                }
+                speechRecognizerLauncher.launch(intent)
+            } catch (e: Exception) {
+                Toast.makeText(context, "음성인식 기능을 사용할 수 없습니다.", Toast.LENGTH_SHORT).show()
+            }
+        } else {
+            recordAudioPermissionLauncher.launch(android.Manifest.permission.RECORD_AUDIO)
+        }
+    }
+
     val textFieldColors = OutlinedTextFieldDefaults.colors(
         focusedTextColor = Color.White,
         unfocusedTextColor = Color.White,
@@ -3568,15 +3627,33 @@ fun Step3CustomerInfo(
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true
                 )
-                OutlinedTextField(
-                    value = memo,
-                    onValueChange = { onMemoChange(it) },
-                    label = { Text("고객 요청 및 특이사항") },
-                    minLines = 3,
-                    maxLines = Int.MAX_VALUE,
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = textFieldColors
-                )
+                Box(
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    OutlinedTextField(
+                        value = memo,
+                        onValueChange = { onMemoChange(it) },
+                        label = { Text("고객 요청 및 특이사항") },
+                        minLines = 3,
+                        maxLines = Int.MAX_VALUE,
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = textFieldColors
+                    )
+                    IconButton(
+                        onClick = onMicClick,
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .padding(top = 4.dp, end = 4.dp)
+                            .size(48.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Mic,
+                            contentDescription = "음성인식",
+                            tint = Color(0xFFE040FB),
+                            modifier = Modifier.size(32.dp)
+                        )
+                    }
+                }
             }
         }
 
