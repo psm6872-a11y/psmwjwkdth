@@ -115,13 +115,16 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.ui.graphics.graphicsLayer
 import kotlin.math.abs
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
 fun EstimateScreen(
     viewModel: EstimateViewModel,
     onNavigateBack: () -> Unit
 ) {
     val context = LocalContext.current
+    val isImeVisible = WindowInsets.isImeVisible
+    val focusManager = androidx.compose.ui.platform.LocalFocusManager.current
+    var onCancelAction by remember { mutableStateOf<(() -> Unit)?>(null) }
     DisposableEffect(Unit) {
         val activity = context.findActivity()
         val window = activity?.window
@@ -450,7 +453,8 @@ fun EstimateScreen(
                                 },
                                 onUpdateCountTts = { text ->
                                     // Removed speak
-                                }
+                                },
+                                onFieldFocus = { onCancelAction = it }
                             )
                             3 -> Step3CustomerInfo(
                                 customerName = customerName,
@@ -522,7 +526,8 @@ fun EstimateScreen(
                                 onBalanceChange = { viewModel.balance.value = it; viewModel.debounceAutoSave() },
                                 optionCost = optionCost,
                                 onOptionCostChange = { viewModel.optionCost.value = it; viewModel.onMoveCostOrOptionChanged(); viewModel.autoSaveToFirestore() },
-                                totalExpectedVolume = totalExpectedVolumeStr
+                                totalExpectedVolume = totalExpectedVolumeStr,
+                                onFieldFocus = { onCancelAction = it }
                             )
                             4 -> {
                                 val totalVol = spaceExpectedVolumes.values.mapNotNull { it.toDoubleOrNull() }.sum()
@@ -701,6 +706,40 @@ fun EstimateScreen(
                                         Text("나가기")
                                     }
                                 }
+                            }
+                        }
+                    }
+                }
+                if (isImeVisible) {
+                    Surface(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .align(Alignment.BottomCenter)
+                            .imePadding(),
+                        color = Color(0xFF1E1045),
+                        border = BorderStroke(0.5.dp, Color.White.copy(alpha = 0.15f))
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 6.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            TextButton(
+                                onClick = {
+                                    onCancelAction?.invoke()
+                                    focusManager.clearFocus()
+                                }
+                            ) {
+                                Text("취소", color = Color.White.copy(alpha = 0.7f), fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                            }
+                            TextButton(
+                                onClick = {
+                                    focusManager.clearFocus()
+                                }
+                            ) {
+                                Text("저장", color = MaterialTheme.colorScheme.primary, fontSize = 16.sp, fontWeight = FontWeight.Bold)
                             }
                         }
                     }
@@ -1086,7 +1125,8 @@ fun Step2CargoInput(
     onUpdateExpectedVolume: (String, String) -> Unit,
     onNavigateNext: () -> Unit,
     onSpaceClick: (String) -> Unit,
-    onUpdateCountTts: (String) -> Unit
+    onUpdateCountTts: (String) -> Unit,
+    onFieldFocus: (() -> Unit) -> Unit = {}
 ) {
     if (activeSpace == null) {
         Step2SpaceSelection(
@@ -1107,7 +1147,8 @@ fun Step2CargoInput(
                 onCompletedSpacesChange(completedSpaces + activeSpace)
                 onActiveSpaceChange(null)
             },
-            onUpdateCountTts = onUpdateCountTts
+            onUpdateCountTts = onUpdateCountTts,
+            onFieldFocus = onFieldFocus
         )
     }
 }
@@ -1390,7 +1431,8 @@ fun Step2ItemSelection(
     expectedVolume: String,
     onUpdateExpectedVolume: (String) -> Unit,
     onComplete: () -> Unit,
-    onUpdateCountTts: (String) -> Unit
+    onUpdateCountTts: (String) -> Unit,
+    onFieldFocus: (() -> Unit) -> Unit = {}
 ) {
     val predefinedItems = spaceItemsMap[spaceName] ?: emptyList()
     val chunkedItems = predefinedItems.chunked(3)
@@ -1818,6 +1860,7 @@ fun Step2ItemSelection(
                     enter = expandVertically() + fadeIn(),
                     exit = shrinkVertically() + fadeOut()
                 ) {
+                    var isExpectedVolumeFocused by remember { mutableStateOf(false) }
                     OutlinedTextField(
                         value = expectedVolume,
                         onValueChange = { input ->
@@ -1838,7 +1881,15 @@ fun Step2ItemSelection(
                             unfocusedLabelColor = Color.White.copy(alpha = 0.6f),
                             cursorColor = Color(0xFFE040FB)
                         ),
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .onFocusChanged { focusState ->
+                                if (focusState.isFocused && !isExpectedVolumeFocused) {
+                                    val backup = expectedVolume
+                                    onFieldFocus { onUpdateExpectedVolume(backup) }
+                                }
+                                isExpectedVolumeFocused = focusState.isFocused
+                            }
                     )
                 }
 
@@ -2697,7 +2748,8 @@ fun TableCell(
     prefix: String? = null,
     keyboardType: KeyboardType = KeyboardType.Number,
     textAlign: TextAlign = TextAlign.End,
-    textFieldModifier: Modifier = Modifier
+    textFieldModifier: Modifier = Modifier,
+    onFocusChanged: (Boolean) -> Unit = {}
 ) {
     Box(
         modifier = modifier
@@ -2738,11 +2790,11 @@ fun TableCell(
                         ),
                         keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
                         singleLine = true,
-                        modifier = if (textFieldModifier != Modifier) {
+                        modifier = (if (textFieldModifier != Modifier) {
                             textFieldModifier
                         } else {
                             if (suffix.isNullOrEmpty() && prefix.isNullOrEmpty()) Modifier.fillMaxWidth() else Modifier.weight(1f)
-                        },
+                        }).onFocusChanged { onFocusChanged(it.isFocused) },
                         decorationBox = { inner ->
                             Box(modifier = Modifier.fillMaxWidth()) {
                                 if (value.isEmpty()) {
@@ -2826,7 +2878,8 @@ fun Step3CustomerInfo(
     onBalanceChange: (String) -> Unit,
     optionCost: String,
     onOptionCostChange: (String) -> Unit,
-    totalExpectedVolume: String
+    totalExpectedVolume: String,
+    onFieldFocus: (() -> Unit) -> Unit = {}
 ) {
     val screenWidth = androidx.compose.ui.platform.LocalConfiguration.current.screenWidthDp
     val screenHeight = androidx.compose.ui.platform.LocalConfiguration.current.screenHeightDp.dp
@@ -3113,6 +3166,7 @@ fun Step3CustomerInfo(
                 val destinationAddr = remember(destinationParts) { destinationParts.getOrNull(0) ?: "" }
                 val destinationDetail = remember(destinationParts) { destinationParts.getOrNull(1) ?: "" }
 
+                var isDepartureAddrFocused by remember { mutableStateOf(false) }
                 OutlinedTextField(
                     value = departureAddr,
                     onValueChange = { newAddr ->
@@ -3120,7 +3174,13 @@ fun Step3CustomerInfo(
                     },
                     label = { Text("출발지 주소", maxLines = 1, overflow = TextOverflow.Ellipsis) },
                     colors = textFieldColors,
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth().onFocusChanged { focusState ->
+                        if (focusState.isFocused && !isDepartureAddrFocused) {
+                            val backup = departure
+                            onFieldFocus { onDepartureChange(backup) }
+                        }
+                        isDepartureAddrFocused = focusState.isFocused
+                    },
                     singleLine = false,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text)
                 )
@@ -3130,6 +3190,7 @@ fun Step3CustomerInfo(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
+                    var isDepartureDetailFocused by remember { mutableStateOf(false) }
                     OutlinedTextField(
                         value = departureDetail,
                         onValueChange = { newDetail ->
@@ -3137,7 +3198,13 @@ fun Step3CustomerInfo(
                         },
                         label = { Text("동/호수", maxLines = 1, overflow = TextOverflow.Ellipsis) },
                         colors = textFieldColors,
-                        modifier = Modifier.weight(0.7f),
+                        modifier = Modifier.weight(0.7f).onFocusChanged { focusState ->
+                            if (focusState.isFocused && !isDepartureDetailFocused) {
+                                val backup = departure
+                                onFieldFocus { onDepartureChange(backup) }
+                            }
+                            isDepartureDetailFocused = focusState.isFocused
+                        },
                         singleLine = false,
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text)
                     )
@@ -3154,7 +3221,7 @@ fun Step3CustomerInfo(
                             colors = textFieldColors,
                             modifier = Modifier.fillMaxWidth(),
                             trailingIcon = {
-                                Icon(
+                                  Icon(
                                     imageVector = Icons.Default.KeyboardArrowDown,
                                     contentDescription = null,
                                     tint = Color(0xFFE040FB)
@@ -3209,6 +3276,7 @@ fun Step3CustomerInfo(
                     }
                 }
 
+                var isDestinationAddrFocused by remember { mutableStateOf(false) }
                 OutlinedTextField(
                     value = destinationAddr,
                     onValueChange = { newAddr ->
@@ -3216,7 +3284,13 @@ fun Step3CustomerInfo(
                     },
                     label = { Text("도착지 주소", maxLines = 1, overflow = TextOverflow.Ellipsis) },
                     colors = textFieldColors,
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth().onFocusChanged { focusState ->
+                        if (focusState.isFocused && !isDestinationAddrFocused) {
+                            val backup = destination
+                            onFieldFocus { onDestinationChange(backup) }
+                        }
+                        isDestinationAddrFocused = focusState.isFocused
+                    },
                     singleLine = false,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text)
                 )
@@ -3226,6 +3300,7 @@ fun Step3CustomerInfo(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
+                    var isDestinationDetailFocused by remember { mutableStateOf(false) }
                     OutlinedTextField(
                         value = destinationDetail,
                         onValueChange = { newDetail ->
@@ -3233,7 +3308,13 @@ fun Step3CustomerInfo(
                         },
                         label = { Text("동/호수", maxLines = 1, overflow = TextOverflow.Ellipsis) },
                         colors = textFieldColors,
-                        modifier = Modifier.weight(0.7f),
+                        modifier = Modifier.weight(0.7f).onFocusChanged { focusState ->
+                            if (focusState.isFocused && !isDestinationDetailFocused) {
+                                val backup = destination
+                                onFieldFocus { onDestinationChange(backup) }
+                            }
+                            isDestinationDetailFocused = focusState.isFocused
+                        },
                         singleLine = false,
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text)
                     )
@@ -3307,6 +3388,20 @@ fun Step3CustomerInfo(
             }
         }
 
+        var isTotalVolumeFocused by remember { mutableStateOf(false) }
+        var isMoveCostFocused by remember { mutableStateOf(false) }
+        var isWorkersMFocused by remember { mutableStateOf(false) }
+        var isWorkersFFocused by remember { mutableStateOf(false) }
+        var isOptionCostFocused by remember { mutableStateOf(false) }
+        var isLaddersStartFloorFocused by remember { mutableStateOf(false) }
+        var isLaddersStartCostFocused by remember { mutableStateOf(false) }
+        var isTotalCostFocused by remember { mutableStateOf(false) }
+        var isLaddersEndFloorFocused by remember { mutableStateOf(false) }
+        var isLaddersEndCostFocused by remember { mutableStateOf(false) }
+        var isDepositFocused by remember { mutableStateOf(false) }
+        var isExtraTruckFocused by remember { mutableStateOf(false) }
+        var isBalanceFocused by remember { mutableStateOf(false) }
+
         // Amount & Details Card
         Card(
             modifier = Modifier.fillMaxWidth(),
@@ -3341,7 +3436,14 @@ fun Step3CustomerInfo(
                             value = totalVolume,
                             onValueChange = onTotalVolumeChange,
                             modifier = Modifier.weight(1f),
-                            suffix = " 톤"
+                            suffix = " 톤",
+                            onFocusChanged = { focused ->
+                                if (focused && !isTotalVolumeFocused) {
+                                    val backup = totalVolume
+                                    onFieldFocus { onTotalVolumeChange(backup) }
+                                }
+                                isTotalVolumeFocused = focused
+                            }
                         )
                         TableCell(
                             label = "이사비용",
@@ -3350,7 +3452,14 @@ fun Step3CustomerInfo(
                             modifier = Modifier.weight(1f),
                             prefix = "₩ ",
                             suffix = " 만원",
-                            textFieldModifier = Modifier.width(amountFieldWidth)
+                            textFieldModifier = Modifier.width(amountFieldWidth),
+                            onFocusChanged = { focused ->
+                                if (focused && !isMoveCostFocused) {
+                                    val backup = moveCost
+                                    onFieldFocus { onMoveCostChange(backup) }
+                                }
+                                isMoveCostFocused = focused
+                            }
                         )
                     }
                     // Row 2: 작업인원 / 옵션비용
@@ -3383,7 +3492,13 @@ fun Step3CustomerInfo(
                                         textStyle = TextStyle(color = Color.White, fontSize = 15.sp, textAlign = TextAlign.End),
                                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                                         singleLine = true,
-                                        modifier = Modifier.width((screenWidth * 0.05f).dp)
+                                        modifier = Modifier.width((screenWidth * 0.05f).dp).onFocusChanged { focusState ->
+                                            if (focusState.isFocused && !isWorkersMFocused) {
+                                                val backup = workersM
+                                                onFieldFocus { onWorkersMChange(backup) }
+                                            }
+                                            isWorkersMFocused = focusState.isFocused
+                                        }
                                     )
                                     Text("명   ", color = Color.White.copy(alpha = 0.6f), fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                                     Text("여", color = Color.White.copy(alpha = 0.6f), fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -3393,7 +3508,13 @@ fun Step3CustomerInfo(
                                         textStyle = TextStyle(color = Color.White, fontSize = 15.sp, textAlign = TextAlign.End),
                                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                                         singleLine = true,
-                                        modifier = Modifier.width((screenWidth * 0.05f).dp)
+                                        modifier = Modifier.width((screenWidth * 0.05f).dp).onFocusChanged { focusState ->
+                                            if (focusState.isFocused && !isWorkersFFocused) {
+                                                val backup = workersF
+                                                onFieldFocus { onWorkersFChange(backup) }
+                                            }
+                                            isWorkersFFocused = focusState.isFocused
+                                        }
                                     )
                                     Text("명", color = Color.White.copy(alpha = 0.6f), fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                                 }
@@ -3406,7 +3527,14 @@ fun Step3CustomerInfo(
                             modifier = Modifier.weight(1f),
                             prefix = "₩ ",
                             suffix = " 만원",
-                            textFieldModifier = Modifier.width(amountFieldWidth)
+                            textFieldModifier = Modifier.width(amountFieldWidth),
+                            onFocusChanged = { focused ->
+                                if (focused && !isOptionCostFocused) {
+                                    val backup = optionCost
+                                    onFieldFocus { onOptionCostChange(backup) }
+                                }
+                                isOptionCostFocused = focused
+                            }
                         )
                     }
                     // Row 3: 출발지사다리 / 총비용
@@ -3433,7 +3561,13 @@ fun Step3CustomerInfo(
                                         onValueChange = onLaddersStartFloorChange,
                                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                                         textStyle = TextStyle(color = Color.White, fontSize = 15.sp, textAlign = TextAlign.End),
-                                        modifier = Modifier.weight(1f),
+                                        modifier = Modifier.weight(1f).onFocusChanged { focusState ->
+                                            if (focusState.isFocused && !isLaddersStartFloorFocused) {
+                                                val backup = laddersStartFloor
+                                                onFieldFocus { onLaddersStartFloorChange(backup) }
+                                            }
+                                            isLaddersStartFloorFocused = focusState.isFocused
+                                        },
                                         singleLine = true,
                                         decorationBox = { inner ->
                                             Box(modifier = Modifier.fillMaxWidth()) {
@@ -3457,7 +3591,13 @@ fun Step3CustomerInfo(
                                         onValueChange = onLaddersStartCostChange,
                                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                                         textStyle = TextStyle(color = Color.White, fontSize = 15.sp, textAlign = TextAlign.End),
-                                        modifier = Modifier.weight(1f),
+                                        modifier = Modifier.weight(1f).onFocusChanged { focusState ->
+                                            if (focusState.isFocused && !isLaddersStartCostFocused) {
+                                                val backup = laddersStartCost
+                                                onFieldFocus { onLaddersStartCostChange(backup) }
+                                            }
+                                            isLaddersStartCostFocused = focusState.isFocused
+                                        },
                                         singleLine = true,
                                         decorationBox = { inner ->
                                             Box(modifier = Modifier.fillMaxWidth()) {
@@ -3485,7 +3625,14 @@ fun Step3CustomerInfo(
                             modifier = Modifier.weight(1f),
                             prefix = "₩ ",
                             suffix = " 만원",
-                            textFieldModifier = Modifier.width(amountFieldWidth)
+                            textFieldModifier = Modifier.width(amountFieldWidth),
+                            onFocusChanged = { focused ->
+                                if (focused && !isTotalCostFocused) {
+                                    val backup = totalCost
+                                    onFieldFocus { onTotalCostChange(backup) }
+                                }
+                                isTotalCostFocused = focused
+                            }
                         )
                     }
                     // Row 4: 도착지사다리 / 계약금
@@ -3512,7 +3659,13 @@ fun Step3CustomerInfo(
                                         onValueChange = onLaddersEndFloorChange,
                                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                                         textStyle = TextStyle(color = Color.White, fontSize = 15.sp, textAlign = TextAlign.End),
-                                        modifier = Modifier.weight(1f),
+                                        modifier = Modifier.weight(1f).onFocusChanged { focusState ->
+                                            if (focusState.isFocused && !isLaddersEndFloorFocused) {
+                                                val backup = laddersEndFloor
+                                                onFieldFocus { onLaddersEndFloorChange(backup) }
+                                            }
+                                            isLaddersEndFloorFocused = focusState.isFocused
+                                        },
                                         singleLine = true,
                                         decorationBox = { inner ->
                                             Box(modifier = Modifier.fillMaxWidth()) {
@@ -3536,7 +3689,13 @@ fun Step3CustomerInfo(
                                         onValueChange = onLaddersEndCostChange,
                                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                                         textStyle = TextStyle(color = Color.White, fontSize = 15.sp, textAlign = TextAlign.End),
-                                        modifier = Modifier.weight(1f),
+                                        modifier = Modifier.weight(1f).onFocusChanged { focusState ->
+                                            if (focusState.isFocused && !isLaddersEndCostFocused) {
+                                                val backup = laddersEndCost
+                                                onFieldFocus { onLaddersEndCostChange(backup) }
+                                            }
+                                            isLaddersEndCostFocused = focusState.isFocused
+                                        },
                                         singleLine = true,
                                         decorationBox = { inner ->
                                             Box(modifier = Modifier.fillMaxWidth()) {
@@ -3564,7 +3723,14 @@ fun Step3CustomerInfo(
                             modifier = Modifier.weight(1f),
                             prefix = "₩ ",
                             suffix = " 만원",
-                            textFieldModifier = Modifier.width(amountFieldWidth)
+                            textFieldModifier = Modifier.width(amountFieldWidth),
+                            onFocusChanged = { focused ->
+                                if (focused && !isDepositFocused) {
+                                    val backup = deposit
+                                    onFieldFocus { onDepositChange(backup) }
+                                }
+                                isDepositFocused = focused
+                            }
                         )
                     }
                     // Row 5: 1T 추가시 / 잔금
@@ -3574,7 +3740,14 @@ fun Step3CustomerInfo(
                             value = extraTruck,
                             onValueChange = onExtraTruckChange,
                             modifier = Modifier.weight(1f),
-                            suffix = " 만원"
+                            suffix = " 만원",
+                            onFocusChanged = { focused ->
+                                if (focused && !isExtraTruckFocused) {
+                                    val backup = extraTruck
+                                    onFieldFocus { onExtraTruckChange(backup) }
+                                }
+                                isExtraTruckFocused = focused
+                            }
                         )
                         TableCell(
                             label = "잔금",
@@ -3583,7 +3756,14 @@ fun Step3CustomerInfo(
                             modifier = Modifier.weight(1f),
                             prefix = "₩ ",
                             suffix = " 만원",
-                            textFieldModifier = Modifier.width(amountFieldWidth)
+                            textFieldModifier = Modifier.width(amountFieldWidth),
+                            onFocusChanged = { focused ->
+                                if (focused && !isBalanceFocused) {
+                                    val backup = balance
+                                    onFieldFocus { onBalanceChange(backup) }
+                                }
+                                isBalanceFocused = focused
+                            }
                         )
                     }
                 }
@@ -3610,33 +3790,54 @@ fun Step3CustomerInfo(
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
+                var isPhoneNumberFocused by remember { mutableStateOf(false) }
                 OutlinedTextField(
                     value = phoneNumber,
                     onValueChange = onPhoneNumberChange,
                     label = { Text("전화번호", maxLines = 1, overflow = TextOverflow.Ellipsis) },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text),
                     colors = textFieldColors,
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth().onFocusChanged { focusState ->
+                        if (focusState.isFocused && !isPhoneNumberFocused) {
+                            val backup = phoneNumber
+                            onFieldFocus { onPhoneNumberChange(backup) }
+                        }
+                        isPhoneNumberFocused = focusState.isFocused
+                    },
                     singleLine = true
                 )
+                var isCustomerNameFocused by remember { mutableStateOf(false) }
                 OutlinedTextField(
                     value = customerName,
                     onValueChange = onCustomerNameChange,
                     label = { Text("성명 또는 회사명(계약금 입금자명)", maxLines = 1, overflow = TextOverflow.Ellipsis) },
                     colors = textFieldColors,
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth().onFocusChanged { focusState ->
+                        if (focusState.isFocused && !isCustomerNameFocused) {
+                            val backup = customerName
+                            onFieldFocus { onCustomerNameChange(backup) }
+                        }
+                        isCustomerNameFocused = focusState.isFocused
+                    },
                     singleLine = true
                 )
                 Box(
                     modifier = Modifier.fillMaxWidth()
                 ) {
+                    var isMemoFocused by remember { mutableStateOf(false) }
                     OutlinedTextField(
                         value = memo,
                         onValueChange = { onMemoChange(it) },
                         label = { Text("고객 요청 및 특이사항") },
                         minLines = 3,
                         maxLines = Int.MAX_VALUE,
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier.fillMaxWidth().onFocusChanged { focusState ->
+                            if (focusState.isFocused && !isMemoFocused) {
+                                val backup = memo
+                                onFieldFocus { onMemoChange(backup) }
+                            }
+                            isMemoFocused = focusState.isFocused
+                        },
                         colors = textFieldColors
                     )
                     IconButton(

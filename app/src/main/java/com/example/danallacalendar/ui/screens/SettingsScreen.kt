@@ -122,7 +122,7 @@ val ColorOptions = listOf(
     0xFF29B6F6L  // 하늘색
 )
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
 fun SettingsScreen(
     onNavigateBack: () -> Unit,
@@ -130,6 +130,9 @@ fun SettingsScreen(
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    val focusManager = androidx.compose.ui.platform.LocalFocusManager.current
+    val isImeVisible = WindowInsets.isImeVisible
+    var onCancelAction by remember { mutableStateOf<(() -> Unit)?>(null) }
 
     // Read team count from dataStore
     val teamCountFlow = remember(context) {
@@ -311,15 +314,19 @@ fun SettingsScreen(
         },
         modifier = modifier
     ) { paddingValues ->
-        Column(
+        Box(
             modifier = Modifier
                 .fillMaxSize()
                 .background(MaterialTheme.colorScheme.background)
                 .padding(paddingValues)
-                .padding(16.dp)
-                .verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(16.dp)
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
             // Category: 업체 정보 설정
             Column(
                 verticalArrangement = Arrangement.spacedBy(8.dp)
@@ -361,46 +368,102 @@ fun SettingsScreen(
                             modifier = Modifier.padding(16.dp),
                             verticalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
+                            var isCompanyNameFocused by remember { mutableStateOf(false) }
                             SettingsInputField(
                                 label = "상호명",
                                 value = companyName,
-                                onValueChange = { companyName = it }
+                                onValueChange = { companyName = it },
+                                onFocusChanged = { focused ->
+                                    if (focused && !isCompanyNameFocused) {
+                                        val backup = companyName
+                                        onCancelAction = { companyName = backup }
+                                    }
+                                    isCompanyNameFocused = focused
+                                }
                             )
 
+                            var isLicenseNumberFocused by remember { mutableStateOf(false) }
                             SettingsInputField(
                                 label = "관허 번호",
                                 value = licenseNumber,
-                                onValueChange = { licenseNumber = it }
+                                onValueChange = { licenseNumber = it },
+                                onFocusChanged = { focused ->
+                                    if (focused && !isLicenseNumberFocused) {
+                                        val backup = licenseNumber
+                                        onCancelAction = { licenseNumber = backup }
+                                    }
+                                    isLicenseNumberFocused = focused
+                                }
                             )
 
+                            var isCeoNicknameFocused by remember { mutableStateOf(false) }
                             SettingsInputField(
                                 label = "대표자 닉네임",
                                 value = ceoNickname,
-                                onValueChange = { ceoNickname = it }
+                                onValueChange = { ceoNickname = it },
+                                onFocusChanged = { focused ->
+                                    if (focused && !isCeoNicknameFocused) {
+                                        val backup = ceoNickname
+                                        onCancelAction = { ceoNickname = backup }
+                                    }
+                                    isCeoNicknameFocused = focused
+                                }
                             )
 
+                            var isCompanyPhoneFocused by remember { mutableStateOf(false) }
                             SettingsInputField(
                                 label = "전화번호",
                                 value = companyPhone,
-                                onValueChange = { companyPhone = it }
+                                onValueChange = { companyPhone = it },
+                                onFocusChanged = { focused ->
+                                    if (focused && !isCompanyPhoneFocused) {
+                                        val backup = companyPhone
+                                        onCancelAction = { companyPhone = backup }
+                                    }
+                                    isCompanyPhoneFocused = focused
+                                }
                             )
 
+                            var isCeoNameFocused by remember { mutableStateOf(false) }
                             SettingsInputField(
                                 label = "대표자명",
                                 value = ceoName,
-                                onValueChange = { ceoName = it }
+                                onValueChange = { ceoName = it },
+                                onFocusChanged = { focused ->
+                                    if (focused && !isCeoNameFocused) {
+                                        val backup = ceoName
+                                        onCancelAction = { ceoName = backup }
+                                    }
+                                    isCeoNameFocused = focused
+                                }
                             )
 
+                            var isBizNumberFocused by remember { mutableStateOf(false) }
                             SettingsInputField(
                                 label = "사업자번호",
                                 value = bizNumber,
-                                onValueChange = { bizNumber = it }
+                                onValueChange = { bizNumber = it },
+                                onFocusChanged = { focused ->
+                                    if (focused && !isBizNumberFocused) {
+                                        val backup = bizNumber
+                                        onCancelAction = { bizNumber = backup }
+                                    }
+                                    isBizNumberFocused = focused
+                                }
                             )
 
+                            var isBankAccountFocused by remember { mutableStateOf(false) }
                             SettingsInputField(
                                 label = "계좌번호",
                                 value = bankAccount,
-                                onValueChange = { bankAccount = it }
+                                onValueChange = { bankAccount = it },
+                                onFocusChanged = { focused ->
+                                    if (focused && !isBankAccountFocused) {
+                                        val backup = bankAccount
+                                        onCancelAction = { bankAccount = backup }
+                                    }
+                                    isBankAccountFocused = focused
+                                }
                             )
 
                             HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
@@ -585,6 +648,7 @@ fun SettingsScreen(
                                     )
 
                                     var isFocused by remember { mutableStateOf(false) }
+                                    var isTeamNameFocused by remember { mutableStateOf(false) }
                                     Box(
                                         modifier = Modifier
                                             .weight(1f)
@@ -616,6 +680,18 @@ fun SettingsScreen(
                                                 .fillMaxWidth()
                                                 .onFocusChanged {
                                                     isFocused = it.isFocused
+                                                    if (it.isFocused && !isTeamNameFocused) {
+                                                        val backup = localName
+                                                        onCancelAction = {
+                                                            localName = backup
+                                                            scope.launch {
+                                                                context.settingsDataStore.edit { preferences ->
+                                                                    preferences[config.nameKey] = backup
+                                                                }
+                                                            }
+                                                        }
+                                                    }
+                                                    isTeamNameFocused = it.isFocused
                                                 }
                                         )
                                     }
@@ -887,6 +963,42 @@ fun SettingsScreen(
             }
 
 
+            }
+
+            if (isImeVisible) {
+                Surface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .align(Alignment.BottomCenter)
+                        .imePadding(),
+                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.95f),
+                    border = BorderStroke(0.5.dp, MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.15f))
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 6.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        TextButton(
+                            onClick = {
+                                onCancelAction?.invoke()
+                                focusManager.clearFocus()
+                            }
+                        ) {
+                            Text("취소", color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f), fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                        }
+                        TextButton(
+                            onClick = {
+                                focusManager.clearFocus()
+                            }
+                        ) {
+                            Text("저장", color = MaterialTheme.colorScheme.primary, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
+            }
         }
     }
 }
@@ -937,7 +1049,8 @@ fun SettingsInputField(
     label: String,
     value: String,
     onValueChange: (String) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onFocusChanged: (Boolean) -> Unit = {}
 ) {
     var isFocused by remember { mutableStateOf(false) }
     Row(
@@ -977,6 +1090,7 @@ fun SettingsInputField(
                     .fillMaxWidth()
                     .onFocusChanged {
                         isFocused = it.isFocused
+                        onFocusChanged(it.isFocused)
                     }
             )
         }

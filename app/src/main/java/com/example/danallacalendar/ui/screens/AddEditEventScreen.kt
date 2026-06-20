@@ -32,7 +32,9 @@ import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.BorderStroke
 import com.example.danallacalendar.estimate.LocalEstimateViewerDialog
+
 
 import com.example.danallacalendar.ui.components.formatPhoneNumber
 import android.content.Intent
@@ -84,6 +86,9 @@ fun AddEditEventScreen(
     val context = LocalContext.current
     val focusManager = LocalFocusManager.current
     val prefs: SharedPreferences = remember { context.getSharedPreferences("calendar_prefs", Context.MODE_PRIVATE) }
+
+    var focusedField by remember { mutableStateOf<String?>(null) }
+    var originalValue by remember { mutableStateOf("") }
 
 
 
@@ -558,7 +563,14 @@ fun AddEditEventScreen(
                             focusedIndicatorColor = Color.Transparent,
                             unfocusedIndicatorColor = Color.Transparent
                         ),
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier
+                            .weight(1f)
+                            .onFocusChanged { focusState ->
+                                if (focusState.isFocused) {
+                                    focusedField = "title"
+                                    originalValue = title
+                                }
+                            }
                     )
 
                     IconButton(
@@ -667,6 +679,12 @@ fun AddEditEventScreen(
                                     .fillMaxWidth()
                                     .defaultMinSize(minHeight = 28.dp)
                                     .padding(vertical = 4.dp)
+                                    .onFocusChanged { focusState ->
+                                        if (focusState.isFocused) {
+                                            focusedField = "location"
+                                            originalValue = location
+                                        }
+                                    }
                             )
                         }
                         Spacer(modifier = Modifier.width(8.dp))
@@ -732,6 +750,12 @@ fun AddEditEventScreen(
                                     .fillMaxWidth()
                                     .defaultMinSize(minHeight = 28.dp)
                                     .padding(vertical = 4.dp)
+                                    .onFocusChanged { focusState ->
+                                        if (focusState.isFocused) {
+                                            focusedField = "location1b"
+                                            originalValue = location1b
+                                        }
+                                    }
                             )
                         }
                     }
@@ -800,6 +824,12 @@ fun AddEditEventScreen(
                                         .fillMaxWidth()
                                         .defaultMinSize(minHeight = 28.dp)
                                         .padding(vertical = 4.dp)
+                                        .onFocusChanged { focusState ->
+                                            if (focusState.isFocused) {
+                                                focusedField = "location2"
+                                                originalValue = location2
+                                            }
+                                        }
                                 )
                             }
                             Spacer(modifier = Modifier.width(8.dp))
@@ -865,6 +895,12 @@ fun AddEditEventScreen(
                                         .fillMaxWidth()
                                         .defaultMinSize(minHeight = 28.dp)
                                         .padding(vertical = 4.dp)
+                                        .onFocusChanged { focusState ->
+                                            if (focusState.isFocused) {
+                                                focusedField = "location2b"
+                                                originalValue = location2b
+                                            }
+                                        }
                                 )
                             }
                         }
@@ -1348,8 +1384,55 @@ fun AddEditEventScreen(
                 }
                 }
                 }
+            }
 
-
+            if (isImeVisible) {
+                Surface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .align(Alignment.BottomCenter)
+                        .imePadding(),
+                    color = Color(0xFF1E1045), // 키보드와 비슷한 어두운 배경색
+                    border = BorderStroke(0.5.dp, Color.White.copy(alpha = 0.15f))
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 6.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        TextButton(
+                            onClick = {
+                                when {
+                                    focusedField == "title" -> title = originalValue
+                                    focusedField == "location" -> location = originalValue
+                                    focusedField == "location1b" -> location1b = originalValue
+                                    focusedField == "location2" -> location2 = originalValue
+                                    focusedField == "location2b" -> location2b = originalValue
+                                    focusedField?.startsWith("notes_") == true -> {
+                                        val idx = focusedField!!.substringAfter("notes_").toIntOrNull()
+                                        if (idx != null && idx in notesList.indices) {
+                                            notesList = notesList.toMutableList().apply {
+                                                this[idx] = originalValue
+                                            }
+                                        }
+                                    }
+                                }
+                                focusManager.clearFocus()
+                            }
+                        ) {
+                            Text("취소", color = Color.White.copy(alpha = 0.7f), fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                        }
+                        TextButton(
+                            onClick = {
+                                focusManager.clearFocus()
+                            }
+                        ) {
+                            Text("저장", color = MaterialTheme.colorScheme.primary, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
             }
         }
     }
@@ -1849,7 +1932,8 @@ fun PhoneInputField(
     value: String,
     onValueChange: (String) -> Unit,
     isReadOnly: Boolean,
-    focusManager: androidx.compose.ui.focus.FocusManager
+    focusManager: androidx.compose.ui.focus.FocusManager,
+    modifier: Modifier = Modifier
 ) {
     BasicTextField(
         value = value,
@@ -1868,7 +1952,7 @@ fun PhoneInputField(
             color = if (isReadOnly) MaterialTheme.colorScheme.onSurfaceVariant
                     else MaterialTheme.colorScheme.onSurface
         ),
-        modifier = Modifier.fillMaxWidth()
+        modifier = modifier.fillMaxWidth()
     )
 }
 
