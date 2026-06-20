@@ -151,6 +151,26 @@ fun CalendarMainScreen(
         initial = TeamConfigs.map { it.defaultName to it.defaultColor }
     )
 
+    val visitSlotCountFlow = remember(context) {
+        context.settingsDataStore.data.map { preferences ->
+            preferences[VISIT_SLOT_COUNT_KEY] ?: 1
+        }
+    }
+    val visitSlotCount by visitSlotCountFlow.collectAsState(initial = 1)
+
+    val visitColorsFlow = remember(context) {
+        context.settingsDataStore.data.map { preferences ->
+            Triple(
+                preferences[VISIT_COLOR_DEFAULT_KEY] ?: 0xFF9E9E9EL,
+                preferences[VISIT_COLOR_ACTIVE_KEY] ?: 0xFF29B6F6L,
+                preferences[VISIT_COLOR_DONE_KEY] ?: 0xFFFF9800L
+            )
+        }
+    }
+    val visitColors by visitColorsFlow.collectAsState(
+        initial = Triple(0xFF9E9E9EL, 0xFF29B6F6L, 0xFFFF9800L)
+    )
+
     val memberViewModel: MemberViewModel = hiltViewModel()
     val members by memberViewModel.members.collectAsStateWithLifecycle()
     val isCreator by memberViewModel.isCreator.collectAsStateWithLifecycle()
@@ -348,6 +368,9 @@ fun CalendarMainScreen(
                     deadlineDates = deadlineDates,
                     slotCount = slotCount,
                     teamPrefsList = teamPrefsList,
+                    eventFilter = eventFilter,
+                    visitSlotCount = visitSlotCount,
+                    visitColors = visitColors,
                     onDaySelected = { viewModel.selectDate(it) },
                     onMonthChanged = { viewModel.selectDate(it.timeInMillis) },
                     onWeekSelected = { viewModel.selectDate(it) },
@@ -700,6 +723,9 @@ fun CalendarGridSection(
     deadlineDates: Set<Long> = emptySet(),
     slotCount: Int,
     teamPrefsList: List<Pair<String, Long>>,
+    eventFilter: EventFilter,
+    visitSlotCount: Int,
+    visitColors: Triple<Long, Long, Long>,
     onDaySelected: (Long) -> Unit,
     onMonthChanged: (Calendar) -> Unit,
     onWeekSelected: (Long) -> Unit,
@@ -923,6 +949,9 @@ fun CalendarGridSection(
                                                 categories = categories,
                                                 slotCount = slotCount,
                                                 teamPrefsList = teamPrefsList,
+                                                eventFilter = eventFilter,
+                                                visitSlotCount = visitSlotCount,
+                                                visitColors = visitColors,
                                                 onClick = { onDaySelected(day.dateInMillis) },
                                                 modifier = Modifier.weight(1f)
                                             )
@@ -956,6 +985,9 @@ fun CalendarGridSection(
                                         categories = categories,
                                         slotCount = slotCount,
                                         teamPrefsList = teamPrefsList,
+                                        eventFilter = eventFilter,
+                                        visitSlotCount = visitSlotCount,
+                                        visitColors = visitColors,
                                         onClick = { onDaySelected(day.dateInMillis) },
                                         modifier = Modifier.weight(1f)
                                     )
@@ -978,6 +1010,9 @@ fun CalendarDayCell(
     categories: List<CalendarCategory>,
     slotCount: Int,
     teamPrefsList: List<Pair<String, Long>>,
+    eventFilter: EventFilter,
+    visitSlotCount: Int,
+    visitColors: Triple<Long, Long, Long>,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -1056,43 +1091,95 @@ fun CalendarDayCell(
             verticalArrangement = Arrangement.Center,
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            val confirmEvents = dayEvents.filter { it.isAllDay && it.teamId != null }
             val barAlpha = if (day.isCurrentMonth) 1.0f else 0.35f
-            val defaultGray = Color(0xFFE0E0E0).copy(alpha = barAlpha)
 
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(1.dp)
-            ) {
-                repeat(slotCount) { index ->
-                    val currentTeamId = index + 1
-                    val teamEvents = confirmEvents.filter { it.teamId == currentTeamId }
-                    
-                    val hasTop = teamEvents.any { it.slotPosition == "top" || it.slotPosition == "both" }
-                    val hasBottom = teamEvents.any { it.slotPosition == "bottom" || it.slotPosition == "both" }
+            if (eventFilter == EventFilter.ESTIMATE) {
+                val visitEvents = dayEvents.filter { !it.isAllDay }
+                val defaultColorVal = visitColors.first
+                val activeColorVal = visitColors.second
+                val doneColorVal = visitColors.third
 
-                    val teamPref = teamPrefsList.getOrNull(index) ?: (TeamConfigs.getOrNull(index)?.let { it.defaultName to it.defaultColor } ?: ("" to 0xFF4CAF50L))
-                    val teamColor = Color(teamPref.second).copy(alpha = barAlpha)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(1.dp)
+                ) {
+                    repeat(visitSlotCount) { index ->
+                        val topColorVal = if (index < visitEvents.size) {
+                            if (visitEvents[index].isCompleted) doneColorVal else activeColorVal
+                        } else {
+                            defaultColorVal
+                        }
 
-                    Column(
-                        modifier = Modifier
-                            .weight(1f)
-                            .fillMaxHeight()
-                            .clip(RoundedCornerShape(1.dp))
-                    ) {
-                        Box(
+                        val bottomIndex = index + visitSlotCount
+                        val bottomColorVal = if (bottomIndex < visitEvents.size) {
+                            if (visitEvents[bottomIndex].isCompleted) doneColorVal else activeColorVal
+                        } else {
+                            defaultColorVal
+                        }
+
+                        val topColor = Color(topColorVal).copy(alpha = barAlpha)
+                        val bottomColor = Color(bottomColorVal).copy(alpha = barAlpha)
+
+                        Column(
                             modifier = Modifier
-                                .fillMaxWidth()
                                 .weight(1f)
-                                .background(if (hasTop) teamColor else defaultGray)
-                        )
-                        Spacer(modifier = Modifier.height(0.5.dp))
-                        Box(
+                                .fillMaxHeight()
+                                .clip(RoundedCornerShape(1.dp))
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .weight(1f)
+                                    .background(topColor)
+                            )
+                            Spacer(modifier = Modifier.height(0.5.dp))
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .weight(1f)
+                                    .background(bottomColor)
+                            )
+                        }
+                    }
+                }
+            } else {
+                val confirmEvents = dayEvents.filter { it.isAllDay && it.teamId != null }
+                val defaultGray = Color(0xFFE0E0E0).copy(alpha = barAlpha)
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(1.dp)
+                ) {
+                    repeat(slotCount) { index ->
+                        val currentTeamId = index + 1
+                        val teamEvents = confirmEvents.filter { it.teamId == currentTeamId }
+
+                        val hasTop = teamEvents.any { it.slotPosition == "top" || it.slotPosition == "both" }
+                        val hasBottom = teamEvents.any { it.slotPosition == "bottom" || it.slotPosition == "both" }
+
+                        val teamPref = teamPrefsList.getOrNull(index) ?: (TeamConfigs.getOrNull(index)?.let { it.defaultName to it.defaultColor } ?: ("" to 0xFF4CAF50L))
+                        val teamColor = Color(teamPref.second).copy(alpha = barAlpha)
+
+                        Column(
                             modifier = Modifier
-                                .fillMaxWidth()
                                 .weight(1f)
-                                .background(if (hasBottom) teamColor else defaultGray)
-                        )
+                                .fillMaxHeight()
+                                .clip(RoundedCornerShape(1.dp))
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .weight(1f)
+                                    .background(if (hasTop) teamColor else defaultGray)
+                            )
+                            Spacer(modifier = Modifier.height(0.5.dp))
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .weight(1f)
+                                    .background(if (hasBottom) teamColor else defaultGray)
+                            )
+                        }
                     }
                 }
             }
