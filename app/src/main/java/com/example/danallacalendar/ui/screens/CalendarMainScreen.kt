@@ -401,13 +401,34 @@ fun CalendarMainScreen(
                                         val teamName = teamPref.first
                                         val teamColorLong = teamPref.second
                                         
-                                        // 시작시간 & 물량 폴백 처리 및 단위 결합
                                         val resolvedVolume = if (estimate.totalVolume.isNotBlank()) {
                                             if (estimate.totalVolume.contains("톤")) estimate.totalVolume else "${estimate.totalVolume}톤"
                                         } else {
                                             "-"
                                         }
-                                        val titleText = teamName
+
+                                        val resolvedStartTime = if (estimate.startTime.isNotBlank()) {
+                                            estimate.startTime
+                                        } else {
+                                            "-"
+                                        }
+
+                                        val departureFirstWord = run {
+                                            val mainPart = estimate.departure.split("|").firstOrNull() ?: ""
+                                            val firstWord = mainPart.trim().split(" ").firstOrNull() ?: ""
+                                            if (firstWord.isNotBlank()) firstWord else "-"
+                                        }
+
+                                        val destinationFirstWord = run {
+                                            val mainPart = estimate.destination.split("|").firstOrNull() ?: ""
+                                            val firstWord = mainPart.trim().split(" ").firstOrNull() ?: ""
+                                            if (firstWord.isNotBlank()) firstWord else "-"
+                                        }
+
+                                        val departureFloor = if (estimate.departureFloorType.isNotBlank()) estimate.departureFloorType else "-"
+                                        val destinationFloor = if (estimate.destinationFloorType.isNotBlank()) estimate.destinationFloorType else "-"
+
+                                        val titleText = "$teamName. $resolvedStartTime. $resolvedVolume\n$departureFirstWord. $destinationFirstWord. $departureFloor/$destinationFloor"
                                         
                                         // 출발지/도착지 및 동호수 처리 -> ||| 로 결합
                                         val departureAddr: String
@@ -1479,14 +1500,27 @@ fun EventItemCard(
             border = null,
             elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
         ) {
+            val isContractConfirmed = event.isAllDay && event.teamId != null
+            val titleFirstLine = event.title.lineSequence().firstOrNull()?.trim() ?: ""
+            val startLocation = event.location.split("|||").getOrNull(0)?.trim() ?: ""
+            val displayText = if (isContractConfirmed) {
+                event.title
+            } else {
+                if (startLocation.isNotEmpty()) {
+                    "$titleFirstLine $startLocation"
+                } else {
+                    titleFirstLine
+                }
+            }
+
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(
                         start = minOf(screenWidth, 400.dp) * 0.025f, 
                         end = minOf(screenWidth, 400.dp) * 0.015f, 
-                        top = if (event.isAllDay) (screenHeight * 0.026f) else (screenHeight * 0.012f), 
-                        bottom = if (event.isAllDay) (screenHeight * 0.026f) else (screenHeight * 0.012f)
+                        top = if (event.isAllDay && !displayText.contains("\n")) (screenHeight * 0.026f) else (screenHeight * 0.012f), 
+                        bottom = if (event.isAllDay && !displayText.contains("\n")) (screenHeight * 0.026f) else (screenHeight * 0.012f)
                     ),
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -1520,19 +1554,12 @@ fun EventItemCard(
 
                 // 일정 제목 Column (우측 남은 가로 공간을 채움)
                 Column(modifier = Modifier.weight(1f)) {
-                    val titleFirstLine = event.title.lineSequence().firstOrNull()?.trim() ?: ""
-                    val startLocation = event.location.split("|||").getOrNull(0)?.trim() ?: ""
-                    val displayText = if (startLocation.isNotEmpty()) {
-                        "$titleFirstLine $startLocation"
-                    } else {
-                        titleFirstLine
-                    }
                     Text(
                         text = displayText,
                         fontSize = (minOf(screenWidth, 400.dp).value * 0.04f).sp,
                         fontWeight = FontWeight.Bold,
                         color = contentColor,
-                        maxLines = 1,
+                        maxLines = if (isContractConfirmed) 2 else 1,
                         overflow = TextOverflow.Ellipsis,
                         style = androidx.compose.ui.text.TextStyle(
                             textDecoration = if (event.isCompleted) androidx.compose.ui.text.style.TextDecoration.LineThrough else androidx.compose.ui.text.style.TextDecoration.None
