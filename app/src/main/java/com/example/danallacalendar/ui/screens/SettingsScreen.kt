@@ -131,7 +131,6 @@ fun SettingsScreen(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val focusManager = androidx.compose.ui.platform.LocalFocusManager.current
-    val isImeVisible = WindowInsets.isImeVisible
     var onCancelAction by remember { mutableStateOf<(() -> Unit)?>(null) }
 
     // Read team count from dataStore
@@ -965,40 +964,6 @@ fun SettingsScreen(
 
             }
 
-            if (isImeVisible) {
-                Surface(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .align(Alignment.BottomCenter)
-                        .imePadding(),
-                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.95f),
-                    border = BorderStroke(0.5.dp, MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.15f))
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 6.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        TextButton(
-                            onClick = {
-                                onCancelAction?.invoke()
-                                focusManager.clearFocus()
-                            }
-                        ) {
-                            Text("취소", color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f), fontSize = 16.sp, fontWeight = FontWeight.Bold)
-                        }
-                        TextButton(
-                            onClick = {
-                                focusManager.clearFocus()
-                            }
-                        ) {
-                            Text("저장", color = MaterialTheme.colorScheme.primary, fontSize = 16.sp, fontWeight = FontWeight.Bold)
-                        }
-                    }
-                }
-            }
         }
     }
 }

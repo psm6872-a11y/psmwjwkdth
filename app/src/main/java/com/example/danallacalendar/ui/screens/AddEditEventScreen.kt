@@ -281,7 +281,6 @@ fun AddEditEventScreen(
         }
     }
 
-    val isImeVisible = WindowInsets.isImeVisible
 
     Scaffold(
         topBar = {
@@ -1386,54 +1385,6 @@ fun AddEditEventScreen(
                 }
             }
 
-            if (isImeVisible) {
-                Surface(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .align(Alignment.BottomCenter)
-                        .imePadding(),
-                    color = Color(0xFF1E1045), // 키보드와 비슷한 어두운 배경색
-                    border = BorderStroke(0.5.dp, Color.White.copy(alpha = 0.15f))
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 6.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        TextButton(
-                            onClick = {
-                                when {
-                                    focusedField == "title" -> title = originalValue
-                                    focusedField == "location" -> location = originalValue
-                                    focusedField == "location1b" -> location1b = originalValue
-                                    focusedField == "location2" -> location2 = originalValue
-                                    focusedField == "location2b" -> location2b = originalValue
-                                    focusedField?.startsWith("notes_") == true -> {
-                                        val idx = focusedField!!.substringAfter("notes_").toIntOrNull()
-                                        if (idx != null && idx in notesList.indices) {
-                                            notesList = notesList.toMutableList().apply {
-                                                this[idx] = originalValue
-                                            }
-                                        }
-                                    }
-                                }
-                                focusManager.clearFocus()
-                            }
-                        ) {
-                            Text("취소", color = Color.White.copy(alpha = 0.7f), fontSize = 16.sp, fontWeight = FontWeight.Bold)
-                        }
-                        TextButton(
-                            onClick = {
-                                focusManager.clearFocus()
-                            }
-                        ) {
-                            Text("저장", color = MaterialTheme.colorScheme.primary, fontSize = 16.sp, fontWeight = FontWeight.Bold)
-                        }
-                    }
-                }
-            }
         }
     }
 

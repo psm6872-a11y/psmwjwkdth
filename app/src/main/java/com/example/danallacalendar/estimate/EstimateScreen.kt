@@ -122,7 +122,6 @@ fun EstimateScreen(
     onNavigateBack: () -> Unit
 ) {
     val context = LocalContext.current
-    val isImeVisible = WindowInsets.isImeVisible
     val focusManager = androidx.compose.ui.platform.LocalFocusManager.current
     var onCancelAction by remember { mutableStateOf<(() -> Unit)?>(null) }
     DisposableEffect(Unit) {
@@ -706,40 +705,6 @@ fun EstimateScreen(
                                         Text("나가기")
                                     }
                                 }
-                            }
-                        }
-                    }
-                }
-                if (isImeVisible) {
-                    Surface(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .align(Alignment.BottomCenter)
-                            .imePadding(),
-                        color = Color(0xFF1E1045),
-                        border = BorderStroke(0.5.dp, Color.White.copy(alpha = 0.15f))
-                    ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 16.dp, vertical = 6.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            TextButton(
-                                onClick = {
-                                    onCancelAction?.invoke()
-                                    focusManager.clearFocus()
-                                }
-                            ) {
-                                Text("취소", color = Color.White.copy(alpha = 0.7f), fontSize = 16.sp, fontWeight = FontWeight.Bold)
-                            }
-                            TextButton(
-                                onClick = {
-                                    focusManager.clearFocus()
-                                }
-                            ) {
-                                Text("저장", color = MaterialTheme.colorScheme.primary, fontSize = 16.sp, fontWeight = FontWeight.Bold)
                             }
                         }
                     }
@@ -1904,15 +1869,14 @@ fun Step2ItemSelection(
                     },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .heightIn(min = 48.dp)
-                        .wrapContentHeight(),
+                        .height(58.dp),
                     shape = RoundedCornerShape(12.dp),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = Color(0xFFAB47BC),
                         contentColor = Color.White
                     )
                 ) {
-                    Text("완료", fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                    Text("완료", fontWeight = FontWeight.Bold, fontSize = 17.sp)
                 }
             }
         }
