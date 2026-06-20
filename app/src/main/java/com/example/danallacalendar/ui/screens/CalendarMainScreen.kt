@@ -103,6 +103,16 @@ private val DEFAULT_VISIT_MESSAGE_TEMPLATE = """
 감사합니다.
 """.trimIndent()
 
+private val CONTRACT_MESSAGE_TEMPLATE_KEY = stringPreferencesKey("contract_message_template")
+private val DEFAULT_CONTRACT_MESSAGE_TEMPLATE = """
+[계약확정]
+다날라 익스프레스
+{이사날짜} {시작시간}
+이사 계약이 확정되었습니다.
+이사전날 확인전화 드립니다.
+감사합니다.
+""".trimIndent()
+
 
 data class CalendarDay(
     val dateInMillis: Long,
@@ -514,7 +524,8 @@ fun CalendarMainScreen(
                     onSwipeDownAtTop = { viewModel.setViewMode(CalendarViewMode.MONTH) },
                     onSwipeUp = { viewModel.setViewMode(CalendarViewMode.WEEK) },
                     onDateSelected = { viewModel.selectDate(it) },
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier.weight(1f),
+                    viewModel = viewModel
                 )
             }
         }
@@ -1154,8 +1165,9 @@ fun CalendarDayCell(
                         val currentTeamId = index + 1
                         val teamEvents = confirmEvents.filter { it.teamId == currentTeamId }
 
-                        val hasTop = teamEvents.any { it.slotPosition == "top" || it.slotPosition == "both" }
-                        val hasBottom = teamEvents.any { it.slotPosition == "bottom" || it.slotPosition == "both" }
+                        val isBoth = teamEvents.any { it.slotPosition == "both" || it.slotPosition == null }
+                        val hasTop = teamEvents.any { it.slotPosition == "top" || it.slotPosition == "both" || it.slotPosition == null }
+                        val hasBottom = teamEvents.any { it.slotPosition == "bottom" || it.slotPosition == "both" || it.slotPosition == null }
 
                         val teamPref = teamPrefsList.getOrNull(index) ?: (TeamConfigs.getOrNull(index)?.let { it.defaultName to it.defaultColor } ?: ("" to 0xFF4CAF50L))
                         val teamColor = Color(teamPref.second).copy(alpha = barAlpha)
@@ -1166,19 +1178,27 @@ fun CalendarDayCell(
                                 .fillMaxHeight()
                                 .clip(RoundedCornerShape(1.dp))
                         ) {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .weight(1f)
-                                    .background(if (hasTop) teamColor else defaultGray)
-                            )
-                            Spacer(modifier = Modifier.height(0.5.dp))
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .weight(1f)
-                                    .background(if (hasBottom) teamColor else defaultGray)
-                            )
+                            if (isBoth) {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .background(teamColor)
+                                )
+                            } else {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .weight(1f)
+                                        .background(if (hasTop) teamColor else defaultGray)
+                                )
+                                Spacer(modifier = Modifier.height(0.5.dp))
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .weight(1f)
+                                        .background(if (hasBottom) teamColor else defaultGray)
+                                )
+                            }
                         }
                     }
                 }
@@ -1271,7 +1291,8 @@ fun EventListSection(
     onSwipeDownAtTop: () -> Unit = {},
     onSwipeUp: () -> Unit = {},
     onDateSelected: (Long) -> Unit = {},
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    viewModel: CalendarViewModel
 ) {
     val configuration = androidx.compose.ui.platform.LocalConfiguration.current
     val screenWidth = configuration.screenWidthDp.dp
@@ -1476,7 +1497,8 @@ fun EventListSection(
                                 onDelete = { onDeleteEvent(event) },
                                 onToggleComplete = { onToggleComplete(event) },
                                 onUpdate = onUpdateEvent,
-                                onConfirmContract = onConfirmContract
+                                onConfirmContract = onConfirmContract,
+                                viewModel = viewModel
                             )
                         }
                     }
@@ -1495,7 +1517,8 @@ fun EventItemCard(
     onDelete: () -> Unit,
     onToggleComplete: () -> Unit,
     onUpdate: (Event) -> Unit = {},
-    onConfirmContract: (Event, Int, String) -> Unit = { _, _, _ -> }
+    onConfirmContract: (Event, Int, String) -> Unit = { _, _, _ -> },
+    viewModel: CalendarViewModel
 ) {
     val context = LocalContext.current
     val configuration = androidx.compose.ui.platform.LocalConfiguration.current
@@ -1555,13 +1578,24 @@ fun EventItemCard(
     val scope = rememberCoroutineScope()
     var showEditTemplateDialog by remember { mutableStateOf(false) }
     var templateText by remember { mutableStateOf("") }
+    var editingTemplateType by remember { mutableStateOf("visit") }
 
     LaunchedEffect(showEditTemplateDialog) {
         if (showEditTemplateDialog) {
+            val key = if (editingTemplateType == "contract") CONTRACT_MESSAGE_TEMPLATE_KEY else VISIT_MESSAGE_TEMPLATE_KEY
+            val defaultTemplate = if (editingTemplateType == "contract") DEFAULT_CONTRACT_MESSAGE_TEMPLATE else DEFAULT_VISIT_MESSAGE_TEMPLATE
             val saved = context.dataStore.data.map { prefs ->
-                prefs[VISIT_MESSAGE_TEMPLATE_KEY]
-            }.first() ?: DEFAULT_VISIT_MESSAGE_TEMPLATE
+                prefs[key]
+            }.first() ?: defaultTemplate
             templateText = saved
+        }
+    }
+
+    LaunchedEffect(showConfirmConfirmDialog) {
+        if (showConfirmConfirmDialog) {
+            selectedTeamId = null
+            isAmSelected = false
+            isPmSelected = false
         }
     }
 
@@ -2053,6 +2087,82 @@ fun EventItemCard(
                                 }
                             }
                         }
+
+                        // SMS Message Row
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Button(
+                                onClick = {
+                                    scope.launch {
+                                        val estimateId = event.linkedEstimateId
+                                        var moveDateStr = ""
+                                        var startTimeStr = ""
+                                        if (!estimateId.isNullOrBlank()) {
+                                            try {
+                                                val estimate = viewModel.getEstimateById(estimateId)
+                                                if (estimate != null) {
+                                                    moveDateStr = estimate.moveDate ?: ""
+                                                    startTimeStr = estimate.startTime ?: ""
+                                                }
+                                            } catch (e: Exception) {
+                                                android.util.Log.e("CalendarMainScreen", "Error loading estimate for sms", e)
+                                            }
+                                        }
+                                        
+                                        val template = context.dataStore.data.map { prefs ->
+                                            prefs[CONTRACT_MESSAGE_TEMPLATE_KEY]
+                                        }.first() ?: DEFAULT_CONTRACT_MESSAGE_TEMPLATE
+                                        
+                                        val body = template
+                                            .replace("{이사날짜}", moveDateStr)
+                                            .replace("{시작시간}", startTimeStr)
+                                            
+                                        val phone = extractPhoneNumber(event.notes)
+                                            ?: extractPhoneNumber(event.title)
+                                            ?: extractPhoneNumber(event.location)
+                                            ?: ""
+                                            
+                                        try {
+                                            val intent = Intent(Intent.ACTION_SENDTO).apply {
+                                                data = Uri.parse("smsto:$phone")
+                                                putExtra("sms_body", body)
+                                            }
+                                            context.startActivity(intent)
+                                        } catch (e: Exception) {
+                                            Toast.makeText(context, "SMS 앱을 열 수 없습니다.", Toast.LENGTH_SHORT).show()
+                                        }
+                                    }
+                                },
+                                modifier = Modifier.weight(1f),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = Color(0xFF80DEEA),
+                                    contentColor = Color(0xFF36221A)
+                                ),
+                                shape = RoundedCornerShape(12.dp),
+                                contentPadding = PaddingValues(vertical = 12.dp)
+                            ) {
+                                Text("확정문자발송", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                            }
+                            
+                            IconButton(
+                                onClick = {
+                                    editingTemplateType = "contract"
+                                    showEditTemplateDialog = true
+                                },
+                                modifier = Modifier
+                                    .size(48.dp)
+                                    .background(Color(0xFFFFF176), shape = RoundedCornerShape(12.dp))
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Add,
+                                    contentDescription = "문구수정",
+                                    tint = Color(0xFF36221A)
+                                )
+                            }
+                        }
                     }
 
                     // Bottom Buttons Row
@@ -2084,22 +2194,26 @@ fun EventItemCard(
                                 .fillMaxHeight()
                                 .background(MaterialTheme.colorScheme.primary)
                                 .clickable {
-                                    val finalSlotPosition = when {
-                                        isAmSelected && isPmSelected -> "both"
-                                        isAmSelected -> "top"
-                                        isPmSelected -> "bottom"
-                                        else -> "both"
-                                    }
-                                    val teamId = selectedTeamId ?: 1
-                                    onUpdate(
-                                        event.copy(
-                                            teamId = teamId,
-                                            slotPosition = finalSlotPosition
+                                    if (selectedTeamId == null || (!isAmSelected && !isPmSelected)) {
+                                        Toast.makeText(context, "팀과 시간대를 선택해주세요", Toast.LENGTH_SHORT).show()
+                                    } else {
+                                        val finalSlotPosition = when {
+                                            isAmSelected && isPmSelected -> "both"
+                                            isAmSelected -> "top"
+                                            isPmSelected -> "bottom"
+                                            else -> "both"
+                                        }
+                                        val teamId = selectedTeamId ?: 1
+                                        onUpdate(
+                                            event.copy(
+                                                teamId = teamId,
+                                                slotPosition = finalSlotPosition
+                                            )
                                         )
-                                    )
-                                    onConfirmContract(event, teamId, finalSlotPosition)
-                                    showConfirmConfirmDialog = false
-                                    showContextMenu = false
+                                        onConfirmContract(event, teamId, finalSlotPosition)
+                                        showConfirmConfirmDialog = false
+                                        showContextMenu = false
+                                    }
                                 },
                             contentAlignment = Alignment.Center
                         ) {
@@ -2206,7 +2320,7 @@ fun EventItemCard(
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Text(
-                        text = "방문예약 문자 문구 수정",
+                        text = if (editingTemplateType == "contract") "계약확정 문자 문구 수정" else "방문예약 문자 문구 수정",
                         fontSize = 18.sp,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurface,
@@ -2224,7 +2338,11 @@ fun EventItemCard(
                     )
                     
                     Text(
-                        text = "※ '{시작시간}' 입력 시 발송 시점의 일정 시간(예: 6월 19일 (금) 14:00)으로 자동 치환됩니다.",
+                        text = if (editingTemplateType == "contract") {
+                            "※ '{이사날짜}', '{시작시간}' 입력 시 발송 시점의 일정 데이터로 자동 치환됩니다."
+                        } else {
+                            "※ '{시작시간}' 입력 시 발송 시점의 일정 시간(예: 6월 19일 (금) 14:00)으로 자동 치환됩니다."
+                        },
                         fontSize = 12.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier
@@ -2243,8 +2361,9 @@ fun EventItemCard(
                         Button(
                             onClick = {
                                 scope.launch {
+                                    val key = if (editingTemplateType == "contract") CONTRACT_MESSAGE_TEMPLATE_KEY else VISIT_MESSAGE_TEMPLATE_KEY
                                     context.dataStore.edit { prefs ->
-                                        prefs[VISIT_MESSAGE_TEMPLATE_KEY] = templateText
+                                        prefs[key] = templateText
                                     }
                                     showEditTemplateDialog = false
                                 }

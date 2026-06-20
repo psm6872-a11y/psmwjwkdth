@@ -125,7 +125,8 @@ fun SearchScreen(
                                 onNavigateBack()
                             },
                             onDelete = { viewModel.deleteEvent(event) },
-                            onToggleComplete = { viewModel.updateEvent(event.copy(isCompleted = !event.isCompleted)) }
+                            onToggleComplete = { viewModel.updateEvent(event.copy(isCompleted = !event.isCompleted)) },
+                            viewModel = viewModel
                         )
                     }
                 }
