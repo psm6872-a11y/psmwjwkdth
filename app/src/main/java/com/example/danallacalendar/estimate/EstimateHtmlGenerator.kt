@@ -94,8 +94,8 @@ object EstimateHtmlGenerator {
             .replace("{{bankAccount}}", bankAccount)
             .replace("{{logoBase64}}", logoFinal)
             .replace("{{stampBase64}}", stampFinal)
-            .replace("{{departure}}", estimate.departure)
-            .replace("{{destination}}", estimate.destination)
+            .replace("{{departure}}", estimate.departure.replace("|", " "))
+            .replace("{{destination}}", estimate.destination.replace("|", " "))
 
             .replace("{{departureFloorType}}", estimate.departureFloorType)
             .replace("{{destinationFloorType}}", estimate.destinationFloorType)
