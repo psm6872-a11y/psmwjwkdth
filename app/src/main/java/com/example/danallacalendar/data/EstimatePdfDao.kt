@@ -14,6 +14,9 @@ interface EstimatePdfDao {
     @Query("SELECT * FROM estimate_pdfs ORDER BY createdAt DESC")
     fun getAllPdfs(): Flow<List<EstimatePdf>>
 
+    @Query("SELECT * FROM estimate_pdfs ORDER BY createdAt DESC")
+    suspend fun getAllPdfsList(): List<EstimatePdf>
+
     @Query("DELETE FROM estimate_pdfs WHERE id = :id")
     suspend fun deletePdf(id: Int)
 

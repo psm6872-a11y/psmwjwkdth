@@ -34,6 +34,9 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 import java.util.*
+import com.example.danallacalendar.data.CalendarDatabase
+import com.example.danallacalendar.estimate.Estimate
+import kotlinx.coroutines.tasks.await
 
 data class RecentCall(
     val id: String,
@@ -207,6 +210,15 @@ fun RecentCallDetailDialog(
     }
 }
 
+fun normalizePhoneNumber(number: String): String {
+    val clean = number.replace(Regex("[^0-9]"), "")
+    return if (clean.startsWith("82")) {
+        "0" + clean.substring(2)
+    } else {
+        clean
+    }
+}
+
 suspend fun loadRecentCalls(context: Context): List<RecentCall> = withContext(Dispatchers.IO) {
     val calls = mutableListOf<RecentCall>()
     val contentResolver = context.contentResolver
@@ -218,6 +230,41 @@ suspend fun loadRecentCalls(context: Context): List<RecentCall> = withContext(Di
         CallLog.Calls.DATE,
         CallLog.Calls.TYPE
     )
+
+    // Load local and Firestore estimates/events for resolving names of unsaved numbers
+    val db = CalendarDatabase.getDatabase(context, kotlinx.coroutines.CoroutineScope(Dispatchers.IO))
+    val localPdfs = try {
+        db.estimatePdfDao().getAllPdfsList()
+    } catch (e: Exception) {
+        emptyList()
+    }
+    
+    val localEvents = try {
+        db.eventDao().getAllEventsList()
+    } catch (e: Exception) {
+        emptyList()
+    }
+
+    val userPrefs = com.example.danallacalendar.data.local.UserPreferences(context)
+    val roomCode = userPrefs.getLastRoomCode()
+    val firestore = com.google.firebase.firestore.FirebaseFirestore.getInstance()
+    val firestoreEstimates = mutableListOf<Estimate>()
+    if (roomCode.isNotEmpty()) {
+        try {
+            val snapshot = firestore.collection("rooms")
+                .document(roomCode)
+                .collection("estimates")
+                .get()
+                .await()
+            for (doc in snapshot.documents) {
+                doc.toObject(Estimate::class.java)?.let {
+                    firestoreEstimates.add(it)
+                }
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
 
     try {
         if (ContextCompat.checkSelfPermission(context, Manifest.permission.READ_CALL_LOG) == PackageManager.PERMISSION_GRANTED) {
@@ -258,9 +305,40 @@ suspend fun loadRecentCalls(context: Context): List<RecentCall> = withContext(Di
                     }
 
                     val number = formatPhoneNumber(rawNumber)
-                    val name = it.getString(nameIdx)
+                    var name = it.getString(nameIdx)
                     val date = it.getLong(dateIdx)
                     val type = it.getInt(typeIdx)
+
+                    // If contact name is not found in system contacts, resolve from app data (estimates or events)
+                    if (name.isNullOrBlank()) {
+                        val normRaw = normalizePhoneNumber(rawNumber)
+                        
+                        // 1. Try matching local estimate pdfs
+                        val matchedPdf = localPdfs.firstOrNull { pdf ->
+                            normalizePhoneNumber(pdf.phoneNumber) == normRaw
+                        }
+                        if (matchedPdf != null) {
+                            name = matchedPdf.customerName
+                        } else {
+                            // 2. Try matching Firestore estimates
+                            val matchedFirestore = firestoreEstimates.firstOrNull { est ->
+                                normalizePhoneNumber(est.phoneNumber) == normRaw
+                            }
+                            if (matchedFirestore != null) {
+                                name = matchedFirestore.customerName
+                            } else {
+                                // 3. Try matching local events notes (phone number) to use event title
+                                val matchedEvent = localEvents.firstOrNull { event ->
+                                    val notesParts = event.notes.split("|||")
+                                    notesParts.any { note -> normalizePhoneNumber(note) == normRaw }
+                                }
+                                if (matchedEvent != null) {
+                                    name = matchedEvent.title
+                                }
+                            }
+                        }
+                    }
+
                     calls.add(RecentCall(id, name, number, date, type))
                 }
             }
