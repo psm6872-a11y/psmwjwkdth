@@ -92,9 +92,9 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import android.content.Context
 
-private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "settings")
-private val VISIT_MESSAGE_TEMPLATE_KEY = stringPreferencesKey("visit_message_template")
-private val DEFAULT_VISIT_MESSAGE_TEMPLATE = """
+val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "settings")
+val VISIT_MESSAGE_TEMPLATE_KEY = stringPreferencesKey("visit_message_template")
+val DEFAULT_VISIT_MESSAGE_TEMPLATE = """
 [방문예약]
 다날라 익스프레스
 {시작시간}
@@ -103,8 +103,8 @@ private val DEFAULT_VISIT_MESSAGE_TEMPLATE = """
 감사합니다.
 """.trimIndent()
 
-private val CONTRACT_MESSAGE_TEMPLATE_KEY = stringPreferencesKey("contract_message_template")
-private val DEFAULT_CONTRACT_MESSAGE_TEMPLATE = """
+val CONTRACT_MESSAGE_TEMPLATE_KEY = stringPreferencesKey("contract_message_template")
+val DEFAULT_CONTRACT_MESSAGE_TEMPLATE = """
 [계약확정]
 다날라 익스프레스
 {이사날짜} {시작시간}

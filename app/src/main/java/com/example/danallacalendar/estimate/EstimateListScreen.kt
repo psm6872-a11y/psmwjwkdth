@@ -16,6 +16,36 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.window.Popup
+import androidx.compose.ui.window.PopupProperties
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.Outline
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.LayoutDirection
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.unit.Dp
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.draw.clip
+import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.edit
+import com.example.danallacalendar.ui.screens.dataStore
+import com.example.danallacalendar.ui.screens.CONTRACT_MESSAGE_TEMPLATE_KEY
+import com.example.danallacalendar.ui.screens.DEFAULT_CONTRACT_MESSAGE_TEMPLATE
+import com.example.danallacalendar.ui.screens.TEAM_COUNT_KEY
+import com.example.danallacalendar.ui.screens.TeamConfigs
+import com.example.danallacalendar.ui.screens.settingsDataStore
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.first
+import com.example.danallacalendar.ui.screens.VISIT_MESSAGE_TEMPLATE_KEY
+import com.example.danallacalendar.ui.screens.DEFAULT_VISIT_MESSAGE_TEMPLATE
+import androidx.compose.runtime.collectAsState
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -76,11 +106,55 @@ fun EstimateListScreen(
     var selectedEstimate by remember { mutableStateOf<Estimate?>(null) }
     var showInfoDialog by remember { mutableStateOf<String?>(null) }
     val context = LocalContext.current
+
+    val teamCountFlow = remember(context) {
+        context.settingsDataStore.data.map { preferences ->
+            preferences[TEAM_COUNT_KEY] ?: 1
+        }
+    }
+    val slotCount by teamCountFlow.collectAsState(initial = 1)
+
+    val teamConfigsFlow = remember(context) {
+        context.settingsDataStore.data.map { preferences ->
+            TeamConfigs.map { config ->
+                val name = preferences[config.nameKey] ?: config.defaultName
+                val color = preferences[config.colorKey] ?: config.defaultColor
+                name to color
+            }
+        }
+    }
+    val teamPrefsList by teamConfigsFlow.collectAsState(
+        initial = TeamConfigs.map { it.defaultName to it.defaultColor }
+    )
+
+    var showConfirmConfirmDialog by remember { mutableStateOf(false) }
+    var selectedTeamId by remember { mutableStateOf<Int?>(null) }
+    var isAmSelected by remember { mutableStateOf(false) }
+    var isPmSelected by remember { mutableStateOf(false) }
+    var confirmContractEstimate by remember { mutableStateOf<Estimate?>(null) }
+
+    var showDeleteConfirmDialog by remember { mutableStateOf(false) }
+    var deleteEstimateTarget by remember { mutableStateOf<Estimate?>(null) }
     val configuration = LocalConfiguration.current
     val screenHeight = configuration.screenHeightDp.dp
     val rowHeight = screenHeight * 0.040f
 
     var pendingSignInAction by remember { mutableStateOf<String?>(null) } // "save" or "auto"
+
+    val scope = rememberCoroutineScope()
+    var showEditTemplateDialog by remember { mutableStateOf(false) }
+    var templateText by remember { mutableStateOf("") }
+    var editingTemplateType by remember { mutableStateOf("contract") }
+
+    LaunchedEffect(showEditTemplateDialog) {
+        if (showEditTemplateDialog) {
+            val key = CONTRACT_MESSAGE_TEMPLATE_KEY
+            val saved = context.dataStore.data.map { prefs ->
+                prefs[key]
+            }.first() ?: DEFAULT_CONTRACT_MESSAGE_TEMPLATE
+            templateText = saved
+        }
+    }
 
     val googleSignInLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartActivityForResult()
@@ -449,9 +523,16 @@ fun EstimateListScreen(
                                     estimate = estimate,
                                     onItemClick = { selectedEstimate = estimate },
                                     onSyncClick = { viewModel.syncEstimate(estimate) },
-                                    onDeleteClick = { viewModel.deleteEstimate(estimate) },
-                                    onCopyClick = { pdf ->
-                                        onNavigateToEstimateCopy(pdf.estimateJson)
+                                    onDeleteClick = {
+                                        deleteEstimateTarget = estimate
+                                        showDeleteConfirmDialog = true
+                                    },
+                                    onConfirmContractClick = {
+                                        confirmContractEstimate = estimate
+                                        selectedTeamId = null
+                                        isAmSelected = false
+                                        isPmSelected = false
+                                        showConfirmConfirmDialog = true
                                     }
                                 )
                             }
@@ -465,6 +546,325 @@ fun EstimateListScreen(
                                 selectedEstimate = null
                                 onNavigateToEstimateCopy(com.google.gson.Gson().toJson(estimate))
                             }
+                        )
+                    }
+
+                    // 계약확정 다이얼로그
+                    if (showConfirmConfirmDialog) {
+                        Dialog(onDismissRequest = { showConfirmConfirmDialog = false }) {
+                            Card(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(16.dp),
+                                shape = RoundedCornerShape(28.dp),
+                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+                            ) {
+                                Column(
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Column(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(24.dp),
+                                        verticalArrangement = Arrangement.spacedBy(20.dp)
+                                    ) {
+                                        // Title
+                                        Text(
+                                            text = "계약을 확정하시겠습니까?",
+                                            fontSize = 20.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = MaterialTheme.colorScheme.onSurface,
+                                            modifier = Modifier.fillMaxWidth(),
+                                            textAlign = TextAlign.Center
+                                        )
+
+                                        // Team Selection
+                                        Column(
+                                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                                        ) {
+                                            Text(
+                                                text = "팀 선택",
+                                                fontSize = 14.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = MaterialTheme.colorScheme.primary
+                                            )
+                                            
+                                            val teamChunks = (0 until slotCount).chunked(3)
+                                            teamChunks.forEach { chunk ->
+                                                Row(
+                                                    modifier = Modifier.fillMaxWidth(),
+                                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                                ) {
+                                                    chunk.forEach { index ->
+                                                        val teamIdVal = index + 1
+                                                        val teamPref = teamPrefsList.getOrNull(index) ?: (TeamConfigs[index].defaultName to TeamConfigs[index].defaultColor)
+                                                        val teamName = teamPref.first
+                                                        val teamColor = teamPref.second
+                                                        val isSelected = selectedTeamId == teamIdVal
+
+                                                        val containerColor = if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.2f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                                                        val borderColor = if (isSelected) MaterialTheme.colorScheme.primary else Color.Transparent
+
+                                                        Row(
+                                                            modifier = Modifier
+                                                                .weight(1f)
+                                                                .clip(RoundedCornerShape(12.dp))
+                                                                .background(containerColor)
+                                                                .border(1.5.dp, borderColor, RoundedCornerShape(12.dp))
+                                                                .clickable { selectedTeamId = teamIdVal }
+                                                                .padding(horizontal = 8.dp, vertical = 10.dp),
+                                                            horizontalArrangement = Arrangement.Center,
+                                                            verticalAlignment = Alignment.CenterVertically
+                                                        ) {
+                                                            Box(
+                                                                modifier = Modifier
+                                                                    .size(10.dp)
+                                                                    .clip(CircleShape)
+                                                                    .background(Color(teamColor))
+                                                            )
+                                                            Spacer(modifier = Modifier.width(6.dp))
+                                                            Text(
+                                                                text = teamName,
+                                                                fontSize = 13.sp,
+                                                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                                                color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                                                                maxLines = 1,
+                                                                overflow = TextOverflow.Ellipsis
+                                                            )
+                                                        }
+                                                    }
+                                                    if (chunk.size < 3) {
+                                                        repeat(3 - chunk.size) {
+                                                            Spacer(modifier = Modifier.weight(1f))
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+
+                                        // AM/PM Selection
+                                        Column(
+                                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                                        ) {
+                                            Text(
+                                                text = "오전/오후 선택",
+                                                fontSize = 14.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = MaterialTheme.colorScheme.primary
+                                            )
+                                            Row(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                            ) {
+                                                val amContainerColor = if (isAmSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.2f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                                                val amBorderColor = if (isAmSelected) MaterialTheme.colorScheme.primary else Color.Transparent
+                                                Box(
+                                                    modifier = Modifier
+                                                        .weight(1f)
+                                                        .clip(RoundedCornerShape(12.dp))
+                                                        .background(amContainerColor)
+                                                        .border(1.5.dp, amBorderColor, RoundedCornerShape(12.dp))
+                                                        .clickable { isAmSelected = !isAmSelected }
+                                                        .padding(vertical = 10.dp),
+                                                    contentAlignment = Alignment.Center
+                                                ) {
+                                                    Text(
+                                                        text = "오전",
+                                                        fontSize = 13.sp,
+                                                        fontWeight = if (isAmSelected) FontWeight.Bold else FontWeight.Medium,
+                                                        color = if (isAmSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
+                                                    )
+                                                }
+
+                                                val pmContainerColor = if (isPmSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.2f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                                                val pmBorderColor = if (isPmSelected) MaterialTheme.colorScheme.primary else Color.Transparent
+                                                Box(
+                                                    modifier = Modifier
+                                                        .weight(1f)
+                                                        .clip(RoundedCornerShape(12.dp))
+                                                        .background(pmContainerColor)
+                                                        .border(1.5.dp, pmBorderColor, RoundedCornerShape(12.dp))
+                                                        .clickable { isPmSelected = !isPmSelected }
+                                                        .padding(vertical = 10.dp),
+                                                    contentAlignment = Alignment.Center
+                                                ) {
+                                                    Text(
+                                                        text = "오후",
+                                                        fontSize = 13.sp,
+                                                        fontWeight = if (isPmSelected) FontWeight.Bold else FontWeight.Medium,
+                                                        color = if (isPmSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
+                                                    )
+                                                }
+                                            }
+                                        }
+
+                                        // SMS Message Row
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Button(
+                                                onClick = {
+                                                    confirmContractEstimate?.let { est ->
+                                                        scope.launch {
+                                                            val template = context.dataStore.data.map { prefs ->
+                                                                prefs[CONTRACT_MESSAGE_TEMPLATE_KEY]
+                                                            }.first() ?: DEFAULT_CONTRACT_MESSAGE_TEMPLATE
+                                                            
+                                                            val body = template
+                                                                .replace("{이사날짜}", est.moveDate)
+                                                                .replace("{시작시간}", est.startTime)
+                                                                
+                                                            val phone = est.phoneNumber
+                                                                
+                                                            try {
+                                                                val intent = android.content.Intent(android.content.Intent.ACTION_SENDTO).apply {
+                                                                    data = android.net.Uri.parse("smsto:$phone")
+                                                                    putExtra("sms_body", body)
+                                                                }
+                                                                context.startActivity(intent)
+                                                            } catch (e: Exception) {
+                                                                Toast.makeText(context, "SMS 앱을 열 수 없습니다.", Toast.LENGTH_SHORT).show()
+                                                            }
+                                                        }
+                                                    }
+                                                },
+                                                modifier = Modifier.weight(1f),
+                                                colors = ButtonDefaults.buttonColors(
+                                                    containerColor = Color(0xFF80DEEA),
+                                                    contentColor = Color(0xFF36221A)
+                                                ),
+                                                shape = RoundedCornerShape(12.dp),
+                                                contentPadding = PaddingValues(vertical = 12.dp)
+                                            ) {
+                                                Text("확정문자발송", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                                            }
+                                            
+                                            IconButton(
+                                                onClick = {
+                                                    editingTemplateType = "contract"
+                                                    showEditTemplateDialog = true
+                                                },
+                                                modifier = Modifier
+                                                    .size(48.dp)
+                                                    .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.5f), RoundedCornerShape(12.dp))
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Default.Edit,
+                                                    contentDescription = "문구수정",
+                                                    tint = MaterialTheme.colorScheme.onSurface
+                                                )
+                                            }
+                                        }
+                                    }
+
+                                    // Bottom Buttons Row
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .height(56.dp)
+                                    ) {
+                                        Box(
+                                            modifier = Modifier
+                                                .weight(1f)
+                                                .fillMaxHeight()
+                                                .background(MaterialTheme.colorScheme.surfaceVariant)
+                                                .clickable {
+                                                    showConfirmConfirmDialog = false
+                                                    confirmContractEstimate = null
+                                                },
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Text(
+                                                text = "취소",
+                                                fontSize = 20.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                        }
+                                        Box(
+                                            modifier = Modifier
+                                                .weight(1f)
+                                                .fillMaxHeight()
+                                                .background(MaterialTheme.colorScheme.primary)
+                                                .clickable {
+                                                    if (selectedTeamId == null || (!isAmSelected && !isPmSelected)) {
+                                                        Toast.makeText(context, "팀과 시간대를 선택해주세요", Toast.LENGTH_SHORT).show()
+                                                    } else {
+                                                        val finalSlotPosition = when {
+                                                            isAmSelected && isPmSelected -> "both"
+                                                            isAmSelected -> "top"
+                                                            isPmSelected -> "bottom"
+                                                            else -> "both"
+                                                        }
+                                                        val teamId = selectedTeamId ?: 1
+                                                        confirmContractEstimate?.let { est ->
+                                                            viewModel.confirmContract(
+                                                                estimate = est,
+                                                                teamId = teamId,
+                                                                slotPos = finalSlotPosition,
+                                                                onSuccess = {
+                                                                    Toast.makeText(context, "계약이 확정되었습니다.", Toast.LENGTH_SHORT).show()
+                                                                },
+                                                                onError = { e ->
+                                                                    Toast.makeText(context, "오류: ${e.localizedMessage}", Toast.LENGTH_LONG).show()
+                                                                }
+                                                            )
+                                                        }
+                                                        showConfirmConfirmDialog = false
+                                                        confirmContractEstimate = null
+                                                    }
+                                                },
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Text(
+                                                text = "확인",
+                                                fontSize = 20.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = MaterialTheme.colorScheme.onPrimary
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // 삭제 확인 다이얼로그
+                    if (showDeleteConfirmDialog) {
+                        AlertDialog(
+                            onDismissRequest = {
+                                showDeleteConfirmDialog = false
+                                deleteEstimateTarget = null
+                            },
+                            title = { Text("견적서 삭제", color = Color.White, fontWeight = FontWeight.Bold) },
+                            text = { Text("이 견적서를 정말로 삭제하시겠습니까?", color = Color.White.copy(alpha = 0.8f)) },
+                            confirmButton = {
+                                TextButton(
+                                    onClick = {
+                                        deleteEstimateTarget?.let { est ->
+                                            viewModel.deleteEstimate(est)
+                                        }
+                                        showDeleteConfirmDialog = false
+                                        deleteEstimateTarget = null
+                                    }
+                                ) {
+                                    Text("삭제", color = Color.Red, fontWeight = FontWeight.Bold)
+                                }
+                            },
+                            dismissButton = {
+                                TextButton(
+                                    onClick = {
+                                        showDeleteConfirmDialog = false
+                                        deleteEstimateTarget = null
+                                    }
+                                ) {
+                                    Text("취소", color = Color.Gray)
+                                }
+                            },
+                            containerColor = Color(0xFF1E1045),
+                            shape = RoundedCornerShape(16.dp)
                         )
                     }
 
@@ -509,6 +909,79 @@ fun EstimateListScreen(
                             shape = RoundedCornerShape(16.dp)
                         )
                     }
+
+                    if (showEditTemplateDialog) {
+                        Dialog(onDismissRequest = { showEditTemplateDialog = false }) {
+                            Card(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(16.dp),
+                                shape = RoundedCornerShape(20.dp),
+                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+                            ) {
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(20.dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally
+                                ) {
+                                    Text(
+                                        text = if (editingTemplateType == "contract") "계약확정 문자 문구 수정" else "방문예약 문자 문구 수정",
+                                        fontSize = 18.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.onSurface,
+                                        modifier = Modifier.padding(bottom = 12.dp)
+                                    )
+                                    
+                                    OutlinedTextField(
+                                        value = templateText,
+                                        onValueChange = { templateText = it },
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .height(180.dp),
+                                        textStyle = androidx.compose.ui.text.TextStyle(fontSize = 14.sp),
+                                        placeholder = { Text("문구를 입력하세요") }
+                                    )
+                                    
+                                    Text(
+                                        text = if (editingTemplateType == "contract") {
+                                            "※ '{이사날짜}', '{시작시간}' 입력 시 발송 시점의 일정 데이터로 자동 치환됩니다."
+                                        } else {
+                                            "※ '{시작시간}' 입력 시 발송 시점의 일정 시간(예: 6월 19일 (금) 14:00)으로 자동 치환됩니다."
+                                        },
+                                        fontSize = 12.sp,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(top = 8.dp, bottom = 16.dp)
+                                    )
+                                    
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.End
+                                    ) {
+                                        TextButton(onClick = { showEditTemplateDialog = false }) {
+                                            Text("취소", fontSize = 16.sp)
+                                        }
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Button(
+                                            onClick = {
+                                                scope.launch {
+                                                    val key = if (editingTemplateType == "contract") CONTRACT_MESSAGE_TEMPLATE_KEY else VISIT_MESSAGE_TEMPLATE_KEY
+                                                    context.dataStore.edit { prefs ->
+                                                        prefs[key] = templateText
+                                                    }
+                                                    showEditTemplateDialog = false
+                                                }
+                                            }
+                                        ) {
+                                            Text("저장", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -522,18 +995,25 @@ fun EstimateItemCard(
     onItemClick: () -> Unit,
     onSyncClick: () -> Unit,
     onDeleteClick: () -> Unit,
-    onCopyClick: (com.example.danallacalendar.data.EstimatePdf) -> Unit
+    onConfirmContractClick: () -> Unit
 ) {
+    var showContextMenu by remember { mutableStateOf(false) }
 
-    Box {
+    BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+        val cardWidth = maxWidth
+        val density = LocalDensity.current
+        var cardHeight by remember { mutableStateOf(0.dp) }
+
         Card(
             modifier = Modifier
                 .fillMaxWidth()
-                .pointerInput(Unit) {
-                    detectTapGestures(
-                        onTap = { onItemClick() }
-                    )
-                },
+                .onGloballyPositioned { coordinates ->
+                    cardHeight = with(density) { coordinates.size.height.toDp() }
+                }
+                .combinedClickable(
+                    onClick = onItemClick,
+                    onLongClick = { showContextMenu = true }
+                ),
             colors = CardDefaults.cardColors(
                 containerColor = Color(0xFF1E1045).copy(alpha = 0.8f)
             ),
@@ -627,17 +1107,63 @@ fun EstimateItemCard(
                             )
                         }
                     }
-                    IconButton(onClick = onDeleteClick) {
-                        Icon(
-                            imageVector = Icons.Default.Delete,
-                            contentDescription = "삭제",
-                            tint = Color.Red.copy(alpha = 0.8f)
-                        )
-                    }
                 }
             }
         }
 
+        if (showContextMenu) {
+            Popup(
+                alignment = Alignment.Center,
+                onDismissRequest = {
+                    showContextMenu = false
+                },
+                properties = PopupProperties(focusable = true)
+            ) {
+                Column(
+                    modifier = Modifier.width(cardWidth),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    // 계약확정 (상)
+                    BubbleButton(
+                        text = "계약확정",
+                        onClick = {
+                            showContextMenu = false
+                            onConfirmContractClick()
+                        },
+                        containerColor = Color(0xFF81C784),
+                        contentColor = Color(0xFF36221A),
+                        arrowOnLeft = false,
+                        arrowOnTop = false,
+                        arrowPositionCenter = true
+                    )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    // 삭제 (하)
+                    BubbleButton(
+                        text = "삭제",
+                        onClick = {
+                            showContextMenu = false
+                            onDeleteClick()
+                        },
+                        containerColor = Color(0xFFE57373),
+                        contentColor = Color(0xFF36221A),
+                        arrowOnLeft = false,
+                        arrowOnTop = true,
+                        arrowPositionCenter = true,
+                        icon = {
+                            Icon(
+                                imageVector = Icons.Default.Delete,
+                                contentDescription = "삭제",
+                                tint = Color(0xFF36221A),
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
+                    )
+                }
+            }
+        }
     }
 }
 
@@ -1005,6 +1531,250 @@ fun LocalEstimateViewerDialog(
                     )
                 }
             }
+        }
+    }
+}
+
+class SpeechBubbleShape(
+    private val cornerRadius: Dp = 12.dp,
+    private val arrowWidth: Dp = 20.dp,
+    private val arrowHeight: Dp = 16.dp,
+    private val arrowOnTop: Boolean = false,
+    private val arrowPositionLeft: Boolean = true,
+    private val arrowOnLeft: Boolean = false,
+    private val arrowPositionTop: Boolean = true,
+    private val arrowPositionCenter: Boolean = false
+) : Shape {
+    override fun createOutline(
+        size: Size,
+        layoutDirection: LayoutDirection,
+        density: Density
+    ): Outline {
+        val path = Path().apply {
+            val r = with(density) { cornerRadius.toPx() }
+            val arrowW = minOf(
+                with(density) { arrowWidth.toPx() },
+                maxOf(0f, if (arrowOnLeft) size.height - 2 * r else size.width - 2 * r)
+            )
+            val arrowH = with(density) { arrowHeight.toPx() }
+
+            if (arrowOnLeft) {
+                val rectLeft = arrowH
+                
+                // Start drawing from top-left corner of the content rectangle
+                moveTo(rectLeft + r, 0f)
+                
+                // Top edge to top-right corner
+                lineTo(size.width - r, 0f)
+                quadraticTo(size.width, 0f, size.width, r)
+                
+                // Right edge to bottom-right corner
+                lineTo(size.width, size.height - r)
+                quadraticTo(size.width, size.height, size.width - r, size.height)
+                
+                // Bottom edge to bottom-left corner
+                lineTo(rectLeft + r, size.height)
+                quadraticTo(rectLeft, size.height, rectLeft, size.height - r)
+                
+                // Left edge with curved cartoon tail pointing left
+                if (arrowPositionCenter) {
+                    val arrowStart = (size.height - arrowW) / 2f
+                    val arrowPeakY = size.height / 2f
+                    val arrowEnd = (size.height + arrowW) / 2f
+                    
+                    lineTo(rectLeft, arrowEnd)
+                    quadraticTo(rectLeft - arrowH * 0.5f, arrowEnd - arrowW * 0.2f, 0f, arrowPeakY)
+                    quadraticTo(rectLeft - arrowH * 0.5f, arrowStart + arrowW * 0.2f, rectLeft, arrowStart)
+                } else if (arrowPositionTop) {
+                    val arrowStart = r
+                    val arrowPeakY = r + arrowW * 0.5f
+                    val arrowEnd = r + arrowW
+                    
+                    lineTo(rectLeft, arrowEnd)
+                    quadraticTo(rectLeft - arrowH * 0.7f, r + arrowW * 0.8f, 0f, arrowPeakY)
+                    quadraticTo(rectLeft - arrowH * 0.4f, r + arrowW * 0.1f, rectLeft, arrowStart)
+                } else {
+                    val arrowStart = size.height - r - arrowW
+                    val arrowPeakY = size.height - r - arrowW * 0.5f
+                    val arrowEnd = size.height - r
+                    
+                    lineTo(rectLeft, arrowEnd)
+                    quadraticTo(rectLeft - arrowH * 0.4f, size.height - r - arrowW * 0.1f, 0f, arrowPeakY)
+                    quadraticTo(rectLeft - arrowH * 0.7f, size.height - r - arrowW * 0.8f, rectLeft, arrowStart)
+                }
+                
+                // Left edge up to top-left corner
+                lineTo(rectLeft, r)
+                quadraticTo(rectLeft, 0f, rectLeft + r, 0f)
+                
+                close()
+            } else if (arrowOnTop) {
+                val rectTop = arrowH
+                
+                // Start drawing from left edge below top-left corner
+                moveTo(0f, rectTop + r)
+                
+                // Top-left round corner
+                quadraticTo(0f, rectTop, r, rectTop)
+                
+                // Top edge with curved cartoon tail
+                if (arrowPositionCenter) {
+                    val arrowStart = (size.width - arrowW) / 2f
+                    val arrowPeakX = size.width / 2f
+                    val arrowEnd = (size.width + arrowW) / 2f
+                    
+                    lineTo(arrowStart, rectTop)
+                    quadraticTo(arrowStart + arrowW * 0.2f, rectTop - arrowH * 0.5f, arrowPeakX, 0f)
+                    quadraticTo(arrowEnd - arrowW * 0.2f, rectTop - arrowH * 0.5f, arrowEnd, rectTop)
+                } else if (arrowPositionLeft) {
+                    val arrowStart = r
+                    val arrowPeakX = r - arrowW * 0.15f
+                    val arrowEnd = r + arrowW
+                    
+                    lineTo(arrowStart, rectTop)
+                    // Curved left side of the tail (concave, curving inwards)
+                    quadraticTo(r - arrowW * 0.2f, rectTop - arrowH * 0.4f, arrowPeakX, 0f)
+                    // Curved right side of the tail (concave, curving inwards)
+                    quadraticTo(r + arrowW * 0.5f, rectTop - arrowH * 0.7f, arrowEnd, rectTop)
+                } else {
+                    val arrowStart = size.width - r - arrowW
+                    val arrowPeakX = size.width - r + arrowW * 0.15f
+                    val arrowEnd = size.width - r
+                    
+                    lineTo(arrowStart, rectTop)
+                    // Curved left side of the tail (concave, curving inwards)
+                    quadraticTo(size.width - r - arrowW * 0.5f, rectTop - arrowH * 0.7f, arrowPeakX, 0f)
+                    // Curved right side of the tail (concave, curving inwards)
+                    quadraticTo(size.width - r + arrowW * 0.2f, rectTop - arrowH * 0.4f, arrowEnd, rectTop)
+                }
+                
+                // Top edge to top-right corner
+                lineTo(size.width - r, rectTop)
+                quadraticTo(size.width, rectTop, size.width, rectTop + r)
+                
+                // Right edge to bottom-right corner
+                lineTo(size.width, size.height - r)
+                quadraticTo(size.width, size.height, size.width - r, size.height)
+                
+                // Bottom edge to bottom-left corner
+                lineTo(r, size.height)
+                quadraticTo(0f, size.height, 0f, size.height - r)
+                
+                close()
+            } else {
+                val rectHeight = size.height - arrowH
+                
+                // Top-left round corner
+                moveTo(0f, r)
+                quadraticTo(0f, 0f, r, 0f)
+                
+                // Top edge to top-right corner
+                lineTo(size.width - r, 0f)
+                quadraticTo(size.width, 0f, size.width, r)
+                
+                // Right edge to bottom-right corner
+                lineTo(size.width, rectHeight - r)
+                quadraticTo(size.width, rectHeight, size.width - r, rectHeight)
+                
+                // Bottom edge with curved cartoon tail
+                if (arrowPositionCenter) {
+                    val arrowStart = (size.width - arrowW) / 2f
+                    val arrowPeakX = size.width / 2f
+                    val arrowEnd = (size.width + arrowW) / 2f
+                    
+                    lineTo(arrowEnd, rectHeight)
+                    quadraticTo(arrowEnd - arrowW * 0.2f, rectHeight + arrowH * 0.5f, arrowPeakX, size.height)
+                    quadraticTo(arrowStart + arrowW * 0.2f, rectHeight + arrowH * 0.5f, arrowStart, rectHeight)
+                } else if (arrowPositionLeft) {
+                    val arrowStart = r
+                    val arrowPeakX = r - arrowW * 0.15f
+                    val arrowEnd = r + arrowW
+                    
+                    lineTo(arrowEnd, rectHeight)
+                    // Curved right side of the tail (concave, curving inwards)
+                    quadraticTo(r + arrowW * 0.5f, rectHeight + arrowH * 0.7f, arrowPeakX, size.height)
+                    // Curved left side of the tail (concave, curving inwards)
+                    quadraticTo(r - arrowW * 0.2f, rectHeight + arrowH * 0.4f, arrowStart, rectHeight)
+                } else {
+                    val arrowStart = size.width - r - arrowW
+                    val arrowPeakX = size.width - r + arrowW * 0.15f
+                    val arrowEnd = size.width - r
+                    
+                    lineTo(arrowEnd, rectHeight)
+                    // Curved right side of the tail (concave, curving inwards)
+                    quadraticTo(size.width - r + arrowW * 0.2f, rectHeight + arrowH * 0.4f, arrowPeakX, size.height)
+                    // Curved left side of the tail (concave, curving inwards)
+                    quadraticTo(size.width - r - arrowW * 0.5f, rectHeight + arrowH * 0.7f, arrowStart, rectHeight)
+                }
+                
+                // Bottom edge to bottom-left corner
+                lineTo(r, rectHeight)
+                quadraticTo(0f, rectHeight, 0f, rectHeight - r)
+                
+                close()
+            }
+        }
+        return Outline.Generic(path)
+    }
+}
+
+@Composable
+fun BubbleButton(
+    text: String,
+    onClick: () -> Unit,
+    containerColor: Color,
+    contentColor: Color,
+    arrowOnTop: Boolean = false,
+    arrowPositionLeft: Boolean = true,
+    arrowOnLeft: Boolean = false,
+    arrowPositionTop: Boolean = true,
+    arrowPositionCenter: Boolean = false,
+    icon: @Composable (() -> Unit)? = null
+) {
+    val shape = remember(arrowOnTop, arrowPositionLeft, arrowOnLeft, arrowPositionTop, arrowPositionCenter) { 
+        SpeechBubbleShape(
+            arrowOnTop = arrowOnTop,
+            arrowPositionLeft = arrowPositionLeft,
+            arrowOnLeft = arrowOnLeft,
+            arrowPositionTop = arrowPositionTop,
+            arrowPositionCenter = arrowPositionCenter
+        ) 
+    }
+    val borderColor = Color(0xFF36221A) // Kawaii-style dark brown border
+    
+    val topPadding = if (arrowOnTop) 10.dp + 16.dp else 10.dp
+    val bottomPadding = if (arrowOnLeft) 10.dp else (if (arrowOnTop) 10.dp else 10.dp + 16.dp)
+    val startPadding = if (arrowOnLeft) 16.dp + 16.dp else 16.dp
+    val endPadding = 16.dp
+
+    Box(
+        modifier = Modifier
+            .shadow(elevation = 6.dp, shape = shape)
+            .background(color = containerColor, shape = shape)
+            .border(width = 2.dp, color = borderColor, shape = shape)
+            .clickable { onClick() }
+            .padding(
+                start = startPadding,
+                end = endPadding,
+                top = topPadding,
+                bottom = bottomPadding
+            ),
+        contentAlignment = Alignment.Center
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center
+        ) {
+            if (icon != null) {
+                icon()
+                Spacer(modifier = Modifier.width(4.dp))
+            }
+            Text(
+                text = text,
+                color = contentColor,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Bold
+            )
         }
     }
 }

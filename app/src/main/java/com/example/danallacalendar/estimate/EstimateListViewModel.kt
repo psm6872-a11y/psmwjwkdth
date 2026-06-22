@@ -6,6 +6,9 @@ import androidx.lifecycle.viewModelScope
 import com.example.danallacalendar.data.EstimatePdf
 import com.example.danallacalendar.data.EstimatePdfDao
 import com.example.danallacalendar.data.local.UserPreferences
+import com.example.danallacalendar.data.repository.CalendarRepository
+import com.example.danallacalendar.ui.screens.settingsDataStore
+import com.example.danallacalendar.ui.screens.TeamConfigs
 import com.google.android.gms.auth.api.signin.GoogleSignInAccount
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -17,6 +20,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -25,6 +29,7 @@ class EstimateListViewModel @Inject constructor(
     private val repository: EstimateRepository,
     private val userPreferences: UserPreferences,
     private val estimatePdfDao: EstimatePdfDao,
+    private val calendarRepository: CalendarRepository,
     @ApplicationContext private val context: Context
 ) : ViewModel() {
 
@@ -272,6 +277,152 @@ class EstimateListViewModel @Inject constructor(
             failedIds.add(estimate.id)
         } finally {
             processingIds.remove(estimate.id)
+        }
+    }
+
+    suspend fun getOrCreateSharedCategory(calendarRepository: CalendarRepository): Int {
+        val list = calendarRepository.eventDao.getAllCategoriesList()
+        val found = list.find { it.name == "공유 캘린더" }
+        return if (found != null) {
+            found.id
+        } else {
+            calendarRepository.eventDao.insertCategory(
+                com.example.danallacalendar.data.CalendarCategory(
+                    name = "공유 캘린더",
+                    colorHex = "#34c759", // Green color for synced calendar
+                    accountName = "공유 계정",
+                    isVisible = true
+                )
+            ).toInt()
+        }
+    }
+
+    fun confirmContract(
+        estimate: Estimate,
+        teamId: Int,
+        slotPos: String,
+        onSuccess: () -> Unit,
+        onError: (Exception) -> Unit
+    ) {
+        viewModelScope.launch {
+            try {
+                val sharedCategoryId = getOrCreateSharedCategory(calendarRepository)
+                
+                // date 파싱 (yyyy-MM-dd)
+                val dateCal = java.util.Calendar.getInstance()
+                val dateFormat = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.KOREAN)
+                try {
+                    val parsedDate = dateFormat.parse(estimate.moveDate)
+                    if (parsedDate != null) {
+                        dateCal.time = parsedDate
+                    }
+                } catch (e: Exception) {
+                    android.util.Log.e("EstimateListViewModel", "Error parsing moveDate: ${estimate.moveDate}", e)
+                }
+                
+                dateCal.set(java.util.Calendar.HOUR_OF_DAY, 0)
+                dateCal.set(java.util.Calendar.MINUTE, 0)
+                dateCal.set(java.util.Calendar.SECOND, 0)
+                dateCal.set(java.util.Calendar.MILLISECOND, 0)
+                val startMillis = dateCal.timeInMillis
+                
+                dateCal.set(java.util.Calendar.HOUR_OF_DAY, 23)
+                dateCal.set(java.util.Calendar.MINUTE, 59)
+                dateCal.set(java.util.Calendar.SECOND, 59)
+                dateCal.set(java.util.Calendar.MILLISECOND, 999)
+                val endMillis = dateCal.timeInMillis
+                
+                // settingsDataStore에서 팀 설정 읽기
+                val preferences = context.settingsDataStore.data.first()
+                val teamConfigs = TeamConfigs.map { config ->
+                    val name = preferences[config.nameKey] ?: config.defaultName
+                    val color = preferences[config.colorKey] ?: config.defaultColor
+                    name to color
+                }
+                
+                val teamPref = teamConfigs.getOrNull(teamId - 1) ?: ("" to 0xFF4CAF50L)
+                val teamName = teamPref.first
+                val teamColorLong = teamPref.second
+                
+                val resolvedVolume = if (estimate.totalVolume.isNotBlank()) {
+                    if (estimate.totalVolume.contains("톤")) estimate.totalVolume else "${estimate.totalVolume}톤"
+                } else {
+                    "-"
+                }
+
+                val resolvedStartTime = if (estimate.startTime.isNotBlank()) {
+                    estimate.startTime
+                } else {
+                    "-"
+                }
+
+                val departureFirstWord = run {
+                    val mainPart = estimate.departure.split("|").firstOrNull() ?: ""
+                    val firstWord = mainPart.trim().split(" ").firstOrNull() ?: ""
+                    if (firstWord.isNotBlank()) firstWord else "-"
+                }
+
+                val destinationFirstWord = run {
+                    val mainPart = estimate.destination.split("|").firstOrNull() ?: ""
+                    val firstWord = mainPart.trim().split(" ").firstOrNull() ?: ""
+                    if (firstWord.isNotBlank()) firstWord else "-"
+                }
+
+                val departureFloor = if (estimate.departureFloorType.isNotBlank()) estimate.departureFloorType else "-"
+                val destinationFloor = if (estimate.destinationFloorType.isNotBlank()) estimate.destinationFloorType else "-"
+
+                val titleText = "$teamName. $resolvedStartTime. $resolvedVolume\n$departureFirstWord. $destinationFirstWord. $departureFloor/$destinationFloor"
+                
+                val departureAddr: String
+                val departureDetail: String
+                if (estimate.departure.contains("|")) {
+                    val parts = estimate.departure.split("|")
+                    departureAddr = parts.getOrNull(0) ?: ""
+                    departureDetail = parts.getOrNull(1) ?: ""
+                } else {
+                    departureAddr = estimate.departure
+                    departureDetail = ""
+                }
+                
+                val destinationAddr: String
+                val destinationDetail: String
+                if (estimate.destination.contains("|")) {
+                    val parts = estimate.destination.split("|")
+                    destinationAddr = parts.getOrNull(0) ?: ""
+                    destinationDetail = parts.getOrNull(1) ?: ""
+                } else {
+                    destinationAddr = estimate.destination
+                    destinationDetail = ""
+                }
+                
+                val locationField = "$departureAddr|||$departureDetail|||$destinationAddr|||$destinationDetail"
+                
+                val notesField = estimate.phoneNumber
+                val colorHexField = String.format("#%08X", teamColorLong)
+                
+                val newEvent = com.example.danallacalendar.data.Event(
+                    title = titleText,
+                    startMillis = startMillis,
+                    endMillis = endMillis,
+                    isAllDay = true,
+                    location = locationField,
+                    notes = notesField,
+                    colorHex = colorHexField,
+                    calendarId = sharedCategoryId,
+                    syncId = java.util.UUID.randomUUID().toString(),
+                    isSynced = true,
+                    linkedEstimateId = estimate.id,
+                    teamId = teamId,
+                    slotPosition = slotPos,
+                    createdAt = System.currentTimeMillis(),
+                    updatedAt = System.currentTimeMillis()
+                )
+                calendarRepository.insertEvent(newEvent)
+                onSuccess()
+            } catch (e: Exception) {
+                android.util.Log.e("EstimateListViewModel", "Failed to confirm contract from estimate list", e)
+                onError(e)
+            }
         }
     }
 }
