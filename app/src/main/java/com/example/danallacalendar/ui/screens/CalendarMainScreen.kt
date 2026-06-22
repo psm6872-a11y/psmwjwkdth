@@ -1488,7 +1488,7 @@ fun EventListSection(
                         ),
                         verticalArrangement = Arrangement.spacedBy(screenHeight * 0.012f)
                     ) {
-                        items(dayEvents) { event ->
+                        items(dayEvents, key = { it.id }) { event ->
                             val category = categories.find { it.id == event.calendarId }
                             EventItemCard(
                                 event = event,

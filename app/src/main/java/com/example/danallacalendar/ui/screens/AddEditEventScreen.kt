@@ -678,73 +678,6 @@ fun AddEditEventScreen(
                 }
             }
 
-            if (linkedEstimateId != null) {
-                val currentTeamName = teamId?.let { teamPrefsList.getOrNull(it - 1)?.first } ?: "미배정"
-                val currentSlotText = when (slotPosition) {
-                    "top" -> "오전"
-                    "bottom" -> "오후"
-                    "both" -> "하루종일"
-                    else -> "미배정"
-                }
-
-                Card(
-                    shape = RoundedCornerShape(20.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(
-                                imageVector = Icons.Default.Groups,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                            Spacer(modifier = Modifier.width(12.dp))
-                            Text(
-                                text = "배정 팀 / 시간대",
-                                fontSize = 16.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            Text(
-                                text = "$currentTeamName ($currentSlotText)",
-                                fontSize = 15.sp,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                fontWeight = FontWeight.Medium
-                            )
-                            if (!isReadOnly) {
-                                Button(
-                                    onClick = {
-                                        tempTeamId = teamId ?: 1
-                                        tempIsAmSelected = slotPosition == "top" || slotPosition == "both"
-                                        tempIsPmSelected = slotPosition == "bottom" || slotPosition == "both"
-                                        showChangeTeamSlotDialog = true
-                                    },
-                                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
-                                    shape = RoundedCornerShape(8.dp),
-                                    colors = ButtonDefaults.buttonColors(
-                                        containerColor = MaterialTheme.colorScheme.primaryContainer,
-                                        contentColor = MaterialTheme.colorScheme.onPrimaryContainer
-                                    ),
-                                    modifier = Modifier.height(32.dp)
-                                ) {
-                                    Text("배정 변경/맞교환", fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                                }
-                            }
-                        }
-                    }
-                }
-            }
 
             // Memo & Location Card (위치 위, 전화번호 아래)
             Card(
@@ -1299,25 +1232,71 @@ fun AddEditEventScreen(
 
                     HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
 
-                    // All Day switch
+                    // All Day switch & Team Assignment Row
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(36.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(imageVector = Icons.Default.AccessTime, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                            Spacer(modifier = Modifier.width(12.dp))
-                            Text("하루 종일", fontSize = 16.sp)
+                        // Left half: All Day switch
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.AccessTime,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("하루 종일", fontSize = 14.sp)
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Switch(
+                                checked = isAllDay,
+                                onCheckedChange = { isAllDay = it },
+                                enabled = !isReadOnly,
+                                modifier = Modifier.scale(0.75f)
+                            )
                         }
-                        Switch(
-                            checked = isAllDay,
-                            onCheckedChange = { isAllDay = it },
-                            enabled = !isReadOnly,
-                            modifier = Modifier.scale(0.85f)
-                        )
+
+                        // Right half: Team Assignment Button
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.End,
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            val currentTeamName = teamId?.let { teamPrefsList.getOrNull(it - 1)?.first } ?: "미배정"
+                            val currentSlotText = when (slotPosition) {
+                                "top" -> "오전"
+                                "bottom" -> "오후"
+                                "both" -> "하루종일"
+                                else -> "미배정"
+                            }
+                            val displayText = if (teamId == null) "팀배정" else "$currentTeamName($currentSlotText)"
+
+                            Button(
+                                onClick = {
+                                    tempTeamId = teamId ?: 1
+                                    tempIsAmSelected = slotPosition == "top" || slotPosition == "both"
+                                    tempIsPmSelected = slotPosition == "bottom" || slotPosition == "both"
+                                    showChangeTeamSlotDialog = true
+                                },
+                                enabled = !isReadOnly,
+                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
+                                shape = RoundedCornerShape(8.dp),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = MaterialTheme.colorScheme.primaryContainer,
+                                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                                ),
+                                modifier = Modifier
+                                    .width(120.dp)
+                                    .height(36.dp)
+                            ) {
+                                Text(displayText, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                            }
+                        }
                     }
                 }
             }

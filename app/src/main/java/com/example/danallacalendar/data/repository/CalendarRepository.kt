@@ -14,6 +14,8 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 import javax.inject.Inject
@@ -23,6 +25,7 @@ class CalendarRepository @Inject constructor(
     private val userPreferences: UserPreferences,
     val eventDao: EventDao
 ) {
+    private val syncMutex = Mutex()
     // Suspending wrapper for createRoom with offline fallback
     suspend fun createRoomSuspended(): String {
         return try {
@@ -378,83 +381,92 @@ class CalendarRepository @Inject constructor(
                 }
                 if (snapshot != null) {
                     kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
-                        try {
-                            val remoteEvents = snapshot.documents.mapNotNull { doc ->
-                                val title = doc.getString("title") ?: ""
-                                val startMillis = doc.getLong("startMillis") ?: 0L
-                                val endMillis = doc.getLong("endMillis") ?: 0L
-                                val isAllDay = doc.getBoolean("isAllDay") ?: false
-                                val location = doc.getString("location") ?: ""
-                                val notes = doc.getString("notes") ?: ""
-                                val repeatType = doc.getString("repeatType") ?: "NONE"
-                                val reminderMinutes = doc.getLong("reminderMinutes")?.toInt() ?: -1
-                                val syncId = doc.getString("syncId") ?: doc.id
-                                val colorHex = doc.getString("colorHex")
-                                val isCompleted = doc.getBoolean("isCompleted") ?: false
-                                val linkedEstimateId = doc.getString("linkedEstimateId")
-                                val createdAt = doc.getLong("createdAt") ?: System.currentTimeMillis()
-                                val updatedAt = doc.getLong("updatedAt") ?: System.currentTimeMillis()
-                                val teamId = doc.getLong("teamId")?.toInt()
-                                val slotPosition = doc.getString("slotPosition")
+                        syncMutex.withLock {
+                            try {
+                                val remoteEvents = snapshot.documents.mapNotNull { doc ->
+                                    val title = doc.getString("title") ?: ""
+                                    val startMillis = doc.getLong("startMillis") ?: 0L
+                                    val endMillis = doc.getLong("endMillis") ?: 0L
+                                    val isAllDay = doc.getBoolean("isAllDay") ?: false
+                                    val location = doc.getString("location") ?: ""
+                                    val notes = doc.getString("notes") ?: ""
+                                    val repeatType = doc.getString("repeatType") ?: "NONE"
+                                    val reminderMinutes = doc.getLong("reminderMinutes")?.toInt() ?: -1
+                                    val syncId = doc.getString("syncId") ?: doc.id
+                                    val colorHex = doc.getString("colorHex")
+                                    val isCompleted = doc.getBoolean("isCompleted") ?: false
+                                    val linkedEstimateId = doc.getString("linkedEstimateId")
+                                    val createdAt = doc.getLong("createdAt") ?: System.currentTimeMillis()
+                                    val updatedAt = doc.getLong("updatedAt") ?: System.currentTimeMillis()
+                                    val teamId = doc.getLong("teamId")?.toInt()
+                                    val slotPosition = doc.getString("slotPosition")
+                                    
+                                    Event(
+                                        title = title,
+                                        startMillis = startMillis,
+                                        endMillis = endMillis,
+                                        isAllDay = isAllDay,
+                                        location = location,
+                                        notes = notes,
+                                        repeatType = repeatType,
+                                        reminderMinutes = reminderMinutes,
+                                        calendarId = sharedCategoryId,
+                                        syncId = syncId,
+                                        isSynced = true,
+                                        colorHex = colorHex,
+                                        isCompleted = isCompleted,
+                                        createdAt = createdAt,
+                                        updatedAt = updatedAt,
+                                        linkedEstimateId = linkedEstimateId,
+                                        teamId = teamId,
+                                        slotPosition = slotPosition
+                                    )
+                                }
                                 
-                                Event(
-                                    title = title,
-                                    startMillis = startMillis,
-                                    endMillis = endMillis,
-                                    isAllDay = isAllDay,
-                                    location = location,
-                                    notes = notes,
-                                    repeatType = repeatType,
-                                    reminderMinutes = reminderMinutes,
-                                    calendarId = sharedCategoryId,
-                                    syncId = syncId,
-                                    isSynced = true,
-                                    colorHex = colorHex,
-                                    isCompleted = isCompleted,
-                                    createdAt = createdAt,
-                                    updatedAt = updatedAt,
-                                    linkedEstimateId = linkedEstimateId,
-                                    teamId = teamId,
-                                    slotPosition = slotPosition
-                                )
-                            }
-                            
-                            // 1. Update/insert remote events to local DB
-                            remoteEvents.forEach { remote ->
-                                val existing = eventDao.getEventBySyncId(remote.syncId ?: "")
-                                if (existing != null) {
-                                    val updated = remote.copy(id = existing.id)
-                                    if (existing.title != remote.title ||
-                                        existing.startMillis != remote.startMillis ||
-                                        existing.endMillis != remote.endMillis ||
-                                        existing.isAllDay != remote.isAllDay ||
-                                        existing.location != remote.location ||
-                                        existing.notes != remote.notes ||
-                                        existing.colorHex != remote.colorHex ||
-                                        existing.isCompleted != remote.isCompleted ||
-                                        existing.createdAt != remote.createdAt ||
-                                        existing.updatedAt != remote.updatedAt ||
-                                        existing.linkedEstimateId != remote.linkedEstimateId ||
-                                        existing.teamId != remote.teamId ||
-                                        existing.slotPosition != remote.slotPosition
-                                    ) {
-                                        eventDao.updateEvent(updated)
+                                // 1. Update/insert remote events to local DB
+                                remoteEvents.forEach { remote ->
+                                    val existingList = eventDao.getEventsListBySyncId(remote.syncId ?: "")
+                                    if (existingList.isNotEmpty()) {
+                                        val mainExisting = existingList.first()
+                                        val updated = remote.copy(id = mainExisting.id)
+                                        if (mainExisting.title != remote.title ||
+                                            mainExisting.startMillis != remote.startMillis ||
+                                            mainExisting.endMillis != remote.endMillis ||
+                                            mainExisting.isAllDay != remote.isAllDay ||
+                                            mainExisting.location != remote.location ||
+                                            mainExisting.notes != remote.notes ||
+                                            mainExisting.colorHex != remote.colorHex ||
+                                            mainExisting.isCompleted != remote.isCompleted ||
+                                            mainExisting.createdAt != remote.createdAt ||
+                                            mainExisting.updatedAt != remote.updatedAt ||
+                                            mainExisting.linkedEstimateId != remote.linkedEstimateId ||
+                                            mainExisting.teamId != remote.teamId ||
+                                            mainExisting.slotPosition != remote.slotPosition
+                                        ) {
+                                            eventDao.updateEvent(updated)
+                                        }
+                                        // Clean up any extra duplicates
+                                        if (existingList.size > 1) {
+                                            existingList.drop(1).forEach { duplicate ->
+                                                eventDao.deleteEvent(duplicate)
+                                            }
+                                        }
+                                    } else {
+                                        eventDao.insertEvent(remote)
                                     }
-                                } else {
-                                    eventDao.insertEvent(remote)
                                 }
-                            }
-                            
-                            // 2. Delete local synced events that are NOT in remote collection
-                            val localSynced = eventDao.getSyncedEvents()
-                            val remoteSyncIds = remoteEvents.map { it.syncId }.toSet()
-                            localSynced.forEach { local ->
-                                if (local.syncId !in remoteSyncIds) {
-                                    eventDao.deleteEvent(local)
+                                
+                                // 2. Delete local synced events that are NOT in remote collection
+                                val localSynced = eventDao.getSyncedEvents()
+                                val remoteSyncIds = remoteEvents.map { it.syncId }.toSet()
+                                localSynced.forEach { local ->
+                                    if (local.syncId !in remoteSyncIds) {
+                                        eventDao.deleteEvent(local)
+                                    }
                                 }
+                            } catch (e: Exception) {
+                                android.util.Log.e("SyncError", "Failed to sync remote events", e)
                             }
-                        } catch (e: Exception) {
-                            android.util.Log.e("SyncError", "Failed to sync remote events", e)
                         }
                     }
                     trySend(Unit)

@@ -74,6 +74,9 @@ interface EventDao {
     @Query("SELECT * FROM events WHERE syncId = :syncId")
     suspend fun getEventBySyncId(syncId: String): Event?
 
+    @Query("SELECT * FROM events WHERE syncId = :syncId")
+    suspend fun getEventsListBySyncId(syncId: String): List<Event>
+
     @Query("SELECT * FROM events WHERE isSynced = 1")
     suspend fun getSyncedEvents(): List<Event>
 
