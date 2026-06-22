@@ -4,6 +4,7 @@ import android.content.Context
 import com.example.danallacalendar.data.CalendarDatabase
 import com.example.danallacalendar.data.EventDao
 import com.example.danallacalendar.data.EstimatePdfDao
+import com.example.danallacalendar.data.TrashDao
 import com.example.danallacalendar.data.local.UserPreferences
 import com.example.danallacalendar.data.repository.CalendarRepository
 import com.google.firebase.firestore.FirebaseFirestore
@@ -61,12 +62,20 @@ object AppModule {
 
     @Provides
     @Singleton
+    fun provideTrashDao(database: CalendarDatabase): TrashDao {
+        return database.trashDao()
+    }
+
+    @Provides
+    @Singleton
     fun provideCalendarRepository(
         firestore: FirebaseFirestore,
         userPreferences: UserPreferences,
-        eventDao: EventDao
+        eventDao: EventDao,
+        trashDao: TrashDao,
+        estimatePdfDao: EstimatePdfDao
     ): CalendarRepository {
-        return CalendarRepository(firestore, userPreferences, eventDao)
+        return CalendarRepository(firestore, userPreferences, eventDao, trashDao, estimatePdfDao)
     }
 
     @Provides

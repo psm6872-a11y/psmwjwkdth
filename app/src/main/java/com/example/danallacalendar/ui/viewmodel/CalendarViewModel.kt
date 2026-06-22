@@ -430,7 +430,7 @@ class CalendarViewModel @Inject constructor(
 
     fun deleteEvent(event: Event) {
         viewModelScope.launch {
-            repository.deleteEvent(event)
+            repository.moveToTrash(event)
         }
     }
 

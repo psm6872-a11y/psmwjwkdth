@@ -4,11 +4,20 @@ import com.example.danallacalendar.data.CalendarCategory
 import com.example.danallacalendar.data.Event
 import com.example.danallacalendar.data.DeadlineDate
 import com.example.danallacalendar.data.EventDao
+import com.example.danallacalendar.data.TrashItem
+import com.example.danallacalendar.data.TrashDao
+import com.example.danallacalendar.data.EstimatePdf
+import com.example.danallacalendar.estimate.Estimate
+import com.google.gson.Gson
 import com.example.danallacalendar.data.local.UserPreferences
 import com.example.danallacalendar.data.model.Room
 import com.google.firebase.Timestamp
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
+import java.text.SimpleDateFormat
+import java.util.Locale
+import java.util.Date
+import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
@@ -18,12 +27,15 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
+import com.example.danallacalendar.data.EstimatePdfDao
 import javax.inject.Inject
 
 class CalendarRepository @Inject constructor(
     private val firestore: FirebaseFirestore,
     private val userPreferences: UserPreferences,
-    val eventDao: EventDao
+    val eventDao: EventDao,
+    val trashDao: TrashDao,
+    val estimatePdfDao: EstimatePdfDao
 ) {
     private val syncMutex = Mutex()
     // Suspending wrapper for createRoom with offline fallback
@@ -516,5 +528,119 @@ class CalendarRepository @Inject constructor(
             .collection("events")
             .document(syncId)
             .delete()
+    }
+
+    fun getTrashItemsFlow(): Flow<List<TrashItem>> = trashDao.getAllTrashItemsFlow()
+
+    suspend fun deleteTrashItemPermanently(item: TrashItem) {
+        trashDao.deleteTrashItem(item)
+    }
+
+    suspend fun clearTrash() {
+        trashDao.clearAllTrashItems()
+    }
+
+    suspend fun pruneTrash() {
+        val threshold = System.currentTimeMillis() - 7 * 24 * 60 * 60 * 1000L
+        trashDao.deleteExpiredItems(threshold)
+    }
+
+    suspend fun moveToTrash(event: Event) {
+        val gson = Gson()
+        val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.KOREAN)
+        val timeFormat = SimpleDateFormat("HH:mm", Locale.KOREAN)
+        val dateStr = dateFormat.format(Date(event.startMillis))
+        val timeStr = if (event.isAllDay) "하루종일" else timeFormat.format(Date(event.startMillis))
+        val detailText = "일시: $dateStr ($timeStr) ${if (event.location.isNotEmpty()) "/ 위치: " + event.location.split("|||").firstOrNull() else ""}"
+        
+        val trashItem = TrashItem(
+            itemType = "EVENT",
+            originalId = event.id.toString(),
+            title = event.title,
+            detailText = detailText,
+            serializedJson = gson.toJson(event),
+            deletedAt = System.currentTimeMillis()
+        )
+        trashDao.insertTrashItem(trashItem)
+        deleteEvent(event)
+    }
+
+    suspend fun restoreEvent(event: Event) {
+        insertEvent(event.copy(id = 0))
+    }
+
+    suspend fun moveToTrash(estimate: Estimate) {
+        val gson = Gson()
+        val detailText = "전화번호: ${estimate.phoneNumber} / 이사날짜: ${estimate.moveDate} / 구분: ${estimate.moveType}"
+        
+        val trashItem = TrashItem(
+            itemType = "ESTIMATE",
+            originalId = estimate.id,
+            title = "${estimate.customerName} 고객님",
+            detailText = detailText,
+            serializedJson = gson.toJson(estimate),
+            deletedAt = System.currentTimeMillis()
+        )
+        trashDao.insertTrashItem(trashItem)
+        
+        // Delete locally (EstimatePdf) and Firestore
+        deleteFromFirestore(estimate.id)
+        estimatePdfDao.deleteByEstimateId(estimate.id)
+    }
+
+    suspend fun restoreEstimate(estimate: Estimate) {
+        val gson = Gson()
+        val docId = saveToFirestore(estimate)
+        
+        val moveDateParts = estimate.moveDate.split("-")
+        val monthDay = if (moveDateParts.size >= 3) "${moveDateParts[1]}-${moveDateParts[2]}" else "01-01"
+        val fileName = estimate.localFilePath?.substringAfterLast("/") ?: "${monthDay}_restored.jpg"
+        val filePath = estimate.localFilePath ?: ""
+        
+        val pdfEntity = EstimatePdf(
+            date = monthDay,
+            fileName = fileName,
+            filePath = filePath,
+            createdAt = estimate.createdAt,
+            estimateId = docId,
+            customerName = estimate.customerName,
+            phoneNumber = estimate.phoneNumber,
+            moveDate = estimate.moveDate,
+            departure = estimate.departure,
+            estimateJson = gson.toJson(estimate.copy(id = docId)),
+            isSynced = true
+        )
+        estimatePdfDao.insertPdf(pdfEntity)
+    }
+
+    // Suspending wrapper for saveToFirestore with fallback
+    private suspend fun saveToFirestore(estimate: Estimate): String {
+        val roomCode = userPreferences.getLastRoomCode()
+        val docRef = if (roomCode.isNotEmpty()) {
+            if (estimate.id.isEmpty()) {
+                firestore.collection("rooms").document(roomCode).collection("estimates").document()
+            } else {
+                firestore.collection("rooms").document(roomCode).collection("estimates").document(estimate.id)
+            }
+        } else {
+            if (estimate.id.isEmpty()) {
+                firestore.collection("estimates").document()
+            } else {
+                firestore.collection("estimates").document(estimate.id)
+            }
+        }
+        val estimateWithId = estimate.copy(id = docRef.id)
+        docRef.set(estimateWithId).await()
+        return docRef.id
+    }
+
+    private suspend fun deleteFromFirestore(estimateId: String) {
+        val roomCode = userPreferences.getLastRoomCode()
+        val docRef = if (roomCode.isNotEmpty()) {
+            firestore.collection("rooms").document(roomCode).collection("estimates").document(estimateId)
+        } else {
+            firestore.collection("estimates").document(estimateId)
+        }
+        docRef.delete().await()
     }
 }

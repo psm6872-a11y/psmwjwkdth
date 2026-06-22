@@ -12,10 +12,11 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import java.util.Calendar
 
-@Database(entities = [CalendarCategory::class, Event::class, DeadlineDate::class, EstimatePdf::class], version = 11, exportSchema = false)
+@Database(entities = [CalendarCategory::class, Event::class, DeadlineDate::class, EstimatePdf::class, TrashItem::class], version = 12, exportSchema = false)
 abstract class CalendarDatabase : RoomDatabase() {
     abstract fun eventDao(): EventDao
     abstract fun estimatePdfDao(): EstimatePdfDao
+    abstract fun trashDao(): TrashDao
 
     companion object {
         @Volatile
@@ -34,6 +35,22 @@ abstract class CalendarDatabase : RoomDatabase() {
             }
         }
 
+        val MIGRATION_11_12 = object : androidx.room.migration.Migration(11, 12) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("""
+                    CREATE TABLE IF NOT EXISTS `trash_items` (
+                        `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, 
+                        `itemType` TEXT NOT NULL, 
+                        `originalId` TEXT NOT NULL, 
+                        `title` TEXT NOT NULL, 
+                        `detailText` TEXT NOT NULL, 
+                        `serializedJson` TEXT NOT NULL, 
+                        `deletedAt` INTEGER NOT NULL
+                    )
+                """)
+            }
+        }
+
         fun getDatabase(context: Context, scope: CoroutineScope): CalendarDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
@@ -42,7 +59,7 @@ abstract class CalendarDatabase : RoomDatabase() {
                     "calendar_database"
                 )
                 .addCallback(CalendarDatabaseCallback(scope))
-                .addMigrations(MIGRATION_9_10, MIGRATION_10_11)
+                .addMigrations(MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12)
                 .fallbackToDestructiveMigration()
                 .build()
                 INSTANCE = instance

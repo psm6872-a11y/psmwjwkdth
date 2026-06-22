@@ -34,6 +34,8 @@ import com.example.danallacalendar.ui.room.RoomScreen
 import com.example.danallacalendar.ui.room.RoomViewModel
 import com.example.danallacalendar.backup.BackupScreen
 import com.example.danallacalendar.estimate.EstimateListScreen
+import com.example.danallacalendar.ui.screens.TrashScreen
+import com.example.danallacalendar.ui.viewmodel.TrashViewModel
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
 
@@ -246,12 +248,23 @@ fun AppNavigation(userPreferences: UserPreferences) {
                 onNavigateToEstimateList = {
                     navController.navigate("estimate_list")
                 },
+                onNavigateToTrash = {
+                    navController.navigate("trash")
+                },
                 onExitRoom = {
                     userPreferences.setLastRoomCode("")
                     navController.navigate("room") {
                         popUpTo("calendar") { inclusive = true }
                     }
                 }
+            )
+        }
+
+        composable("trash") {
+            val viewModel: TrashViewModel = hiltViewModel()
+            TrashScreen(
+                viewModel = viewModel,
+                onNavigateBack = { navController.popBackStack() }
             )
         }
 

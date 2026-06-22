@@ -76,6 +76,7 @@ fun DrawerContent(
     onEstimateListClick: () -> Unit,
     onCloseClick: () -> Unit,
     onBackupClick: () -> Unit,
+    onTrashClick: () -> Unit,
     isCreator: Boolean,
     onRemoveMember: (String) -> Unit,
     onTransferHost: (String) -> Unit,
@@ -549,6 +550,32 @@ fun DrawerContent(
                 fontSize = 15.sp,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.tertiary
+            )
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(MaterialTheme.shapes.medium)
+                .clickable { onTrashClick() }
+                .background(MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.2f))
+                .padding(vertical = 12.dp, horizontal = 12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = Icons.Default.Delete,
+                contentDescription = "휴지통",
+                tint = MaterialTheme.colorScheme.error,
+                modifier = Modifier.size(24.dp)
+            )
+            Spacer(modifier = Modifier.width(16.dp))
+            Text(
+                text = "휴지통",
+                fontSize = 15.sp,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.error
             )
         }
 

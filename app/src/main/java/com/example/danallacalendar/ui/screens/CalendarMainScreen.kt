@@ -130,6 +130,7 @@ fun CalendarMainScreen(
     onNavigateToBackup: () -> Unit,
     onNavigateToEstimate: () -> Unit,
     onNavigateToEstimateList: () -> Unit,
+    onNavigateToTrash: () -> Unit,
     onExitRoom: () -> Unit,
     viewModel: CalendarViewModel,
     modifier: Modifier = Modifier
@@ -331,6 +332,10 @@ fun CalendarMainScreen(
                     onBackupClick = {
                         scope.launch { drawerState.close() }
                         onNavigateToBackup()
+                    },
+                    onTrashClick = {
+                        scope.launch { drawerState.close() }
+                        onNavigateToTrash()
                     }
                 )
             }

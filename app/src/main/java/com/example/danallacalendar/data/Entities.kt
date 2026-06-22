@@ -42,3 +42,14 @@ data class Event(
 data class DeadlineDate(
     @PrimaryKey val dateMillis: Long  // 자정 기준으로 정규화된 날짜 millis
 )
+
+@Entity(tableName = "trash_items")
+data class TrashItem(
+    @PrimaryKey(autoGenerate = true) val id: Int = 0,
+    val itemType: String,       // "EVENT" or "ESTIMATE"
+    val originalId: String,     // Original local id or Firestore syncId
+    val title: String,          // Display title (event title or customerName)
+    val detailText: String,     // Display subtitle details
+    val serializedJson: String, // Serialized JSON representation
+    val deletedAt: Long = System.currentTimeMillis()
+)

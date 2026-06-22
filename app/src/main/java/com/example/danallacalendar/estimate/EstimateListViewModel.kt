@@ -204,14 +204,9 @@ class EstimateListViewModel @Inject constructor(
     fun deleteEstimate(estimate: Estimate) {
         viewModelScope.launch {
             try {
-                repository.deleteFromFirestore(estimate.id)
+                calendarRepository.moveToTrash(estimate)
             } catch (e: Exception) {
-                android.util.Log.e("EstimateListViewModel", "Failed to delete remote estimate: ${estimate.id}", e)
-            }
-            try {
-                estimatePdfDao.deleteByEstimateId(estimate.id)
-            } catch (e: Exception) {
-                android.util.Log.e("EstimateListViewModel", "Failed to delete local estimate: ${estimate.id}", e)
+                android.util.Log.e("EstimateListViewModel", "Failed to move estimate to trash: ${estimate.id}", e)
             }
         }
     }
