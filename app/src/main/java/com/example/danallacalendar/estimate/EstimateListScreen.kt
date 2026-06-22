@@ -135,6 +135,12 @@ fun EstimateListScreen(
     var isPmSelected by remember { mutableStateOf(false) }
     var confirmContractEstimate by remember { mutableStateOf<Estimate?>(null) }
 
+    var showConflictConfirmDialog by remember { mutableStateOf(false) }
+    var conflictTargetEstimate by remember { mutableStateOf<Estimate?>(null) }
+    var conflictTeamId by remember { mutableStateOf<Int?>(null) }
+    var conflictSlotPos by remember { mutableStateOf<String?>(null) }
+    var conflictMessage by remember { mutableStateOf("") }
+
     var showDeleteConfirmDialog by remember { mutableStateOf(false) }
     var deleteEstimateTarget by remember { mutableStateOf<Estimate?>(null) }
     val configuration = LocalConfiguration.current
@@ -813,20 +819,38 @@ fun EstimateListScreen(
                                                         }
                                                         val teamId = selectedTeamId ?: 1
                                                         confirmContractEstimate?.let { est ->
-                                                            viewModel.confirmContract(
-                                                                estimate = est,
-                                                                teamId = teamId,
-                                                                slotPos = finalSlotPosition,
-                                                                onSuccess = {
-                                                                    Toast.makeText(context, "계약이 확정되었습니다.", Toast.LENGTH_SHORT).show()
-                                                                },
-                                                                onError = { e ->
-                                                                    Toast.makeText(context, "오류: ${e.localizedMessage}", Toast.LENGTH_LONG).show()
+                                                            scope.launch {
+                                                                val conflicts = viewModel.checkContractConflict(
+                                                                    dateStr = est.moveDate,
+                                                                    teamId = teamId,
+                                                                    slotPos = finalSlotPosition
+                                                                )
+                                                                if (conflicts.isNotEmpty()) {
+                                                                    val firstConf = conflicts.first()
+                                                                    val confTitle = firstConf.title.split("\n").firstOrNull() ?: ""
+                                                                    conflictTargetEstimate = est
+                                                                    conflictTeamId = teamId
+                                                                    conflictSlotPos = finalSlotPosition
+                                                                    conflictMessage = "주의: 선택하신 날짜와 팀/시간대에 이미 확정된 일정이 있습니다.\n(기존 일정: $confTitle)\n\n그래도 중복으로 배정하시겠습니까?"
+                                                                    showConflictConfirmDialog = true
+                                                                    showConfirmConfirmDialog = false
+                                                                } else {
+                                                                    viewModel.confirmContract(
+                                                                        estimate = est,
+                                                                        teamId = teamId,
+                                                                        slotPos = finalSlotPosition,
+                                                                        onSuccess = {
+                                                                            Toast.makeText(context, "계약이 확정되었습니다.", Toast.LENGTH_SHORT).show()
+                                                                        },
+                                                                        onError = { e ->
+                                                                            Toast.makeText(context, "오류: ${e.localizedMessage}", Toast.LENGTH_LONG).show()
+                                                                        }
+                                                                    )
+                                                                    showConfirmConfirmDialog = false
+                                                                    confirmContractEstimate = null
                                                                 }
-                                                            )
+                                                            }
                                                         }
-                                                        showConfirmConfirmDialog = false
-                                                        confirmContractEstimate = null
                                                     }
                                                 },
                                             contentAlignment = Alignment.Center
@@ -842,6 +866,62 @@ fun EstimateListScreen(
                                 }
                             }
                         }
+                    }
+
+                    // 중복 확인 다이얼로그 (Soft Alert)
+                    if (showConflictConfirmDialog) {
+                        AlertDialog(
+                            onDismissRequest = {
+                                showConflictConfirmDialog = false
+                                conflictTargetEstimate = null
+                                conflictTeamId = null
+                                conflictSlotPos = null
+                            },
+                            title = { Text("중복 배정 경고", color = Color.White, fontWeight = FontWeight.Bold) },
+                            text = { Text(conflictMessage, color = Color.White.copy(alpha = 0.8f)) },
+                            confirmButton = {
+                                TextButton(
+                                    onClick = {
+                                        val est = conflictTargetEstimate
+                                        val teamId = conflictTeamId
+                                        val slotPos = conflictSlotPos
+                                        if (est != null && teamId != null && slotPos != null) {
+                                            viewModel.confirmContract(
+                                                estimate = est,
+                                                teamId = teamId,
+                                                slotPos = slotPos,
+                                                onSuccess = {
+                                                    Toast.makeText(context, "계약이 확정되었습니다.", Toast.LENGTH_SHORT).show()
+                                                },
+                                                onError = { e ->
+                                                    Toast.makeText(context, "오류: ${e.localizedMessage}", Toast.LENGTH_LONG).show()
+                                                }
+                                            )
+                                        }
+                                        showConflictConfirmDialog = false
+                                        conflictTargetEstimate = null
+                                        conflictTeamId = null
+                                        conflictSlotPos = null
+                                    }
+                                ) {
+                                    Text("중복 배정", color = Color(0xFFE040FB), fontWeight = FontWeight.Bold)
+                                }
+                            },
+                            dismissButton = {
+                                TextButton(
+                                    onClick = {
+                                        showConflictConfirmDialog = false
+                                        conflictTargetEstimate = null
+                                        conflictTeamId = null
+                                        conflictSlotPos = null
+                                    }
+                                ) {
+                                    Text("취소", color = Color.Gray)
+                                }
+                            },
+                            containerColor = Color(0xFF1E1045),
+                            shape = RoundedCornerShape(16.dp)
+                        )
                     }
 
                     // 삭제 확인 다이얼로그

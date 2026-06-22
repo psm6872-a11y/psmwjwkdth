@@ -305,6 +305,46 @@ class EstimateListViewModel @Inject constructor(
         }
     }
 
+    suspend fun checkContractConflict(
+        dateStr: String,
+        teamId: Int,
+        slotPos: String
+    ): List<Event> {
+        return try {
+            val dateCal = java.util.Calendar.getInstance()
+            val dateFormat = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.KOREAN)
+            val parsedDate = dateFormat.parse(dateStr)
+            if (parsedDate != null) {
+                dateCal.time = parsedDate
+            }
+            
+            dateCal.set(java.util.Calendar.HOUR_OF_DAY, 0)
+            dateCal.set(java.util.Calendar.MINUTE, 0)
+            dateCal.set(java.util.Calendar.SECOND, 0)
+            dateCal.set(java.util.Calendar.MILLISECOND, 0)
+            val startMillis = dateCal.timeInMillis
+            
+            dateCal.set(java.util.Calendar.HOUR_OF_DAY, 23)
+            dateCal.set(java.util.Calendar.MINUTE, 59)
+            dateCal.set(java.util.Calendar.SECOND, 59)
+            dateCal.set(java.util.Calendar.MILLISECOND, 999)
+            val endMillis = dateCal.timeInMillis
+
+            val dayEvents = calendarRepository.eventDao.getEventsInRangeList(startMillis, endMillis)
+            dayEvents.filter { event ->
+                event.teamId == teamId && when {
+                    slotPos == "both" || event.slotPosition == "both" -> true
+                    slotPos == "top" && event.slotPosition == "top" -> true
+                    slotPos == "bottom" && event.slotPosition == "bottom" -> true
+                    else -> false
+                }
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("EstimateListViewModel", "Error checking contract conflict", e)
+            emptyList()
+        }
+    }
+
     fun confirmContract(
         estimate: Estimate,
         teamId: Int,

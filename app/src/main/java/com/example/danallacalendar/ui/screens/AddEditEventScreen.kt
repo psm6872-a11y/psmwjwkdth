@@ -53,6 +53,10 @@ import com.example.danallacalendar.ui.viewmodel.CalendarViewModel
 import java.text.SimpleDateFormat
 import java.util.*
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.map
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 
 val calendarColors = listOf(
     "#ff3b30", // Red
@@ -116,6 +120,20 @@ fun AddEditEventScreen(
     var isDestinationExpanded by remember { mutableStateOf(false) }
     var isEndExpanded by remember { mutableStateOf(false) }
 
+    var teamId by remember { mutableStateOf<Int?>(null) }
+    var slotPosition by remember { mutableStateOf<String?>(null) }
+
+    var showChangeTeamSlotDialog by remember { mutableStateOf(false) }
+    var showSwapConfirmDialog by remember { mutableStateOf(false) }
+    var swapTargetEvent by remember { mutableStateOf<Event?>(null) }
+    var swapTargetTeamId by remember { mutableStateOf<Int?>(null) }
+    var swapTargetSlotPos by remember { mutableStateOf<String?>(null) }
+    var swapMessage by remember { mutableStateOf("") }
+
+    var tempTeamId by remember { mutableStateOf<Int?>(null) }
+    var tempIsAmSelected by remember { mutableStateOf(false) }
+    var tempIsPmSelected by remember { mutableStateOf(false) }
+
     val isReadOnly = false
 
     // Dialog control states
@@ -146,6 +164,26 @@ fun AddEditEventScreen(
         }
     }
 
+    val teamCountFlow = remember(context) {
+        context.settingsDataStore.data.map { preferences ->
+            preferences[TEAM_COUNT_KEY] ?: 1
+        }
+    }
+    val slotCount by teamCountFlow.collectAsState(initial = 1)
+
+    val teamConfigsFlow = remember(context) {
+        context.settingsDataStore.data.map { preferences ->
+            TeamConfigs.map { config ->
+                val name = preferences[config.nameKey] ?: config.defaultName
+                val color = preferences[config.colorKey] ?: config.defaultColor
+                name to color
+            }
+        }
+    }
+    val teamPrefsList by teamConfigsFlow.collectAsState(
+        initial = TeamConfigs.map { it.defaultName to it.defaultColor }
+    )
+
     var isTimeInitialized by remember { mutableStateOf(false) }
     LaunchedEffect(selectedDate) {
         if (eventId == null && !isTimeInitialized) {
@@ -169,6 +207,8 @@ fun AddEditEventScreen(
             val event = viewModel.getEventById(eventId)
             if (event != null) {
                 title = event.title
+                teamId = event.teamId
+                slotPosition = event.slotPosition
                 isAllDay = event.isAllDay
                 startMillis = event.startMillis
                 endMillis = event.endMillis
@@ -266,7 +306,9 @@ fun AddEditEventScreen(
                 isCompleted = isCompleted,
                 createdAt = if (eventId == null) now else createdAt,
                 updatedAt = now,
-                linkedEstimateId = linkedEstimateId
+                linkedEstimateId = linkedEstimateId,
+                teamId = teamId,
+                slotPosition = slotPosition
             )
             if (eventId == null) {
                 viewModel.addEvent(event)
@@ -629,6 +671,74 @@ fun AddEditEventScreen(
                                             )
                                         }
                                     }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            if (linkedEstimateId != null) {
+                val currentTeamName = teamId?.let { teamPrefsList.getOrNull(it - 1)?.first } ?: "미배정"
+                val currentSlotText = when (slotPosition) {
+                    "top" -> "오전"
+                    "bottom" -> "오후"
+                    "both" -> "하루종일"
+                    else -> "미배정"
+                }
+
+                Card(
+                    shape = RoundedCornerShape(20.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Default.Groups,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Text(
+                                text = "배정 팀 / 시간대",
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Text(
+                                text = "$currentTeamName ($currentSlotText)",
+                                fontSize = 15.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                fontWeight = FontWeight.Medium
+                            )
+                            if (!isReadOnly) {
+                                Button(
+                                    onClick = {
+                                        tempTeamId = teamId ?: 1
+                                        tempIsAmSelected = slotPosition == "top" || slotPosition == "both"
+                                        tempIsPmSelected = slotPosition == "bottom" || slotPosition == "both"
+                                        showChangeTeamSlotDialog = true
+                                    },
+                                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                                    shape = RoundedCornerShape(8.dp),
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = MaterialTheme.colorScheme.primaryContainer,
+                                        contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                                    ),
+                                    modifier = Modifier.height(32.dp)
+                                ) {
+                                    Text("배정 변경/맞교환", fontSize = 12.sp, fontWeight = FontWeight.Bold)
                                 }
                             }
                         }
@@ -1494,6 +1604,354 @@ fun AddEditEventScreen(
                 val estimateJson = com.google.gson.Gson().toJson(selectedEstimateForDetail)
                 onNavigateToEstimate("", "", "", "", eventId?.toString(), estimateJson)
             }
+        )
+    }
+
+    // 배정 변경 / 맞교환 다이얼로그
+    if (showChangeTeamSlotDialog) {
+        Dialog(onDismissRequest = { showChangeTeamSlotDialog = false }) {
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                shape = RoundedCornerShape(28.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(24.dp),
+                    verticalArrangement = Arrangement.spacedBy(20.dp)
+                ) {
+                    Text(
+                        text = "배정 팀 및 시간대 변경",
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        modifier = Modifier.fillMaxWidth(),
+                        textAlign = TextAlign.Center
+                    )
+
+                    // 팀 선택
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text(
+                            text = "팀 선택",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                        val teamChunks = (0 until slotCount).chunked(3)
+                        teamChunks.forEach { chunk ->
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                chunk.forEach { index ->
+                                    val teamIdVal = index + 1
+                                    val teamPref = teamPrefsList.getOrNull(index) ?: (TeamConfigs[index].defaultName to TeamConfigs[index].defaultColor)
+                                    val teamName = teamPref.first
+                                    val teamColor = teamPref.second
+                                    val isSelected = tempTeamId == teamIdVal
+
+                                    val containerColor = if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.2f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                                    val borderColor = if (isSelected) MaterialTheme.colorScheme.primary else Color.Transparent
+
+                                    Row(
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .clip(RoundedCornerShape(12.dp))
+                                            .background(containerColor)
+                                            .border(1.5.dp, borderColor, RoundedCornerShape(12.dp))
+                                            .clickable { tempTeamId = teamIdVal }
+                                            .padding(horizontal = 8.dp, vertical = 10.dp),
+                                        horizontalArrangement = Arrangement.Center,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Box(
+                                            modifier = Modifier
+                                                .size(10.dp)
+                                                .clip(CircleShape)
+                                                .background(Color(teamColor))
+                                        )
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        Text(
+                                            text = teamName,
+                                            fontSize = 13.sp,
+                                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                            color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+                                    }
+                                }
+                                if (chunk.size < 3) {
+                                    repeat(3 - chunk.size) {
+                                        Spacer(modifier = Modifier.weight(1f))
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // 오전/오후 선택
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text(
+                            text = "오전/오후 선택",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            val amContainerColor = if (tempIsAmSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.2f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                            val amBorderColor = if (tempIsAmSelected) MaterialTheme.colorScheme.primary else Color.Transparent
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .background(amContainerColor)
+                                    .border(1.5.dp, amBorderColor, RoundedCornerShape(12.dp))
+                                    .clickable { tempIsAmSelected = !tempIsAmSelected }
+                                    .padding(vertical = 10.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = "오전",
+                                    fontSize = 13.sp,
+                                    fontWeight = if (tempIsAmSelected) FontWeight.Bold else FontWeight.Medium,
+                                    color = if (tempIsAmSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
+                                )
+                            }
+
+                            val pmContainerColor = if (tempIsPmSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.2f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                            val pmBorderColor = if (tempIsPmSelected) MaterialTheme.colorScheme.primary else Color.Transparent
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .background(pmContainerColor)
+                                    .border(1.5.dp, pmBorderColor, RoundedCornerShape(12.dp))
+                                    .clickable { tempIsPmSelected = !tempIsPmSelected }
+                                    .padding(vertical = 10.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = "오후",
+                                    fontSize = 13.sp,
+                                    fontWeight = if (tempIsPmSelected) FontWeight.Bold else FontWeight.Medium,
+                                    color = if (tempIsPmSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
+                                )
+                            }
+                        }
+                    }
+
+                    // 확인 / 취소 버튼
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        OutlinedButton(
+                            onClick = { showChangeTeamSlotDialog = false },
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Text("취소")
+                        }
+                        val coroutineScope = rememberCoroutineScope()
+                        Button(
+                            onClick = {
+                                if (tempTeamId == null || (!tempIsAmSelected && !tempIsPmSelected)) {
+                                    Toast.makeText(context, "팀과 시간대를 선택해주세요.", Toast.LENGTH_SHORT).show()
+                                } else {
+                                    val finalSlotPos = when {
+                                        tempIsAmSelected && tempIsPmSelected -> "both"
+                                        tempIsAmSelected -> "top"
+                                        tempIsPmSelected -> "bottom"
+                                        else -> "both"
+                                    }
+                                    val targetTeamId = tempTeamId ?: 1
+                                    
+                                    val sdfDate = SimpleDateFormat("yyyy-MM-dd", Locale.KOREAN)
+                                    val dateStr = sdfDate.format(Date(startMillis))
+                                    
+                                    coroutineScope.launch {
+                                        val conflicts = viewModel.checkContractConflict(
+                                            dateStr = dateStr,
+                                            teamId = targetTeamId,
+                                            slotPos = finalSlotPos,
+                                            excludeEventId = eventId
+                                        )
+                                        if (conflicts.isNotEmpty()) {
+                                            swapTargetEvent = conflicts.first()
+                                            swapTargetTeamId = targetTeamId
+                                            swapTargetSlotPos = finalSlotPos
+                                            val firstConf = conflicts.first()
+                                            val confTitle = firstConf.title.split("\n").firstOrNull() ?: ""
+                                            swapMessage = "주의: 선택하신 날짜와 팀/시간대에 이미 확정된 일정이 있습니다.\n(기존 일정: $confTitle)\n\n어떤 작업을 수행하시겠습니까?"
+                                            showSwapConfirmDialog = true
+                                            showChangeTeamSlotDialog = false
+                                        } else {
+                                            // 충돌 없음 -> 제목 팀명 접두사 자동 치환
+                                            val oldTeamName = teamId?.let { teamPrefsList.getOrNull(it - 1)?.first } ?: ""
+                                            val newTeamName = teamPrefsList.getOrNull(targetTeamId - 1)?.first ?: ""
+                                            if (oldTeamName.isNotEmpty() && title.startsWith("$oldTeamName.")) {
+                                                title = title.replaceFirst("$oldTeamName.", "$newTeamName.")
+                                            } else {
+                                                val dotIndex = title.indexOf('.')
+                                                if (dotIndex in 1..10) {
+                                                    title = newTeamName + title.substring(dotIndex)
+                                                } else {
+                                                    title = "$newTeamName. $title"
+                                                }
+                                            }
+                                            teamId = targetTeamId
+                                            slotPosition = finalSlotPos
+                                            showChangeTeamSlotDialog = false
+                                        }
+                                    }
+                                }
+                            },
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Text("확인")
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // 중복 및 맞교환 처리 다이얼로그
+    if (showSwapConfirmDialog && swapTargetEvent != null) {
+        AlertDialog(
+            onDismissRequest = {
+                showSwapConfirmDialog = false
+                swapTargetEvent = null
+                swapTargetTeamId = null
+                swapTargetSlotPos = null
+            },
+            title = { Text("배정 중복 발생", color = Color.White, fontWeight = FontWeight.Bold) },
+            text = { Text(swapMessage, color = Color.White.copy(alpha = 0.8f)) },
+            confirmButton = {
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    // 1. 맞교환 (Swap)
+                    Button(
+                        onClick = {
+                            val targetEvent = swapTargetEvent
+                            val targetTeam = swapTargetTeamId
+                            val targetSlot = swapTargetSlotPos
+                            if (targetEvent != null && targetTeam != null && targetSlot != null) {
+                                // 상대방 이벤트의 기존 타이틀의 팀명을 현재 나의 기존 팀명으로 변경
+                                val myOldTeamName = teamId?.let { teamPrefsList.getOrNull(it - 1)?.first } ?: ""
+                                val targetOldTeamName = teamPrefsList.getOrNull(targetTeam - 1)?.first ?: ""
+                                
+                                var newTargetTitle = targetEvent.title
+                                if (targetOldTeamName.isNotEmpty() && newTargetTitle.startsWith("$targetOldTeamName.")) {
+                                    newTargetTitle = newTargetTitle.replaceFirst(
+                                        "$targetOldTeamName.", 
+                                        if (myOldTeamName.isNotEmpty()) "$myOldTeamName." else ""
+                                    )
+                                }
+                                
+                                // 상대방 이벤트를 나의 예전 배정정보로 업데이트 (DB 반영)
+                                viewModel.updateEventTitleAndAssignment(
+                                    event = targetEvent,
+                                    newTeamId = teamId ?: 0,
+                                    newSlotPos = slotPosition ?: "",
+                                    newTitle = newTargetTitle
+                                )
+                                
+                                // 나의 타이틀 팀명 접두사를 상대방이 가졌던 팀명으로 변경
+                                val myNewTeamName = teamPrefsList.getOrNull(targetTeam - 1)?.first ?: ""
+                                if (myOldTeamName.isNotEmpty() && title.startsWith("$myOldTeamName.")) {
+                                    title = title.replaceFirst("$myOldTeamName.", "$myNewTeamName.")
+                                } else {
+                                    val dotIndex = title.indexOf('.')
+                                    if (dotIndex in 1..10) {
+                                        title = myNewTeamName + title.substring(dotIndex)
+                                    } else {
+                                        title = "$myNewTeamName. $title"
+                                    }
+                                }
+                                
+                                // 나의 배정 정보를 업데이트 (로컬 상태)
+                                teamId = targetTeam
+                                slotPosition = targetSlot
+                                
+                                Toast.makeText(context, "일정이 맞교환 되었습니다.", Toast.LENGTH_SHORT).show()
+                            }
+                            showSwapConfirmDialog = false
+                            swapTargetEvent = null
+                            swapTargetTeamId = null
+                            swapTargetSlotPos = null
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Text("맞교환 (Swap)", fontWeight = FontWeight.Bold)
+                    }
+
+                    // 2. 동시 배정 (Double-book)
+                    Button(
+                        onClick = {
+                            val targetTeam = swapTargetTeamId
+                            val targetSlot = swapTargetSlotPos
+                            if (targetTeam != null && targetSlot != null) {
+                                val myOldTeamName = teamId?.let { teamPrefsList.getOrNull(it - 1)?.first } ?: ""
+                                val myNewTeamName = teamPrefsList.getOrNull(targetTeam - 1)?.first ?: ""
+                                
+                                if (myOldTeamName.isNotEmpty() && title.startsWith("$myOldTeamName.")) {
+                                    title = title.replaceFirst("$myOldTeamName.", "$myNewTeamName.")
+                                } else {
+                                    val dotIndex = title.indexOf('.')
+                                    if (dotIndex in 1..10) {
+                                        title = myNewTeamName + title.substring(dotIndex)
+                                    } else {
+                                        title = "$myNewTeamName. $title"
+                                    }
+                                }
+                                
+                                teamId = targetTeam
+                                slotPosition = targetSlot
+                                Toast.makeText(context, "동시 배정되었습니다.", Toast.LENGTH_SHORT).show()
+                            }
+                            showSwapConfirmDialog = false
+                            swapTargetEvent = null
+                            swapTargetTeamId = null
+                            swapTargetSlotPos = null
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFFB74D)), // Orange accent
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Text("동시 배정 (Double-book)", color = Color.Black, fontWeight = FontWeight.Bold)
+                    }
+
+                    // 3. 취소
+                    OutlinedButton(
+                        onClick = {
+                            showSwapConfirmDialog = false
+                            swapTargetEvent = null
+                            swapTargetTeamId = null
+                            swapTargetSlotPos = null
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Text("취소", color = Color.White)
+                    }
+                }
+            },
+            dismissButton = null,
+            containerColor = Color(0xFF1E1045),
+            shape = RoundedCornerShape(16.dp)
         )
     }
 }

@@ -50,6 +50,19 @@ interface EventDao {
         SELECT events.* FROM events 
         INNER JOIN calendar_categories ON events.calendarId = calendar_categories.id 
         WHERE calendar_categories.isVisible = 1 
+        AND (
+            (events.startMillis >= :start AND events.startMillis <= :end) OR 
+            (events.endMillis >= :start AND events.endMillis <= :end) OR
+            (events.startMillis <= :start AND events.endMillis >= :end)
+        )
+        ORDER BY events.startMillis ASC
+    """)
+    suspend fun getEventsInRangeList(start: Long, end: Long): List<Event>
+
+    @Query("""
+        SELECT events.* FROM events 
+        INNER JOIN calendar_categories ON events.calendarId = calendar_categories.id 
+        WHERE calendar_categories.isVisible = 1 
         AND (events.title LIKE :query OR events.notes LIKE :query OR events.location LIKE :query) 
         ORDER BY events.startMillis ASC
     """)

@@ -15,6 +15,8 @@ import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import java.util.Calendar
 import java.util.UUID
+import java.text.SimpleDateFormat
+import java.util.Locale
 import android.provider.CalendarContract
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.decodeFromString
@@ -641,6 +643,68 @@ class CalendarViewModel @Inject constructor(
 
         android.util.Log.d("CalendarViewModel", "[getEstimateByScheduleId] 최종 선택 → estimateId=${result?.id}, createdAt=${result?.createdAt}")
         return result
+    }
+
+    suspend fun checkContractConflict(
+        dateStr: String,
+        teamId: Int,
+        slotPos: String,
+        excludeEventId: Int? = null
+    ): List<Event> {
+        return try {
+            val dateCal = Calendar.getInstance()
+            val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.KOREAN)
+            val parsedDate = dateFormat.parse(dateStr)
+            if (parsedDate != null) {
+                dateCal.time = parsedDate
+            }
+            
+            dateCal.set(Calendar.HOUR_OF_DAY, 0)
+            dateCal.set(Calendar.MINUTE, 0)
+            dateCal.set(Calendar.SECOND, 0)
+            dateCal.set(Calendar.MILLISECOND, 0)
+            val startMillis = dateCal.timeInMillis
+            
+            dateCal.set(Calendar.HOUR_OF_DAY, 23)
+            dateCal.set(Calendar.MINUTE, 59)
+            dateCal.set(Calendar.SECOND, 59)
+            dateCal.set(Calendar.MILLISECOND, 999)
+            val endMillis = dateCal.timeInMillis
+
+            val dayEvents = repository.eventDao.getEventsInRangeList(startMillis, endMillis)
+            dayEvents.filter { event ->
+                event.id != excludeEventId && event.teamId == teamId && when {
+                    slotPos == "both" || event.slotPosition == "both" -> true
+                    slotPos == "top" && event.slotPosition == "top" -> true
+                    slotPos == "bottom" && event.slotPosition == "bottom" -> true
+                    else -> false
+                }
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("CalendarViewModel", "Error checking contract conflict", e)
+            emptyList()
+        }
+    }
+
+    fun updateEventTitleAndAssignment(
+        event: Event,
+        newTeamId: Int,
+        newSlotPos: String,
+        newTitle: String
+    ) {
+        viewModelScope.launch {
+            try {
+                val updatedEvent = event.copy(
+                    teamId = newTeamId,
+                    slotPosition = newSlotPos,
+                    title = newTitle,
+                    updatedAt = System.currentTimeMillis()
+                )
+                repository.updateEvent(updatedEvent)
+            } catch (e: Exception) {
+                android.util.Log.e("CalendarViewModel", "Failed to update event assignment", e)
+            }
+        }
     }
 }
 
