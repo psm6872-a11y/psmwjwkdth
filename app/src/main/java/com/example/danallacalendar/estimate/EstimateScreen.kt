@@ -35,6 +35,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -104,6 +105,9 @@ import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.material.icons.filled.Info
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
 import java.text.NumberFormat
@@ -2787,7 +2791,7 @@ fun TableCell(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun Step3CustomerInfo(
     customerName: String,
@@ -3366,6 +3370,30 @@ fun Step3CustomerInfo(
         var isExtraTruckFocused by remember { mutableStateOf(false) }
         var isBalanceFocused by remember { mutableStateOf(false) }
 
+        var lastTonnage by remember { mutableStateOf<Int?>(null) }
+        val context = LocalContext.current
+
+        LaunchedEffect(totalVolume) {
+            val cleanText = totalVolume.replace("톤", "").trim().replace(',', '.')
+            val regex = Regex("""\d+(?:\.\d+)?""")
+            val match = regex.find(cleanText)
+            val volume = match?.value?.toDoubleOrNull() ?: 0.0
+            val tonnage = if (volume > 0.0) kotlin.math.ceil(volume).toInt() else 0
+            
+            if (tonnage > 0 && tonnage != lastTonnage) {
+                if (lastTonnage != null || moveCost.isEmpty()) {
+                    val costs = getTonnageCosts(context)
+                    val cost = costs[tonnage.coerceIn(1, 10)] ?: 0L
+                    if (cost > 0) {
+                        onMoveCostChange(cost.toString())
+                    }
+                }
+                lastTonnage = tonnage
+            } else if (tonnage == 0) {
+                lastTonnage = 0
+            }
+        }
+
         // Amount & Details Card
         Card(
             modifier = Modifier.fillMaxWidth(),
@@ -3379,13 +3407,89 @@ fun Step3CustomerInfo(
                 modifier = Modifier.padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                Text(
-                    text = "💰 견적 정보",
-                    fontWeight = FontWeight.Bold,
-                    color = Color(0xFFE040FB),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(
+                        text = "💰 견적 정보",
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFFE040FB),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f)
+                    )
+                    
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        var showEditCostsDialog by remember { mutableStateOf(false) }
+                        var showInfoCostsDialog by remember { mutableStateOf(false) }
+                        val context = LocalContext.current
+
+                        val focusManager = androidx.compose.ui.platform.LocalFocusManager.current
+
+                        IconButton(
+                            onClick = { showInfoCostsDialog = true },
+                            modifier = Modifier.size(28.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Info,
+                                contentDescription = "비용 안내",
+                                tint = Color(0xFFE040FB).copy(alpha = 0.8f),
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+
+                        Text(
+                            text = "예상비용",
+                            color = Color(0xFFE040FB),
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier
+                                .combinedClickable(
+                                    onClick = {
+                                        focusManager.clearFocus()
+                                        val cleanText = totalVolume.replace("톤", "").trim().replace(',', '.')
+                                        val regex = Regex("""\d+(?:\.\d+)?""")
+                                        val match = regex.find(cleanText)
+                                        val volume = match?.value?.toDoubleOrNull() ?: 0.0
+                                        if (volume > 0.0) {
+                                            val tons = kotlin.math.ceil(volume).toInt()
+                                            val costs = getTonnageCosts(context)
+                                            val cost = costs[tons.coerceIn(1, 10)] ?: 0L
+                                            if (cost > 0) {
+                                                onMoveCostChange(cost.toString())
+                                                Toast.makeText(context, "이사비용에 ${cost}만원이 자동입력 되었습니다.", Toast.LENGTH_SHORT).show()
+                                            } else {
+                                                Toast.makeText(context, "설정된 비용이 없습니다.", Toast.LENGTH_SHORT).show()
+                                            }
+                                        } else {
+                                            Toast.makeText(context, "총견적물량을 먼저 입력해 주세요.", Toast.LENGTH_SHORT).show()
+                                        }
+                                    },
+                                    onLongClick = {
+                                        showEditCostsDialog = true
+                                    }
+                                )
+                                .padding(horizontal = 4.dp, vertical = 4.dp)
+                        )
+
+                        if (showEditCostsDialog) {
+                            EditCostsDialog(
+                                onDismiss = { showEditCostsDialog = false }
+                            )
+                        }
+
+                        if (showInfoCostsDialog) {
+                            InfoCostsDialog(
+                                onDismiss = { showInfoCostsDialog = false }
+                            )
+                        }
+                    }
+                }
                 
                 Column(
                     modifier = Modifier
@@ -4411,4 +4515,182 @@ fun WheelPicker(
             }
         }
     }
+}
+
+fun getTonnageCosts(context: Context): Map<Int, Long> {
+    val prefs = context.getSharedPreferences("estimate_costs", Context.MODE_PRIVATE)
+    val defaults = mapOf(
+        1 to 45L,
+        2 to 70L,
+        3 to 95L,
+        4 to 110L,
+        5 to 125L,
+        6 to 145L,
+        7 to 170L,
+        8 to 200L,
+        9 to 250L,
+        10 to 300L
+    )
+    return (1..10).associateWith { ton ->
+        prefs.getLong("ton_$ton", defaults[ton] ?: 0L)
+    }
+}
+
+fun saveTonnageCosts(context: Context, costs: Map<Int, Long>) {
+    val prefs = context.getSharedPreferences("estimate_costs", Context.MODE_PRIVATE)
+    prefs.edit().apply {
+        costs.forEach { (ton, cost) ->
+            putLong("ton_$ton", cost)
+        }
+        apply()
+    }
+}
+
+@Composable
+fun EditCostsDialog(
+    onDismiss: () -> Unit
+) {
+    val context = LocalContext.current
+    val currentCosts = remember { getTonnageCosts(context) }
+    val tempCosts = remember { mutableStateMapOf<Int, String>().apply {
+        currentCosts.forEach { (ton, cost) ->
+            put(ton, cost.toString())
+        }
+    }}
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                text = "예상비용 설정 (톤수별 비용)",
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color.White
+            )
+        },
+        text = {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                (10 downTo 1).forEach { ton ->
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Text(
+                            text = "${ton}톤 :",
+                            fontSize = 14.sp,
+                            color = Color.White,
+                            modifier = Modifier.width(40.dp)
+                        )
+                        OutlinedTextField(
+                            value = tempCosts[ton] ?: "",
+                            onValueChange = { newValue ->
+                                if (newValue.all { it.isDigit() }) {
+                                    tempCosts[ton] = newValue
+                                }
+                            },
+                            singleLine = true,
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = Color(0xFFE040FB),
+                                unfocusedBorderColor = Color.Gray,
+                                focusedTextColor = Color.White,
+                                unfocusedTextColor = Color.White
+                            ),
+                            modifier = Modifier.weight(1f),
+                            suffix = { Text("만원", color = Color.Gray) }
+                        )
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    val updatedCosts = (1..10).associateWith { ton ->
+                        tempCosts[ton]?.toLongOrNull() ?: 0L
+                    }
+                    saveTonnageCosts(context, updatedCosts)
+                    Toast.makeText(context, "비용 설정이 저장되었습니다.", Toast.LENGTH_SHORT).show()
+                    onDismiss()
+                },
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color(0xFFE040FB)
+                )
+            ) {
+                Text("저장", color = Color.White, fontWeight = FontWeight.Bold)
+            }
+        },
+        dismissButton = {
+            TextButton(
+                onClick = onDismiss
+            ) {
+                Text("취소", color = Color.Gray)
+            }
+        },
+        containerColor = Color(0xFF1E0F3D)
+    )
+}
+
+@Composable
+fun InfoCostsDialog(
+    onDismiss: () -> Unit
+) {
+    val context = LocalContext.current
+    val costs = remember { getTonnageCosts(context) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                text = "톤수별 예상비용 안내",
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color.White
+            )
+        },
+        text = {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                (10 downTo 1).forEach { ton ->
+                    val cost = costs[ton] ?: 0L
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(
+                            text = "${ton}톤",
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = Color.White.copy(alpha = 0.9f)
+                        )
+                        Text(
+                            text = "${cost} 만원",
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFFE040FB)
+                        )
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = onDismiss,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color(0xFFE040FB)
+                )
+            ) {
+                Text("확인", color = Color.White, fontWeight = FontWeight.Bold)
+            }
+        },
+        containerColor = Color(0xFF1E0F3D)
+    )
 }

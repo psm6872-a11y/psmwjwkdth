@@ -1068,14 +1068,19 @@ fun EstimateItemCard(
                                     color = badgeColor.copy(alpha = 0.2f),
                                     border = androidx.compose.foundation.BorderStroke(1.dp, badgeColor),
                                     shape = RoundedCornerShape(4.dp),
-                                    modifier = Modifier.padding(start = 8.dp)
+                                    modifier = Modifier
+                                        .padding(start = 8.dp)
+                                        .width(80.dp)
                                 ) {
                                     Text(
                                         text = badgeText,
                                         color = badgeColor,
                                         fontSize = 10.sp,
                                         fontWeight = FontWeight.Bold,
-                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(vertical = 2.dp)
                                     )
                                 }
                                 
@@ -1085,14 +1090,19 @@ fun EstimateItemCard(
                                         color = statusColor.copy(alpha = 0.2f),
                                         border = androidx.compose.foundation.BorderStroke(1.dp, statusColor),
                                         shape = RoundedCornerShape(4.dp),
-                                        modifier = Modifier.padding(start = 8.dp)
+                                        modifier = Modifier
+                                            .padding(start = 8.dp)
+                                            .width(80.dp)
                                     ) {
                                         Text(
                                             text = "$badgeStatus 📅",
                                             color = statusColor,
                                             fontSize = 10.sp,
                                             fontWeight = FontWeight.Bold,
-                                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(vertical = 2.dp)
                                         )
                                     }
                                 }
