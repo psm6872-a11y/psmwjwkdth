@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.danallacalendar.data.EstimatePdf
 import com.example.danallacalendar.data.EstimatePdfDao
+import com.example.danallacalendar.data.Event
 import com.example.danallacalendar.data.local.UserPreferences
 import com.example.danallacalendar.data.repository.CalendarRepository
 import com.example.danallacalendar.ui.screens.settingsDataStore
@@ -38,6 +39,13 @@ class EstimateListViewModel @Inject constructor(
 
     private val _isShareEnabled = MutableStateFlow(userPreferences.isShareEnabled())
     val isShareEnabled: StateFlow<Boolean> = _isShareEnabled.asStateFlow()
+
+    val linkedEvents: StateFlow<List<Event>> = calendarRepository.eventDao.getLinkedEventsFlow()
+        .stateIn(
+            viewModelScope,
+            SharingStarted.WhileSubscribed(5000),
+            emptyList()
+        )
 
     fun toggleShareEnabled(enabled: Boolean) {
         userPreferences.setShareEnabled(enabled)

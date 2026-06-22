@@ -85,6 +85,9 @@ interface EventDao {
     @Query("UPDATE events SET calendarId = :newCalendarId WHERE calendarId IN (:oldCalendarIds)")
     suspend fun updateEventsCalendarId(oldCalendarIds: List<Int>, newCalendarId: Int)
 
+    @Query("SELECT * FROM events WHERE linkedEstimateId IS NOT NULL AND linkedEstimateId != ''")
+    fun getLinkedEventsFlow(): Flow<List<Event>>
+
     // DeadlineDates
     @Query("SELECT * FROM deadline_dates")
     fun getAllDeadlineDates(): Flow<List<DeadlineDate>>

@@ -35,6 +35,7 @@ import androidx.compose.ui.draw.clip
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
+import com.example.danallacalendar.data.Event
 import com.example.danallacalendar.ui.screens.dataStore
 import com.example.danallacalendar.ui.screens.CONTRACT_MESSAGE_TEMPLATE_KEY
 import com.example.danallacalendar.ui.screens.DEFAULT_CONTRACT_MESSAGE_TEMPLATE
@@ -103,6 +104,7 @@ fun EstimateListScreen(
     val isShareEnabled by viewModel.isShareEnabled.collectAsStateWithLifecycle()
     val isGoogleDriveSaveEnabled by viewModel.isGoogleDriveSaveEnabled.collectAsStateWithLifecycle()
     val googleAccount by viewModel.googleAccount.collectAsStateWithLifecycle()
+    val linkedEvents by viewModel.linkedEvents.collectAsStateWithLifecycle()
     var selectedEstimate by remember { mutableStateOf<Estimate?>(null) }
     var showInfoDialog by remember { mutableStateOf<String?>(null) }
     val context = LocalContext.current
@@ -519,8 +521,19 @@ fun EstimateListScreen(
                             verticalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
                             items(estimateList, key = { it.id }) { estimate ->
+                                val estimateEvents = remember(estimate.id, linkedEvents) {
+                                    linkedEvents.filter { it.linkedEstimateId == estimate.id }
+                                }
+                                val badgeStatus = remember(estimateEvents) {
+                                    when {
+                                        estimateEvents.isEmpty() -> null
+                                        estimateEvents.any { it.isAllDay } -> "계약완료"
+                                        else -> "방문완료"
+                                    }
+                                }
                                 EstimateItemCard(
                                     estimate = estimate,
+                                    badgeStatus = badgeStatus,
                                     onItemClick = { selectedEstimate = estimate },
                                     onSyncClick = { viewModel.syncEstimate(estimate) },
                                     onDeleteClick = {
@@ -992,6 +1005,7 @@ fun EstimateListScreen(
 @Composable
 fun EstimateItemCard(
     estimate: Estimate,
+    badgeStatus: String?,
     onItemClick: () -> Unit,
     onSyncClick: () -> Unit,
     onDeleteClick: () -> Unit,
@@ -1032,7 +1046,7 @@ fun EstimateItemCard(
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
                         Row(
-                            verticalAlignment = Alignment.CenterVertically,
+                            verticalAlignment = Alignment.Top,
                             horizontalArrangement = Arrangement.SpaceBetween,
                             modifier = Modifier.fillMaxWidth()
                         ) {
@@ -1040,24 +1054,48 @@ fun EstimateItemCard(
                                 text = "${estimate.customerName} 고객님",
                                 color = Color.White,
                                 fontSize = 15.sp,
-                                fontWeight = FontWeight.Bold
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.padding(bottom = 6.dp)
                             )
                             
-                            val badgeColor = if (estimate.isSynced) Color(0xFFE040FB) else Color(0xFFFF9800)
-                            val badgeText = if (estimate.isSynced) "공유 완료 ☁️" else "로컬 저장"
-                            Surface(
-                                color = badgeColor.copy(alpha = 0.2f),
-                                border = androidx.compose.foundation.BorderStroke(1.dp, badgeColor),
-                                shape = RoundedCornerShape(4.dp),
-                                modifier = Modifier.padding(start = 8.dp)
+                            Column(
+                                horizontalAlignment = Alignment.End,
+                                verticalArrangement = Arrangement.spacedBy(4.dp)
                             ) {
-                                Text(
-                                    text = badgeText,
-                                    color = badgeColor,
-                                    fontSize = 10.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                                )
+                                val badgeColor = if (estimate.isSynced) Color(0xFFE040FB) else Color(0xFFFF9800)
+                                val badgeText = if (estimate.isSynced) "공유 완료 ☁️" else "로컬 저장"
+                                Surface(
+                                    color = badgeColor.copy(alpha = 0.2f),
+                                    border = androidx.compose.foundation.BorderStroke(1.dp, badgeColor),
+                                    shape = RoundedCornerShape(4.dp),
+                                    modifier = Modifier.padding(start = 8.dp)
+                                ) {
+                                    Text(
+                                        text = badgeText,
+                                        color = badgeColor,
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                    )
+                                }
+                                
+                                if (badgeStatus != null) {
+                                    val statusColor = if (badgeStatus == "계약완료") Color(0xFF4CAF50) else Color(0xFF2196F3)
+                                    Surface(
+                                        color = statusColor.copy(alpha = 0.2f),
+                                        border = androidx.compose.foundation.BorderStroke(1.dp, statusColor),
+                                        shape = RoundedCornerShape(4.dp),
+                                        modifier = Modifier.padding(start = 8.dp)
+                                    ) {
+                                        Text(
+                                            text = "$badgeStatus 📅",
+                                            color = statusColor,
+                                            fontSize = 10.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                        )
+                                    }
+                                }
                             }
                         }
                         Spacer(modifier = Modifier.height(6.dp))
