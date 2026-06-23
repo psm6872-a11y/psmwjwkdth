@@ -98,6 +98,7 @@ import kotlinx.coroutines.launch
 fun EstimateListScreen(
     onNavigateBack: () -> Unit,
     onNavigateToEstimateCopy: (String) -> Unit,
+    highlightId: String? = null,
     viewModel: EstimateListViewModel = hiltViewModel()
 ) {
     val estimateList by viewModel.estimateList.collectAsStateWithLifecycle()
@@ -106,6 +107,16 @@ fun EstimateListScreen(
     val googleAccount by viewModel.googleAccount.collectAsStateWithLifecycle()
     val linkedEvents by viewModel.linkedEvents.collectAsStateWithLifecycle()
     var selectedEstimate by remember { mutableStateOf<Estimate?>(null) }
+
+    LaunchedEffect(highlightId, estimateList) {
+        if (!highlightId.isNullOrBlank() && estimateList.isNotEmpty()) {
+            val found = estimateList.find { it.id == highlightId }
+            if (found != null) {
+                selectedEstimate = found
+            }
+        }
+    }
+
     var showInfoDialog by remember { mutableStateOf<String?>(null) }
     val context = LocalContext.current
 

@@ -59,4 +59,51 @@ object NotificationHelper {
 
         notificationManager.notify(NOTIFICATION_ID + dateMillis.toInt(), builder.build())
     }
+
+    fun showCallScanNotification(context: Context, title: String, body: String, deepLinkUri: String) {
+        val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        
+        val callChannelId = "call_scan_channel"
+        val callChannelName = "수신 전화 스캔"
+        val callChannelDesc = "수신 전화 번호 매칭 알림"
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val channel = NotificationChannel(
+                callChannelId,
+                callChannelName,
+                NotificationManager.IMPORTANCE_HIGH
+            ).apply {
+                description = callChannelDesc
+            }
+            notificationManager.createNotificationChannel(channel)
+        }
+
+        val intent = Intent(
+            Intent.ACTION_VIEW,
+            Uri.parse(deepLinkUri),
+            context,
+            MainActivity::class.java
+        ).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+        }
+
+        val pendingIntent = PendingIntent.getActivity(
+            context,
+            deepLinkUri.hashCode(),
+            intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        val builder = NotificationCompat.Builder(context, callChannelId)
+            .setSmallIcon(R.mipmap.ic_launcher)
+            .setContentTitle(title)
+            .setContentText(body)
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setAutoCancel(true)
+            .setContentIntent(pendingIntent)
+            .setDefaults(NotificationCompat.DEFAULT_ALL)
+
+        val uniqueId = System.currentTimeMillis().toInt()
+        notificationManager.notify(uniqueId, builder.build())
+    }
 }

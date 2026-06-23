@@ -54,7 +54,8 @@ class MainActivity : ComponentActivity() {
         val permissionsToRequest = mutableListOf(
             android.Manifest.permission.RECORD_AUDIO,
             android.Manifest.permission.READ_CONTACTS,
-            android.Manifest.permission.READ_CALL_LOG
+            android.Manifest.permission.READ_CALL_LOG,
+            android.Manifest.permission.READ_PHONE_STATE
         )
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             permissionsToRequest.add(android.Manifest.permission.POST_NOTIFICATIONS)
@@ -268,13 +269,29 @@ fun AppNavigation(userPreferences: UserPreferences) {
             )
         }
 
-        composable("estimate_list") {
+        composable(
+            route = "estimate_list?highlightId={highlightId}",
+            arguments = listOf(
+                navArgument("highlightId") {
+                    type = NavType.StringType
+                    nullable = true
+                    defaultValue = null
+                }
+            ),
+            deepLinks = listOf(
+                androidx.navigation.navDeepLink {
+                    uriPattern = "danallacalendar://estimate?highlightId={highlightId}"
+                }
+            )
+        ) { backStackEntry ->
+            val highlightId = backStackEntry.arguments?.getString("highlightId")
             EstimateListScreen(
                 onNavigateBack = { navController.popBackStack() },
                 onNavigateToEstimateCopy = { estimateJson ->
                     val encodedJson = android.net.Uri.encode(estimateJson)
                     navController.navigate("estimate?copyFromEstimateJson=$encodedJson")
-                }
+                },
+                highlightId = highlightId
             )
         }
 
@@ -285,6 +302,11 @@ fun AppNavigation(userPreferences: UserPreferences) {
                     type = NavType.StringType
                     nullable = true
                     defaultValue = null
+                }
+            ),
+            deepLinks = listOf(
+                androidx.navigation.navDeepLink {
+                    uriPattern = "danallacalendar://event?id={id}"
                 }
             )
         ) { backStackEntry ->
