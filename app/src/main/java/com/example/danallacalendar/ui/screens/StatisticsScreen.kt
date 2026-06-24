@@ -14,6 +14,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -51,6 +53,10 @@ fun StatisticsScreen(
     val allEvents by viewModel.allEvents.collectAsStateWithLifecycle()
     val allEstimates by viewModel.allEstimates.collectAsStateWithLifecycle()
 
+    val currentCal = remember { Calendar.getInstance() }
+    var selectedYear by remember { mutableIntStateOf(currentCal.get(Calendar.YEAR)) }
+    var selectedMonth by remember { mutableIntStateOf(currentCal.get(Calendar.MONTH)) } // 0-11
+
     var selectedTab by remember { mutableIntStateOf(0) }
 
     val tabs = remember(isCreator) {
@@ -71,6 +77,49 @@ fun StatisticsScreen(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "뒤로가기"
                         )
+                    }
+                },
+                actions = {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.padding(end = 8.dp)
+                    ) {
+                        IconButton(
+                            onClick = {
+                                if (selectedMonth == 0) {
+                                    selectedMonth = 11
+                                    selectedYear -= 1
+                                } else {
+                                    selectedMonth -= 1
+                                }
+                            }
+                        ) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowLeft,
+                                contentDescription = "이전 달"
+                            )
+                        }
+                        Text(
+                            text = "${selectedYear}년 ${selectedMonth + 1}월",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 15.sp,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
+                        IconButton(
+                            onClick = {
+                                if (selectedMonth == 11) {
+                                    selectedMonth = 0
+                                    selectedYear += 1
+                                } else {
+                                    selectedMonth += 1
+                                }
+                            }
+                        ) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                                contentDescription = "다음 달"
+                            )
+                        }
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -114,12 +163,12 @@ fun StatisticsScreen(
                     }
                 } else {
                     when (selectedTab) {
-                        0 -> EstimateContractTabContent(allEstimates, allEvents)
-                        1 -> OperationsCargoTabContent(allEstimates, allEvents)
-                        2 -> DistanceRegionTabContent(allEstimates)
+                        0 -> EstimateContractTabContent(allEstimates, allEvents, selectedYear, selectedMonth)
+                        1 -> OperationsCargoTabContent(allEstimates, allEvents, selectedYear, selectedMonth)
+                        2 -> DistanceRegionTabContent(allEstimates, selectedYear, selectedMonth)
                         3 -> {
                             if (isCreator) {
-                                AnnualRevenueTabContent(allEstimates, allEvents)
+                                AnnualRevenueTabContent(allEstimates, allEvents, selectedYear)
                             } else {
                                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                                     Text("해당 화면을 볼 수 있는 권한이 없습니다.", color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold)
@@ -138,9 +187,9 @@ fun StatisticsScreen(
 // ----------------------------------------
 
 @Composable
-fun EstimateContractTabContent(estimates: List<Estimate>, events: List<Event>) {
-    val stats = remember(estimates, events) {
-        computeEstimateContractStats(estimates, events)
+fun EstimateContractTabContent(estimates: List<Estimate>, events: List<Event>, year: Int, month: Int) {
+    val stats = remember(estimates, events, year, month) {
+        computeEstimateContractStats(estimates, events, year, month)
     }
 
     LazyColumn(
@@ -392,9 +441,9 @@ fun EstimateContractTabContent(estimates: List<Estimate>, events: List<Event>) {
 }
 
 @Composable
-fun OperationsCargoTabContent(estimates: List<Estimate>, events: List<Event>) {
-    val stats = remember(estimates, events) {
-        computeOperationsCargoStats(estimates, events)
+fun OperationsCargoTabContent(estimates: List<Estimate>, events: List<Event>, year: Int, month: Int) {
+    val stats = remember(estimates, events, year, month) {
+        computeOperationsCargoStats(estimates, events, year, month)
     }
 
     LazyColumn(
@@ -548,9 +597,9 @@ fun OperationsCargoTabContent(estimates: List<Estimate>, events: List<Event>) {
 }
 
 @Composable
-fun DistanceRegionTabContent(estimates: List<Estimate>) {
-    val stats = remember(estimates) {
-        computeDistanceRegionStats(estimates)
+fun DistanceRegionTabContent(estimates: List<Estimate>, year: Int, month: Int) {
+    val stats = remember(estimates, year, month) {
+        computeDistanceRegionStats(estimates, year, month)
     }
 
     LazyColumn(
@@ -618,9 +667,9 @@ fun DistanceRegionTabContent(estimates: List<Estimate>) {
 }
 
 @Composable
-fun AnnualRevenueTabContent(estimates: List<Estimate>, events: List<Event>) {
-    val stats = remember(estimates, events) {
-        computeAnnualRevenueStats(estimates, events)
+fun AnnualRevenueTabContent(estimates: List<Estimate>, events: List<Event>, year: Int) {
+    val stats = remember(estimates, events, year) {
+        computeAnnualRevenueStats(estimates, events, year)
     }
 
     LazyColumn(
@@ -874,13 +923,19 @@ fun parseTonnage(volume: String): Double {
 // Computation Functions
 // ----------------------------------------
 
-fun computeEstimateContractStats(estimates: List<Estimate>, events: List<Event>): EstimateContractStats {
-    val total = estimates.size
+fun computeEstimateContractStats(estimates: List<Estimate>, events: List<Event>, year: Int, month: Int): EstimateContractStats {
+    val targetCal = Calendar.getInstance()
+    val filteredEstimates = estimates.filter { est ->
+        targetCal.timeInMillis = est.createdAt
+        targetCal.get(Calendar.YEAR) == year && targetCal.get(Calendar.MONTH) == month
+    }
+    
+    val total = filteredEstimates.size
     val contractedEstimateIds = events.mapNotNull { it.linkedEstimateId }.filter { it.isNotBlank() }.toSet()
-    val contractedCount = estimates.count { it.id in contractedEstimateIds }
+    val contractedCount = filteredEstimates.count { it.id in contractedEstimateIds }
     
     val conversion = if (total > 0) (contractedCount.toDouble() / total) * 100 else 0.0
-    val totalAmount = estimates.sumOf { it.amount }
+    val totalAmount = filteredEstimates.sumOf { it.amount }
     val avgAmount = if (total > 0) totalAmount / total else 0L
 
     // Inquiries daily/monthly
@@ -891,22 +946,51 @@ fun computeEstimateContractStats(estimates: List<Estimate>, events: List<Event>)
     val sdfDay = SimpleDateFormat("yyyy-MM-dd", Locale.KOREAN)
     val sdfMonth = SimpleDateFormat("yyyy-MM", Locale.KOREAN)
     
-    estimates.forEach { est ->
+    filteredEstimates.forEach { est ->
         val date = Date(est.createdAt)
         val dayStr = sdfDay.format(date)
-        val monthStr = sdfMonth.format(date)
-        
         daily[dayStr] = (daily[dayStr] ?: 0) + 1
-        monthly[monthStr] = (monthly[monthStr] ?: 0) + 1
         
         val cal = Calendar.getInstance().apply { time = date }
         val hour = cal.get(Calendar.HOUR_OF_DAY)
         hourly[hour] = (hourly[hour] ?: 0) + 1
     }
 
-    // Team move counts
+    // Monthly requests for 6 months ending in selected month
+    val endCal = Calendar.getInstance().apply {
+        set(Calendar.YEAR, year)
+        set(Calendar.MONTH, month)
+        set(Calendar.DAY_OF_MONTH, getActualMaximum(Calendar.DAY_OF_MONTH))
+        set(Calendar.HOUR_OF_DAY, 23)
+        set(Calendar.MINUTE, 59)
+    }
+    val startCal = Calendar.getInstance().apply {
+        timeInMillis = endCal.timeInMillis
+        add(Calendar.MONTH, -5)
+        set(Calendar.DAY_OF_MONTH, 1)
+        set(Calendar.HOUR_OF_DAY, 0)
+        set(Calendar.MINUTE, 0)
+    }
+    estimates.filter { it.createdAt in startCal.timeInMillis..endCal.timeInMillis }.forEach { est ->
+        val monthStr = sdfMonth.format(Date(est.createdAt))
+        monthly[monthStr] = (monthly[monthStr] ?: 0) + 1
+    }
+    val fillCal = Calendar.getInstance().apply { timeInMillis = startCal.timeInMillis }
+    for (i in 0..5) {
+        val key = sdfMonth.format(fillCal.time)
+        if (!monthly.containsKey(key)) {
+            monthly[key] = 0
+        }
+        fillCal.add(Calendar.MONTH, 1)
+    }
+
+    // Team move counts in selected year/month
+    val filteredEvents = events.filter { evt ->
+        targetCal.timeInMillis = evt.startMillis
+        targetCal.get(Calendar.YEAR) == year && targetCal.get(Calendar.MONTH) == month
+    }
     val teamCounts = mutableMapOf<Int, Int>()
-    events.forEach { evt ->
+    filteredEvents.forEach { evt ->
         if (evt.teamId != null) {
             teamCounts[evt.teamId] = (teamCounts[evt.teamId] ?: 0) + 1
         }
@@ -914,7 +998,7 @@ fun computeEstimateContractStats(estimates: List<Estimate>, events: List<Event>)
 
     // Tonnage average prices
     val tonnagePrices = mutableMapOf<Int, MutableList<Long>>()
-    estimates.filter { it.id in contractedEstimateIds }.forEach { est ->
+    filteredEstimates.filter { it.id in contractedEstimateIds }.forEach { est ->
         val ton = parseTonnage(est.totalVolume).toInt()
         if (ton in 1..6) {
             if (tonnagePrices[ton] == null) tonnagePrices[ton] = mutableListOf()
@@ -937,8 +1021,14 @@ fun computeEstimateContractStats(estimates: List<Estimate>, events: List<Event>)
     )
 }
 
-fun computeOperationsCargoStats(estimates: List<Estimate>, events: List<Event>): OperationsCargoStats {
-    val confirmedEvents = events.filter { it.isAllDay && it.teamId != null }
+fun computeOperationsCargoStats(estimates: List<Estimate>, events: List<Event>, year: Int, month: Int): OperationsCargoStats {
+    val targetCal = Calendar.getInstance()
+    
+    val confirmedEvents = events.filter { evt ->
+        evt.isAllDay && evt.teamId != null &&
+        targetCal.apply { timeInMillis = evt.startMillis }.get(Calendar.YEAR) == year &&
+        targetCal.get(Calendar.MONTH) == month
+    }
     val totalMoves = confirmedEvents.size
 
     var holidayWeekendCount = 0
@@ -953,9 +1043,6 @@ fun computeOperationsCargoStats(estimates: List<Estimate>, events: List<Event>):
         val dow = cal.get(Calendar.DAY_OF_WEEK)
         dayOfWeekCounts[dow] = (dayOfWeekCounts[dow] ?: 0) + 1
 
-        val monthStr = sdfMonth.format(Date(evt.startMillis))
-        monthlyMoveCounts[monthStr] = (monthlyMoveCounts[monthStr] ?: 0) + 1
-
         val isHoliday = getKoreanHolidayName(evt.startMillis) != null
         val isWeekend = dow == Calendar.SATURDAY || dow == Calendar.SUNDAY
         if (isHoliday || isWeekend) {
@@ -965,13 +1052,44 @@ fun computeOperationsCargoStats(estimates: List<Estimate>, events: List<Event>):
 
     val holidayWeekendRatio = if (totalMoves > 0) (holidayWeekendCount.toDouble() / totalMoves) * 100 else 0.0
 
-    // YoY Growth calculation: compare this month's moves to last year's same month
-    val currentMonthStr = sdfMonth.format(Date())
-    val lastYearCal = Calendar.getInstance().apply { add(Calendar.YEAR, -1) }
-    val lastYearMonthStr = sdfMonth.format(lastYearCal.time)
+    // Monthly moves for 6 months ending in selected month
+    val endCal = Calendar.getInstance().apply {
+        set(Calendar.YEAR, year)
+        set(Calendar.MONTH, month)
+        set(Calendar.DAY_OF_MONTH, getActualMaximum(Calendar.DAY_OF_MONTH))
+        set(Calendar.HOUR_OF_DAY, 23)
+        set(Calendar.MINUTE, 59)
+    }
+    val startCal = Calendar.getInstance().apply {
+        timeInMillis = endCal.timeInMillis
+        add(Calendar.MONTH, -5)
+        set(Calendar.DAY_OF_MONTH, 1)
+        set(Calendar.HOUR_OF_DAY, 0)
+        set(Calendar.MINUTE, 0)
+    }
+    events.filter { it.isAllDay && it.teamId != null && it.startMillis in startCal.timeInMillis..endCal.timeInMillis }.forEach { evt ->
+        val monthStr = sdfMonth.format(Date(evt.startMillis))
+        monthlyMoveCounts[monthStr] = (monthlyMoveCounts[monthStr] ?: 0) + 1
+    }
+    val fillCal = Calendar.getInstance().apply { timeInMillis = startCal.timeInMillis }
+    for (i in 0..5) {
+        val key = sdfMonth.format(fillCal.time)
+        if (!monthlyMoveCounts.containsKey(key)) {
+            monthlyMoveCounts[key] = 0
+        }
+        fillCal.add(Calendar.MONTH, 1)
+    }
 
-    val currentMonthCount = monthlyMoveCounts[currentMonthStr] ?: 0
-    val lastYearMonthCount = monthlyMoveCounts[lastYearMonthStr] ?: 0
+    // YoY Growth calculation
+    val allConfirmedEvents = events.filter { it.isAllDay && it.teamId != null }
+    val currentMonthCount = allConfirmedEvents.count {
+        cal.timeInMillis = it.startMillis
+        cal.get(Calendar.YEAR) == year && cal.get(Calendar.MONTH) == month
+    }
+    val lastYearMonthCount = allConfirmedEvents.count {
+        cal.timeInMillis = it.startMillis
+        cal.get(Calendar.YEAR) == (year - 1) && cal.get(Calendar.MONTH) == month
+    }
 
     val yoyGrowth = if (lastYearMonthCount > 0) {
         ((currentMonthCount.toDouble() - lastYearMonthCount) / lastYearMonthCount) * 100
@@ -986,8 +1104,11 @@ fun computeOperationsCargoStats(estimates: List<Estimate>, events: List<Event>):
         "5-6톤" to 0,
         "기타" to 0
     )
-
-    estimates.forEach { est ->
+    val filteredEstimates = estimates.filter { est ->
+        cal.timeInMillis = est.createdAt
+        cal.get(Calendar.YEAR) == year && cal.get(Calendar.MONTH) == month
+    }
+    filteredEstimates.forEach { est ->
         val ton = parseTonnage(est.totalVolume)
         when {
             ton <= 0.0 -> cargoCounts["기타"] = (cargoCounts["기타"] ?: 0) + 1
@@ -1007,12 +1128,16 @@ fun computeOperationsCargoStats(estimates: List<Estimate>, events: List<Event>):
     )
 }
 
-fun computeDistanceRegionStats(estimates: List<Estimate>): DistanceRegionStats {
+fun computeDistanceRegionStats(estimates: List<Estimate>, year: Int, month: Int): DistanceRegionStats {
     var totalDistance = 0.0
     var count = 0
     val flows = mutableMapOf<Pair<String, String>, Int>()
+    val cal = Calendar.getInstance()
 
-    estimates.forEach { est ->
+    estimates.filter { est ->
+        cal.timeInMillis = est.createdAt
+        cal.get(Calendar.YEAR) == year && cal.get(Calendar.MONTH) == month
+    }.forEach { est ->
         if (est.departure.isNotBlank() && est.destination.isNotBlank()) {
             val depReg = getRegionName(est.departure)
             val destReg = getRegionName(est.destination)
@@ -1036,20 +1161,19 @@ fun computeDistanceRegionStats(estimates: List<Estimate>): DistanceRegionStats {
     )
 }
 
-fun computeAnnualRevenueStats(estimates: List<Estimate>, events: List<Event>): AnnualRevenueStats {
-    val currentYear = Calendar.getInstance().get(Calendar.YEAR).toString()
+fun computeAnnualRevenueStats(estimates: List<Estimate>, events: List<Event>, year: Int): AnnualRevenueStats {
+    val yearStr = year.toString()
     val contractedEstimateIds = events.mapNotNull { it.linkedEstimateId }.filter { it.isNotBlank() }.toSet()
     
-    val currentYearContractedEstimates = estimates.filter {
-        it.id in contractedEstimateIds && it.moveDate.startsWith(currentYear)
+    val yearContractedEstimates = estimates.filter {
+        it.id in contractedEstimateIds && it.moveDate.startsWith(yearStr)
     }
 
-    val annualTotal = currentYearContractedEstimates.sumOf { it.amount }
+    val annualTotal = yearContractedEstimates.sumOf { it.amount }
 
     val monthlyRevenues = mutableMapOf<String, Long>()
-    val sdfMonth = SimpleDateFormat("yyyy-MM", Locale.KOREAN)
 
-    estimates.filter { it.id in contractedEstimateIds }.forEach { est ->
+    estimates.filter { it.id in contractedEstimateIds && it.moveDate.startsWith(yearStr) }.forEach { est ->
         try {
             val dateParts = est.moveDate.split("-")
             if (dateParts.size >= 2) {
@@ -1058,6 +1182,14 @@ fun computeAnnualRevenueStats(estimates: List<Estimate>, events: List<Event>): A
             }
         } catch (e: Exception) {
             // Ignore format errors
+        }
+    }
+    
+    // Populate all 12 months
+    for (m in 1..12) {
+        val monthKey = "$yearStr-${String.format("%02d", m)}"
+        if (!monthlyRevenues.containsKey(monthKey)) {
+            monthlyRevenues[monthKey] = 0L
         }
     }
 
