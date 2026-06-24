@@ -1632,6 +1632,8 @@ fun GrowthRateTabContent(estimates: List<Estimate>, events: List<Event>, year: I
     val stats = remember(estimates, events, year, month) {
         computeGrowthStats(estimates, events, year, month)
     }
+    
+    val prevMonthStr = "지난달(전월)"
 
     LazyColumn(
         verticalArrangement = Arrangement.spacedBy(16.dp),
@@ -1678,7 +1680,6 @@ fun GrowthRateTabContent(estimates: List<Estimate>, events: List<Event>, year: I
 
         // 1. 견적 건수 비교
         item {
-            val prevMonthStr = if (month == 0) "작년 12월" else "올해 ${month}월"
             GrowthComparisonCard(
                 title = "견적 건수 비교",
                 emoji = "📋",
@@ -1698,7 +1699,6 @@ fun GrowthRateTabContent(estimates: List<Estimate>, events: List<Event>, year: I
 
         // 2. 이사 건수 비교
         item {
-            val prevMonthStr = if (month == 0) "작년 12월" else "올해 ${month}월"
             GrowthComparisonCard(
                 title = "이사 건수 비교",
                 emoji = "🚚",
@@ -1718,7 +1718,6 @@ fun GrowthRateTabContent(estimates: List<Estimate>, events: List<Event>, year: I
 
         // 3. 계약 전환율 비교
         item {
-            val prevMonthStr = if (month == 0) "작년 12월" else "올해 ${month}월"
             GrowthComparisonCard(
                 title = "계약 전환율 비교",
                 emoji = "🎯",
@@ -1739,7 +1738,6 @@ fun GrowthRateTabContent(estimates: List<Estimate>, events: List<Event>, year: I
 
         // 4. 평균 단가 비교
         item {
-            val prevMonthStr = if (month == 0) "작년 12월" else "올해 ${month}월"
             GrowthComparisonCard(
                 title = "평균 단가 비교",
                 emoji = "💰",
