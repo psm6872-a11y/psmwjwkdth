@@ -126,6 +126,7 @@ val ColorOptions = listOf(
 @Composable
 fun SettingsScreen(
     onNavigateBack: () -> Unit,
+    isCreator: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -378,6 +379,7 @@ fun SettingsScreen(
                                 label = "상호명",
                                 value = companyName,
                                 onValueChange = { companyName = it },
+                                enabled = isCreator,
                                 onFocusChanged = { focused ->
                                     if (focused && !isCompanyNameFocused) {
                                         val backup = companyName
@@ -392,6 +394,7 @@ fun SettingsScreen(
                                 label = "관허 번호",
                                 value = licenseNumber,
                                 onValueChange = { licenseNumber = it },
+                                enabled = isCreator,
                                 onFocusChanged = { focused ->
                                     if (focused && !isLicenseNumberFocused) {
                                         val backup = licenseNumber
@@ -406,6 +409,7 @@ fun SettingsScreen(
                                 label = "대표자 닉네임",
                                 value = ceoNickname,
                                 onValueChange = { ceoNickname = it },
+                                enabled = isCreator,
                                 onFocusChanged = { focused ->
                                     if (focused && !isCeoNicknameFocused) {
                                         val backup = ceoNickname
@@ -420,6 +424,7 @@ fun SettingsScreen(
                                 label = "전화번호",
                                 value = companyPhone,
                                 onValueChange = { companyPhone = it },
+                                enabled = isCreator,
                                 onFocusChanged = { focused ->
                                     if (focused && !isCompanyPhoneFocused) {
                                         val backup = companyPhone
@@ -434,6 +439,7 @@ fun SettingsScreen(
                                 label = "업체 위치 (도/시)",
                                 value = companyAddress,
                                 onValueChange = { companyAddress = it },
+                                enabled = isCreator,
                                 onFocusChanged = { focused ->
                                     if (focused && !isCompanyAddressFocused) {
                                         val backup = companyAddress
@@ -449,6 +455,7 @@ fun SettingsScreen(
                                 value = activeAreas,
                                 onValueChange = { activeAreas = it },
                                 placeholder = "예: 김천시, 칠곡군 (쉼표 구분)",
+                                enabled = isCreator,
                                 onFocusChanged = { focused ->
                                     if (focused && !isActiveAreasFocused) {
                                         val backup = activeAreas
@@ -463,6 +470,7 @@ fun SettingsScreen(
                                 label = "대표자명",
                                 value = ceoName,
                                 onValueChange = { ceoName = it },
+                                enabled = isCreator,
                                 onFocusChanged = { focused ->
                                     if (focused && !isCeoNameFocused) {
                                         val backup = ceoName
@@ -477,6 +485,7 @@ fun SettingsScreen(
                                 label = "사업자번호",
                                 value = bizNumber,
                                 onValueChange = { bizNumber = it },
+                                enabled = isCreator,
                                 onFocusChanged = { focused ->
                                     if (focused && !isBizNumberFocused) {
                                         val backup = bizNumber
@@ -491,6 +500,7 @@ fun SettingsScreen(
                                 label = "계좌번호",
                                 value = bankAccount,
                                 onValueChange = { bankAccount = it },
+                                enabled = isCreator,
                                 onFocusChanged = { focused ->
                                     if (focused && !isBankAccountFocused) {
                                         val backup = bankAccount
@@ -505,6 +515,7 @@ fun SettingsScreen(
                             SettingsImageField(
                                 label = "로고 이미지",
                                 base64Str = logoBase64,
+                                enabled = isCreator,
                                 onSelectClick = {
                                     logoLauncher.launch("image/*")
                                 },
@@ -516,6 +527,7 @@ fun SettingsScreen(
                             SettingsImageField(
                                 label = "도장 이미지",
                                 base64Str = stampBase64,
+                                enabled = isCreator,
                                 onSelectClick = {
                                     stampLauncher.launch("image/*")
                                 },
@@ -526,8 +538,21 @@ fun SettingsScreen(
 
                             Spacer(modifier = Modifier.height(8.dp))
 
+                            if (!isCreator) {
+                                Text(
+                                    text = "방장 전용 버튼입니다.",
+                                    color = MaterialTheme.colorScheme.error,
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    modifier = Modifier.fillMaxWidth(),
+                                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                                )
+                                Spacer(modifier = Modifier.height(6.dp))
+                            }
+
                             Button(
                                 onClick = { saveCompanyInfo() },
+                                enabled = isCreator,
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .height(48.dp),
@@ -1051,9 +1076,11 @@ fun SettingsInputField(
     onValueChange: (String) -> Unit,
     modifier: Modifier = Modifier,
     placeholder: String = "",
+    enabled: Boolean = true,
     onFocusChanged: (Boolean) -> Unit = {}
 ) {
     var isFocused by remember { mutableStateOf(false) }
+    val isFieldEnabled = enabled
     Row(
         modifier = modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
@@ -1063,7 +1090,7 @@ fun SettingsInputField(
             text = label,
             fontSize = 14.sp,
             fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.onSurface,
+            color = if (isFieldEnabled) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f),
             modifier = Modifier.width(90.dp)
         )
 
@@ -1072,8 +1099,12 @@ fun SettingsInputField(
                 .weight(1f)
                 .height(38.dp)
                 .border(
-                    width = if (isFocused) 2.dp else 1.dp,
-                    color = if (isFocused) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
+                    width = if (isFocused && isFieldEnabled) 2.dp else 1.dp,
+                    color = if (isFocused && isFieldEnabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
+                    shape = RoundedCornerShape(8.dp)
+                )
+                .background(
+                    color = if (isFieldEnabled) Color.Transparent else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
                     shape = RoundedCornerShape(8.dp)
                 )
                 .padding(horizontal = 12.dp),
@@ -1082,7 +1113,7 @@ fun SettingsInputField(
             if (value.isEmpty() && placeholder.isNotEmpty()) {
                 Text(
                     text = placeholder,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = if (isFieldEnabled) 0.5f else 0.2f),
                     fontSize = 13.sp
                 )
             }
@@ -1090,15 +1121,16 @@ fun SettingsInputField(
                 value = value,
                 onValueChange = onValueChange,
                 singleLine = true,
+                enabled = isFieldEnabled,
                 textStyle = LocalTextStyle.current.copy(
                     fontSize = 14.sp,
-                    color = MaterialTheme.colorScheme.onSurface
+                    color = if (isFieldEnabled) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
                 ),
                 modifier = Modifier
                     .fillMaxWidth()
                     .onFocusChanged {
-                        isFocused = it.isFocused
-                        onFocusChanged(it.isFocused)
+                        isFocused = it.isFocused && isFieldEnabled
+                        onFocusChanged(it.isFocused && isFieldEnabled)
                     }
             )
         }
@@ -1111,8 +1143,10 @@ fun SettingsImageField(
     base64Str: String,
     onSelectClick: () -> Unit,
     onClearClick: () -> Unit,
+    enabled: Boolean = true,
     modifier: Modifier = Modifier
 ) {
+    val isFieldEnabled = enabled
     Row(
         modifier = modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
@@ -1122,7 +1156,7 @@ fun SettingsImageField(
             text = label,
             fontSize = 14.sp,
             fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.onSurface,
+            color = if (isFieldEnabled) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f),
             modifier = Modifier.width(90.dp)
         )
 
@@ -1137,11 +1171,12 @@ fun SettingsImageField(
                     .size(50.dp)
                     .clip(RoundedCornerShape(8.dp))
                     .border(1.dp, MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(8.dp))
-                    .clickable { onSelectClick() }
+                    .clickable(enabled = isFieldEnabled) { onSelectClick() }
             )
 
             Button(
                 onClick = onSelectClick,
+                enabled = isFieldEnabled,
                 colors = ButtonDefaults.buttonColors(
                     containerColor = MaterialTheme.colorScheme.primary,
                     contentColor = MaterialTheme.colorScheme.onPrimary
@@ -1156,10 +1191,11 @@ fun SettingsImageField(
             if (base64Str.isNotEmpty()) {
                 OutlinedButton(
                     onClick = onClearClick,
+                    enabled = isFieldEnabled,
                     colors = ButtonDefaults.outlinedButtonColors(
                         contentColor = MaterialTheme.colorScheme.error
                     ),
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.5f)),
+                    border = BorderStroke(1.dp, if (isFieldEnabled) MaterialTheme.colorScheme.error.copy(alpha = 0.5f) else MaterialTheme.colorScheme.outlineVariant),
                     contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
                     shape = RoundedCornerShape(8.dp),
                     modifier = Modifier.height(36.dp)

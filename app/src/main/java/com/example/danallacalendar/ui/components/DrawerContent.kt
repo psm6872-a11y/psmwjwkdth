@@ -114,7 +114,8 @@ fun DrawerContent(
                     .background(MaterialTheme.colorScheme.background)
             ) {
                 com.example.danallacalendar.ui.screens.SettingsScreen(
-                    onNavigateBack = { showSettingsScreen = false }
+                    onNavigateBack = { showSettingsScreen = false },
+                    isCreator = isCreator
                 )
             }
         }
