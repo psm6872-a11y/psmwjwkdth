@@ -294,6 +294,33 @@ fun EstimateContractTabContent(estimates: List<Estimate>, events: List<Event>, y
         }
 
         item {
+            // Weekly Inquiries for the selected month
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text("주별 견적 요청 추이 (선택된 월)", fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                    Spacer(modifier = Modifier.height(16.dp))
+                    
+                    val weekOrder = listOf("1-7일", "8-14일", "15-21일", "22-28일", "29일~")
+                    val chartData = stats.weeklyRequests.entries
+                        .sortedBy { weekOrder.indexOf(it.key) }
+                        .map { it.value.toFloat() to it.key }
+
+                    if (chartData.isNotEmpty()) {
+                        BarChart(
+                            data = chartData,
+                            barColor = Color(0xFFFF9800),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(160.dp)
+                        )
+                    } else {
+                        Text("표시할 차트 데이터가 없습니다.", fontSize = 13.sp, color = MaterialTheme.colorScheme.outline)
+                    }
+                }
+            }
+        }
+
+        item {
             // Daily Inquiries for last 7 Days
             Card(modifier = Modifier.fillMaxWidth()) {
                 Column(modifier = Modifier.padding(16.dp)) {
@@ -785,14 +812,15 @@ fun BarChart(
         val maxVal = data.maxOf { it.first }
         val spacing = 20.dp.toPx()
         val textHeight = 20.dp.toPx()
-        val chartHeight = size.height - textHeight - 8.dp.toPx()
+        val topPadding = 16.dp.toPx()
+        val chartHeight = size.height - textHeight - topPadding - 8.dp.toPx()
         val barWidth = (size.width - (spacing * (data.size + 1))) / data.size
 
         data.forEachIndexed { index, pair ->
             val left = spacing + index * (barWidth + spacing)
             val pct = if (maxVal > 0f) pair.first / maxVal else 0f
             val height = chartHeight * pct
-            val top = chartHeight - height
+            val top = chartHeight - height + topPadding
 
             // Draw Bar
             drawRoundRect(
@@ -802,8 +830,21 @@ fun BarChart(
                 cornerRadius = androidx.compose.ui.geometry.CornerRadius(4.dp.toPx(), 4.dp.toPx())
             )
 
-            // Draw text label (simple custom text draw, fallback to circle for simplicity or draw label if needed.
-            // Since drawContext has native canvas, we can draw text using Android Canvas)
+            // Draw count above bar
+            val valuePaint = android.graphics.Paint().apply {
+                color = android.graphics.Color.BLACK
+                textSize = 9.sp.toPx()
+                textAlign = android.graphics.Paint.Align.CENTER
+                typeface = android.graphics.Typeface.create(android.graphics.Typeface.DEFAULT, android.graphics.Typeface.BOLD)
+            }
+            drawContext.canvas.nativeCanvas.drawText(
+                pair.first.toInt().toString(),
+                left + barWidth / 2,
+                top - 4.dp.toPx(),
+                valuePaint
+            )
+
+            // Draw text label
             val paint = android.graphics.Paint().apply {
                 color = android.graphics.Color.GRAY
                 textSize = 10.sp.toPx()
@@ -834,6 +875,7 @@ data class EstimateContractStats(
     val conversionRate: Double,
     val averageEstimateAmount: Long,
     val dailyRequests: Map<String, Int>,
+    val weeklyRequests: Map<String, Int>,
     val monthlyRequests: Map<String, Int>,
     val hourlyRequests: Map<Int, Int>,
     val teamMoveCounts: Map<Int, Int>,
@@ -938,14 +980,25 @@ fun computeEstimateContractStats(estimates: List<Estimate>, events: List<Event>,
     val totalAmount = filteredEstimates.sumOf { it.amount }
     val avgAmount = if (total > 0) totalAmount / total else 0L
 
-    // Inquiries daily/monthly
+    // Inquiries daily/monthly/weekly
     val daily = mutableMapOf<String, Int>()
     val monthly = mutableMapOf<String, Int>()
+    val weekly = mutableMapOf<String, Int>()
     val hourly = mutableMapOf<Int, Int>()
 
     val sdfDay = SimpleDateFormat("yyyy-MM-dd", Locale.KOREAN)
     val sdfMonth = SimpleDateFormat("yyyy-MM", Locale.KOREAN)
     
+    // Initialize weekly map keys
+    weekly["1-7일"] = 0
+    weekly["8-14일"] = 0
+    weekly["15-21일"] = 0
+    weekly["22-28일"] = 0
+    val maxDays = targetCal.getActualMaximum(Calendar.DAY_OF_MONTH)
+    if (maxDays > 28) {
+        weekly["29일~"] = 0
+    }
+
     filteredEstimates.forEach { est ->
         val date = Date(est.createdAt)
         val dayStr = sdfDay.format(date)
@@ -954,6 +1007,16 @@ fun computeEstimateContractStats(estimates: List<Estimate>, events: List<Event>,
         val cal = Calendar.getInstance().apply { time = date }
         val hour = cal.get(Calendar.HOUR_OF_DAY)
         hourly[hour] = (hourly[hour] ?: 0) + 1
+
+        val day = cal.get(Calendar.DAY_OF_MONTH)
+        val weekKey = when {
+            day <= 7 -> "1-7일"
+            day <= 14 -> "8-14일"
+            day <= 21 -> "15-21일"
+            day <= 28 -> "22-28일"
+            else -> "29일~"
+        }
+        weekly[weekKey] = (weekly[weekKey] ?: 0) + 1
     }
 
     // Monthly requests for 6 months ending in selected month
@@ -1014,6 +1077,7 @@ fun computeEstimateContractStats(estimates: List<Estimate>, events: List<Event>,
         conversionRate = conversion,
         averageEstimateAmount = avgAmount,
         dailyRequests = daily,
+        weeklyRequests = weekly,
         monthlyRequests = monthly,
         hourlyRequests = hourly,
         teamMoveCounts = teamCounts,
