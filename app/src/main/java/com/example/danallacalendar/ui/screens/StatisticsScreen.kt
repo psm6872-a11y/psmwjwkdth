@@ -261,7 +261,7 @@ fun EstimateTabContent(estimates: List<Estimate>, events: List<Event>, year: Int
                     Column(modifier = Modifier.padding(8.dp)) {
                         Text("평균 견적 금액", fontSize = 10.sp, color = MaterialTheme.colorScheme.outline)
                         Spacer(modifier = Modifier.height(2.dp))
-                        Text(formatCurrency(stats.averageEstimateAmount), fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                        Text(formatManwon(stats.averageEstimateAmount), fontSize = 14.sp, fontWeight = FontWeight.Bold)
                     }
                 }
             }
@@ -338,28 +338,25 @@ fun EstimateTabContent(estimates: List<Estimate>, events: List<Event>, year: Int
         }
 
         item {
-            // Daily Inquiries for last 7 Days
+            // Day of Week Requests for selected year/month
             Card(modifier = Modifier.fillMaxWidth()) {
                 Column(modifier = Modifier.padding(16.dp)) {
-                    Text("일별 견적 요청 추이 (최근 7일)", fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                    Text("요일별 견적 요청 추이", fontWeight = FontWeight.Bold, fontSize = 15.sp)
                     Spacer(modifier = Modifier.height(16.dp))
                     
-                    val chartData = stats.dailyRequests.entries
-                        .sortedBy { it.key }
-                        .takeLast(7)
-                        .map { it.value.toFloat() to it.key.substringAfterLast("-") + "일" }
-
-                    if (chartData.isNotEmpty()) {
-                        BarChart(
-                            data = chartData,
-                            barColor = MaterialTheme.colorScheme.secondary,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(160.dp)
-                        )
-                    } else {
-                        Text("표시할 차트 데이터가 없습니다.", fontSize = 13.sp, color = MaterialTheme.colorScheme.outline)
+                    val dayLabels = listOf("일", "월", "화", "수", "목", "금", "토")
+                    val chartData = dayLabels.mapIndexed { index, label ->
+                        val count = stats.dayOfWeekRequests[index + 1] ?: 0
+                        count.toFloat() to label
                     }
+
+                    BarChart(
+                        data = chartData,
+                        barColor = MaterialTheme.colorScheme.secondary,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(160.dp)
+                    )
                 }
             }
         }
@@ -488,7 +485,7 @@ fun ContractTabContent(estimates: List<Estimate>, events: List<Event>, year: Int
                     Column(modifier = Modifier.padding(8.dp)) {
                         Text("평균 견적 금액", fontSize = 10.sp, color = MaterialTheme.colorScheme.outline)
                         Spacer(modifier = Modifier.height(2.dp))
-                        Text(formatCurrency(stats.averageEstimateAmount), fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                        Text(formatManwon(stats.averageEstimateAmount), fontSize = 14.sp, fontWeight = FontWeight.Bold)
                     }
                 }
             }
@@ -970,12 +967,22 @@ fun formatCurrency(amount: Long): String {
     return "${df.format(amount)}원"
 }
 
+fun formatManwon(amount: Long): String {
+    val manwon = amount / 10000.0
+    val df = if (amount % 10000 == 0L) {
+        DecimalFormat("#,###")
+    } else {
+        DecimalFormat("#,###.#")
+    }
+    return "${df.format(manwon)}만원"
+}
+
 // Stats models
 data class EstimateContractStats(
     val totalEstimates: Int,
     val conversionRate: Double,
     val averageEstimateAmount: Long,
-    val dailyRequests: Map<String, Int>,
+    val dayOfWeekRequests: Map<Int, Int>,
     val weeklyRequests: Map<String, Int>,
     val monthlyRequests: Map<String, Int>,
     val hourlyRequests: Map<Int, Int>,
@@ -1094,13 +1101,15 @@ fun computeEstimateContractStats(estimates: List<Estimate>, events: List<Event>,
         0L
     }
 
-    // Inquiries daily/monthly/weekly
-    val daily = mutableMapOf<String, Int>()
+    // Inquiries dayOfWeek/monthly/weekly
+    val dayOfWeekRequests = mutableMapOf<Int, Int>()
+    for (d in 1..7) {
+        dayOfWeekRequests[d] = 0
+    }
     val monthly = mutableMapOf<String, Int>()
     val weekly = mutableMapOf<String, Int>()
     val hourly = mutableMapOf<Int, Int>()
 
-    val sdfDay = SimpleDateFormat("yyyy-MM-dd", Locale.KOREAN)
     val sdfMonth = SimpleDateFormat("yyyy-MM", Locale.KOREAN)
     
     // Initialize weekly map keys
@@ -1115,10 +1124,10 @@ fun computeEstimateContractStats(estimates: List<Estimate>, events: List<Event>,
 
     filteredEstimates.forEach { est ->
         val date = Date(est.createdAt)
-        val dayStr = sdfDay.format(date)
-        daily[dayStr] = (daily[dayStr] ?: 0) + 1
-        
         val cal = Calendar.getInstance().apply { time = date }
+        val dayOfWeek = cal.get(Calendar.DAY_OF_WEEK)
+        dayOfWeekRequests[dayOfWeek] = (dayOfWeekRequests[dayOfWeek] ?: 0) + 1
+        
         val hour = cal.get(Calendar.HOUR_OF_DAY)
         hourly[hour] = (hourly[hour] ?: 0) + 1
 
@@ -1136,8 +1145,8 @@ fun computeEstimateContractStats(estimates: List<Estimate>, events: List<Event>,
     // Monthly requests for the selected year (Jan - Dec)
     val yearStr = year.toString()
     for (m in 1..12) {
-        val key = "$yearStr-${String.format("%02d", m)}"
-        monthly[key] = 0
+        val mKey = "$yearStr-${String.format("%02d", m)}"
+        monthly[mKey] = 0
     }
     
     estimates.filter { est ->
@@ -1177,7 +1186,7 @@ fun computeEstimateContractStats(estimates: List<Estimate>, events: List<Event>,
         totalEstimates = total,
         conversionRate = conversion,
         averageEstimateAmount = avgAmount,
-        dailyRequests = daily,
+        dayOfWeekRequests = dayOfWeekRequests,
         weeklyRequests = weekly,
         monthlyRequests = monthly,
         hourlyRequests = hourly,
