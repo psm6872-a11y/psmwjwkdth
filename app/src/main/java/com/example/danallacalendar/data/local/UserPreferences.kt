@@ -15,6 +15,7 @@ class UserPreferences(context: Context) {
         private const val KEY_IS_GOOGLE_DRIVE_SAVE_ENABLED = "is_google_drive_save_enabled"
         private const val KEY_IS_AUTO_DRIVE_SYNC_ENABLED = "is_auto_drive_sync_enabled"
         private const val KEY_SMS_BODY_TEMPLATE = "smsTemplate"
+        private const val KEY_IS_BACKUP_SCHEDULED_AT_1AM = "is_backup_scheduled_at_1am"
     }
 
     init {
@@ -87,6 +88,14 @@ class UserPreferences(context: Context) {
 
     fun setSmsBodyTemplate(template: String) {
         prefs.edit().putString(KEY_SMS_BODY_TEMPLATE, template).apply()
+    }
+
+    fun isBackupScheduledAt1AM(): Boolean {
+        return prefs.getBoolean(KEY_IS_BACKUP_SCHEDULED_AT_1AM, false)
+    }
+
+    fun setBackupScheduledAt1AM(scheduled: Boolean) {
+        prefs.edit().putBoolean(KEY_IS_BACKUP_SCHEDULED_AT_1AM, scheduled).apply()
     }
 
     fun clearAll() {
