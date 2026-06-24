@@ -270,12 +270,12 @@ fun EstimateContractTabContent(estimates: List<Estimate>, events: List<Event>, y
             // Chart: Inquiries Daily/Weekly/Monthly (Monthly as example)
             Card(modifier = Modifier.fillMaxWidth()) {
                 Column(modifier = Modifier.padding(16.dp)) {
-                    Text("월별 견적 요청 추이 (최근 6개월)", fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                    Text("월별 견적 요청 추이 (최근 12개월)", fontWeight = FontWeight.Bold, fontSize = 15.sp)
                     Spacer(modifier = Modifier.height(16.dp))
                     
                     val chartData = stats.monthlyRequests.entries
                         .sortedBy { it.key }
-                        .takeLast(6)
+                        .takeLast(12)
                         .map { it.value.toFloat() to it.key.substringAfter("-") + "월" }
 
                     if (chartData.isNotEmpty()) {
@@ -300,7 +300,7 @@ fun EstimateContractTabContent(estimates: List<Estimate>, events: List<Event>, y
                     Text("주별 견적 요청 추이 (선택된 월)", fontWeight = FontWeight.Bold, fontSize = 15.sp)
                     Spacer(modifier = Modifier.height(16.dp))
                     
-                    val weekOrder = listOf("1-7일", "8-14일", "15-21일", "22-28일", "29일~")
+                    val weekOrder = listOf("1주차", "2주차", "3주차", "4주차", "5주차")
                     val chartData = stats.weeklyRequests.entries
                         .sortedBy { weekOrder.indexOf(it.key) }
                         .map { it.value.toFloat() to it.key }
@@ -990,13 +990,13 @@ fun computeEstimateContractStats(estimates: List<Estimate>, events: List<Event>,
     val sdfMonth = SimpleDateFormat("yyyy-MM", Locale.KOREAN)
     
     // Initialize weekly map keys
-    weekly["1-7일"] = 0
-    weekly["8-14일"] = 0
-    weekly["15-21일"] = 0
-    weekly["22-28일"] = 0
+    weekly["1주차"] = 0
+    weekly["2주차"] = 0
+    weekly["3주차"] = 0
+    weekly["4주차"] = 0
     val maxDays = targetCal.getActualMaximum(Calendar.DAY_OF_MONTH)
     if (maxDays > 28) {
-        weekly["29일~"] = 0
+        weekly["5주차"] = 0
     }
 
     filteredEstimates.forEach { est ->
@@ -1010,16 +1010,16 @@ fun computeEstimateContractStats(estimates: List<Estimate>, events: List<Event>,
 
         val day = cal.get(Calendar.DAY_OF_MONTH)
         val weekKey = when {
-            day <= 7 -> "1-7일"
-            day <= 14 -> "8-14일"
-            day <= 21 -> "15-21일"
-            day <= 28 -> "22-28일"
-            else -> "29일~"
+            day <= 7 -> "1주차"
+            day <= 14 -> "2주차"
+            day <= 21 -> "3주차"
+            day <= 28 -> "4주차"
+            else -> "5주차"
         }
         weekly[weekKey] = (weekly[weekKey] ?: 0) + 1
     }
 
-    // Monthly requests for 6 months ending in selected month
+    // Monthly requests for 12 months ending in selected month
     val endCal = Calendar.getInstance().apply {
         set(Calendar.YEAR, year)
         set(Calendar.MONTH, month)
@@ -1029,7 +1029,7 @@ fun computeEstimateContractStats(estimates: List<Estimate>, events: List<Event>,
     }
     val startCal = Calendar.getInstance().apply {
         timeInMillis = endCal.timeInMillis
-        add(Calendar.MONTH, -5)
+        add(Calendar.MONTH, -11)
         set(Calendar.DAY_OF_MONTH, 1)
         set(Calendar.HOUR_OF_DAY, 0)
         set(Calendar.MINUTE, 0)
@@ -1039,7 +1039,7 @@ fun computeEstimateContractStats(estimates: List<Estimate>, events: List<Event>,
         monthly[monthStr] = (monthly[monthStr] ?: 0) + 1
     }
     val fillCal = Calendar.getInstance().apply { timeInMillis = startCal.timeInMillis }
-    for (i in 0..5) {
+    for (i in 0..11) {
         val key = sdfMonth.format(fillCal.time)
         if (!monthly.containsKey(key)) {
             monthly[key] = 0
