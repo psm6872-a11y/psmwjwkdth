@@ -26,6 +26,10 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.danallacalendar.ui.components.RecentCallsPickerDialog
 import com.example.danallacalendar.ui.components.formatPhoneNumberForDetail
 import com.example.danallacalendar.ui.viewmodel.BlacklistViewModel
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.text.TextStyle
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -89,25 +93,20 @@ fun BlacklistScreen(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        OutlinedTextField(
+                        CompactOutlinedTextField(
                             value = phoneInput,
                             onValueChange = { phoneInput = it },
-                            label = { Text("전화번호") },
-                            placeholder = { Text("010-0000-0000") },
-                            singleLine = true,
-                            modifier = Modifier.weight(1f),
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = MaterialTheme.colorScheme.primary,
-                                unfocusedBorderColor = MaterialTheme.colorScheme.outline
-                            )
+                            label = "전화번호",
+                            placeholder = "010-0000-0000",
+                            modifier = Modifier.weight(1f)
                         )
 
                         // 최근통화목록 버튼 (Far Right)
                         Button(
                             onClick = { showRecentCallsDialog = true },
-                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 8.dp),
+                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
                             shape = RoundedCornerShape(12.dp),
-                            modifier = Modifier.height(56.dp) // Align height with text field
+                            modifier = Modifier.height(46.dp) // Align height with text field
                         ) {
                             Column(
                                 horizontalAlignment = Alignment.CenterHorizontally,
@@ -125,17 +124,12 @@ fun BlacklistScreen(
                     }
 
                     // Row 2: 사유 (전체 너비)
-                    OutlinedTextField(
+                    CompactOutlinedTextField(
                         value = reasonInput,
                         onValueChange = { reasonInput = it },
-                        label = { Text("사유") },
-                        placeholder = { Text("사유 입력") },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = MaterialTheme.colorScheme.primary,
-                            unfocusedBorderColor = MaterialTheme.colorScheme.outline
-                        )
+                        label = "사유",
+                        placeholder = "사유 입력",
+                        modifier = Modifier.fillMaxWidth()
                     )
 
                     // Add Button
@@ -260,4 +254,57 @@ fun BlacklistScreen(
             }
         )
     }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun CompactOutlinedTextField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    label: String,
+    placeholder: String,
+    modifier: Modifier = Modifier,
+    singleLine: Boolean = true
+) {
+    val interactionSource = remember { MutableInteractionSource() }
+    BasicTextField(
+        value = value,
+        onValueChange = onValueChange,
+        interactionSource = interactionSource,
+        modifier = modifier.height(46.dp),
+        singleLine = singleLine,
+        textStyle = LocalTextStyle.current.copy(
+            color = MaterialTheme.colorScheme.onSurface,
+            fontSize = 14.sp
+        ),
+        decorationBox = { innerTextField ->
+            OutlinedTextFieldDefaults.DecorationBox(
+                value = value,
+                innerTextField = innerTextField,
+                enabled = true,
+                singleLine = singleLine,
+                visualTransformation = VisualTransformation.None,
+                interactionSource = interactionSource,
+                label = { Text(label, fontSize = 11.sp) },
+                placeholder = { Text(placeholder, fontSize = 13.sp) },
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = MaterialTheme.colorScheme.primary,
+                    unfocusedBorderColor = MaterialTheme.colorScheme.outline
+                ),
+                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
+                container = {
+                    OutlinedTextFieldDefaults.Container(
+                        enabled = true,
+                        isError = false,
+                        interactionSource = interactionSource,
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = MaterialTheme.colorScheme.primary,
+                            unfocusedBorderColor = MaterialTheme.colorScheme.outline
+                        ),
+                        shape = OutlinedTextFieldDefaults.shape
+                    )
+                }
+            )
+        }
+    )
 }

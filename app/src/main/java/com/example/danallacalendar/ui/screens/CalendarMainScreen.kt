@@ -322,6 +322,10 @@ fun CalendarMainScreen(
                             Toast.makeText(context, "앱 공유 실패: ${e.localizedMessage}", Toast.LENGTH_LONG).show()
                         }
                     },
+                    onEstimateClick = {
+                        scope.launch { drawerState.close() }
+                        onNavigateToEstimate()
+                    },
                     onEstimateListClick = {
                         scope.launch { drawerState.close() }
                         onNavigateToEstimateList()
@@ -356,7 +360,6 @@ fun CalendarMainScreen(
                     onToggleDrawer = { scope.launch { drawerState.open() } },
                     onToggleViewMode = { viewModel.toggleViewMode() },
                     onNavigateToSearch = { onNavigateToSearch() },
-                    onNavigateToEstimate = onNavigateToEstimate,
                     onGoToToday = { viewModel.selectDate(System.currentTimeMillis()) }
                 )
             },
@@ -557,7 +560,6 @@ fun MainTopAppBar(
     onToggleDrawer: () -> Unit,
     onToggleViewMode: () -> Unit,
     onNavigateToSearch: () -> Unit,
-    onNavigateToEstimate: () -> Unit,
     onGoToToday: () -> Unit
 ) {
     val monthFormat = SimpleDateFormat("M월", Locale.KOREAN)
@@ -624,25 +626,6 @@ fun MainTopAppBar(
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
                 modifier = Modifier.padding(end = 4.dp)
             ) {
-                Box(
-                    modifier = Modifier
-                        .height(20.dp)
-                        .clip(RoundedCornerShape(6.dp))
-                        .background(Color(0xFFF3E5F5))
-                        .border(1.dp, Color(0xFFAB47BC), RoundedCornerShape(6.dp))
-                        .clickable { onNavigateToEstimate() }
-                        .padding(horizontal = 6.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = "견적내기",
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color(0xFF8E24AA),
-                        lineHeight = 10.sp,
-                        textAlign = TextAlign.Center
-                    )
-                }
                 // 검색(돋보기) 버튼
                 Box(
                     modifier = Modifier
