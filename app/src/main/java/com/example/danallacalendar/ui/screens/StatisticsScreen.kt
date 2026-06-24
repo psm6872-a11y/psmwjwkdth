@@ -89,49 +89,6 @@ fun StatisticsScreen(
                         )
                     }
                 },
-                actions = {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.padding(end = 8.dp)
-                    ) {
-                        IconButton(
-                            onClick = {
-                                if (selectedMonth == 0) {
-                                    selectedMonth = 11
-                                    selectedYear -= 1
-                                } else {
-                                    selectedMonth -= 1
-                                }
-                            }
-                        ) {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowLeft,
-                                contentDescription = "이전 달"
-                            )
-                        }
-                        Text(
-                            text = "${selectedYear}년 ${selectedMonth + 1}월",
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 15.sp,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer
-                        )
-                        IconButton(
-                            onClick = {
-                                if (selectedMonth == 11) {
-                                    selectedMonth = 0
-                                    selectedYear += 1
-                                } else {
-                                    selectedMonth += 1
-                                }
-                            }
-                        ) {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                                contentDescription = "다음 달"
-                            )
-                        }
-                    }
-                },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f),
                     titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer
@@ -144,6 +101,61 @@ fun StatisticsScreen(
                 .fillMaxSize()
                 .padding(paddingValues)
         ) {
+            // 월 선택기 영역 (TopAppBar 아래칸으로 이동)
+            Surface(
+                color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.15f),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 4.dp),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    IconButton(
+                        onClick = {
+                            if (selectedMonth == 0) {
+                                selectedMonth = 11
+                                selectedYear -= 1
+                            } else {
+                                selectedMonth -= 1
+                            }
+                        }
+                    ) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.KeyboardArrowLeft,
+                            contentDescription = "이전 달",
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(16.dp))
+                    Text(
+                        text = "${selectedYear}년 ${selectedMonth + 1}월",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 16.sp,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                    )
+                    Spacer(modifier = Modifier.width(16.dp))
+                    IconButton(
+                        onClick = {
+                            if (selectedMonth == 11) {
+                                selectedMonth = 0
+                                selectedYear += 1
+                            } else {
+                                selectedMonth += 1
+                            }
+                        }
+                    ) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                            contentDescription = "다음 달",
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                }
+            }
+
             ScrollableTabRow(
                 selectedTabIndex = selectedTab,
                 edgePadding = 16.dp,
