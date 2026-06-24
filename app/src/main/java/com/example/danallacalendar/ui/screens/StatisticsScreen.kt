@@ -211,11 +211,11 @@ fun EstimateTabContent(estimates: List<Estimate>, events: List<Event>, year: Int
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Column {
-                        Text("견적 대비 계약 전환율", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text("견적 대비 계약 전환율", fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         Spacer(modifier = Modifier.height(2.dp))
                         Text(
                             text = "${String.format("%.1f", stats.conversionRate)}%",
-                            fontSize = 20.sp,
+                            fontSize = 22.sp,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.primary
                         )
@@ -248,9 +248,9 @@ fun EstimateTabContent(estimates: List<Estimate>, events: List<Event>, year: Int
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f))
                 ) {
                     Column(modifier = Modifier.padding(8.dp)) {
-                        Text("총 견적 요청 수", fontSize = 10.sp, color = MaterialTheme.colorScheme.outline)
+                        Text("총 견적 요청 수", fontSize = 13.sp, color = MaterialTheme.colorScheme.outline)
                         Spacer(modifier = Modifier.height(2.dp))
-                        Text("${stats.totalEstimates}건", fontSize = 15.sp, fontWeight = FontWeight.Bold)
+                        Text("${stats.totalEstimates}건", fontSize = 17.sp, fontWeight = FontWeight.Bold)
                     }
                 }
 
@@ -259,9 +259,9 @@ fun EstimateTabContent(estimates: List<Estimate>, events: List<Event>, year: Int
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f))
                 ) {
                     Column(modifier = Modifier.padding(8.dp)) {
-                        Text("평균 견적 금액", fontSize = 10.sp, color = MaterialTheme.colorScheme.outline)
+                        Text("평균 견적 금액", fontSize = 13.sp, color = MaterialTheme.colorScheme.outline)
                         Spacer(modifier = Modifier.height(2.dp))
-                        Text(formatManwon(stats.averageEstimateAmount), fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                        Text(formatManwon(stats.averageEstimateAmount), fontSize = 16.sp, fontWeight = FontWeight.Bold)
                     }
                 }
             }
@@ -271,7 +271,7 @@ fun EstimateTabContent(estimates: List<Estimate>, events: List<Event>, year: Int
             // Day of Week Requests for selected year/month
             Card(modifier = Modifier.fillMaxWidth()) {
                 Column(modifier = Modifier.padding(16.dp)) {
-                    Text("요일별 견적 요청 추이", fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                    Text("요일별 견적 건수", fontWeight = FontWeight.Bold, fontSize = 15.sp)
                     Spacer(modifier = Modifier.height(16.dp))
                     
                     val dayLabels = listOf("일", "월", "화", "수", "목", "금", "토")
@@ -295,7 +295,7 @@ fun EstimateTabContent(estimates: List<Estimate>, events: List<Event>, year: Int
             // Weekly Inquiries for the selected month
             Card(modifier = Modifier.fillMaxWidth()) {
                 Column(modifier = Modifier.padding(16.dp)) {
-                    Text("주별 견적 요청 추이 (선택된 월)", fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                    Text("${month + 1}월 주간 견적 건수", fontWeight = FontWeight.Bold, fontSize = 15.sp)
                     Spacer(modifier = Modifier.height(16.dp))
                     
                     val weekOrder = listOf("1주차", "2주차", "3주차", "4주차", "5주차")
@@ -329,7 +329,7 @@ fun EstimateTabContent(estimates: List<Estimate>, events: List<Event>, year: Int
 
             Card(modifier = Modifier.fillMaxWidth()) {
                 Column(modifier = Modifier.padding(16.dp)) {
-                    Text("${year}년 월별 견적 요청 추이", fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                    Text("${year}년 월간 견적 건수", fontWeight = FontWeight.Bold, fontSize = 15.sp)
                     Spacer(modifier = Modifier.height(16.dp))
                     
                     if (firstHalf.isNotEmpty()) {
@@ -365,7 +365,7 @@ fun EstimateTabContent(estimates: List<Estimate>, events: List<Event>, year: Int
             // Hourly Heatmap
             Card(modifier = Modifier.fillMaxWidth()) {
                 Column(modifier = Modifier.padding(16.dp)) {
-                    Text("시간대별 문의 현황", fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                    Text("시간대별 견적 현황", fontWeight = FontWeight.Bold, fontSize = 15.sp)
                     Spacer(modifier = Modifier.height(12.dp))
                     
                     val timeRanges = listOf(
@@ -1099,15 +1099,22 @@ fun computeEstimateContractStats(estimates: List<Estimate>, events: List<Event>,
     }
     
     val total = filteredEstimates.size
-    val contractedEstimateIds = uniqueEstimates.filter { it.moveDate.isNotBlank() }.map { it.id }.toSet()
+    val contractedEstimateIds = uniqueEstimates.filter { est ->
+        val estEvents = events.filter { it.linkedEstimateId == est.id }
+        estEvents.any { it.isAllDay }
+    }.map { it.id }.toSet()
     val contractedCount = filteredEstimates.count { it.id in contractedEstimateIds }
     
     val conversion = if (total > 0) (contractedCount.toDouble() / total) * 100 else 0.0
     
     val selectedYearMonthStr = String.format("%04d-%02d", year, month + 1)
     val visitCompletedEstimates = uniqueEstimates.filter { est ->
-        (est.visitDate.startsWith(selectedYearMonthStr) && est.visitDate.isNotBlank()) ||
-        (est.moveDate.startsWith(selectedYearMonthStr) && est.moveDate.isNotBlank())
+        val belongsToMonth = (est.visitDate.startsWith(selectedYearMonthStr) && est.visitDate.isNotBlank()) ||
+                             (est.moveDate.startsWith(selectedYearMonthStr) && est.moveDate.isNotBlank())
+        if (!belongsToMonth) return@filter false
+
+        val estEvents = events.filter { it.linkedEstimateId == est.id }
+        estEvents.isNotEmpty()
     }
     
     android.util.Log.d("STATS_DEBUG", "selectedYearMonthStr: $selectedYearMonthStr, visitCompletedEstimates size: ${visitCompletedEstimates.size}")
@@ -1118,7 +1125,8 @@ fun computeEstimateContractStats(estimates: List<Estimate>, events: List<Event>,
     val totalVisitCompletedCost = visitCompletedEstimates.sumOf { est ->
         val costStr = est.totalCost.replace(Regex("[^0-9]"), "")
         val cost = costStr.toLongOrNull() ?: 0L
-        if (cost > 0L) cost else est.amount
+        val rawCost = if (cost > 0L) cost else est.amount
+        if (rawCost > 0L && rawCost < 10000L) rawCost * 10000L else rawCost
     }
     val avgAmount = if (visitCompletedEstimates.isNotEmpty()) {
         totalVisitCompletedCost / visitCompletedEstimates.size
@@ -1203,7 +1211,11 @@ fun computeEstimateContractStats(estimates: List<Estimate>, events: List<Event>,
         val ton = parseTonnage(est.totalVolume).toInt()
         if (ton in 1..6) {
             if (tonnagePrices[ton] == null) tonnagePrices[ton] = mutableListOf()
-            tonnagePrices[ton]?.add(est.amount)
+            val costStr = est.totalCost.replace(Regex("[^0-9]"), "")
+            val cost = costStr.toLongOrNull() ?: 0L
+            val rawCost = if (cost > 0L) cost else est.amount
+            val normalizedCost = if (rawCost > 0L && rawCost < 10000L) rawCost * 10000L else rawCost
+            tonnagePrices[ton]?.add(normalizedCost)
         }
     }
     val tonnageAvg = tonnagePrices.mapValues { entry ->
@@ -1365,20 +1377,43 @@ fun computeDistanceRegionStats(estimates: List<Estimate>, year: Int, month: Int)
 
 fun computeAnnualRevenueStats(estimates: List<Estimate>, events: List<Event>, year: Int): AnnualRevenueStats {
     val yearStr = year.toString()
-    val yearContractedEstimates = estimates.filter {
-        it.moveDate.isNotBlank() && it.moveDate.startsWith(yearStr)
+    
+    // 전화번호(phoneNumber) 기준 중복 제거 (최신 견적서 1개만 선택)
+    val uniqueEstimates = estimates
+        .groupBy { it.phoneNumber.replace(Regex("[^0-9]"), "") }
+        .flatMap { (phone, estList) ->
+            if (phone.isEmpty()) {
+                estList
+            } else {
+                listOf(estList.maxByOrNull { it.createdAt } ?: estList.first())
+            }
+        }
+
+    // 계약 완료(isAllDay == true인 연관 일정이 있는 경우)이면서 해당 연도 이사 날짜인 견적서 필터링
+    val yearContractedEstimates = uniqueEstimates.filter { est ->
+        val estEvents = events.filter { it.linkedEstimateId == est.id }
+        estEvents.any { it.isAllDay } && est.moveDate.isNotBlank() && est.moveDate.startsWith(yearStr)
     }
 
-    val annualTotal = yearContractedEstimates.sumOf { it.amount }
+    val annualTotal = yearContractedEstimates.sumOf { est ->
+        val costStr = est.totalCost.replace(Regex("[^0-9]"), "")
+        val cost = costStr.toLongOrNull() ?: 0L
+        val rawCost = if (cost > 0L) cost else est.amount
+        if (rawCost > 0L && rawCost < 10000L) rawCost * 10000L else rawCost
+    }
 
     val monthlyRevenues = mutableMapOf<String, Long>()
 
-    estimates.filter { it.moveDate.isNotBlank() && it.moveDate.startsWith(yearStr) }.forEach { est ->
+    yearContractedEstimates.forEach { est ->
         try {
             val dateParts = est.moveDate.split("-")
             if (dateParts.size >= 2) {
                 val monthKey = "${dateParts[0]}-${dateParts[1]}"
-                monthlyRevenues[monthKey] = (monthlyRevenues[monthKey] ?: 0L) + est.amount
+                val costStr = est.totalCost.replace(Regex("[^0-9]"), "")
+                val cost = costStr.toLongOrNull() ?: 0L
+                val rawCost = if (cost > 0L) cost else est.amount
+                val normalizedCost = if (rawCost > 0L && rawCost < 10000L) rawCost * 10000L else rawCost
+                monthlyRevenues[monthKey] = (monthlyRevenues[monthKey] ?: 0L) + normalizedCost
             }
         } catch (e: Exception) {
             // Ignore format errors
