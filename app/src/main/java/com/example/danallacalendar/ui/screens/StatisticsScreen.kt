@@ -177,7 +177,7 @@ fun StatisticsScreen(
                         3 -> DistanceRegionTabContent(allEstimates, selectedYear, selectedMonth)
                         4 -> {
                             if (isCreator) {
-                                AnnualRevenueTabContent(allEstimates, allEvents, selectedYear)
+                                AnnualRevenueTabContent(allEstimates, allEvents, selectedYear, selectedMonth)
                             } else {
                                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                                     Text("해당 화면을 볼 수 있는 권한이 없습니다.", color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold)
@@ -920,64 +920,119 @@ fun DistanceRegionTabContent(estimates: List<Estimate>, year: Int, month: Int) {
 }
 
 @Composable
-fun AnnualRevenueTabContent(estimates: List<Estimate>, events: List<Event>, year: Int) {
+fun AnnualRevenueTabContent(estimates: List<Estimate>, events: List<Event>, year: Int, month: Int) {
     val stats = remember(estimates, events, year) {
         computeAnnualRevenueStats(estimates, events, year)
     }
 
     LazyColumn(
-        verticalArrangement = Arrangement.spacedBy(16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
         modifier = Modifier.fillMaxSize()
     ) {
+        // 1. 월간 누적 매출 카드 (secondary 틴트 계열 배경)
         item {
-            // Revenue Card
+            val targetMonthKey = "$year-${String.format("%02d", month + 1)}"
+            val monthlyRevenue = stats.monthlyRevenues[targetMonthKey] ?: 0L
             Card(
                 modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f))
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.2f)),
+                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
             ) {
-                Column(modifier = Modifier.padding(20.dp)) {
-                    Text("연간 누적 매출 (계약 완료 기준)", fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Spacer(modifier = Modifier.height(8.dp))
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text(
+                        text = "${year}년 ${month + 1}월 매출 (계약 완료 기준)", 
+                        fontSize = 13.sp, 
+                        color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.8f),
+                        fontWeight = FontWeight.Medium
+                    )
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text(
+                        text = formatCurrency(monthlyRevenue),
+                        fontSize = 26.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = MaterialTheme.colorScheme.secondary
+                    )
+                }
+            }
+        }
+
+        // 2. 연간 누적 매출 카드 (primary 틴트 계열 배경)
+        item {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.15f)),
+                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text(
+                        text = "${year}년 연간 누적 매출 (계약 완료 기준)", 
+                        fontSize = 13.sp, 
+                        color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f),
+                        fontWeight = FontWeight.Medium
+                    )
+                    Spacer(modifier = Modifier.height(6.dp))
                     Text(
                         text = formatCurrency(stats.annualTotalRevenue),
-                        fontSize = 32.sp,
-                        fontWeight = FontWeight.Black,
+                        fontSize = 26.sp,
+                        fontWeight = FontWeight.ExtraBold,
                         color = MaterialTheme.colorScheme.primary
                     )
                 }
             }
         }
 
+        // 3. 월별 누적 매출 현황 리스트 카드
         item {
-            // Monthly Revenue List
-            Card(modifier = Modifier.fillMaxWidth()) {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+            ) {
                 Column(modifier = Modifier.padding(16.dp)) {
-                    Text("월별 누적 매출 현황", fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                    Text(
+                        text = "${year}년 월별 누적 매출 현황", 
+                        fontWeight = FontWeight.Bold, 
+                        fontSize = 15.sp,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
                     Spacer(modifier = Modifier.height(12.dp))
 
-                    val currentYear = Calendar.getInstance().get(Calendar.YEAR).toString()
                     val monthlyList = stats.monthlyRevenues.entries
-                        .filter { it.key.startsWith(currentYear) }
                         .sortedBy { it.key }
 
                     if (monthlyList.isEmpty()) {
                         Text("올해 매출 데이터가 존재하지 않습니다.", fontSize = 13.sp, color = MaterialTheme.colorScheme.outline)
                     } else {
-                        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             monthlyList.forEach { entry ->
                                 val monthStr = entry.key.substringAfter("-") + "월"
+                                val isCurrentMonth = entry.key.endsWith(String.format("-%02d", month + 1))
+                                
                                 Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .background(if (isCurrentMonth) MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.15f) else Color.Transparent)
+                                        .padding(vertical = if (isCurrentMonth) 6.dp else 2.dp, horizontal = if (isCurrentMonth) 8.dp else 0.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Text(monthStr, fontSize = 14.sp)
-                                    Text(formatCurrency(entry.value), fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                                    Text(
+                                        text = monthStr, 
+                                        fontSize = 14.sp, 
+                                        fontWeight = if (isCurrentMonth) FontWeight.Bold else FontWeight.Normal,
+                                        color = if (isCurrentMonth) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.onSurface
+                                    )
+                                    Text(
+                                        text = formatCurrency(entry.value), 
+                                        fontSize = 14.sp, 
+                                        fontWeight = FontWeight.Bold,
+                                        color = if (isCurrentMonth) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.onSurface
+                                    )
                                 }
                                 Box(
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .height(0.5.dp)
-                                        .background(MaterialTheme.colorScheme.surfaceVariant)
+                                        .background(MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
                                 )
                             }
                         }
