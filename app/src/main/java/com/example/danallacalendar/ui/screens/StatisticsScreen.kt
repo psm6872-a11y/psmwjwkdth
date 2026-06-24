@@ -61,9 +61,9 @@ fun StatisticsScreen(
 
     val tabs = remember(isCreator) {
         if (isCreator) {
-            listOf("견적/계약", "운영/짐", "거리/지역", "연간 매출")
+            listOf("견적", "계약", "운영/짐", "거리/지역", "연간 매출")
         } else {
-            listOf("견적/계약", "운영/짐", "거리/지역")
+            listOf("견적", "계약", "운영/짐", "거리/지역")
         }
     }
 
@@ -163,10 +163,11 @@ fun StatisticsScreen(
                     }
                 } else {
                     when (selectedTab) {
-                        0 -> EstimateContractTabContent(allEstimates, allEvents, selectedYear, selectedMonth)
-                        1 -> OperationsCargoTabContent(allEstimates, allEvents, selectedYear, selectedMonth)
-                        2 -> DistanceRegionTabContent(allEstimates, selectedYear, selectedMonth)
-                        3 -> {
+                        0 -> EstimateTabContent(allEstimates, allEvents, selectedYear, selectedMonth)
+                        1 -> ContractTabContent(allEstimates, allEvents, selectedYear, selectedMonth)
+                        2 -> OperationsCargoTabContent(allEstimates, allEvents, selectedYear, selectedMonth)
+                        3 -> DistanceRegionTabContent(allEstimates, selectedYear, selectedMonth)
+                        4 -> {
                             if (isCreator) {
                                 AnnualRevenueTabContent(allEstimates, allEvents, selectedYear)
                             } else {
@@ -187,7 +188,7 @@ fun StatisticsScreen(
 // ----------------------------------------
 
 @Composable
-fun EstimateContractTabContent(estimates: List<Estimate>, events: List<Event>, year: Int, month: Int) {
+fun EstimateTabContent(estimates: List<Estimate>, events: List<Event>, year: Int, month: Int) {
     val stats = remember(estimates, events, year, month) {
         computeEstimateContractStats(estimates, events, year, month)
     }
@@ -408,7 +409,21 @@ fun EstimateContractTabContent(estimates: List<Estimate>, events: List<Event>, y
                 }
             }
         }
+        
+        item { Spacer(modifier = Modifier.height(20.dp)) }
+    }
+}
 
+@Composable
+fun ContractTabContent(estimates: List<Estimate>, events: List<Event>, year: Int, month: Int) {
+    val stats = remember(estimates, events, year, month) {
+        computeEstimateContractStats(estimates, events, year, month)
+    }
+
+    LazyColumn(
+        verticalArrangement = Arrangement.spacedBy(16.dp),
+        modifier = Modifier.fillMaxSize()
+    ) {
         item {
             // Team Contract Counts
             Card(modifier = Modifier.fillMaxWidth()) {
