@@ -1633,7 +1633,7 @@ fun GrowthRateTabContent(estimates: List<Estimate>, events: List<Event>, year: I
         computeGrowthStats(estimates, events, year, month)
     }
     
-    val prevMonthStr = "지난달(전월)"
+    val prevMonthStr = "지난달"
 
     LazyColumn(
         verticalArrangement = Arrangement.spacedBy(16.dp),
