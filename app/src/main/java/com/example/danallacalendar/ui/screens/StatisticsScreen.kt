@@ -280,31 +280,27 @@ fun EstimateContractTabContent(estimates: List<Estimate>, events: List<Event>, y
                     Text("${year}년 월별 견적 요청 추이", fontWeight = FontWeight.Bold, fontSize = 15.sp)
                     Spacer(modifier = Modifier.height(16.dp))
                     
-                    Text("상반기 (1~6월)", fontSize = 12.sp, color = MaterialTheme.colorScheme.outline, fontWeight = FontWeight.Bold)
-                    Spacer(modifier = Modifier.height(8.dp))
                     if (firstHalf.isNotEmpty()) {
                         BarChart(
                             data = firstHalf,
                             barColor = MaterialTheme.colorScheme.primary,
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(130.dp)
+                                .height(90.dp)
                         )
                     } else {
                         Text("표시할 차트 데이터가 없습니다.", fontSize = 13.sp, color = MaterialTheme.colorScheme.outline)
                     }
                     
-                    Spacer(modifier = Modifier.height(20.dp))
+                    Spacer(modifier = Modifier.height(12.dp))
                     
-                    Text("하반기 (7~12월)", fontSize = 12.sp, color = MaterialTheme.colorScheme.outline, fontWeight = FontWeight.Bold)
-                    Spacer(modifier = Modifier.height(8.dp))
                     if (secondHalf.isNotEmpty()) {
                         BarChart(
                             data = secondHalf,
                             barColor = MaterialTheme.colorScheme.primary,
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(130.dp)
+                                .height(90.dp)
                         )
                     } else {
                         Text("표시할 차트 데이터가 없습니다.", fontSize = 13.sp, color = MaterialTheme.colorScheme.outline)
