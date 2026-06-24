@@ -524,21 +524,6 @@ fun ContractTabContent(estimates: List<Estimate>, events: List<Event>, year: Int
         }
 
         item {
-            // Stats Card: YoY Growth Rate
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f))
-            ) {
-                Column(modifier = Modifier.padding(8.dp)) {
-                    Text("전년 동기 대비 성장률", fontSize = 13.sp, color = MaterialTheme.colorScheme.outline)
-                    Spacer(modifier = Modifier.height(2.dp))
-                    val sign = if (opsStats.yoyGrowthRate >= 0) "+" else ""
-                    Text("$sign${String.format("%.1f", opsStats.yoyGrowthRate)}%", fontSize = 17.sp, fontWeight = FontWeight.Bold, color = if (opsStats.yoyGrowthRate >= 0) Color(0xFF4CAF50) else Color(0xFFF44336))
-                }
-            }
-        }
-
-        item {
             // Team Contract Counts
             Card(modifier = Modifier.fillMaxWidth()) {
                 var menuExpanded by remember { mutableStateOf(false) }
