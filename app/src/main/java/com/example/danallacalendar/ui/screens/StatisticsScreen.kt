@@ -61,6 +61,7 @@ fun StatisticsScreen(
     val allEvents by viewModel.allEvents.collectAsStateWithLifecycle()
     val allEstimates by viewModel.allEstimates.collectAsStateWithLifecycle()
     val companyAddress by viewModel.companyAddress.collectAsStateWithLifecycle()
+    val activeAreas by viewModel.activeAreas.collectAsStateWithLifecycle()
 
     val currentCal = remember { Calendar.getInstance() }
     var selectedYear by remember { mutableIntStateOf(currentCal.get(Calendar.YEAR)) }
@@ -175,7 +176,7 @@ fun StatisticsScreen(
                         0 -> EstimateTabContent(allEstimates, allEvents, selectedYear, selectedMonth)
                         1 -> ContractTabContent(allEstimates, allEvents, selectedYear, selectedMonth)
                         2 -> GrowthRateTabContent(allEstimates, allEvents, selectedYear, selectedMonth)
-                        3 -> DistanceRegionTabContent(allEstimates, companyAddress, selectedYear, selectedMonth)
+                        3 -> DistanceRegionTabContent(allEstimates, companyAddress, activeAreas, selectedYear, selectedMonth)
                         4 -> {
                             if (isCreator) {
                                 AnnualRevenueTabContent(allEstimates, allEvents, selectedYear, selectedMonth)
@@ -839,11 +840,12 @@ fun ContractTabContent(estimates: List<Estimate>, events: List<Event>, year: Int
 fun DistanceRegionTabContent(
     estimates: List<Estimate>,
     companyAddress: String,
+    activeAreas: String,
     year: Int,
     month: Int
 ) {
-    val stats = remember(estimates, companyAddress, year, month) {
-        computeDistanceRegionStats(estimates, companyAddress, year, month)
+    val stats = remember(estimates, companyAddress, activeAreas, year, month) {
+        computeDistanceRegionStats(estimates, companyAddress, activeAreas, year, month)
     }
 
     LazyColumn(
@@ -981,7 +983,7 @@ fun DistanceRegionTabContent(
             }
         }
 
-        // 3. 자주 가는 목적지 TOP 5 (관내제외) 순위 리스트
+        // 3. 자주 가는 목적지 TOP 10 (관내제외) 순위 리스트
         item {
             Card(
                 modifier = Modifier.fillMaxWidth(),
@@ -991,7 +993,7 @@ fun DistanceRegionTabContent(
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Text(
-                        text = "자주 가는 목적지 TOP 5 (관내제외)",
+                        text = "자주 가는 목적지 TOP 10 (관내제외)",
                         fontWeight = FontWeight.Bold,
                         fontSize = 15.sp,
                         color = MaterialTheme.colorScheme.onSurface
@@ -1002,7 +1004,7 @@ fun DistanceRegionTabContent(
                         Text("목적지 데이터가 존재하지 않습니다.", fontSize = 13.sp, color = MaterialTheme.colorScheme.outline)
                     } else {
                         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                            stats.destinationRankings.take(5).forEachIndexed { index, rank ->
+                            stats.destinationRankings.take(10).forEachIndexed { index, rank ->
                                 val rankNum = index + 1
                                 val rankColor = when (rankNum) {
                                     1 -> Color(0xFFFFD700) // Gold
@@ -1048,7 +1050,7 @@ fun DistanceRegionTabContent(
                                         fontWeight = FontWeight.Bold
                                     )
                                 }
-                                if (index < stats.destinationRankings.take(5).lastIndex) {
+                                if (index < stats.destinationRankings.take(10).lastIndex) {
                                     Box(
                                         modifier = Modifier
                                             .fillMaxWidth()
@@ -1057,6 +1059,53 @@ fun DistanceRegionTabContent(
                                     )
                                 }
                             }
+                        }
+                    }
+                }
+            }
+        }
+
+        // 4. 연간 월별 이사 구간 추이 카드 (관내제외)
+        item {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text(
+                        text = "연간 월별 이사 구간 추이 (관내제외)",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 15.sp,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    if (stats.monthlyZoneCounts.isEmpty() || stats.monthlyZoneCounts.all { it.nearbyCount + it.midDistCount + it.longDistCount == 0 }) {
+                        Box(
+                            modifier = Modifier.fillMaxWidth().height(160.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text("해당 연도에 집계할 이사 데이터가 없습니다.", fontSize = 13.sp, color = MaterialTheme.colorScheme.outline)
+                        }
+                    } else {
+                        ZoneLineChart(
+                            data = stats.monthlyZoneCounts,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(160.dp)
+                                .padding(horizontal = 4.dp)
+                        )
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Row(
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
+                            horizontalArrangement = Arrangement.SpaceEvenly,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            ChartLegendItem("근거리", Color(0xFF1976D2))
+                            ChartLegendItem("중거리", Color(0xFFF57C00))
+                            ChartLegendItem("장거리", Color(0xFFD32F2F))
                         }
                     }
                 }
@@ -1335,6 +1384,136 @@ fun BarChart(
     }
 }
 
+@Composable
+fun ZoneLineChart(
+    data: List<MonthlyZoneCount>,
+    modifier: Modifier = Modifier
+) {
+    Canvas(modifier = modifier) {
+        if (data.isEmpty()) return@Canvas
+
+        // 관외(근거리, 중거리, 장거리) 중 최대값 건수를 구해서 scaleMax 산정
+        val maxVal = data.maxOf { maxOf(it.nearbyCount, it.midDistCount, it.longDistCount) }.toFloat()
+        val scaleMax = if (maxVal > 0f) maxVal else 1f
+
+        val spacing = 16.dp.toPx()
+        val textHeight = 18.dp.toPx()
+        val topPadding = 20.dp.toPx()
+        val chartHeight = size.height - textHeight - topPadding - 8.dp.toPx()
+        
+        // 12개월의 x 좌표들
+        val xStep = (size.width - (spacing * 2)) / 11
+
+        // 색상 정의
+        val nearbyColor = Color(0xFF1976D2)
+        val midDistColor = Color(0xFFF57C00)
+        val longDistColor = Color(0xFFD32F2F)
+
+        // 각 라인별 포인트 좌표 리스트 생성
+        val nearbyPoints = mutableListOf<Offset>()
+        val midDistPoints = mutableListOf<Offset>()
+        val longDistPoints = mutableListOf<Offset>()
+
+        data.forEachIndexed { index, mc ->
+            val x = spacing + index * xStep
+            
+            val yNearby = chartHeight - (mc.nearbyCount.toFloat() / scaleMax * chartHeight) + topPadding
+            val yMidDist = chartHeight - (mc.midDistCount.toFloat() / scaleMax * chartHeight) + topPadding
+            val yLongDist = chartHeight - (mc.longDistCount.toFloat() / scaleMax * chartHeight) + topPadding
+
+            nearbyPoints.add(Offset(x, yNearby))
+            midDistPoints.add(Offset(x, yMidDist))
+            longDistPoints.add(Offset(x, yLongDist))
+
+            // 하단 1~12 라벨 그리기
+            val labelPaint = android.graphics.Paint().apply {
+                color = android.graphics.Color.GRAY
+                textSize = 9.5.sp.toPx()
+                textAlign = android.graphics.Paint.Align.CENTER
+            }
+            val shortLabel = mc.monthLabel.replace("월", "")
+            drawContext.canvas.nativeCanvas.drawText(
+                shortLabel,
+                x,
+                size.height - 4.dp.toPx(),
+                labelPaint
+            )
+        }
+
+        // 라인 그리기 함수 헬퍼
+        fun drawTrendLine(points: List<Offset>, lineColor: Color, counts: List<Int>) {
+            // 1. 선 그리기
+            for (i in 0 until points.size - 1) {
+                drawLine(
+                    color = lineColor,
+                    start = points[i],
+                    end = points[i + 1],
+                    strokeWidth = 2.dp.toPx()
+                )
+            }
+            // 2. 각 점(Dot) 및 수치 텍스트 그리기
+            points.forEachIndexed { i, pt ->
+                val count = counts[i]
+                
+                // Dot
+                drawCircle(
+                    color = lineColor,
+                    radius = 3.5.dp.toPx(),
+                    center = pt
+                )
+                // 하얀 속을 파서 더 예쁘게 만듦
+                drawCircle(
+                    color = Color.White,
+                    radius = 1.5.dp.toPx(),
+                    center = pt
+                )
+
+                // 건수가 0보다 큰 경우에만 숫자 텍스트 표시
+                if (count > 0) {
+                    val textPaint = android.graphics.Paint().apply {
+                        color = android.graphics.Color.DKGRAY
+                        textSize = 8.5.sp.toPx()
+                        textAlign = android.graphics.Paint.Align.CENTER
+                        typeface = android.graphics.Typeface.create(android.graphics.Typeface.DEFAULT, android.graphics.Typeface.BOLD)
+                    }
+                    drawContext.canvas.nativeCanvas.drawText(
+                        count.toString(),
+                        pt.x,
+                        pt.y - 6.dp.toPx(),
+                        textPaint
+                    )
+                }
+            }
+        }
+
+        // 3가지 구간의 라인을 각각 그림
+        drawTrendLine(nearbyPoints, nearbyColor, data.map { it.nearbyCount })
+        drawTrendLine(midDistPoints, midDistColor, data.map { it.midDistCount })
+        drawTrendLine(longDistPoints, longDistColor, data.map { it.longDistCount })
+    }
+}
+
+@Composable
+fun ChartLegendItem(label: String, color: Color) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .size(8.dp)
+                .clip(CircleShape)
+                .background(color)
+        )
+        Text(
+            text = label,
+            fontSize = 11.sp,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            fontWeight = FontWeight.Medium
+        )
+    }
+}
+
 // ----------------------------------------
 // Data Calculations Helpers & Stats Models
 // ----------------------------------------
@@ -1378,6 +1557,14 @@ data class OperationsCargoStats(
     val cargoTonnageCounts: Map<String, Int>
 )
 
+data class MonthlyZoneCount(
+    val monthLabel: String,
+    val inCityCount: Int = 0,
+    val nearbyCount: Int = 0,
+    val midDistCount: Int = 0,
+    val longDistCount: Int = 0
+)
+
 data class DistanceRegionStats(
     val averageDistance: Double,
     val regionFlows: List<Pair<Pair<String, String>, Int>>,
@@ -1386,7 +1573,8 @@ data class DistanceRegionStats(
     val midDistCount: Int = 0,
     val longDistCount: Int = 0,
     val totalCount: Int = 0,
-    val destinationRankings: List<Pair<String, Int>> = emptyList()
+    val destinationRankings: List<Pair<String, Int>> = emptyList(),
+    val monthlyZoneCounts: List<MonthlyZoneCount> = emptyList()
 )
 
 data class AnnualRevenueStats(
@@ -1531,6 +1719,28 @@ enum class DistanceZone(val displayName: String) {
     UNKNOWN("미지정")
 }
 
+// 시/군/구 명칭의 유효성 검사 (동/호수, 지번, 아파트명 오인식 방지)
+fun isValidSigungu(sigungu: String): Boolean {
+    val clean = sigungu.trim()
+    if (clean.isEmpty() || clean == "미지정") return false
+    
+    // 숫자가 섞여있거나 번지, 호, 길, 로 등으로 끝나면 시군구가 아님
+    if (clean.contains(Regex("[0-9]")) || clean.endsWith("번지") || clean.endsWith("호") || clean.endsWith("길") || clean.endsWith("로") || clean.endsWith("동")) {
+        // 단, 안동시, 성동구, 영동군 등 진짜 시군구는 허용
+        val isRealSigungu = clean.endsWith("시") || clean.endsWith("군") || clean.endsWith("구")
+        val isDongException = clean.endsWith("동") && (clean.contains("성동") || clean.contains("영동") || clean.contains("안동") || clean.contains("창동"))
+        if (isRealSigungu && !clean.endsWith("동")) {
+            return true
+        }
+        if (isDongException) {
+            return true
+        }
+        return false
+    }
+    
+    return clean.endsWith("시") || clean.endsWith("군") || clean.endsWith("구") || clean.endsWith("읍") || clean.endsWith("면")
+}
+
 // 주소에서 (시/도, 시/군/구) 파싱 (도명 생략 케이스 대응)
 fun parseCityAndGu(address: String): Pair<String, String> {
     val clean = address.split("|").firstOrNull()?.trim() ?: ""
@@ -1599,7 +1809,8 @@ fun determineZone(
     mySido: String,
     mySigungu: String,
     depSido: String,
-    depSigungu: String
+    depSigungu: String,
+    activeAreas: String = ""
 ): DistanceZone {
     val cleanMySigungu = mySigungu.replace(Regex("^[가-힣]+도\\s+"), "").trim()
     val cleanDepSigungu = depSigungu.replace(Regex("^[가-힣]+도\\s+"), "").trim()
@@ -1610,6 +1821,16 @@ fun determineZone(
     // 1. 도명이 다르거나 오인식되더라도 시군구가 같으면 가장 우선적으로 관내(IN_CITY)로 판정
     if (mySigunguKey.isNotEmpty() && depSigunguKey.isNotEmpty() && mySigunguKey == depSigunguKey) {
         return DistanceZone.IN_CITY
+    }
+
+    // 1.2. 추가 활동 영역(activeAreas)에 출발지 시군구 키가 포함되어 있으면 관내(IN_CITY)로 판정
+    if (activeAreas.isNotBlank() && depSigunguKey.isNotEmpty()) {
+        val activeKeys = activeAreas.split(",")
+            .map { it.trim().replace(Regex("[시군구]$"), "").trim() }
+            .filter { it.isNotEmpty() }
+        if (activeKeys.contains(depSigunguKey)) {
+            return DistanceZone.IN_CITY
+        }
     }
 
     if (mySido.isBlank() || depSido.isBlank() || depSido == "미지정") return DistanceZone.UNKNOWN
@@ -1985,7 +2206,7 @@ fun computeOperationsCargoStats(estimates: List<Estimate>, events: List<Event>, 
     )
 }
 
-fun computeDistanceRegionStats(estimates: List<Estimate>, companyAddress: String, year: Int, month: Int): DistanceRegionStats {
+fun computeDistanceRegionStats(estimates: List<Estimate>, companyAddress: String, activeAreas: String, year: Int, month: Int): DistanceRegionStats {
     // 전화번호(phoneNumber) 기준 중복 제거 (최신 견적서 1개만 선택)
     val uniqueEstimates = estimates
         .groupBy { it.phoneNumber.replace(Regex("[^0-9]"), "") }
@@ -2027,11 +2248,16 @@ fun computeDistanceRegionStats(estimates: List<Estimate>, companyAddress: String
             val validSidos = setOf("서울", "경기", "인천", "강원", "충북", "충남", "대전", "경북", "경남", "부산", "울산", "대구", "전북", "전남", "광주", "세종", "제주")
 
             var depReg = getRegionName(est.departure)
-            val destReg = getRegionName(est.destination)
+            var destReg = getRegionName(est.destination)
 
             // 출발지 주소의 시/도 판단이 힘든 경우, 내 업체 위치를 출발 지역명 기본값으로 적용
             if ((depReg == "미지정" || !validSidos.contains(depReg)) && mySido.isNotBlank()) {
                 depReg = mySido
+            }
+
+            // 도착지 주소의 시/도 판단이 힘든 경우, 내 업체 위치를 도착 지역명 기본값으로 적용
+            if ((destReg == "미지정" || !validSidos.contains(destReg)) && mySido.isNotBlank()) {
+                destReg = mySido
             }
             
             // 기존 평균 거리 계산용 로직 유지
@@ -2046,7 +2272,7 @@ fun computeDistanceRegionStats(estimates: List<Estimate>, companyAddress: String
 
             // 새로운 구간 및 목적지 빈도 분석 로직
             var (depSido, depSigungu) = parseCityAndGu(est.departure)
-            val (destSido, destSigungu) = parseCityAndGu(est.destination)
+            var (destSido, destSigungu) = parseCityAndGu(est.destination)
 
             // 출발지 주소가 도/시 생략 등으로 판단이 힘든 모호한 값인 경우 내 업체 위치의 Sido/Sigungu를 출발지로 자동 보정
             if ((depSido == "미지정" || !validSidos.contains(depSido)) && mySido.isNotBlank()) {
@@ -2054,8 +2280,14 @@ fun computeDistanceRegionStats(estimates: List<Estimate>, companyAddress: String
                 depSigungu = mySigungu
             }
 
+            // 도착지 주소가 도/시 생략 등으로 판단이 힘든 모호한 값인 경우 내 업체 위치의 Sido/Sigungu를 도착지로 자동 보정
+            if ((destSido == "미지정" || !validSidos.contains(destSido)) && mySido.isNotBlank()) {
+                destSido = mySido
+                destSigungu = mySigungu
+            }
+
             if (depSido != "미지정" && mySido.isNotBlank()) {
-                val zone = determineZone(mySido, mySigungu, depSido, depSigungu)
+                val zone = determineZone(mySido, mySigungu, depSido, depSigungu, activeAreas)
                 when (zone) {
                     DistanceZone.IN_CITY -> inCityCount++
                     DistanceZone.NEARBY -> nearbyCount++
@@ -2071,8 +2303,22 @@ fun computeDistanceRegionStats(estimates: List<Estimate>, companyAddress: String
             val cleanDestSigungu = destSigungu.replace(Regex("^[가-힣]+도\\s+"), "").trim()
             val destSigunguKey = cleanDestSigungu.split(" ").firstOrNull() ?: ""
 
-            if (destSigunguKey != "미지정" && destSigunguKey.isNotBlank() && (mySigunguKey.isBlank() || destSigunguKey != mySigunguKey)) {
-                destinationMap[destSigungu] = (destinationMap[destSigungu] ?: 0) + 1
+            val activeKeys = if (activeAreas.isNotBlank()) {
+                activeAreas.split(",")
+                    .map { it.trim().replace(Regex("[시군구]$"), "").trim() }
+                    .filter { it.isNotEmpty() }
+            } else {
+                emptyList()
+            }
+
+            val isLocalDestination = (mySigunguKey.isNotEmpty() && destSigunguKey == mySigunguKey) || 
+                                     activeKeys.contains(destSigunguKey)
+
+            val isValidDest = validSidos.contains(destSido) && isValidSigungu(destSigungu)
+
+            if (isValidDest && !isLocalDestination) {
+                val displayDest = "$destSido $cleanDestSigungu"
+                destinationMap[displayDest] = (destinationMap[displayDest] ?: 0) + 1
             }
         }
     }
@@ -2080,6 +2326,56 @@ fun computeDistanceRegionStats(estimates: List<Estimate>, companyAddress: String
     val avgDist = if (count > 0) totalDistance / count else 0.0
     val sortedFlows = flows.entries.sortedByDescending { it.value }.map { it.key to it.value }
     val sortedDestinations = destinationMap.entries.sortedByDescending { it.value }.map { it.key to it.value }
+
+    // 연간 월별 구간 건수 집계 (1월 ~ 12월)
+    val monthlyZoneCountsList = (0..11).map { m ->
+        val monthLabel = "${m + 1}월"
+        var inCity = 0
+        var nearby = 0
+        var midDist = 0
+        var longDist = 0
+
+        uniqueEstimates.filter { est ->
+            cal.timeInMillis = est.createdAt
+            cal.get(Calendar.YEAR) == year && cal.get(Calendar.MONTH) == m
+        }.forEach { est ->
+            if (est.departure.isNotBlank() && est.destination.isNotBlank()) {
+                val validSidos = setOf("서울", "경기", "인천", "강원", "충북", "충남", "대전", "경북", "경남", "부산", "울산", "대구", "전북", "전남", "광주", "세종", "제주")
+                var (depSido, depSigungu) = parseCityAndGu(est.departure)
+                var (destSido, destSigungu) = parseCityAndGu(est.destination)
+
+                // 출발지 보정
+                if ((depSido == "미지정" || !validSidos.contains(depSido)) && mySido.isNotBlank()) {
+                    depSido = mySido
+                    depSigungu = mySigungu
+                }
+                // 도착지 보정
+                if ((destSido == "미지정" || !validSidos.contains(destSido)) && mySido.isNotBlank()) {
+                    destSido = mySido
+                    destSigungu = mySigungu
+                }
+
+                if (depSido != "미지정" && mySido.isNotBlank()) {
+                    val zone = determineZone(mySido, mySigungu, depSido, depSigungu, activeAreas)
+                    when (zone) {
+                        DistanceZone.IN_CITY -> inCity++
+                        DistanceZone.NEARBY -> nearby++
+                        DistanceZone.MID_DIST -> midDist++
+                        DistanceZone.LONG_DIST -> longDist++
+                        else -> {}
+                    }
+                }
+            }
+        }
+
+        MonthlyZoneCount(
+            monthLabel = monthLabel,
+            inCityCount = inCity,
+            nearbyCount = nearby,
+            midDistCount = midDist,
+            longDistCount = longDist
+        )
+    }
 
     return DistanceRegionStats(
         averageDistance = avgDist,
@@ -2089,7 +2385,8 @@ fun computeDistanceRegionStats(estimates: List<Estimate>, companyAddress: String
         midDistCount = midDistCount,
         longDistCount = longDistCount,
         totalCount = totalCount,
-        destinationRankings = sortedDestinations
+        destinationRankings = sortedDestinations,
+        monthlyZoneCounts = monthlyZoneCountsList
     )
 }
 

@@ -25,6 +25,9 @@ class StatisticsViewModel @Inject constructor(
     private val _companyAddress = MutableStateFlow("")
     val companyAddress: StateFlow<String> = _companyAddress.asStateFlow()
 
+    private val _activeAreas = MutableStateFlow("")
+    val activeAreas: StateFlow<String> = _activeAreas.asStateFlow()
+
     init {
         val roomCode = userPreferences.getLastRoomCode()
         if (roomCode.isNotEmpty()) {
@@ -32,6 +35,7 @@ class StatisticsViewModel @Inject constructor(
                 .addSnapshotListener { snapshot, _ ->
                     if (snapshot != null && snapshot.exists()) {
                         _companyAddress.value = snapshot.getString("companyAddress") ?: ""
+                        _activeAreas.value = snapshot.getString("activeAreas") ?: ""
                     }
                 }
         }

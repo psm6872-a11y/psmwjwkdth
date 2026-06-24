@@ -152,6 +152,7 @@ fun SettingsScreen(
     var ceoNickname by remember { mutableStateOf("") }
     var companyPhone by remember { mutableStateOf("") }
     var companyAddress by remember { mutableStateOf("") }
+    var activeAreas by remember { mutableStateOf("") }
     var ceoName by remember { mutableStateOf("") }
     var bizNumber by remember { mutableStateOf("") }
     var bankAccount by remember { mutableStateOf("") }
@@ -173,6 +174,7 @@ fun SettingsScreen(
                         ceoNickname = snapshot.getString("ceoNickname") ?: ""
                         companyPhone = snapshot.getString("companyPhone") ?: ""
                         companyAddress = snapshot.getString("companyAddress") ?: ""
+                        activeAreas = snapshot.getString("activeAreas") ?: ""
                         ceoName = snapshot.getString("ceoName") ?: ""
                         bizNumber = snapshot.getString("bizNumber") ?: ""
                         bankAccount = snapshot.getString("bankAccount") ?: ""
@@ -236,6 +238,7 @@ fun SettingsScreen(
                 "ceoNickname" to ceoNickname,
                 "companyPhone" to companyPhone,
                 "companyAddress" to companyAddress,
+                "activeAreas" to activeAreas,
                 "ceoName" to ceoName,
                 "bizNumber" to bizNumber,
                 "bankAccount" to bankAccount,
@@ -437,6 +440,21 @@ fun SettingsScreen(
                                         onCancelAction = { companyAddress = backup }
                                     }
                                     isCompanyAddressFocused = focused
+                                }
+                            )
+
+                            var isActiveAreasFocused by remember { mutableStateOf(false) }
+                            SettingsInputField(
+                                label = "활동 영역",
+                                value = activeAreas,
+                                onValueChange = { activeAreas = it },
+                                placeholder = "예: 김천시, 칠곡군 (쉼표 구분)",
+                                onFocusChanged = { focused ->
+                                    if (focused && !isActiveAreasFocused) {
+                                        val backup = activeAreas
+                                        onCancelAction = { activeAreas = backup }
+                                    }
+                                    isActiveAreasFocused = focused
                                 }
                             )
 
@@ -1032,6 +1050,7 @@ fun SettingsInputField(
     value: String,
     onValueChange: (String) -> Unit,
     modifier: Modifier = Modifier,
+    placeholder: String = "",
     onFocusChanged: (Boolean) -> Unit = {}
 ) {
     var isFocused by remember { mutableStateOf(false) }
@@ -1060,6 +1079,13 @@ fun SettingsInputField(
                 .padding(horizontal = 12.dp),
             contentAlignment = Alignment.CenterStart
         ) {
+            if (value.isEmpty() && placeholder.isNotEmpty()) {
+                Text(
+                    text = placeholder,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                    fontSize = 13.sp
+                )
+            }
             BasicTextField(
                 value = value,
                 onValueChange = onValueChange,
