@@ -15,6 +15,7 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Block
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.automirrored.filled.List
+import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material3.*
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
@@ -78,6 +79,7 @@ fun DrawerContent(
     onShareAppClick: () -> Unit,
     onEstimateClick: () -> Unit,
     onEstimateListClick: () -> Unit,
+    onStatisticsClick: () -> Unit,
     onCloseClick: () -> Unit,
     onBackupClick: () -> Unit,
     onBlacklistClick: () -> Unit,
@@ -264,6 +266,32 @@ fun DrawerContent(
             Spacer(modifier = Modifier.width(16.dp))
             Text(
                 text = "견적내기",
+                fontSize = 15.sp,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.secondary
+            )
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(MaterialTheme.shapes.medium)
+                .clickable { onStatisticsClick() }
+                .background(MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.2f))
+                .padding(vertical = 12.dp, horizontal = 12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = Icons.Default.BarChart,
+                contentDescription = "통계",
+                tint = MaterialTheme.colorScheme.secondary,
+                modifier = Modifier.size(24.dp)
+            )
+            Spacer(modifier = Modifier.width(16.dp))
+            Text(
+                text = "통계",
                 fontSize = 15.sp,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.secondary

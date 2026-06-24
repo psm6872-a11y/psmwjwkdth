@@ -104,6 +104,9 @@ interface EventDao {
     @Query("SELECT * FROM events WHERE linkedEstimateId IS NOT NULL AND linkedEstimateId != ''")
     fun getLinkedEventsFlow(): Flow<List<Event>>
 
+    @Query("SELECT * FROM events")
+    fun getAllEventsFlow(): Flow<List<Event>>
+
     // DeadlineDates
     @Query("SELECT * FROM deadline_dates")
     fun getAllDeadlineDates(): Flow<List<DeadlineDate>>

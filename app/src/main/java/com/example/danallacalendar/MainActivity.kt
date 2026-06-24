@@ -27,6 +27,7 @@ import com.example.danallacalendar.theme.DanallaCalendarTheme
 import com.example.danallacalendar.ui.screens.CalendarMainScreen
 import com.example.danallacalendar.ui.screens.AddEditEventScreen
 import com.example.danallacalendar.ui.screens.SearchScreen
+import com.example.danallacalendar.ui.screens.StatisticsScreen
 import com.example.danallacalendar.ui.viewmodel.CalendarViewModel
 import com.example.danallacalendar.ui.nickname.NicknameScreen
 import com.example.danallacalendar.ui.nickname.NicknameViewModel
@@ -256,6 +257,9 @@ fun AppNavigation(userPreferences: UserPreferences) {
                 onNavigateToBlacklist = {
                     navController.navigate("blacklist")
                 },
+                onNavigateToStatistics = { isCreator ->
+                    navController.navigate("statistics?isCreator=$isCreator")
+                },
                 onExitRoom = {
                     userPreferences.setLastRoomCode("")
                     navController.navigate("room") {
@@ -376,6 +380,22 @@ fun AppNavigation(userPreferences: UserPreferences) {
             BackupScreen(
                 onNavigateBack = { navController.popBackStack() },
                 defaultCalendarId = defaultCalendarId
+            )
+        }
+
+        composable(
+            route = "statistics?isCreator={isCreator}",
+            arguments = listOf(
+                navArgument("isCreator") {
+                    type = NavType.BoolType
+                    defaultValue = false
+                }
+            )
+        ) { backStackEntry ->
+            val isCreator = backStackEntry.arguments?.getBoolean("isCreator") ?: false
+            StatisticsScreen(
+                onNavigateBack = { navController.popBackStack() },
+                isCreator = isCreator
             )
         }
     }
