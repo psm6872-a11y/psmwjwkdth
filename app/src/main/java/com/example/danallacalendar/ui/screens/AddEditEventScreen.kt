@@ -155,9 +155,7 @@ fun AddEditEventScreen(
     // Set default category and color when categories load
     LaunchedEffect(categories) {
         if (selectedCategory == null && categories.isNotEmpty()) {
-            val lastUsedId = prefs.getInt("last_used_category_id", -1)
-            val defaultCat = categories.find { it.id == lastUsedId }
-                ?: categories.find { it.name == "공유 캘린더" }
+            val defaultCat = categories.find { it.name == "공유 캘린더" }
                 ?: categories.find { it.name == "내 캘린더" }
                 ?: categories.first()
             selectedCategory = defaultCat
@@ -316,7 +314,6 @@ fun AddEditEventScreen(
                 viewModel.updateEvent(event)
             }
             prefs.edit()
-                .putInt("last_used_category_id", selectedCategory!!.id)
                 .putString("last_used_color_hex", selectedColorHex)
                 .apply()
             onNavigateBack()
@@ -1359,7 +1356,6 @@ fun AddEditEventScreen(
                                     },
                                     onClick = {
                                         selectedCategory = category
-                                        prefs.edit().putInt("last_used_category_id", category.id).apply()
                                         showCategoryDropdown = false
                                     }
                                 )
