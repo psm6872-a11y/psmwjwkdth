@@ -206,23 +206,23 @@ fun EstimateTabContent(estimates: List<Estimate>, events: List<Event>, year: Int
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(12.dp),
+                        .padding(8.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Column {
-                        Text("견적 대비 계약 전환율", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text("견적 대비 계약 전환율", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         Spacer(modifier = Modifier.height(2.dp))
                         Text(
                             text = "${String.format("%.1f", stats.conversionRate)}%",
-                            fontSize = 24.sp,
-                            fontWeight = FontWeight.Black,
+                            fontSize = 20.sp,
+                            fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.primary
                         )
                     }
                     Box(
                         modifier = Modifier
-                            .size(48.dp)
+                            .size(36.dp)
                             .clip(CircleShape)
                             .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)),
                         contentAlignment = Alignment.Center
@@ -230,7 +230,7 @@ fun EstimateTabContent(estimates: List<Estimate>, events: List<Event>, year: Int
                         DonutChart(
                             percentage = stats.conversionRate.toFloat(),
                             color = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(36.dp)
+                            modifier = Modifier.size(26.dp)
                         )
                     }
                 }
@@ -247,10 +247,10 @@ fun EstimateTabContent(estimates: List<Estimate>, events: List<Event>, year: Int
                     modifier = Modifier.weight(1f),
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f))
                 ) {
-                    Column(modifier = Modifier.padding(12.dp)) {
-                        Text("총 견적 요청 수", fontSize = 11.sp, color = MaterialTheme.colorScheme.outline)
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text("${stats.totalEstimates}건", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                    Column(modifier = Modifier.padding(8.dp)) {
+                        Text("총 견적 요청 수", fontSize = 10.sp, color = MaterialTheme.colorScheme.outline)
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text("${stats.totalEstimates}건", fontSize = 15.sp, fontWeight = FontWeight.Bold)
                     }
                 }
 
@@ -258,10 +258,10 @@ fun EstimateTabContent(estimates: List<Estimate>, events: List<Event>, year: Int
                     modifier = Modifier.weight(1f),
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f))
                 ) {
-                    Column(modifier = Modifier.padding(12.dp)) {
-                        Text("평균 견적 금액", fontSize = 11.sp, color = MaterialTheme.colorScheme.outline)
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text(formatCurrency(stats.averageEstimateAmount), fontSize = 15.sp, fontWeight = FontWeight.Bold)
+                    Column(modifier = Modifier.padding(8.dp)) {
+                        Text("평균 견적 금액", fontSize = 10.sp, color = MaterialTheme.colorScheme.outline)
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(formatCurrency(stats.averageEstimateAmount), fontSize = 14.sp, fontWeight = FontWeight.Bold)
                     }
                 }
             }
