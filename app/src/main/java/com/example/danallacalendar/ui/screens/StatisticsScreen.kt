@@ -71,7 +71,7 @@ fun StatisticsScreen(
 
     val tabs = remember(isCreator) {
         if (isCreator) {
-            listOf("견적", "계약", "성장률", "거리/지역", "연간 매출")
+            listOf("견적", "계약", "성장률", "거리/지역", "누적 매출")
         } else {
             listOf("견적", "계약", "성장률", "거리/지역")
         }
@@ -1187,6 +1187,40 @@ fun AnnualRevenueTabContent(estimates: List<Estimate>, events: List<Event>, year
         verticalArrangement = Arrangement.spacedBy(12.dp),
         modifier = Modifier.fillMaxSize()
     ) {
+        // 방장 전용 안내 배너
+        item {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.25f)
+                ),
+                shape = RoundedCornerShape(12.dp),
+                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 14.dp),
+                    verticalAlignment = Alignment.Top,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Info,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.size(22.dp).padding(top = 1.dp)
+                    )
+                    Text(
+                        text = "누적 매출 탭은 방장 전용 탭이며 공유된 참가자들에게도 카테고리 자체가 보이지 않습니다.",
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.error,
+                        lineHeight = 22.sp
+                    )
+                }
+            }
+        }
+
         // 2. 연간 누적 매출 카드 (primary 틴트 계열 배경)
         item {
             Card(
