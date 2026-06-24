@@ -1098,11 +1098,8 @@ fun computeEstimateContractStats(estimates: List<Estimate>, events: List<Event>,
     val eventsByEstimate = events.groupBy { it.linkedEstimateId }
     val visitCompletedEstimates = uniqueEstimates.filter { est ->
         val estEvents = eventsByEstimate[est.id] ?: emptyList()
-        // 1. 이사 일정(isAllDay = true)이 연결되지 않아야 함 (계약완료 배제)
-        val hasNoMoveEvent = !estEvents.any { it.isAllDay }
-        
-        // 2. 해당 월에 속하는 방문견적 일정(isAllDay = false)이 존재해야 함
-        val hasVisitEventInMonth = estEvents.any { evt ->
+        // 해당 월에 속하는 방문견적 일정(isAllDay = false)이 존재해야 함 (계약완료 여부 상관없이 포함)
+        estEvents.any { evt ->
             if (!evt.isAllDay) {
                 val cal = Calendar.getInstance().apply { timeInMillis = evt.startMillis }
                 cal.get(Calendar.YEAR) == year && cal.get(Calendar.MONTH) == month
@@ -1110,7 +1107,6 @@ fun computeEstimateContractStats(estimates: List<Estimate>, events: List<Event>,
                 false
             }
         }
-        hasNoMoveEvent && hasVisitEventInMonth
     }
     val totalVisitCompletedCost = visitCompletedEstimates.sumOf { est ->
         val costStr = est.totalCost.replace(Regex("[^0-9]"), "")
