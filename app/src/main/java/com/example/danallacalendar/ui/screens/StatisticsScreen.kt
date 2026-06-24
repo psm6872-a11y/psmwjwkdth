@@ -1986,6 +1986,17 @@ fun computeOperationsCargoStats(estimates: List<Estimate>, events: List<Event>, 
 }
 
 fun computeDistanceRegionStats(estimates: List<Estimate>, companyAddress: String, year: Int, month: Int): DistanceRegionStats {
+    // 전화번호(phoneNumber) 기준 중복 제거 (최신 견적서 1개만 선택)
+    val uniqueEstimates = estimates
+        .groupBy { it.phoneNumber.replace(Regex("[^0-9]"), "") }
+        .flatMap { (phone, estList) ->
+            if (phone.isEmpty()) {
+                estList
+            } else {
+                listOf(estList.maxByOrNull { it.createdAt } ?: estList.first())
+            }
+        }
+
     var totalDistance = 0.0
     var count = 0
     val flows = mutableMapOf<Pair<String, String>, Int>()
@@ -2006,7 +2017,7 @@ fun computeDistanceRegionStats(estimates: List<Estimate>, companyAddress: String
 
     val destinationMap = mutableMapOf<String, Int>()
 
-    estimates.filter { est ->
+    uniqueEstimates.filter { est ->
         cal.timeInMillis = est.createdAt
         cal.get(Calendar.YEAR) == year && cal.get(Calendar.MONTH) == month
     }.forEach { est ->
