@@ -981,7 +981,7 @@ fun DistanceRegionTabContent(
             }
         }
 
-        // 3. 자주 가는 목적지 TOP 10 순위 리스트
+        // 3. 자주 가는 목적지 TOP 5 (관내제외) 순위 리스트
         item {
             Card(
                 modifier = Modifier.fillMaxWidth(),
@@ -991,7 +991,7 @@ fun DistanceRegionTabContent(
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Text(
-                        text = "자주 가는 목적지 TOP 10",
+                        text = "자주 가는 목적지 TOP 5 (관내제외)",
                         fontWeight = FontWeight.Bold,
                         fontSize = 15.sp,
                         color = MaterialTheme.colorScheme.onSurface
@@ -1002,7 +1002,7 @@ fun DistanceRegionTabContent(
                         Text("목적지 데이터가 존재하지 않습니다.", fontSize = 13.sp, color = MaterialTheme.colorScheme.outline)
                     } else {
                         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                            stats.destinationRankings.take(10).forEachIndexed { index, rank ->
+                            stats.destinationRankings.take(5).forEachIndexed { index, rank ->
                                 val rankNum = index + 1
                                 val rankColor = when (rankNum) {
                                     1 -> Color(0xFFFFD700) // Gold
@@ -1048,7 +1048,7 @@ fun DistanceRegionTabContent(
                                         fontWeight = FontWeight.Bold
                                     )
                                 }
-                                if (index < stats.destinationRankings.take(10).lastIndex) {
+                                if (index < stats.destinationRankings.take(5).lastIndex) {
                                     Box(
                                         modifier = Modifier
                                             .fillMaxWidth()
@@ -2008,6 +2008,8 @@ fun computeDistanceRegionStats(estimates: List<Estimate>, companyAddress: String
     } else {
         "" to ""
     }
+    val cleanMySigungu = mySigungu.replace(Regex("^[가-힣]+도\\s+"), "").trim()
+    val mySigunguKey = cleanMySigungu.split(" ").firstOrNull() ?: ""
 
     var inCityCount = 0
     var nearbyCount = 0
@@ -2066,7 +2068,10 @@ fun computeDistanceRegionStats(estimates: List<Estimate>, companyAddress: String
                 }
             }
 
-            if (destSigungu != "미지정") {
+            val cleanDestSigungu = destSigungu.replace(Regex("^[가-힣]+도\\s+"), "").trim()
+            val destSigunguKey = cleanDestSigungu.split(" ").firstOrNull() ?: ""
+
+            if (destSigunguKey != "미지정" && destSigunguKey.isNotBlank() && (mySigunguKey.isBlank() || destSigunguKey != mySigunguKey)) {
                 destinationMap[destSigungu] = (destinationMap[destSigungu] ?: 0) + 1
             }
         }
