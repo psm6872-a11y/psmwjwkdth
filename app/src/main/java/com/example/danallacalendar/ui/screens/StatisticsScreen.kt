@@ -993,8 +993,21 @@ fun computeEstimateContractStats(estimates: List<Estimate>, events: List<Event>,
     val contractedCount = filteredEstimates.count { it.id in contractedEstimateIds }
     
     val conversion = if (total > 0) (contractedCount.toDouble() / total) * 100 else 0.0
-    val totalAmount = filteredEstimates.sumOf { it.amount }
-    val avgAmount = if (total > 0) totalAmount / total else 0L
+    
+    val eventsByEstimate = events.groupBy { it.linkedEstimateId }
+    val visitCompletedEstimates = filteredEstimates.filter { est ->
+        val estEvents = eventsByEstimate[est.id] ?: emptyList()
+        estEvents.isNotEmpty() && !estEvents.any { it.isAllDay }
+    }
+    val totalVisitCompletedCost = visitCompletedEstimates.sumOf { est ->
+        val costStr = est.totalCost.replace(Regex("[^0-9]"), "")
+        costStr.toLongOrNull() ?: 0L
+    }
+    val avgAmount = if (visitCompletedEstimates.isNotEmpty()) {
+        totalVisitCompletedCost / visitCompletedEstimates.size
+    } else {
+        0L
+    }
 
     // Inquiries daily/monthly/weekly
     val daily = mutableMapOf<String, Int>()
