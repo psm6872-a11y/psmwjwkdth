@@ -1476,7 +1476,66 @@ val neighborCities = mapOf(
     "안산시" to listOf("시흥시", "군포시", "의왕시", "수원시", "화성시", "인천"),
     "안양시" to listOf("서울", "과천시", "의왕시", "군포시", "안산시", "시흥시", "광명시"),
     "남양주시" to listOf("서울", "구리시", "의정부시", "포천시", "가평군", "양평군", "광주시", "하남시"),
-    "의정부시" to listOf("서울", "양주시", "포천시", "남양주시")
+    "의정부시" to listOf("서울", "양주시", "포천시", "남양주시"),
+    "구미시" to listOf("칠곡군", "김천시", "상주시", "의성군", "군위군", "대구", "칠곡")
+)
+
+// 주요 시/군/구의 시/도 매핑 맵
+val cityToSidoMap = mapOf(
+    "수원" to "경기", "수원시" to "경기",
+    "성남" to "경기", "성남시" to "경기",
+    "용인" to "경기", "용인시" to "경기",
+    "화성" to "경기", "화성시" to "경기",
+    "고양" to "경기", "고양시" to "경기",
+    "부천" to "경기", "부천시" to "경기",
+    "안산" to "경기", "안산시" to "경기",
+    "안양" to "경기", "안양시" to "경기",
+    "남양주" to "경기", "남양주시" to "경기",
+    "의정부" to "경기", "의정부시" to "경기",
+    "평택" to "경기", "평택시" to "경기",
+    "시흥" to "경기", "시흥시" to "경기",
+    "파주" to "경기", "파주시" to "경기",
+    "김포" to "경기", "김포시" to "경기",
+    "광명" to "경기", "광명시" to "경기",
+    "군포" to "경기", "군포시" to "경기",
+    "광주" to "경기", "광주시" to "경기",
+    "이천" to "경기", "이천시" to "경기",
+    "양주" to "경기", "양주시" to "경기",
+    "오산" to "경기", "오산시" to "경기",
+    "안성" to "경기", "안성시" to "경기",
+    "구리" to "경기", "구리시" to "경기",
+    "포천" to "경기", "포천시" to "경기",
+    "의왕" to "경기", "의왕시" to "경기",
+    "하남" to "경기", "하남시" to "경기",
+    "여주" to "경기", "여주시" to "경기",
+    "동두천" to "경기", "동두천시" to "경기",
+    "양평" to "경기", "양평군" to "경기",
+    "가평" to "경기", "가평군" to "경기",
+    "연천" to "경기", "연천군" to "경기",
+    
+    "구미" to "경북", "구미시" to "경북",
+    "포항" to "경북", "포항시" to "경북",
+    "경주" to "경북", "경주시" to "경북",
+    "김천" to "경북", "김천시" to "경북",
+    "안동" to "경북", "안동시" to "경북",
+    "영주" to "경북", "영주시" to "경북",
+    "영천" to "경북", "영천시" to "경북",
+    "상주" to "경북", "상주시" to "경북",
+    "문경" to "경북", "문경시" to "경북",
+    "경산" to "경북", "경산시" to "경북",
+    "군위" to "대구", "군위군" to "대구",
+    "의성" to "경북", "의성군" to "경북",
+    "청송" to "경북", "청송군" to "경북",
+    "영양" to "경북", "영양군" to "경북",
+    "영덕" to "경북", "영덕군" to "경북",
+    "청도" to "경북", "청도군" to "경북",
+    "고령" to "경북", "고령군" to "경북",
+    "성주" to "경북", "성주군" to "경북",
+    "칠곡" to "경북", "칠곡군" to "경북",
+    "예천" to "경북", "예천군" to "경북",
+    "봉화" to "경북", "봉화군" to "경북",
+    "울진" to "경북", "울진군" to "경북",
+    "울릉" to "경북", "울릉군" to "경북"
 )
 
 enum class DistanceZone(val displayName: String) {
@@ -1487,14 +1546,29 @@ enum class DistanceZone(val displayName: String) {
     UNKNOWN("미지정")
 }
 
-// 주소에서 (시/도, 시/군/구) 파싱
+// 주소에서 (시/도, 시/군/구) 파싱 (도명 생략 케이스 대응)
 fun parseCityAndGu(address: String): Pair<String, String> {
     val clean = address.split("|").firstOrNull()?.trim() ?: ""
     if (clean.isEmpty()) return "미지정" to "미지정"
     val parts = clean.split(Regex("\\s+")).filter { it.isNotBlank() }
     if (parts.isEmpty()) return "미지정" to "미지정"
 
-    val rawSido = parts[0]
+    val first = parts[0]
+    
+    // 첫 단어가 시/군/구 이거나, 생략형 시/군/구 매핑에 포함되는 경우 (도 생략 케이스 보정)
+    val restoredSido = cityToSidoMap[first] ?: cityToSidoMap[first.replace(Regex("[시군구]$"), "")]
+    if (restoredSido != null) {
+        val sigungu = if (first.endsWith("시") || first.endsWith("군") || first.endsWith("구")) {
+            first
+        } else {
+            if (cityToSidoMap.containsKey(first + "시")) first + "시"
+            else if (cityToSidoMap.containsKey(first + "군")) first + "군"
+            else first
+        }
+        return restoredSido to sigungu
+    }
+
+    val rawSido = first
     val sido = when {
         rawSido.startsWith("서울") -> "서울"
         rawSido.startsWith("경기") -> "경기"
@@ -1542,32 +1616,38 @@ fun determineZone(
     depSido: String,
     depSigungu: String
 ): DistanceZone {
-    if (mySido.isBlank() || depSido.isBlank() || depSido == "미지정") return DistanceZone.UNKNOWN
-    
     val cleanMySigungu = mySigungu.replace(Regex("^[가-힣]+도\\s+"), "").trim()
     val cleanDepSigungu = depSigungu.replace(Regex("^[가-힣]+도\\s+"), "").trim()
     
+    val mySigunguKey = cleanMySigungu.split(" ").firstOrNull() ?: ""
+    val depSigunguKey = cleanDepSigungu.split(" ").firstOrNull() ?: ""
+    
+    // 1. 도명이 다르거나 오인식되더라도 시군구가 같으면 가장 우선적으로 관내(IN_CITY)로 판정
+    if (mySigunguKey.isNotEmpty() && depSigunguKey.isNotEmpty() && mySigunguKey == depSigunguKey) {
+        return DistanceZone.IN_CITY
+    }
+
+    if (mySido.isBlank() || depSido.isBlank() || depSido == "미지정") return DistanceZone.UNKNOWN
+    
     if (cleanMySigungu.isNotEmpty() && cleanDepSigungu.isNotEmpty()) {
-        val mySigunguKey = cleanMySigungu.split(" ").firstOrNull() ?: ""
-        val depSigunguKey = cleanDepSigungu.split(" ").firstOrNull() ?: ""
-        
-        if (mySigunguKey == depSigunguKey) {
-            return DistanceZone.IN_CITY
-        }
-        
+        // 2. 근거리: neighborCities 매핑 확인
         val neighbors = neighborCities[mySigunguKey] ?: emptyList()
         if (neighbors.any { depSigunguKey.contains(it) || it.contains(depSigunguKey) }) {
             return DistanceZone.NEARBY
         }
         
+        // 3. 동일 도(Sido) 내 이동 판정
         if (mySido == depSido) {
             val isMySeoulIncheon = mySido == "서울" || mySido == "인천"
             val isDepSeoulIncheon = depSido == "서울" || depSido == "인천"
+            
+            // 수도권(서울/경기/인천) 간 이동일 때
             if ((mySido == "경기" && isDepSeoulIncheon) || (isMySeoulIncheon && depSido == "경기") || (isMySeoulIncheon && isDepSeoulIncheon)) {
                 val isNearbyMetropolitan = checkMetropolitanNearby(mySigunguKey, depSigunguKey)
                 return if (isNearbyMetropolitan) DistanceZone.NEARBY else DistanceZone.MID_DIST
             }
-            return DistanceZone.NEARBY
+            // 같은 도내(예: 경북)이더라도 인접 도시가 아닌 먼 곳(예: 구미-포항)은 중거리(MID_DIST)로 분류
+            return DistanceZone.MID_DIST
         }
     }
 
