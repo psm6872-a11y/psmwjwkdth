@@ -99,7 +99,10 @@ fun StatisticsScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(paddingValues)
+                .padding(
+                    top = (paddingValues.calculateTopPadding() - 10.dp).coerceAtLeast(0.dp),
+                    bottom = paddingValues.calculateBottomPadding()
+                )
         ) {
             // 월 선택기 영역 (TopAppBar 아래칸으로 이동)
             Surface(
@@ -109,7 +112,7 @@ fun StatisticsScreen(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(vertical = 4.dp),
+                        .padding(vertical = 2.dp),
                     horizontalArrangement = Arrangement.Center,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
