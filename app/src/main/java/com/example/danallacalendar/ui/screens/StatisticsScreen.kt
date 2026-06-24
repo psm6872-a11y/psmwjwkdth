@@ -874,14 +874,14 @@ fun DistanceRegionTabContent(
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Text(
-                        text = "📍 분석 기준 (내 업체 거점)",
+                        text = "📍 분석 기준 (내 업체 위치)",
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.primary
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = if (companyAddress.isNotBlank()) companyAddress else "설정된 업체 주소가 없습니다. (설정 탭에서 등록 가능)",
+                        text = if (companyAddress.isNotBlank()) companyAddress else "설정된 업체 위치가 없습니다. (설정 탭에서 등록 가능)",
                         fontSize = 15.sp,
                         fontWeight = FontWeight.SemiBold,
                         color = if (companyAddress.isNotBlank()) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.error
@@ -950,7 +950,7 @@ fun DistanceRegionTabContent(
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
-                                text = "⚠️ 설정 탭에서 업체 주소를 등록하시면\n거점 기준 구간(관내/근거리 등) 분석이 표시됩니다.",
+                                text = "⚠️ 설정 탭에서 업체 위치를 등록하시면\n거점 기준 구간(관내/근거리 등) 분석이 표시됩니다.",
                                 fontSize = 13.sp,
                                 color = MaterialTheme.colorScheme.outline,
                                 textAlign = TextAlign.Center

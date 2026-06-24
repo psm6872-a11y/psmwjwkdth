@@ -428,7 +428,7 @@ fun SettingsScreen(
 
                             var isCompanyAddressFocused by remember { mutableStateOf(false) }
                             SettingsInputField(
-                                label = "업체 주소 (구간 분석 기준)",
+                                label = "업체 위치 (도/시)",
                                 value = companyAddress,
                                 onValueChange = { companyAddress = it },
                                 onFocusChanged = { focused ->
