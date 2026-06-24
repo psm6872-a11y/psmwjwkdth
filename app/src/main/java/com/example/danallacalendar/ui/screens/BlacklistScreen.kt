@@ -83,7 +83,7 @@ fun BlacklistScreen(
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
 
-                    // [전화번호], 사유, 가장우측칸에 최근통화목록 버튼
+                    // Row 1: 전화번호 (좌측) + 최근통화목록 버튼 (우측)
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -95,20 +95,7 @@ fun BlacklistScreen(
                             label = { Text("전화번호") },
                             placeholder = { Text("010-0000-0000") },
                             singleLine = true,
-                            modifier = Modifier.weight(1.2f),
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = MaterialTheme.colorScheme.primary,
-                                unfocusedBorderColor = MaterialTheme.colorScheme.outline
-                            )
-                        )
-
-                        OutlinedTextField(
-                            value = reasonInput,
-                            onValueChange = { reasonInput = it },
-                            label = { Text("사유") },
-                            placeholder = { Text("사유 입력") },
-                            singleLine = true,
-                            modifier = Modifier.weight(1.5f),
+                            modifier = Modifier.weight(1f),
                             colors = OutlinedTextFieldDefaults.colors(
                                 focusedBorderColor = MaterialTheme.colorScheme.primary,
                                 unfocusedBorderColor = MaterialTheme.colorScheme.outline
@@ -120,7 +107,7 @@ fun BlacklistScreen(
                             onClick = { showRecentCallsDialog = true },
                             contentPadding = PaddingValues(horizontal = 10.dp, vertical = 8.dp),
                             shape = RoundedCornerShape(12.dp),
-                            modifier = Modifier.height(56.dp) // Align height with text fields
+                            modifier = Modifier.height(56.dp) // Align height with text field
                         ) {
                             Column(
                                 horizontalAlignment = Alignment.CenterHorizontally,
@@ -136,6 +123,20 @@ fun BlacklistScreen(
                             }
                         }
                     }
+
+                    // Row 2: 사유 (전체 너비)
+                    OutlinedTextField(
+                        value = reasonInput,
+                        onValueChange = { reasonInput = it },
+                        label = { Text("사유") },
+                        placeholder = { Text("사유 입력") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = MaterialTheme.colorScheme.primary,
+                            unfocusedBorderColor = MaterialTheme.colorScheme.outline
+                        )
+                    )
 
                     // Add Button
                     Button(
