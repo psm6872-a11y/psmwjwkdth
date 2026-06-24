@@ -1807,79 +1807,65 @@ fun GrowthComparisonCard(
                 )
             }
 
-            Spacer(modifier = Modifier.height(14.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
-            // Body Row: Left Chart (64%) | Divider | Right Growth Badges (36%)
-            Row(
+            // 1. Chart Column (Takes full card width)
+            Column(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                verticalAlignment = Alignment.CenterVertically
+                verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                // Left Chart
-                Column(
-                    modifier = Modifier.weight(0.64f),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    val maxValue = maxOf(pastValue, prevValue, currentValue, 1.0)
-                    
-                    // 작년 동월
-                    BarRow(
-                        label = pastLabel,
-                        value = pastValue,
-                        maxValue = maxValue,
-                        displayVal = pastDisplay,
-                        barColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.15f),
-                        textColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
-                    )
-
-                    // 올해 전월
-                    BarRow(
-                        label = prevLabel,
-                        value = prevValue,
-                        maxValue = maxValue,
-                        displayVal = prevDisplay,
-                        barColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.35f),
-                        textColor = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-
-                    // 올해 당월
-                    BarRow(
-                        label = currentLabel,
-                        value = currentValue,
-                        maxValue = maxValue,
-                        displayVal = currentDisplay,
-                        barColor = MaterialTheme.colorScheme.primary,
-                        textColor = MaterialTheme.colorScheme.primary,
-                        isBold = true
-                    )
-                }
-
-                // Vertical Divider
-                Box(
-                    modifier = Modifier
-                        .width(1.dp)
-                        .height(76.dp)
-                        .background(MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
+                val maxValue = maxOf(pastValue, prevValue, currentValue, 1.0)
+                
+                // 작년 동월
+                BarRow(
+                    label = pastLabel,
+                    value = pastValue,
+                    maxValue = maxValue,
+                    displayVal = pastDisplay,
+                    barColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.15f),
+                    textColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
                 )
 
-                // Right Growth Badges
-                Column(
-                    modifier = Modifier.weight(0.36f),
-                    horizontalAlignment = Alignment.End,
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    GrowthRateBadge(
-                        label = "전년 동월 대비",
-                        rate = yoyGrowth,
-                        isPercentagePoint = isPercentagePoint
-                    )
-                    GrowthRateBadge(
-                        label = "전월 대비",
-                        rate = momGrowth,
-                        isPercentagePoint = isPercentagePoint
-                    )
-                }
+                // 올해 전월
+                BarRow(
+                    label = prevLabel,
+                    value = prevValue,
+                    maxValue = maxValue,
+                    displayVal = prevDisplay,
+                    barColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.35f),
+                    textColor = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+
+                // 올해 당월
+                BarRow(
+                    label = currentLabel,
+                    value = currentValue,
+                    maxValue = maxValue,
+                    displayVal = currentDisplay,
+                    barColor = MaterialTheme.colorScheme.primary,
+                    textColor = MaterialTheme.colorScheme.primary,
+                    isBold = true
+                )
             }
+
+            Spacer(modifier = Modifier.height(16.dp))
+            
+            // Divider
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(0.5.dp)
+                    .background(MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
+            )
+            
+            Spacer(modifier = Modifier.height(14.dp))
+
+            // 2. Growth Badges Row (Horizontal layout)
+            GrowthRateRow(
+                yoyRate = yoyGrowth,
+                momRate = momGrowth,
+                isPercentagePoint = isPercentagePoint
+            )
         }
     }
 }
@@ -1898,21 +1884,21 @@ fun BarRow(
         modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // 1. 라벨 영역 (폭 56.dp로 소폭 확대)
+        // 1. 라벨 영역 (폭 68.dp로 확대해 글자 잘림 방지)
         Text(
             text = label,
             fontSize = 13.sp,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.width(56.dp),
+            modifier = Modifier.width(68.dp),
             maxLines = 1
         )
         
-        Spacer(modifier = Modifier.width(4.dp))
+        Spacer(modifier = Modifier.width(6.dp))
         
-        // 2. 바 영역 (전체의 65% 너비 차지)
+        // 2. 바 영역 (전체의 70% 너비 차지)
         Box(
             modifier = Modifier
-                .weight(0.65f)
+                .weight(0.70f)
                 .height(8.dp)
                 .background(Color.Transparent),
             contentAlignment = Alignment.CenterStart
@@ -1927,56 +1913,93 @@ fun BarRow(
             )
         }
         
-        Spacer(modifier = Modifier.width(6.dp))
+        Spacer(modifier = Modifier.width(8.dp))
         
-        // 3. 값 표시 영역 (나머지 영역에 우측 정렬)
+        // 3. 값 표시 영역 (나머지 30% 영역에 우측 정렬)
         Text(
             text = displayVal,
             fontSize = 13.sp,
             fontWeight = if (isBold) FontWeight.Bold else FontWeight.Normal,
             color = textColor,
-            modifier = Modifier.weight(0.35f),
+            modifier = Modifier.weight(0.30f),
             maxLines = 1
         )
     }
 }
 
 @Composable
-fun GrowthRateBadge(
-    label: String,
-    rate: Double,
+fun GrowthRateRow(
+    yoyRate: Double,
+    momRate: Double,
     isPercentagePoint: Boolean
 ) {
-    Column(
-        horizontalAlignment = Alignment.End,
-        modifier = Modifier.fillMaxWidth()
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(10.dp)
     ) {
-        Text(
-            text = label,
-            fontSize = 11.sp,
-            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+        // 1. 전년 동월 대비
+        GrowthRateBadgeItem(
+            label = "전년 동월 대비",
+            rate = yoyRate,
+            isPercentagePoint = isPercentagePoint,
+            modifier = Modifier.weight(1f)
         )
-        Spacer(modifier = Modifier.height(2.dp))
         
-        val isPositive = rate >= 0.0
-        val displayColor = if (isPositive) Color(0xFF2E7D32) else Color(0xFFD32F2F)
-        val bgColor = if (isPositive) Color(0xFFE8F5E9) else Color(0xFFFFEBEE)
-        val arrow = if (isPositive) "▲" else "▼"
-        val sign = if (isPositive) "+" else ""
-        val unit = if (isPercentagePoint) "%p" else "%"
-        
-        Box(
-            modifier = Modifier
-                .clip(RoundedCornerShape(6.dp))
-                .background(bgColor)
-                .padding(horizontal = 8.dp, vertical = 3.dp)
+        // 2. 전월 대비
+        GrowthRateBadgeItem(
+            label = "전월 대비",
+            rate = momRate,
+            isPercentagePoint = isPercentagePoint,
+            modifier = Modifier.weight(1f)
+        )
+    }
+}
+
+@Composable
+fun GrowthRateBadgeItem(
+    label: String,
+    rate: Double,
+    isPercentagePoint: Boolean,
+    modifier: Modifier = Modifier
+) {
+    Box(
+        modifier = modifier
+            .clip(RoundedCornerShape(10.dp))
+            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.25f))
+            .padding(vertical = 8.dp, horizontal = 10.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = "$arrow $sign${String.format("%.1f", rate)}$unit",
-                fontSize = 13.sp,
-                fontWeight = FontWeight.ExtraBold,
-                color = displayColor
+                text = label,
+                fontSize = 11.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
+                fontWeight = FontWeight.Medium
             )
+            
+            val isPositive = rate >= 0.0
+            val displayColor = if (isPositive) Color(0xFF2E7D32) else Color(0xFFD32F2F)
+            val bgColor = if (isPositive) Color(0xFFE8F5E9) else Color(0xFFFFEBEE)
+            val arrow = if (isPositive) "▲" else "▼"
+            val sign = if (isPositive) "+" else ""
+            val unit = if (isPercentagePoint) "%p" else "%"
+            
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(6.dp))
+                    .background(bgColor)
+                    .padding(horizontal = 8.dp, vertical = 3.dp)
+            ) {
+                Text(
+                    text = "$arrow $sign${String.format("%.1f", rate)}$unit",
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = displayColor
+                )
+            }
         }
     }
 }
