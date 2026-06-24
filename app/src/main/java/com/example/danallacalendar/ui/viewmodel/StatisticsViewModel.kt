@@ -52,7 +52,9 @@ class StatisticsViewModel @Inject constructor(
                     createdAt = pdf.createdAt
                 )
             }
-            mergedMap[localEst.id] = localEst
+            if (!mergedMap.containsKey(localEst.id)) {
+                mergedMap[localEst.id] = localEst
+            }
         }
         
         remoteList.forEach { remoteEst ->
