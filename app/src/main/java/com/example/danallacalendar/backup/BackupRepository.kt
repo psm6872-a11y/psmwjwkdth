@@ -156,4 +156,15 @@ class BackupRepository @Inject constructor(
         toDelete.forEach { it.reference.delete().await() }
         toDelete.size
     }
+
+    suspend fun checkBackupExists(roomCode: String, dateKey: String): Result<Boolean> = runCatching {
+        if (roomCode.isEmpty()) return@runCatching false
+        val doc = firestore.collection("rooms")
+            .document(roomCode)
+            .collection("backups")
+            .document(dateKey)
+            .get()
+            .await()
+        doc.exists()
+    }
 }

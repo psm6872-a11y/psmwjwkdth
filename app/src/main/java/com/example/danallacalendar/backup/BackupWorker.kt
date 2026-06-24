@@ -41,6 +41,14 @@ class BackupWorker @AssistedInject constructor(
                 return Result.success()
             }
 
+            // 오늘 날짜 백업이 이미 존재하는지 검사 (공유방 중복 백업 방지)
+            val todayStr = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault()).format(java.util.Date())
+            val existsResult = backupRepository.checkBackupExists(roomCode, todayStr)
+            if (existsResult.getOrDefault(false)) {
+                // 이미 존재하면 다른 기기에서 완료한 것이므로 성공 처리하고 종료 (알림 생략)
+                return Result.success()
+            }
+
             // Firestore에 저장
             val saveResult = backupRepository.saveBackup(roomCode, allEvents)
             if (saveResult.isFailure) {

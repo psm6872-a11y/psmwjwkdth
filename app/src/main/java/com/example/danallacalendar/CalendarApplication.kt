@@ -36,16 +36,16 @@ class CalendarApplication : Application(), Configuration.Provider {
 
         val workManager = WorkManager.getInstance(this)
 
-        // 1. 기존 스케줄링 마이그레이션 (새벽 1시 변경 적용)
-        if (!userPreferences.isBackupScheduledAt1AM()) {
+        // 1. 기존 스케줄링 마이그레이션 (오전 6시 변경 적용)
+        if (!userPreferences.isBackupScheduledAt6AM()) {
             workManager.cancelUniqueWork(BackupWorker.WORK_NAME)
-            userPreferences.setBackupScheduledAt1AM(true)
+            userPreferences.setBackupScheduledAt6AM(true)
         }
 
-        // 2. 현재 시각에서 다음 새벽 1시까지의 남은 시간 계산
+        // 2. 현재 시각에서 다음 오전 6시까지의 남은 시간 계산
         val currentDate = Calendar.getInstance()
         val dueDate = Calendar.getInstance().apply {
-            set(Calendar.HOUR_OF_DAY, 1)
+            set(Calendar.HOUR_OF_DAY, 6)
             set(Calendar.MINUTE, 0)
             set(Calendar.SECOND, 0)
             set(Calendar.MILLISECOND, 0)
