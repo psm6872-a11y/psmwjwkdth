@@ -1966,20 +1966,23 @@ fun GrowthRateBadgeItem(
         modifier = modifier
             .clip(RoundedCornerShape(10.dp))
             .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.25f))
-            .padding(vertical = 8.dp, horizontal = 10.dp)
+            .padding(vertical = 10.dp, horizontal = 12.dp)
     ) {
-        Row(
+        Column(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(6.dp)
         ) {
+            // 상단: 라벨
             Text(
                 text = label,
-                fontSize = 11.sp,
+                fontSize = 12.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
-                fontWeight = FontWeight.Medium
+                fontWeight = FontWeight.Bold,
+                maxLines = 1
             )
             
+            // 하단: 수치 배지
             val isPositive = rate >= 0.0
             val displayColor = if (isPositive) Color(0xFF2E7D32) else Color(0xFFD32F2F)
             val bgColor = if (isPositive) Color(0xFFE8F5E9) else Color(0xFFFFEBEE)
@@ -1991,13 +1994,14 @@ fun GrowthRateBadgeItem(
                 modifier = Modifier
                     .clip(RoundedCornerShape(6.dp))
                     .background(bgColor)
-                    .padding(horizontal = 8.dp, vertical = 3.dp)
+                    .padding(horizontal = 10.dp, vertical = 4.dp)
             ) {
                 Text(
                     text = "$arrow $sign${String.format("%.1f", rate)}$unit",
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.ExtraBold,
-                    color = displayColor
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Black,
+                    color = displayColor,
+                    maxLines = 1
                 )
             }
         }
