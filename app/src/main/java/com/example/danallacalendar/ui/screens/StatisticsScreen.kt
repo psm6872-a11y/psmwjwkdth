@@ -1074,7 +1074,19 @@ fun parseTonnage(volume: String): Double {
 
 fun computeEstimateContractStats(estimates: List<Estimate>, events: List<Event>, year: Int, month: Int): EstimateContractStats {
     val targetCal = Calendar.getInstance()
-    val filteredEstimates = estimates.filter { est ->
+
+    // 전화번호(phoneNumber) 기준 중복 제거 (숫자만 남겨 비교, 비어있지 않은 번호들에 대해 최신 createdAt 기준 1개 선택)
+    val uniqueEstimates = estimates
+        .groupBy { it.phoneNumber.replace(Regex("[^0-9]"), "") }
+        .flatMap { (phone, estList) ->
+            if (phone.isEmpty()) {
+                estList
+            } else {
+                listOf(estList.maxByOrNull { it.createdAt } ?: estList.first())
+            }
+        }
+
+    val filteredEstimates = uniqueEstimates.filter { est ->
         targetCal.timeInMillis = est.createdAt
         targetCal.get(Calendar.YEAR) == year && targetCal.get(Calendar.MONTH) == month
     }
@@ -1086,13 +1098,13 @@ fun computeEstimateContractStats(estimates: List<Estimate>, events: List<Event>,
     val conversion = if (total > 0) (contractedCount.toDouble() / total) * 100 else 0.0
     
     val eventsByEstimate = events.groupBy { it.linkedEstimateId }
-    val visitCompletedEstimates = estimates.filter { est ->
+    val visitCompletedEstimates = uniqueEstimates.filter { est ->
         val estEvents = eventsByEstimate[est.id] ?: emptyList()
-        val hasEventInMonth = estEvents.any { evt ->
-            targetCal.timeInMillis = evt.startMillis
-            targetCal.get(Calendar.YEAR) == year && targetCal.get(Calendar.MONTH) == month
+        estEvents.any { evt ->
+            !evt.isAllDay && // 방문견적 일정
+            targetCal.apply { timeInMillis = evt.startMillis }.get(Calendar.YEAR) == year &&
+            targetCal.get(Calendar.MONTH) == month
         }
-        hasEventInMonth && !estEvents.any { it.isAllDay }
     }
     val totalVisitCompletedCost = visitCompletedEstimates.sumOf { est ->
         val costStr = est.totalCost.replace(Regex("[^0-9]"), "")
