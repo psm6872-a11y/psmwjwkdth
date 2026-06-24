@@ -12,6 +12,7 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Block
 import androidx.compose.material3.*
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
@@ -76,6 +77,7 @@ fun DrawerContent(
     onEstimateListClick: () -> Unit,
     onCloseClick: () -> Unit,
     onBackupClick: () -> Unit,
+    onBlacklistClick: () -> Unit,
     onTrashClick: () -> Unit,
     isCreator: Boolean,
     onRemoveMember: (String) -> Unit,
@@ -550,6 +552,32 @@ fun DrawerContent(
                 fontSize = 15.sp,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.tertiary
+            )
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(MaterialTheme.shapes.medium)
+                .clickable { onBlacklistClick() }
+                .background(MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.1f))
+                .padding(vertical = 12.dp, horizontal = 12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = Icons.Default.Block,
+                contentDescription = "B/L",
+                tint = MaterialTheme.colorScheme.error,
+                modifier = Modifier.size(24.dp)
+            )
+            Spacer(modifier = Modifier.width(16.dp))
+            Text(
+                text = "B/L",
+                fontSize = 15.sp,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.error
             )
         }
 

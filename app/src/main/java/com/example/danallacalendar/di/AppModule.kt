@@ -68,6 +68,12 @@ object AppModule {
 
     @Provides
     @Singleton
+    fun provideBlacklistDao(database: CalendarDatabase): com.example.danallacalendar.data.BlacklistDao {
+        return database.blacklistDao()
+    }
+
+    @Provides
+    @Singleton
     fun provideCalendarRepository(
         firestore: FirebaseFirestore,
         userPreferences: UserPreferences,

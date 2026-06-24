@@ -53,3 +53,11 @@ data class TrashItem(
     val serializedJson: String, // Serialized JSON representation
     val deletedAt: Long = System.currentTimeMillis()
 )
+
+@Entity(tableName = "blacklist_items")
+data class BlacklistItem(
+    @PrimaryKey(autoGenerate = true) val id: Int = 0,
+    val phoneNumber: String,
+    val reason: String,
+    val createdAt: Long = System.currentTimeMillis()
+)

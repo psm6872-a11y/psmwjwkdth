@@ -12,11 +12,12 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import java.util.Calendar
 
-@Database(entities = [CalendarCategory::class, Event::class, DeadlineDate::class, EstimatePdf::class, TrashItem::class], version = 12, exportSchema = false)
+@Database(entities = [CalendarCategory::class, Event::class, DeadlineDate::class, EstimatePdf::class, TrashItem::class, BlacklistItem::class], version = 13, exportSchema = false)
 abstract class CalendarDatabase : RoomDatabase() {
     abstract fun eventDao(): EventDao
     abstract fun estimatePdfDao(): EstimatePdfDao
     abstract fun trashDao(): TrashDao
+    abstract fun blacklistDao(): BlacklistDao
 
     companion object {
         @Volatile
@@ -51,6 +52,19 @@ abstract class CalendarDatabase : RoomDatabase() {
             }
         }
 
+        val MIGRATION_12_13 = object : androidx.room.migration.Migration(12, 13) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("""
+                    CREATE TABLE IF NOT EXISTS `blacklist_items` (
+                        `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, 
+                        `phoneNumber` TEXT NOT NULL, 
+                        `reason` TEXT NOT NULL, 
+                        `createdAt` INTEGER NOT NULL
+                    )
+                """)
+            }
+        }
+
         fun getDatabase(context: Context, scope: CoroutineScope): CalendarDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
@@ -59,7 +73,7 @@ abstract class CalendarDatabase : RoomDatabase() {
                     "calendar_database"
                 )
                 .addCallback(CalendarDatabaseCallback(scope))
-                .addMigrations(MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12)
+                .addMigrations(MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13)
                 .fallbackToDestructiveMigration()
                 .build()
                 INSTANCE = instance

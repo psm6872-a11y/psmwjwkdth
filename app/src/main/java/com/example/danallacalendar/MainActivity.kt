@@ -35,6 +35,7 @@ import com.example.danallacalendar.ui.room.RoomViewModel
 import com.example.danallacalendar.backup.BackupScreen
 import com.example.danallacalendar.estimate.EstimateListScreen
 import com.example.danallacalendar.ui.screens.TrashScreen
+import com.example.danallacalendar.ui.screens.BlacklistScreen
 import com.example.danallacalendar.ui.viewmodel.TrashViewModel
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
@@ -252,6 +253,9 @@ fun AppNavigation(userPreferences: UserPreferences) {
                 onNavigateToTrash = {
                     navController.navigate("trash")
                 },
+                onNavigateToBlacklist = {
+                    navController.navigate("blacklist")
+                },
                 onExitRoom = {
                     userPreferences.setLastRoomCode("")
                     navController.navigate("room") {
@@ -265,6 +269,19 @@ fun AppNavigation(userPreferences: UserPreferences) {
             val viewModel: TrashViewModel = hiltViewModel()
             TrashScreen(
                 viewModel = viewModel,
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+
+        composable(
+            route = "blacklist",
+            deepLinks = listOf(
+                androidx.navigation.navDeepLink {
+                    uriPattern = "danallacalendar://blacklist"
+                }
+            )
+        ) {
+            BlacklistScreen(
                 onNavigateBack = { navController.popBackStack() }
             )
         }

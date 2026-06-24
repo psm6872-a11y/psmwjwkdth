@@ -37,6 +37,28 @@ class CallReceiver : BroadcastReceiver() {
         if (incomingClean.isEmpty()) return
 
         val db = CalendarDatabase.getDatabase(context, CoroutineScope(Dispatchers.IO))
+
+        // Check Blacklist First (Highest Priority)
+        val blacklistItems = try {
+            db.blacklistDao().getAllList()
+        } catch (e: Exception) {
+            emptyList()
+        }
+        val matchedBlacklist = blacklistItems.find { 
+            normalizePhoneNumber(it.phoneNumber) == incomingClean
+        }
+        if (matchedBlacklist != null) {
+            val reason = matchedBlacklist.reason.ifBlank { "사유 없음" }
+            val deepLink = "danallacalendar://blacklist"
+            NotificationHelper.showCallScanNotification(
+                context,
+                "[B/L] 경고 - 블랙리스트 번호",
+                "사유: $reason | ${formatPhoneNumberForDetail(incomingClean)}",
+                deepLink
+            )
+            return
+        }
+
         val allEstimates = try {
             db.estimatePdfDao().getAllPdfsList()
         } catch (e: Exception) {
@@ -128,6 +150,20 @@ class CallReceiver : BroadcastReceiver() {
             "0" + clean.substring(2)
         } else {
             clean
+        }
+    }
+
+    private fun formatPhoneNumberForDetail(number: String): String {
+        return when {
+            number.length == 11 ->
+                "${number.substring(0, 3)}-" +
+                "${number.substring(3, 7)}-" +
+                "${number.substring(7)}"
+            number.length == 10 ->
+                "${number.substring(0, 3)}-" +
+                "${number.substring(3, 6)}-" +
+                "${number.substring(6)}"
+            else -> number
         }
     }
 

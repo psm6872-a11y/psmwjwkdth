@@ -1,0 +1,62 @@
+package com.example.danallacalendar.ui.viewmodel
+
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.example.danallacalendar.data.BlacklistDao
+import com.example.danallacalendar.data.BlacklistItem
+import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
+import javax.inject.Inject
+
+@HiltViewModel
+class BlacklistViewModel @Inject constructor(
+    private val blacklistDao: BlacklistDao
+) : ViewModel() {
+
+    val blacklistItems: StateFlow<List<BlacklistItem>> = blacklistDao.getAllFlow()
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = emptyList()
+        )
+
+    fun addBlacklist(phoneNumber: String, reason: String, onSuccess: () -> Unit = {}, onError: (String) -> Unit = {}) {
+        val cleanPhone = phoneNumber.trim()
+        val cleanReason = reason.trim()
+
+        if (cleanPhone.isBlank()) {
+            onError("전화번호를 입력해주세요.")
+            return
+        }
+        if (cleanReason.isBlank()) {
+            onError("사유를 입력해주세요.")
+            return
+        }
+
+        viewModelScope.launch {
+            try {
+                val item = BlacklistItem(
+                    phoneNumber = cleanPhone,
+                    reason = cleanReason
+                )
+                blacklistDao.insert(item)
+                onSuccess()
+            } catch (e: Exception) {
+                onError("추가 실패: ${e.localizedMessage}")
+            }
+        }
+    }
+
+    fun deleteBlacklist(item: BlacklistItem) {
+        viewModelScope.launch {
+            try {
+                blacklistDao.delete(item)
+            } catch (e: Exception) {
+                android.util.Log.e("BlacklistViewModel", "Failed to delete blacklist item: ${item.id}", e)
+            }
+        }
+    }
+}
