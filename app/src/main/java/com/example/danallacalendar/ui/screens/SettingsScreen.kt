@@ -540,7 +540,7 @@ fun SettingsScreen(
 
                             if (!isCreator) {
                                 Text(
-                                    text = "방장 전용 버튼입니다.",
+                                    text = "방장 전용 설정 구간입니다.",
                                     color = MaterialTheme.colorScheme.error,
                                     fontSize = 13.sp,
                                     fontWeight = FontWeight.Medium,
