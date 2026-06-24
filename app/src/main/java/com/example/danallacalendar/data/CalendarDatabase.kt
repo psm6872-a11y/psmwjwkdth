@@ -12,7 +12,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import java.util.Calendar
 
-@Database(entities = [CalendarCategory::class, Event::class, DeadlineDate::class, EstimatePdf::class, TrashItem::class, BlacklistItem::class], version = 13, exportSchema = false)
+@Database(entities = [CalendarCategory::class, Event::class, DeadlineDate::class, EstimatePdf::class, TrashItem::class, BlacklistItem::class], version = 14, exportSchema = false)
 abstract class CalendarDatabase : RoomDatabase() {
     abstract fun eventDao(): EventDao
     abstract fun estimatePdfDao(): EstimatePdfDao
@@ -65,6 +65,13 @@ abstract class CalendarDatabase : RoomDatabase() {
             }
         }
 
+        val MIGRATION_13_14 = object : androidx.room.migration.Migration(13, 14) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE blacklist_items ADD COLUMN syncId TEXT DEFAULT NULL")
+                db.execSQL("ALTER TABLE blacklist_items ADD COLUMN isSynced INTEGER NOT NULL DEFAULT 0")
+            }
+        }
+
         fun getDatabase(context: Context, scope: CoroutineScope): CalendarDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
@@ -73,7 +80,7 @@ abstract class CalendarDatabase : RoomDatabase() {
                     "calendar_database"
                 )
                 .addCallback(CalendarDatabaseCallback(scope))
-                .addMigrations(MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13)
+                .addMigrations(MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14)
                 .fallbackToDestructiveMigration()
                 .build()
                 INSTANCE = instance

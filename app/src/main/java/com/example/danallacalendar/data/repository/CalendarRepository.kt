@@ -28,6 +28,7 @@ import kotlinx.coroutines.sync.withLock
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 import com.example.danallacalendar.data.EstimatePdfDao
+import com.example.danallacalendar.data.BlacklistItem
 import javax.inject.Inject
 
 class CalendarRepository @Inject constructor(
@@ -35,7 +36,8 @@ class CalendarRepository @Inject constructor(
     private val userPreferences: UserPreferences,
     val eventDao: EventDao,
     val trashDao: TrashDao,
-    val estimatePdfDao: EstimatePdfDao
+    val estimatePdfDao: EstimatePdfDao,
+    val blacklistDao: com.example.danallacalendar.data.BlacklistDao
 ) {
     private val syncMutex = Mutex()
     // Suspending wrapper for createRoom with offline fallback
@@ -367,6 +369,109 @@ class CalendarRepository @Inject constructor(
                             }
                         } catch (e: Exception) {
                             android.util.Log.e("SyncError", "Failed to sync remote deadline dates", e)
+                        }
+                    }
+                    trySend(Unit)
+                }
+            }
+        awaitClose { listener.remove() }
+    }
+
+    suspend fun uploadBlacklistItem(roomCode: String, item: BlacklistItem) {
+        if (roomCode.isEmpty() || item.syncId.isNullOrEmpty()) return
+        val doc = hashMapOf(
+            "syncId" to item.syncId,
+            "phoneNumber" to item.phoneNumber,
+            "reason" to item.reason,
+            "createdAt" to item.createdAt
+        )
+        try {
+            firestore.collection("rooms")
+                .document(roomCode)
+                .collection("blacklist")
+                .document(item.syncId)
+                .set(doc)
+                .await()
+            // Mark as synced locally
+            blacklistDao.insert(item.copy(isSynced = true))
+        } catch (e: Exception) {
+            android.util.Log.e("CalendarRepository", "Failed to upload blacklist item", e)
+        }
+    }
+
+    suspend fun deleteBlacklistItemFromFirestore(roomCode: String, syncId: String) {
+        if (roomCode.isEmpty() || syncId.isEmpty()) return
+        try {
+            firestore.collection("rooms")
+                .document(roomCode)
+                .collection("blacklist")
+                .document(syncId)
+                .delete()
+                .await()
+        } catch (e: Exception) {
+            android.util.Log.e("CalendarRepository", "Failed to delete blacklist item from Firestore", e)
+        }
+    }
+
+    fun startBlacklistRealtimeSync(roomCode: String) = callbackFlow<Unit> {
+        if (roomCode.isEmpty()) {
+            close()
+            return@callbackFlow
+        }
+        val listener = firestore.collection("rooms")
+            .document(roomCode)
+            .collection("blacklist")
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    close(error)
+                    return@addSnapshotListener
+                }
+                if (snapshot != null) {
+                    kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+                        syncMutex.withLock {
+                            try {
+                                val remoteItems = snapshot.documents.mapNotNull { doc ->
+                                    val phoneNumber = doc.getString("phoneNumber") ?: return@mapNotNull null
+                                    val reason = doc.getString("reason") ?: ""
+                                    val createdAt = doc.getLong("createdAt") ?: System.currentTimeMillis()
+                                    val syncId = doc.getString("syncId") ?: doc.id
+                                    BlacklistItem(
+                                        phoneNumber = phoneNumber,
+                                        reason = reason,
+                                        createdAt = createdAt,
+                                        syncId = syncId,
+                                        isSynced = true
+                                    )
+                                }
+
+                                // 1. Sync remote items to local
+                                remoteItems.forEach { remote ->
+                                    val existing = blacklistDao.getBlacklistItemsBySyncId(remote.syncId ?: "")
+                                    if (existing.isNotEmpty()) {
+                                        val mainExisting = existing.first()
+                                        val updated = remote.copy(id = mainExisting.id)
+                                        if (mainExisting.phoneNumber != remote.phoneNumber ||
+                                            mainExisting.reason != remote.reason ||
+                                            mainExisting.createdAt != remote.createdAt
+                                        ) {
+                                            blacklistDao.insert(updated)
+                                        }
+                                    } else {
+                                        blacklistDao.insert(remote)
+                                    }
+                                }
+
+                                // 2. Delete local synced items that are no longer on remote
+                                val localSynced = blacklistDao.getSyncedBlacklistItems()
+                                val remoteSyncIds = remoteItems.map { it.syncId }.toSet()
+                                localSynced.forEach { local ->
+                                    if (local.syncId !in remoteSyncIds) {
+                                        blacklistDao.delete(local)
+                                    }
+                                }
+                            } catch (e: Exception) {
+                                android.util.Log.e("SyncError", "Failed to sync remote blacklist", e)
+                            }
                         }
                     }
                     trySend(Unit)

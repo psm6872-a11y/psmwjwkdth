@@ -20,4 +20,16 @@ interface BlacklistDao {
 
     @Delete
     suspend fun delete(item: BlacklistItem)
+
+    @Query("SELECT * FROM blacklist_items WHERE syncId = :syncId LIMIT 1")
+    suspend fun getBlacklistItemsBySyncId(syncId: String): List<BlacklistItem>
+
+    @Query("SELECT * FROM blacklist_items WHERE isSynced = 1")
+    suspend fun getSyncedBlacklistItems(): List<BlacklistItem>
+
+    @Query("DELETE FROM blacklist_items WHERE isSynced = 1")
+    suspend fun deleteSyncedItems()
+
+    @Query("DELETE FROM blacklist_items WHERE syncId = :syncId")
+    suspend fun deleteBySyncId(syncId: String)
 }

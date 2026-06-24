@@ -59,5 +59,7 @@ data class BlacklistItem(
     @PrimaryKey(autoGenerate = true) val id: Int = 0,
     val phoneNumber: String,
     val reason: String,
-    val createdAt: Long = System.currentTimeMillis()
+    val createdAt: Long = System.currentTimeMillis(),
+    val syncId: String? = null,
+    val isSynced: Boolean = false
 )

@@ -94,6 +94,13 @@ class CalendarViewModel @Inject constructor(
                     .catch { e -> android.util.Log.e("SyncError", "Deadline sync failure", e) }
                     .collect()
             }
+
+            // 3. 블랙리스트 실시간 동기화
+            launch {
+                repository.startBlacklistRealtimeSync(code)
+                    .catch { e -> android.util.Log.e("SyncError", "Blacklist sync failure", e) }
+                    .collect()
+            }
         }
     }
 
@@ -109,6 +116,9 @@ class CalendarViewModel @Inject constructor(
         _roomCodeState.value = ""
         _isLoggedIn.value = false
         syncJob?.cancel()
+        viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+            repository.blacklistDao.deleteSyncedItems()
+        }
     }
 
     suspend fun getOrCreateSharedCategory(): Int {

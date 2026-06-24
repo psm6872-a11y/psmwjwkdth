@@ -79,9 +79,10 @@ object AppModule {
         userPreferences: UserPreferences,
         eventDao: EventDao,
         trashDao: TrashDao,
-        estimatePdfDao: EstimatePdfDao
+        estimatePdfDao: EstimatePdfDao,
+        blacklistDao: com.example.danallacalendar.data.BlacklistDao
     ): CalendarRepository {
-        return CalendarRepository(firestore, userPreferences, eventDao, trashDao, estimatePdfDao)
+        return CalendarRepository(firestore, userPreferences, eventDao, trashDao, estimatePdfDao, blacklistDao)
     }
 
     @Provides
