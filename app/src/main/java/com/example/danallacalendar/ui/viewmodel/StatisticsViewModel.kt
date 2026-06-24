@@ -10,13 +10,32 @@ import com.example.danallacalendar.estimate.EstimateRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
 import javax.inject.Inject
+import com.example.danallacalendar.data.local.UserPreferences
+import com.google.firebase.firestore.FirebaseFirestore
 
 @HiltViewModel
 class StatisticsViewModel @Inject constructor(
     private val estimateRepository: EstimateRepository,
     private val estimatePdfDao: EstimatePdfDao,
-    private val calendarRepository: CalendarRepository
+    private val calendarRepository: CalendarRepository,
+    private val userPreferences: UserPreferences,
+    private val firestore: FirebaseFirestore
 ) : ViewModel() {
+
+    private val _companyAddress = MutableStateFlow("")
+    val companyAddress: StateFlow<String> = _companyAddress.asStateFlow()
+
+    init {
+        val roomCode = userPreferences.getLastRoomCode()
+        if (roomCode.isNotEmpty()) {
+            firestore.collection("company_info").document(roomCode)
+                .addSnapshotListener { snapshot, _ ->
+                    if (snapshot != null && snapshot.exists()) {
+                        _companyAddress.value = snapshot.getString("companyAddress") ?: ""
+                    }
+                }
+        }
+    }
 
     // 1. All events from local Room DB in real-time
     val allEvents: StateFlow<List<Event>> = calendarRepository.eventDao.getAllEventsFlow()

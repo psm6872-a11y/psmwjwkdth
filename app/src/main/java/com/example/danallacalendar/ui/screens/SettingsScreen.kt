@@ -151,6 +151,7 @@ fun SettingsScreen(
     var licenseNumber by remember { mutableStateOf("") }
     var ceoNickname by remember { mutableStateOf("") }
     var companyPhone by remember { mutableStateOf("") }
+    var companyAddress by remember { mutableStateOf("") }
     var ceoName by remember { mutableStateOf("") }
     var bizNumber by remember { mutableStateOf("") }
     var bankAccount by remember { mutableStateOf("") }
@@ -171,6 +172,7 @@ fun SettingsScreen(
                         licenseNumber = snapshot.getString("licenseNumber") ?: ""
                         ceoNickname = snapshot.getString("ceoNickname") ?: ""
                         companyPhone = snapshot.getString("companyPhone") ?: ""
+                        companyAddress = snapshot.getString("companyAddress") ?: ""
                         ceoName = snapshot.getString("ceoName") ?: ""
                         bizNumber = snapshot.getString("bizNumber") ?: ""
                         bankAccount = snapshot.getString("bankAccount") ?: ""
@@ -233,6 +235,7 @@ fun SettingsScreen(
                 "licenseNumber" to licenseNumber,
                 "ceoNickname" to ceoNickname,
                 "companyPhone" to companyPhone,
+                "companyAddress" to companyAddress,
                 "ceoName" to ceoName,
                 "bizNumber" to bizNumber,
                 "bankAccount" to bankAccount,
@@ -420,6 +423,20 @@ fun SettingsScreen(
                                         onCancelAction = { companyPhone = backup }
                                     }
                                     isCompanyPhoneFocused = focused
+                                }
+                            )
+
+                            var isCompanyAddressFocused by remember { mutableStateOf(false) }
+                            SettingsInputField(
+                                label = "업체 주소 (구간 분석 기준)",
+                                value = companyAddress,
+                                onValueChange = { companyAddress = it },
+                                onFocusChanged = { focused ->
+                                    if (focused && !isCompanyAddressFocused) {
+                                        val backup = companyAddress
+                                        onCancelAction = { companyAddress = backup }
+                                    }
+                                    isCompanyAddressFocused = focused
                                 }
                             )
 

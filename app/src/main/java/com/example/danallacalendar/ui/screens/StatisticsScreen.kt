@@ -60,6 +60,7 @@ fun StatisticsScreen(
 ) {
     val allEvents by viewModel.allEvents.collectAsStateWithLifecycle()
     val allEstimates by viewModel.allEstimates.collectAsStateWithLifecycle()
+    val companyAddress by viewModel.companyAddress.collectAsStateWithLifecycle()
 
     val currentCal = remember { Calendar.getInstance() }
     var selectedYear by remember { mutableIntStateOf(currentCal.get(Calendar.YEAR)) }
@@ -174,7 +175,7 @@ fun StatisticsScreen(
                         0 -> EstimateTabContent(allEstimates, allEvents, selectedYear, selectedMonth)
                         1 -> ContractTabContent(allEstimates, allEvents, selectedYear, selectedMonth)
                         2 -> GrowthRateTabContent(allEstimates, allEvents, selectedYear, selectedMonth)
-                        3 -> DistanceRegionTabContent(allEstimates, selectedYear, selectedMonth)
+                        3 -> DistanceRegionTabContent(allEstimates, companyAddress, selectedYear, selectedMonth)
                         4 -> {
                             if (isCreator) {
                                 AnnualRevenueTabContent(allEstimates, allEvents, selectedYear, selectedMonth)
@@ -850,64 +851,226 @@ fun ContractTabContent(estimates: List<Estimate>, events: List<Event>, year: Int
 }
 
 @Composable
-fun DistanceRegionTabContent(estimates: List<Estimate>, year: Int, month: Int) {
-    val stats = remember(estimates, year, month) {
-        computeDistanceRegionStats(estimates, year, month)
+fun DistanceRegionTabContent(
+    estimates: List<Estimate>,
+    companyAddress: String,
+    year: Int,
+    month: Int
+) {
+    val stats = remember(estimates, companyAddress, year, month) {
+        computeDistanceRegionStats(estimates, companyAddress, year, month)
     }
 
     LazyColumn(
         verticalArrangement = Arrangement.spacedBy(16.dp),
         modifier = Modifier.fillMaxSize()
     ) {
+        // 1. 업체 거점 위치 및 평균 거리 카드
         item {
-            // Distance card
             Card(
                 modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.2f))
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.12f))
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
-                    Text("평균 이사 거리 (추정치)", fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(
+                        text = "📍 분석 기준 (내 업체 거점)",
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = "${String.format("%.1f", stats.averageDistance)} km",
-                        fontSize = 32.sp,
-                        fontWeight = FontWeight.Black,
-                        color = MaterialTheme.colorScheme.secondary
+                        text = if (companyAddress.isNotBlank()) companyAddress else "설정된 업체 주소가 없습니다. (설정 탭에서 등록 가능)",
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = if (companyAddress.isNotBlank()) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.error
                     )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(0.5.dp)
+                            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.2f))
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column {
+                            Text("평균 이사 거리 (추정치)", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text = "${String.format("%.1f", stats.averageDistance)} km",
+                                fontSize = 24.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.15f))
+                                .padding(horizontal = 10.dp, vertical = 6.dp)
+                        ) {
+                            Text(
+                                text = "총 ${stats.totalCount}건 분석",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    }
                 }
             }
         }
 
+        // 2. 이사 구간 비율 통계 카드
         item {
-            // Region transfer flow
-            Card(modifier = Modifier.fillMaxWidth()) {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+            ) {
                 Column(modifier = Modifier.padding(16.dp)) {
-                    Text("지역간 이사 현황", fontWeight = FontWeight.Bold, fontSize = 15.sp)
-                    Spacer(modifier = Modifier.height(12.dp))
+                    Text(
+                        text = "이사 구간 비율 통계",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 15.sp,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
 
-                    if (stats.regionFlows.isEmpty()) {
-                        Text("이사 이동 데이터가 부족합니다.", fontSize = 13.sp, color = MaterialTheme.colorScheme.outline)
+                    if (companyAddress.isBlank()) {
+                        Box(
+                            modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = "⚠️ 설정 탭에서 업체 주소를 등록하시면\n거점 기준 구간(관내/근거리 등) 분석이 표시됩니다.",
+                                fontSize = 13.sp,
+                                color = MaterialTheme.colorScheme.outline,
+                                textAlign = TextAlign.Center
+                            )
+                        }
+                    } else if (stats.totalCount == 0) {
+                        Text(
+                            text = "구간을 분석할 수 있는 이사 데이터가 없습니다.",
+                            fontSize = 13.sp,
+                            color = MaterialTheme.colorScheme.outline,
+                            modifier = Modifier.padding(vertical = 12.dp)
+                        )
+                    } else {
+                        val total = stats.totalCount.toFloat()
+                        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                            ZoneRatioItem(
+                                label = "관내 (동일 시/군/구)",
+                                count = stats.inCityCount,
+                                total = total,
+                                barColor = Color(0xFF2E7D32)
+                            )
+                            ZoneRatioItem(
+                                label = "근거리 (인접 시/군/구)",
+                                count = stats.nearbyCount,
+                                total = total,
+                                barColor = Color(0xFF1976D2)
+                            )
+                            ZoneRatioItem(
+                                label = "중거리 (약 100km 내외)",
+                                count = stats.midDistCount,
+                                total = total,
+                                barColor = Color(0xFFF57C00)
+                            )
+                            ZoneRatioItem(
+                                label = "장거리 (약 200km 이상)",
+                                count = stats.longDistCount,
+                                total = total,
+                                barColor = Color(0xFFD32F2F)
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        // 3. 자주 가는 목적지 TOP 10 순위 리스트
+        item {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text(
+                        text = "자주 가는 목적지 TOP 10",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 15.sp,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    if (stats.destinationRankings.isEmpty()) {
+                        Text("목적지 데이터가 존재하지 않습니다.", fontSize = 13.sp, color = MaterialTheme.colorScheme.outline)
                     } else {
                         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                            stats.regionFlows.take(10).forEach { flow ->
+                            stats.destinationRankings.take(10).forEachIndexed { index, rank ->
+                                val rankNum = index + 1
+                                val rankColor = when (rankNum) {
+                                    1 -> Color(0xFFFFD700) // Gold
+                                    2 -> Color(0xFFC0C0C0) // Silver
+                                    3 -> Color(0xFFCD7F32) // Bronze
+                                    else -> MaterialTheme.colorScheme.outlineVariant
+                                }
+                                
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
                                     horizontalArrangement = Arrangement.SpaceBetween,
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Text(flow.first.first, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                                        Text(" → ", color = MaterialTheme.colorScheme.outline)
-                                        Text(flow.first.second, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                    ) {
+                                        Box(
+                                            modifier = Modifier
+                                                .size(24.dp)
+                                                .clip(CircleShape)
+                                                .background(if (rankNum <= 3) rankColor else MaterialTheme.colorScheme.surfaceVariant),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Text(
+                                                text = rankNum.toString(),
+                                                fontSize = 12.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = if (rankNum <= 3) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                        }
+                                        Text(
+                                            text = rank.first,
+                                            fontWeight = if (rankNum <= 3) FontWeight.Bold else FontWeight.Medium,
+                                            fontSize = 14.sp,
+                                            color = MaterialTheme.colorScheme.onSurface
+                                        )
                                     }
-                                    Text("${flow.second}건", fontSize = 14.sp, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
+                                    Text(
+                                        text = "${rank.second}건",
+                                        fontSize = 14.sp,
+                                        color = MaterialTheme.colorScheme.primary,
+                                        fontWeight = FontWeight.Bold
+                                    )
                                 }
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .height(0.5.dp)
-                                        .background(MaterialTheme.colorScheme.surfaceVariant)
-                                )
+                                if (index < stats.destinationRankings.take(10).lastIndex) {
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .height(0.5.dp)
+                                            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                                    )
+                                }
                             }
                         }
                     }
@@ -916,6 +1079,52 @@ fun DistanceRegionTabContent(estimates: List<Estimate>, year: Int, month: Int) {
         }
         
         item { Spacer(modifier = Modifier.height(20.dp)) }
+    }
+}
+
+@Composable
+fun ZoneRatioItem(
+    label: String,
+    count: Int,
+    total: Float,
+    barColor: Color
+) {
+    val pct = if (total > 0f) (count.toFloat() / total) * 100 else 0f
+    val pctFraction = if (total > 0f) count.toFloat() / total else 0f
+
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = label,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Text(
+                text = "${String.format("%.1f", pct)}% (${count}건)",
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+        }
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(8.dp)
+                .clip(RoundedCornerShape(4.dp))
+                .background(MaterialTheme.colorScheme.surfaceVariant)
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxHeight()
+                    .fillMaxWidth(pctFraction.coerceIn(0f, 1f))
+                    .background(barColor)
+            )
+        }
     }
 }
 
@@ -1186,7 +1395,13 @@ data class OperationsCargoStats(
 
 data class DistanceRegionStats(
     val averageDistance: Double,
-    val regionFlows: List<Pair<Pair<String, String>, Int>>
+    val regionFlows: List<Pair<Pair<String, String>, Int>>,
+    val inCityCount: Int = 0,
+    val nearbyCount: Int = 0,
+    val midDistCount: Int = 0,
+    val longDistCount: Int = 0,
+    val totalCount: Int = 0,
+    val destinationRankings: List<Pair<String, Int>> = emptyList()
 )
 
 data class AnnualRevenueStats(
@@ -1248,6 +1463,151 @@ fun estimateDistance(fromRegion: String, toRegion: String): Double {
     )
     val match = matches.entries.find { it.key.contains(key1) && it.key.contains(key2) }
     return match?.value ?: 200.0
+}
+
+// 인접 도시 사전 정의 맵
+val neighborCities = mapOf(
+    "수원시" to listOf("화성시", "용인시", "의왕시", "안산시", "오산시", "성남시", "안양시"),
+    "성남시" to listOf("용인시", "광주시", "하남시", "서울", "과천시", "의왕시", "수원시"),
+    "용인시" to listOf("수원시", "성남시", "화성시", "평택시", "안성시", "이천시", "광주시"),
+    "화성시" to listOf("수원시", "용인시", "안산시", "평택시", "오산시"),
+    "고양시" to listOf("서울", "파주시", "김포시", "양주시"),
+    "부천시" to listOf("서울", "인천", "시흥시", "광명시"),
+    "안산시" to listOf("시흥시", "군포시", "의왕시", "수원시", "화성시", "인천"),
+    "안양시" to listOf("서울", "과천시", "의왕시", "군포시", "안산시", "시흥시", "광명시"),
+    "남양주시" to listOf("서울", "구리시", "의정부시", "포천시", "가평군", "양평군", "광주시", "하남시"),
+    "의정부시" to listOf("서울", "양주시", "포천시", "남양주시")
+)
+
+enum class DistanceZone(val displayName: String) {
+    IN_CITY("관내"),
+    NEARBY("근거리"),
+    MID_DIST("중거리"),
+    LONG_DIST("장거리"),
+    UNKNOWN("미지정")
+}
+
+// 주소에서 (시/도, 시/군/구) 파싱
+fun parseCityAndGu(address: String): Pair<String, String> {
+    val clean = address.split("|").firstOrNull()?.trim() ?: ""
+    if (clean.isEmpty()) return "미지정" to "미지정"
+    val parts = clean.split(Regex("\\s+")).filter { it.isNotBlank() }
+    if (parts.isEmpty()) return "미지정" to "미지정"
+
+    val rawSido = parts[0]
+    val sido = when {
+        rawSido.startsWith("서울") -> "서울"
+        rawSido.startsWith("경기") -> "경기"
+        rawSido.startsWith("인천") -> "인천"
+        rawSido.startsWith("강원") -> "강원"
+        rawSido.startsWith("충북") || rawSido.startsWith("충청북") -> "충북"
+        rawSido.startsWith("충남") || rawSido.startsWith("충청남") -> "충남"
+        rawSido.startsWith("대전") -> "대전"
+        rawSido.startsWith("경북") || rawSido.startsWith("경상북") -> "경북"
+        rawSido.startsWith("경남") || rawSido.startsWith("경상남") -> "경남"
+        rawSido.startsWith("부산") -> "부산"
+        rawSido.startsWith("울산") -> "울산"
+        rawSido.startsWith("대구") -> "대구"
+        rawSido.startsWith("전북") || rawSido.startsWith("전라북") -> "전북"
+        rawSido.startsWith("전남") || rawSido.startsWith("전라남") -> "전남"
+        rawSido.startsWith("광주") -> "광주"
+        rawSido.startsWith("세종") -> "세종"
+        rawSido.startsWith("제주") -> "제주"
+        else -> rawSido.take(2)
+    }
+
+    if (parts.size < 2) {
+        return sido to sido
+    }
+    
+    val second = parts[1]
+    return sido to second
+}
+
+// 수도권(서울/경기/인천) 내 가깝게 인접한 도시쌍 체크
+private fun checkMetropolitanNearby(city1: String, city2: String): Boolean {
+    val nearbyPairs = listOf(
+        setOf("서울", "성남시"), setOf("서울", "고양시"), setOf("서울", "과천시"), 
+        setOf("서울", "안양시"), setOf("서울", "부천시"), setOf("서울", "광명시"), 
+        setOf("서울", "구리시"), setOf("서울", "하남시"), setOf("서울", "의정부시"), 
+        setOf("인천", "부천시"), setOf("인천", "김포시"), setOf("인천", "시흥시"),
+        setOf("수원시", "안산시"), setOf("수원시", "군포시"), setOf("수원시", "의왕시")
+    )
+    return nearbyPairs.any { it.contains(city1) && it.contains(city2) }
+}
+
+fun determineZone(
+    mySido: String,
+    mySigungu: String,
+    depSido: String,
+    depSigungu: String
+): DistanceZone {
+    if (mySido.isBlank() || depSido.isBlank() || depSido == "미지정") return DistanceZone.UNKNOWN
+    
+    val cleanMySigungu = mySigungu.replace(Regex("^[가-힣]+도\\s+"), "").trim()
+    val cleanDepSigungu = depSigungu.replace(Regex("^[가-힣]+도\\s+"), "").trim()
+    
+    if (cleanMySigungu.isNotEmpty() && cleanDepSigungu.isNotEmpty()) {
+        val mySigunguKey = cleanMySigungu.split(" ").firstOrNull() ?: ""
+        val depSigunguKey = cleanDepSigungu.split(" ").firstOrNull() ?: ""
+        
+        if (mySigunguKey == depSigunguKey) {
+            return DistanceZone.IN_CITY
+        }
+        
+        val neighbors = neighborCities[mySigunguKey] ?: emptyList()
+        if (neighbors.any { depSigunguKey.contains(it) || it.contains(depSigunguKey) }) {
+            return DistanceZone.NEARBY
+        }
+        
+        if (mySido == depSido) {
+            val isMySeoulIncheon = mySido == "서울" || mySido == "인천"
+            val isDepSeoulIncheon = depSido == "서울" || depSido == "인천"
+            if ((mySido == "경기" && isDepSeoulIncheon) || (isMySeoulIncheon && depSido == "경기") || (isMySeoulIncheon && isDepSeoulIncheon)) {
+                val isNearbyMetropolitan = checkMetropolitanNearby(mySigunguKey, depSigunguKey)
+                return if (isNearbyMetropolitan) DistanceZone.NEARBY else DistanceZone.MID_DIST
+            }
+            return DistanceZone.NEARBY
+        }
+    }
+
+    val distanceMatrix = mapOf(
+        setOf("서울", "충남") to 100.0, setOf("경기", "충남") to 90.0, setOf("인천", "충남") to 110.0,
+        setOf("서울", "충북") to 120.0, setOf("경기", "충북") to 100.0, setOf("인천", "충북") to 130.0,
+        setOf("서울", "대전") to 160.0, setOf("경기", "대전") to 140.0, setOf("인천", "대전") to 170.0,
+        setOf("서울", "세종") to 130.0, setOf("경기", "세종") to 110.0, setOf("인천", "세종") to 140.0,
+        setOf("서울", "강원") to 140.0, setOf("경기", "강원") to 100.0, setOf("인천", "강원") to 160.0,
+        setOf("서울", "전북") to 230.0, setOf("경기", "전북") to 210.0, setOf("인천", "전북") to 240.0,
+        setOf("서울", "경북") to 260.0, setOf("경기", "경북") to 240.0, setOf("인천", "경북") to 270.0,
+        setOf("서울", "대구") to 290.0, setOf("경기", "대구") to 270.0, setOf("인천", "대구") to 300.0,
+        setOf("서울", "광주") to 290.0, setOf("경기", "광주") to 270.0, setOf("인천", "광주") to 300.0,
+        setOf("서울", "부산") to 390.0, setOf("경기", "부산") to 370.0, setOf("인천", "부산") to 400.0,
+        setOf("서울", "울산") to 370.0, setOf("경기", "울산") to 350.0, setOf("인천", "울산") to 380.0,
+        setOf("서울", "경남") to 350.0, setOf("경기", "경남") to 330.0, setOf("인천", "경남") to 360.0,
+        setOf("서울", "전남") to 350.0, setOf("경기", "전남") to 330.0, setOf("인천", "전남") to 360.0,
+        
+        setOf("대전", "세종") to 30.0, setOf("대전", "충남") to 50.0, setOf("대전", "충북") to 60.0,
+        setOf("대전", "전북") to 90.0, setOf("대전", "경북") to 140.0, setOf("대전", "대구") to 140.0,
+        setOf("대전", "광주") to 170.0, setOf("대전", "서울") to 160.0, setOf("대전", "경기") to 140.0,
+        setOf("대전", "부산") to 260.0, setOf("대전", "경남") to 220.0, setOf("대전", "전남") to 230.0,
+        
+        setOf("부산", "울산") to 50.0, setOf("부산", "경남") to 60.0, setOf("부산", "대구") to 100.0,
+        setOf("부산", "경북") to 150.0, setOf("부산", "전남") to 190.0, setOf("부산", "광주") to 260.0,
+        setOf("부산", "전북") to 250.0, setOf("대구", "경북") to 60.0, setOf("대구", "경남") to 100.0,
+        setOf("대구", "울산") to 90.0, setOf("대구", "광주") to 180.0, setOf("대구", "전북") to 170.0
+    )
+    
+    val pair = setOf(mySido, depSido)
+    val distance = distanceMatrix[pair]
+    
+    return when {
+        distance == null -> {
+            if (mySido != depSido) DistanceZone.LONG_DIST else DistanceZone.NEARBY
+        }
+        distance < 80.0 -> DistanceZone.NEARBY
+        distance <= 160.0 -> DistanceZone.MID_DIST
+        else -> DistanceZone.LONG_DIST
+    }
 }
 
 fun parseTonnage(volume: String): Double {
@@ -1560,11 +1920,26 @@ fun computeOperationsCargoStats(estimates: List<Estimate>, events: List<Event>, 
     )
 }
 
-fun computeDistanceRegionStats(estimates: List<Estimate>, year: Int, month: Int): DistanceRegionStats {
+fun computeDistanceRegionStats(estimates: List<Estimate>, companyAddress: String, year: Int, month: Int): DistanceRegionStats {
     var totalDistance = 0.0
     var count = 0
     val flows = mutableMapOf<Pair<String, String>, Int>()
     val cal = Calendar.getInstance()
+
+    // 내 업체 주소 파싱
+    val (mySido, mySigungu) = if (companyAddress.isNotBlank()) {
+        parseCityAndGu(companyAddress)
+    } else {
+        "" to ""
+    }
+
+    var inCityCount = 0
+    var nearbyCount = 0
+    var midDistCount = 0
+    var longDistCount = 0
+    var totalCount = 0
+
+    val destinationMap = mutableMapOf<String, Int>()
 
     estimates.filter { est ->
         cal.timeInMillis = est.createdAt
@@ -1573,6 +1948,8 @@ fun computeDistanceRegionStats(estimates: List<Estimate>, year: Int, month: Int)
         if (est.departure.isNotBlank() && est.destination.isNotBlank()) {
             val depReg = getRegionName(est.departure)
             val destReg = getRegionName(est.destination)
+            
+            // 기존 평균 거리 계산용 로직 유지
             if (depReg != "미지정" && destReg != "미지정") {
                 val dist = estimateDistance(depReg, destReg)
                 totalDistance += dist
@@ -1581,15 +1958,44 @@ fun computeDistanceRegionStats(estimates: List<Estimate>, year: Int, month: Int)
                 val pair = depReg to destReg
                 flows[pair] = (flows[pair] ?: 0) + 1
             }
+
+            // 새로운 구간 및 목적지 빈도 분석 로직
+            val (depSido, depSigungu) = parseCityAndGu(est.departure)
+            val (destSido, destSigungu) = parseCityAndGu(est.destination)
+
+            if (depSido != "미지정" && mySido.isNotBlank()) {
+                val zone = determineZone(mySido, mySigungu, depSido, depSigungu)
+                when (zone) {
+                    DistanceZone.IN_CITY -> inCityCount++
+                    DistanceZone.NEARBY -> nearbyCount++
+                    DistanceZone.MID_DIST -> midDistCount++
+                    DistanceZone.LONG_DIST -> longDistCount++
+                    else -> {}
+                }
+                if (zone != DistanceZone.UNKNOWN) {
+                    totalCount++
+                }
+            }
+
+            if (destSigungu != "미지정") {
+                destinationMap[destSigungu] = (destinationMap[destSigungu] ?: 0) + 1
+            }
         }
     }
 
     val avgDist = if (count > 0) totalDistance / count else 0.0
     val sortedFlows = flows.entries.sortedByDescending { it.value }.map { it.key to it.value }
+    val sortedDestinations = destinationMap.entries.sortedByDescending { it.value }.map { it.key to it.value }
 
     return DistanceRegionStats(
         averageDistance = avgDist,
-        regionFlows = sortedFlows
+        regionFlows = sortedFlows,
+        inCityCount = inCityCount,
+        nearbyCount = nearbyCount,
+        midDistCount = midDistCount,
+        longDistCount = longDistCount,
+        totalCount = totalCount,
+        destinationRankings = sortedDestinations
     )
 }
 
