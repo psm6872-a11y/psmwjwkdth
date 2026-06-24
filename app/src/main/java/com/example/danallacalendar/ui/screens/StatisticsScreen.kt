@@ -369,10 +369,9 @@ fun EstimateTabContent(estimates: List<Estimate>, events: List<Event>, year: Int
                     Spacer(modifier = Modifier.height(12.dp))
                     
                     val timeRanges = listOf(
-                        "00-06시" to stats.hourlyRequests.filter { it.key in 0..5 }.values.sum(),
-                        "06-12시" to stats.hourlyRequests.filter { it.key in 6..11 }.values.sum(),
-                        "12-18시" to stats.hourlyRequests.filter { it.key in 12..17 }.values.sum(),
-                        "18-24시" to stats.hourlyRequests.filter { it.key in 18..23 }.values.sum()
+                        "오전(08~12시)" to stats.hourlyRequests.filter { it.key in 8..11 }.values.sum(),
+                        "오후(12~17시)" to stats.hourlyRequests.filter { it.key in 12..16 }.values.sum(),
+                        "저녁(17~21시)" to stats.hourlyRequests.filter { it.key in 17..20 }.values.sum()
                     )
 
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -382,7 +381,7 @@ fun EstimateTabContent(estimates: List<Estimate>, events: List<Event>, year: Int
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Text(range.first, fontSize = 13.sp, modifier = Modifier.width(70.dp))
+                                Text(range.first, fontSize = 13.sp, modifier = Modifier.width(100.dp))
                                 Box(
                                     modifier = Modifier
                                         .weight(1f)
@@ -1087,13 +1086,18 @@ fun computeEstimateContractStats(estimates: List<Estimate>, events: List<Event>,
     val conversion = if (total > 0) (contractedCount.toDouble() / total) * 100 else 0.0
     
     val eventsByEstimate = events.groupBy { it.linkedEstimateId }
-    val visitCompletedEstimates = filteredEstimates.filter { est ->
+    val visitCompletedEstimates = estimates.filter { est ->
         val estEvents = eventsByEstimate[est.id] ?: emptyList()
-        estEvents.isNotEmpty() && !estEvents.any { it.isAllDay }
+        val hasEventInMonth = estEvents.any { evt ->
+            targetCal.timeInMillis = evt.startMillis
+            targetCal.get(Calendar.YEAR) == year && targetCal.get(Calendar.MONTH) == month
+        }
+        hasEventInMonth && !estEvents.any { it.isAllDay }
     }
     val totalVisitCompletedCost = visitCompletedEstimates.sumOf { est ->
         val costStr = est.totalCost.replace(Regex("[^0-9]"), "")
-        costStr.toLongOrNull() ?: 0L
+        val cost = costStr.toLongOrNull() ?: 0L
+        if (cost > 0L) cost else est.amount
     }
     val avgAmount = if (visitCompletedEstimates.isNotEmpty()) {
         totalVisitCompletedCost / visitCompletedEstimates.size
