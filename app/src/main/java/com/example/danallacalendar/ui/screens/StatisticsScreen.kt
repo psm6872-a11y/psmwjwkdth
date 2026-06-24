@@ -1172,33 +1172,6 @@ fun AnnualRevenueTabContent(estimates: List<Estimate>, events: List<Event>, year
         verticalArrangement = Arrangement.spacedBy(12.dp),
         modifier = Modifier.fillMaxSize()
     ) {
-        // 1. 월간 누적 매출 카드 (secondary 틴트 계열 배경)
-        item {
-            val targetMonthKey = "$year-${String.format("%02d", month + 1)}"
-            val monthlyRevenue = stats.monthlyRevenues[targetMonthKey] ?: 0L
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.2f)),
-                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
-            ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Text(
-                        text = "${year}년 ${month + 1}월 매출 (계약 완료 기준)", 
-                        fontSize = 13.sp, 
-                        color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.8f),
-                        fontWeight = FontWeight.Medium
-                    )
-                    Spacer(modifier = Modifier.height(6.dp))
-                    Text(
-                        text = formatCurrency(monthlyRevenue),
-                        fontSize = 26.sp,
-                        fontWeight = FontWeight.ExtraBold,
-                        color = MaterialTheme.colorScheme.secondary
-                    )
-                }
-            }
-        }
-
         // 2. 연간 누적 매출 카드 (primary 틴트 계열 배경)
         item {
             Card(
