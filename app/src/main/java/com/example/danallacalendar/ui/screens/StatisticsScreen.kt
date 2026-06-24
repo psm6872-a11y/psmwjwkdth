@@ -1636,7 +1636,7 @@ fun GrowthRateTabContent(estimates: List<Estimate>, events: List<Event>, year: I
     val prevMonthStr = "지난달"
 
     LazyColumn(
-        verticalArrangement = Arrangement.spacedBy(16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
         modifier = Modifier.fillMaxSize()
     ) {
         item {
@@ -1782,7 +1782,7 @@ fun GrowthComparisonCard(
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
+        Column(modifier = Modifier.padding(12.dp)) {
             // Header: Emoji & Title
             Row(
                 verticalAlignment = Alignment.CenterVertically,
@@ -1790,27 +1790,27 @@ fun GrowthComparisonCard(
             ) {
                 Box(
                     modifier = Modifier
-                        .size(32.dp)
+                        .size(30.dp)
                         .clip(RoundedCornerShape(8.dp))
                         .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f)),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text(text = emoji, fontSize = 16.sp)
+                    Text(text = emoji, fontSize = 15.sp)
                 }
                 Text(
                     text = title,
                     fontWeight = FontWeight.Bold,
-                    fontSize = 16.sp,
+                    fontSize = 15.sp,
                     color = MaterialTheme.colorScheme.onSurface
                 )
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(10.dp))
 
             // 1. Chart Column (Takes full card width)
             Column(
                 modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
+                verticalArrangement = Arrangement.spacedBy(5.dp)
             ) {
                 val maxValue = maxOf(pastValue, prevValue, currentValue, 1.0)
                 
@@ -1846,7 +1846,7 @@ fun GrowthComparisonCard(
                 )
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(10.dp))
             
             // Divider
             Box(
@@ -1856,7 +1856,7 @@ fun GrowthComparisonCard(
                     .background(MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
             )
             
-            Spacer(modifier = Modifier.height(14.dp))
+            Spacer(modifier = Modifier.height(10.dp))
 
             // 2. Growth Badges Row (Horizontal layout)
             GrowthRateRow(
@@ -1893,11 +1893,11 @@ fun BarRow(
         
         Spacer(modifier = Modifier.width(6.dp))
         
-        // 2. 바 영역 (전체의 70% 너비 차지)
+        // 2. 바 영역 (전체의 70% 너비 차지, 높이를 6.dp로 축소)
         Box(
             modifier = Modifier
                 .weight(0.70f)
-                .height(8.dp)
+                .height(6.dp)
                 .background(Color.Transparent),
             contentAlignment = Alignment.CenterStart
         ) {
@@ -1905,8 +1905,8 @@ fun BarRow(
             Box(
                 modifier = Modifier
                     .fillMaxWidth(fraction)
-                    .height(8.dp)
-                    .clip(RoundedCornerShape(4.dp))
+                    .height(6.dp)
+                    .clip(RoundedCornerShape(3.dp))
                     .background(barColor)
             )
         }
@@ -1962,25 +1962,25 @@ fun GrowthRateBadgeItem(
 ) {
     Box(
         modifier = modifier
-            .clip(RoundedCornerShape(10.dp))
+            .clip(RoundedCornerShape(8.dp))
             .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.25f))
-            .padding(vertical = 10.dp, horizontal = 12.dp)
+            .padding(vertical = 6.dp, horizontal = 10.dp)
     ) {
         Column(
             modifier = Modifier.fillMaxWidth(),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(6.dp)
+            verticalArrangement = Arrangement.spacedBy(3.dp)
         ) {
             // 상단: 라벨
             Text(
                 text = label,
-                fontSize = 12.sp,
+                fontSize = 11.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
                 fontWeight = FontWeight.Bold,
                 maxLines = 1
             )
             
-            // 하단: 수치 배지
+            // 하단: 수치 배지 (12.sp로 소폭 축소)
             val isPositive = rate >= 0.0
             val displayColor = if (isPositive) Color(0xFF2E7D32) else Color(0xFFD32F2F)
             val bgColor = if (isPositive) Color(0xFFE8F5E9) else Color(0xFFFFEBEE)
@@ -1990,13 +1990,13 @@ fun GrowthRateBadgeItem(
             
             Box(
                 modifier = Modifier
-                    .clip(RoundedCornerShape(6.dp))
+                    .clip(RoundedCornerShape(5.dp))
                     .background(bgColor)
-                    .padding(horizontal = 10.dp, vertical = 4.dp)
+                    .padding(horizontal = 8.dp, vertical = 2.dp)
             ) {
                 Text(
                     text = "$arrow $sign${String.format("%.1f", rate)}$unit",
-                    fontSize = 13.sp,
+                    fontSize = 12.sp,
                     fontWeight = FontWeight.Black,
                     color = displayColor,
                     maxLines = 1
