@@ -328,7 +328,7 @@ fun EstimateTabContent(estimates: List<Estimate>, events: List<Event>, year: Int
                             barColor = Color(0xFFFF9800),
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(160.dp)
+                                .height(110.dp)
                         )
                     } else {
                         Text("표시할 차트 데이터가 없습니다.", fontSize = 13.sp, color = MaterialTheme.colorScheme.outline)
@@ -355,7 +355,7 @@ fun EstimateTabContent(estimates: List<Estimate>, events: List<Event>, year: Int
                         barColor = MaterialTheme.colorScheme.secondary,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(160.dp)
+                            .height(110.dp)
                     )
                 }
             }
@@ -381,7 +381,7 @@ fun EstimateTabContent(estimates: List<Estimate>, events: List<Event>, year: Int
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Text(range.first, fontSize = 13.sp, modifier = Modifier.width(100.dp))
+                                Text(range.first, fontSize = 13.sp, modifier = Modifier.width(125.dp))
                                 Box(
                                     modifier = Modifier
                                         .weight(1f)
