@@ -1676,27 +1676,7 @@ fun GrowthRateTabContent(estimates: List<Estimate>, events: List<Event>, year: I
             }
         }
 
-        // 1. 이사 건수 비교
-        item {
-            val prevMonthStr = if (month == 0) "작년 12월" else "올해 ${month}월"
-            GrowthComparisonCard(
-                title = "이사 건수 비교",
-                emoji = "🚚",
-                pastLabel = "작년 ${month + 1}월",
-                pastValue = stats.lastYearMonthMoves.toDouble(),
-                pastDisplay = "${stats.lastYearMonthMoves}건",
-                prevLabel = prevMonthStr,
-                prevValue = stats.prevMonthMoves.toDouble(),
-                prevDisplay = "${stats.prevMonthMoves}건",
-                currentLabel = "올해 ${month + 1}월",
-                currentValue = stats.currentMonthMoves.toDouble(),
-                currentDisplay = "${stats.currentMonthMoves}건",
-                yoyGrowth = stats.moveCountYoY,
-                momGrowth = stats.moveCountMoM
-            )
-        }
-
-        // 2. 견적 건수 비교
+        // 1. 견적 건수 비교
         item {
             val prevMonthStr = if (month == 0) "작년 12월" else "올해 ${month}월"
             GrowthComparisonCard(
@@ -1713,6 +1693,26 @@ fun GrowthRateTabContent(estimates: List<Estimate>, events: List<Event>, year: I
                 currentDisplay = "${stats.currentMonthEstimates}건",
                 yoyGrowth = stats.estimateCountYoY,
                 momGrowth = stats.estimateCountMoM
+            )
+        }
+
+        // 2. 이사 건수 비교
+        item {
+            val prevMonthStr = if (month == 0) "작년 12월" else "올해 ${month}월"
+            GrowthComparisonCard(
+                title = "이사 건수 비교",
+                emoji = "🚚",
+                pastLabel = "작년 ${month + 1}월",
+                pastValue = stats.lastYearMonthMoves.toDouble(),
+                pastDisplay = "${stats.lastYearMonthMoves}건",
+                prevLabel = prevMonthStr,
+                prevValue = stats.prevMonthMoves.toDouble(),
+                prevDisplay = "${stats.prevMonthMoves}건",
+                currentLabel = "올해 ${month + 1}월",
+                currentValue = stats.currentMonthMoves.toDouble(),
+                currentDisplay = "${stats.currentMonthMoves}건",
+                yoyGrowth = stats.moveCountYoY,
+                momGrowth = stats.moveCountMoM
             )
         }
 
