@@ -2022,8 +2022,15 @@ fun computeDistanceRegionStats(estimates: List<Estimate>, companyAddress: String
         cal.get(Calendar.YEAR) == year && cal.get(Calendar.MONTH) == month
     }.forEach { est ->
         if (est.departure.isNotBlank() && est.destination.isNotBlank()) {
-            val depReg = getRegionName(est.departure)
+            val validSidos = setOf("서울", "경기", "인천", "강원", "충북", "충남", "대전", "경북", "경남", "부산", "울산", "대구", "전북", "전남", "광주", "세종", "제주")
+
+            var depReg = getRegionName(est.departure)
             val destReg = getRegionName(est.destination)
+
+            // 출발지 주소의 시/도 판단이 힘든 경우, 내 업체 위치를 출발 지역명 기본값으로 적용
+            if ((depReg == "미지정" || !validSidos.contains(depReg)) && mySido.isNotBlank()) {
+                depReg = mySido
+            }
             
             // 기존 평균 거리 계산용 로직 유지
             if (depReg != "미지정" && destReg != "미지정") {
@@ -2036,8 +2043,14 @@ fun computeDistanceRegionStats(estimates: List<Estimate>, companyAddress: String
             }
 
             // 새로운 구간 및 목적지 빈도 분석 로직
-            val (depSido, depSigungu) = parseCityAndGu(est.departure)
+            var (depSido, depSigungu) = parseCityAndGu(est.departure)
             val (destSido, destSigungu) = parseCityAndGu(est.destination)
+
+            // 출발지 주소가 도/시 생략 등으로 판단이 힘든 모호한 값인 경우 내 업체 위치의 Sido/Sigungu를 출발지로 자동 보정
+            if ((depSido == "미지정" || !validSidos.contains(depSido)) && mySido.isNotBlank()) {
+                depSido = mySido
+                depSigungu = mySigungu
+            }
 
             if (depSido != "미지정" && mySido.isNotBlank()) {
                 val zone = determineZone(mySido, mySigungu, depSido, depSigungu)
