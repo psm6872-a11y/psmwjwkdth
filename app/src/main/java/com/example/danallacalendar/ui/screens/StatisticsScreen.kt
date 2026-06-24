@@ -1084,30 +1084,37 @@ fun computeEstimateContractStats(estimates: List<Estimate>, events: List<Event>,
             }
         }
 
+    android.util.Log.d("STATS_DEBUG", "=== START STATS ===")
+    android.util.Log.d("STATS_DEBUG", "estimates size: ${estimates.size}, uniqueEstimates size: ${uniqueEstimates.size}")
+    uniqueEstimates.take(15).forEach { est ->
+        android.util.Log.d("STATS_DEBUG", "Est -> ID: '${est.id}', Name: '${est.customerName}', Phone: '${est.phoneNumber}', totalCost: '${est.totalCost}', amount: ${est.amount}")
+    }
+    events.filter { !it.linkedEstimateId.isNullOrBlank() }.take(20).forEach { evt ->
+        android.util.Log.d("STATS_DEBUG", "Evt -> Title: '${evt.title}', LinkedID: '${evt.linkedEstimateId}', isAllDay: ${evt.isAllDay}, startMillis: ${evt.startMillis}")
+    }
+
     val filteredEstimates = uniqueEstimates.filter { est ->
         val cal = Calendar.getInstance().apply { timeInMillis = est.createdAt }
         cal.get(Calendar.YEAR) == year && cal.get(Calendar.MONTH) == month
     }
     
     val total = filteredEstimates.size
-    val contractedEstimateIds = events.mapNotNull { it.linkedEstimateId }.filter { it.isNotBlank() }.toSet()
+    val contractedEstimateIds = uniqueEstimates.filter { it.moveDate.isNotBlank() }.map { it.id }.toSet()
     val contractedCount = filteredEstimates.count { it.id in contractedEstimateIds }
     
     val conversion = if (total > 0) (contractedCount.toDouble() / total) * 100 else 0.0
     
-    val eventsByEstimate = events.groupBy { it.linkedEstimateId }
+    val selectedYearMonthStr = String.format("%04d-%02d", year, month + 1)
     val visitCompletedEstimates = uniqueEstimates.filter { est ->
-        val estEvents = eventsByEstimate[est.id] ?: emptyList()
-        // 해당 월에 속하는 방문견적 일정(isAllDay = false)이 존재해야 함 (계약완료 여부 상관없이 포함)
-        estEvents.any { evt ->
-            if (!evt.isAllDay) {
-                val cal = Calendar.getInstance().apply { timeInMillis = evt.startMillis }
-                cal.get(Calendar.YEAR) == year && cal.get(Calendar.MONTH) == month
-            } else {
-                false
-            }
-        }
+        (est.visitDate.startsWith(selectedYearMonthStr) && est.visitDate.isNotBlank()) ||
+        (est.moveDate.startsWith(selectedYearMonthStr) && est.moveDate.isNotBlank())
     }
+    
+    android.util.Log.d("STATS_DEBUG", "selectedYearMonthStr: $selectedYearMonthStr, visitCompletedEstimates size: ${visitCompletedEstimates.size}")
+    visitCompletedEstimates.forEach { est ->
+        android.util.Log.d("STATS_DEBUG", "Matched Est -> Name: '${est.customerName}', visitDate: '${est.visitDate}', moveDate: '${est.moveDate}', totalCost: '${est.totalCost}', amount: ${est.amount}")
+    }
+
     val totalVisitCompletedCost = visitCompletedEstimates.sumOf { est ->
         val costStr = est.totalCost.replace(Regex("[^0-9]"), "")
         val cost = costStr.toLongOrNull() ?: 0L
@@ -1358,17 +1365,15 @@ fun computeDistanceRegionStats(estimates: List<Estimate>, year: Int, month: Int)
 
 fun computeAnnualRevenueStats(estimates: List<Estimate>, events: List<Event>, year: Int): AnnualRevenueStats {
     val yearStr = year.toString()
-    val contractedEstimateIds = events.mapNotNull { it.linkedEstimateId }.filter { it.isNotBlank() }.toSet()
-    
     val yearContractedEstimates = estimates.filter {
-        it.id in contractedEstimateIds && it.moveDate.startsWith(yearStr)
+        it.moveDate.isNotBlank() && it.moveDate.startsWith(yearStr)
     }
 
     val annualTotal = yearContractedEstimates.sumOf { it.amount }
 
     val monthlyRevenues = mutableMapOf<String, Long>()
 
-    estimates.filter { it.id in contractedEstimateIds && it.moveDate.startsWith(yearStr) }.forEach { est ->
+    estimates.filter { it.moveDate.isNotBlank() && it.moveDate.startsWith(yearStr) }.forEach { est ->
         try {
             val dateParts = est.moveDate.split("-")
             if (dateParts.size >= 2) {
