@@ -1792,17 +1792,17 @@ fun GrowthComparisonCard(
             ) {
                 Box(
                     modifier = Modifier
-                        .size(30.dp)
+                        .size(32.dp)
                         .clip(RoundedCornerShape(8.dp))
                         .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f)),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text(text = emoji, fontSize = 15.sp)
+                    Text(text = emoji, fontSize = 16.sp)
                 }
                 Text(
                     text = title,
                     fontWeight = FontWeight.Bold,
-                    fontSize = 14.sp,
+                    fontSize = 16.sp,
                     color = MaterialTheme.colorScheme.onSurface
                 )
             }
@@ -1858,7 +1858,7 @@ fun GrowthComparisonCard(
                 Box(
                     modifier = Modifier
                         .width(1.dp)
-                        .height(72.dp)
+                        .height(76.dp)
                         .background(MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
                 )
 
@@ -1898,12 +1898,12 @@ fun BarRow(
         modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // 1. 라벨 영역 (폭 50.dp)
+        // 1. 라벨 영역 (폭 56.dp로 소폭 확대)
         Text(
             text = label,
-            fontSize = 11.sp,
+            fontSize = 13.sp,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.width(50.dp),
+            modifier = Modifier.width(56.dp),
             maxLines = 1
         )
         
@@ -1932,7 +1932,7 @@ fun BarRow(
         // 3. 값 표시 영역 (나머지 영역에 우측 정렬)
         Text(
             text = displayVal,
-            fontSize = 11.sp,
+            fontSize = 13.sp,
             fontWeight = if (isBold) FontWeight.Bold else FontWeight.Normal,
             color = textColor,
             modifier = Modifier.weight(0.35f),
@@ -1953,7 +1953,7 @@ fun GrowthRateBadge(
     ) {
         Text(
             text = label,
-            fontSize = 10.sp,
+            fontSize = 11.sp,
             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
         )
         Spacer(modifier = Modifier.height(2.dp))
@@ -1973,7 +1973,7 @@ fun GrowthRateBadge(
         ) {
             Text(
                 text = "$arrow $sign${String.format("%.1f", rate)}$unit",
-                fontSize = 11.sp,
+                fontSize = 13.sp,
                 fontWeight = FontWeight.ExtraBold,
                 color = displayColor
             )
