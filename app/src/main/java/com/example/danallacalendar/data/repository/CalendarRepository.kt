@@ -392,8 +392,17 @@ class CalendarRepository @Inject constructor(
                 .document(item.syncId)
                 .set(doc)
                 .await()
-            // Mark as synced locally
-            blacklistDao.insert(item.copy(isSynced = true))
+            // Mark as synced locally using the correct ID to prevent duplicates
+            val localId = if (item.id == 0) {
+                blacklistDao.getBlacklistItemsBySyncId(item.syncId).firstOrNull()?.id ?: 0
+            } else {
+                item.id
+            }
+            if (localId != 0) {
+                blacklistDao.insert(item.copy(id = localId, isSynced = true))
+            } else {
+                blacklistDao.insert(item.copy(isSynced = true))
+            }
         } catch (e: Exception) {
             android.util.Log.e("CalendarRepository", "Failed to upload blacklist item", e)
         }

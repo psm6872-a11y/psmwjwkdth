@@ -48,11 +48,11 @@ class BlacklistViewModel @Inject constructor(
                     phoneNumber = cleanPhone,
                     reason = cleanReason,
                     syncId = syncId,
-                    isSynced = roomCode.isNotEmpty()
+                    isSynced = false
                 )
-                blacklistDao.insert(item)
+                val insertedId = blacklistDao.insert(item)
                 if (roomCode.isNotEmpty() && syncId != null) {
-                    repository.uploadBlacklistItem(roomCode, item)
+                    repository.uploadBlacklistItem(roomCode, item.copy(id = insertedId.toInt()))
                 }
                 onSuccess()
             } catch (e: Exception) {
@@ -71,6 +71,44 @@ class BlacklistViewModel @Inject constructor(
                 }
             } catch (e: Exception) {
                 android.util.Log.e("BlacklistViewModel", "Failed to delete blacklist item: ${item.id}", e)
+            }
+        }
+    }
+
+    fun updateBlacklist(
+        item: BlacklistItem,
+        phoneNumber: String,
+        reason: String,
+        onSuccess: () -> Unit = {},
+        onError: (String) -> Unit = {}
+    ) {
+        val cleanPhone = phoneNumber.trim()
+        val cleanReason = reason.trim()
+
+        if (cleanPhone.isBlank()) {
+            onError("전화번호를 입력해주세요.")
+            return
+        }
+        if (cleanReason.isBlank()) {
+            onError("사유를 입력해주세요.")
+            return
+        }
+
+        viewModelScope.launch {
+            try {
+                val roomCode = userPreferences.getLastRoomCode()
+                val updatedItem = item.copy(
+                    phoneNumber = cleanPhone,
+                    reason = cleanReason,
+                    isSynced = false
+                )
+                blacklistDao.insert(updatedItem)
+                if (roomCode.isNotEmpty() && updatedItem.syncId != null) {
+                    repository.uploadBlacklistItem(roomCode, updatedItem)
+                }
+                onSuccess()
+            } catch (e: Exception) {
+                onError("수정 실패: ${e.localizedMessage}")
             }
         }
     }

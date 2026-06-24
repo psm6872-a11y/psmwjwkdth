@@ -11,6 +11,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -26,6 +27,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.danallacalendar.ui.components.RecentCallsPickerDialog
 import com.example.danallacalendar.ui.components.formatPhoneNumberForDetail
 import com.example.danallacalendar.ui.viewmodel.BlacklistViewModel
+import com.example.danallacalendar.data.BlacklistItem
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.ui.text.input.VisualTransformation
@@ -43,6 +45,7 @@ fun BlacklistScreen(
     var phoneInput by remember { mutableStateOf("") }
     var reasonInput by remember { mutableStateOf("") }
     var showRecentCallsDialog by remember { mutableStateOf(false) }
+    var editingItem by remember { mutableStateOf<BlacklistItem?>(null) }
 
     Scaffold(
         topBar = {
@@ -129,7 +132,8 @@ fun BlacklistScreen(
                         onValueChange = { reasonInput = it },
                         label = "사유",
                         placeholder = "사유 입력",
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = false
                     )
 
                     // Add Button
@@ -226,14 +230,32 @@ fun BlacklistScreen(
                                     )
                                 }
 
-                                IconButton(
-                                    onClick = { viewModel.deleteBlacklist(item) }
+                                Column(
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    verticalArrangement = Arrangement.spacedBy(4.dp)
                                 ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Delete,
-                                        contentDescription = "삭제",
-                                        tint = MaterialTheme.colorScheme.error
-                                    )
+                                    IconButton(
+                                        onClick = { editingItem = item },
+                                        modifier = Modifier.size(36.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Edit,
+                                            contentDescription = "수정",
+                                            tint = MaterialTheme.colorScheme.primary,
+                                            modifier = Modifier.size(20.dp)
+                                        )
+                                    }
+                                    IconButton(
+                                        onClick = { viewModel.deleteBlacklist(item) },
+                                        modifier = Modifier.size(36.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Delete,
+                                            contentDescription = "삭제",
+                                            tint = MaterialTheme.colorScheme.error,
+                                            modifier = Modifier.size(20.dp)
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -254,6 +276,28 @@ fun BlacklistScreen(
             }
         )
     }
+
+    val currentItem = editingItem
+    if (currentItem != null) {
+        EditBlacklistDialog(
+            item = currentItem,
+            onDismiss = { editingItem = null },
+            onConfirm = { updatedPhone, updatedReason ->
+                viewModel.updateBlacklist(
+                    item = currentItem,
+                    phoneNumber = updatedPhone,
+                    reason = updatedReason,
+                    onSuccess = {
+                        editingItem = null
+                        Toast.makeText(context, "수정되었습니다.", Toast.LENGTH_SHORT).show()
+                    },
+                    onError = { error ->
+                        Toast.makeText(context, error, Toast.LENGTH_SHORT).show()
+                    }
+                )
+            }
+        )
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -264,15 +308,23 @@ fun CompactOutlinedTextField(
     label: String,
     placeholder: String,
     modifier: Modifier = Modifier,
-    singleLine: Boolean = true
+    singleLine: Boolean = true,
+    maxLines: Int = if (singleLine) 1 else Int.MAX_VALUE
 ) {
     val interactionSource = remember { MutableInteractionSource() }
+    val heightModifier = if (singleLine) {
+        modifier.height(46.dp)
+    } else {
+        modifier.heightIn(min = 46.dp, max = 120.dp)
+    }
+
     BasicTextField(
         value = value,
         onValueChange = onValueChange,
         interactionSource = interactionSource,
-        modifier = modifier.height(46.dp),
+        modifier = heightModifier,
         singleLine = singleLine,
+        maxLines = maxLines,
         textStyle = LocalTextStyle.current.copy(
             color = MaterialTheme.colorScheme.onSurface,
             fontSize = 14.sp
@@ -291,7 +343,7 @@ fun CompactOutlinedTextField(
                     focusedBorderColor = MaterialTheme.colorScheme.primary,
                     unfocusedBorderColor = MaterialTheme.colorScheme.outline
                 ),
-                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
+                contentPadding = PaddingValues(horizontal = 12.dp, vertical = if (singleLine) 4.dp else 10.dp),
                 container = {
                     OutlinedTextFieldDefaults.Container(
                         enabled = true,
@@ -306,5 +358,66 @@ fun CompactOutlinedTextField(
                 }
             )
         }
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun EditBlacklistDialog(
+    item: BlacklistItem,
+    onDismiss: () -> Unit,
+    onConfirm: (String, String) -> Unit
+) {
+    var phoneInput by remember { mutableStateOf(item.phoneNumber) }
+    var reasonInput by remember { mutableStateOf(item.reason) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                text = "블랙리스트 수정",
+                fontWeight = FontWeight.Bold,
+                fontSize = 17.sp
+            )
+        },
+        text = {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                CompactOutlinedTextField(
+                    value = phoneInput,
+                    onValueChange = { phoneInput = it },
+                    label = "전화번호",
+                    placeholder = "010-0000-0000",
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                CompactOutlinedTextField(
+                    value = reasonInput,
+                    onValueChange = { reasonInput = it },
+                    label = "사유",
+                    placeholder = "사유 입력",
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = false
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = { onConfirm(phoneInput, reasonInput) },
+                shape = RoundedCornerShape(8.dp)
+            ) {
+                Text("저장", fontWeight = FontWeight.Bold)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("취소")
+            }
+        },
+        shape = RoundedCornerShape(16.dp)
     )
 }
