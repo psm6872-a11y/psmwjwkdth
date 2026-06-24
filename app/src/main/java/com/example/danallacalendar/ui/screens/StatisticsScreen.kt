@@ -267,24 +267,44 @@ fun EstimateContractTabContent(estimates: List<Estimate>, events: List<Event>, y
         }
 
         item {
-            // Chart: Inquiries Daily/Weekly/Monthly (Monthly as example)
+            // Chart: Monthly Request Trend (Split into Jan-Jun / Jul-Dec)
+            val monthlyData = stats.monthlyRequests.entries
+                .filter { it.key.startsWith(year.toString()) }
+                .sortedBy { it.key }
+            
+            val firstHalf = monthlyData.take(6).map { it.value.toFloat() to it.key.substringAfter("-") + "월" }
+            val secondHalf = monthlyData.drop(6).take(6).map { it.value.toFloat() to it.key.substringAfter("-") + "월" }
+
             Card(modifier = Modifier.fillMaxWidth()) {
                 Column(modifier = Modifier.padding(16.dp)) {
-                    Text("월별 견적 요청 추이 (최근 12개월)", fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                    Text("${year}년 월별 견적 요청 추이", fontWeight = FontWeight.Bold, fontSize = 15.sp)
                     Spacer(modifier = Modifier.height(16.dp))
                     
-                    val chartData = stats.monthlyRequests.entries
-                        .sortedBy { it.key }
-                        .takeLast(12)
-                        .map { it.value.toFloat() to it.key.substringAfter("-") + "월" }
-
-                    if (chartData.isNotEmpty()) {
+                    Text("상반기 (1~6월)", fontSize = 12.sp, color = MaterialTheme.colorScheme.outline, fontWeight = FontWeight.Bold)
+                    Spacer(modifier = Modifier.height(8.dp))
+                    if (firstHalf.isNotEmpty()) {
                         BarChart(
-                            data = chartData,
+                            data = firstHalf,
                             barColor = MaterialTheme.colorScheme.primary,
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(160.dp)
+                                .height(130.dp)
+                        )
+                    } else {
+                        Text("표시할 차트 데이터가 없습니다.", fontSize = 13.sp, color = MaterialTheme.colorScheme.outline)
+                    }
+                    
+                    Spacer(modifier = Modifier.height(20.dp))
+                    
+                    Text("하반기 (7~12월)", fontSize = 12.sp, color = MaterialTheme.colorScheme.outline, fontWeight = FontWeight.Bold)
+                    Spacer(modifier = Modifier.height(8.dp))
+                    if (secondHalf.isNotEmpty()) {
+                        BarChart(
+                            data = secondHalf,
+                            barColor = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(130.dp)
                         )
                     } else {
                         Text("표시할 차트 데이터가 없습니다.", fontSize = 13.sp, color = MaterialTheme.colorScheme.outline)
@@ -1019,32 +1039,19 @@ fun computeEstimateContractStats(estimates: List<Estimate>, events: List<Event>,
         weekly[weekKey] = (weekly[weekKey] ?: 0) + 1
     }
 
-    // Monthly requests for 12 months ending in selected month
-    val endCal = Calendar.getInstance().apply {
-        set(Calendar.YEAR, year)
-        set(Calendar.MONTH, month)
-        set(Calendar.DAY_OF_MONTH, getActualMaximum(Calendar.DAY_OF_MONTH))
-        set(Calendar.HOUR_OF_DAY, 23)
-        set(Calendar.MINUTE, 59)
+    // Monthly requests for the selected year (Jan - Dec)
+    val yearStr = year.toString()
+    for (m in 1..12) {
+        val key = "$yearStr-${String.format("%02d", m)}"
+        monthly[key] = 0
     }
-    val startCal = Calendar.getInstance().apply {
-        timeInMillis = endCal.timeInMillis
-        add(Calendar.MONTH, -11)
-        set(Calendar.DAY_OF_MONTH, 1)
-        set(Calendar.HOUR_OF_DAY, 0)
-        set(Calendar.MINUTE, 0)
-    }
-    estimates.filter { it.createdAt in startCal.timeInMillis..endCal.timeInMillis }.forEach { est ->
+    
+    estimates.filter { est ->
+        val cal = Calendar.getInstance().apply { timeInMillis = est.createdAt }
+        cal.get(Calendar.YEAR) == year
+    }.forEach { est ->
         val monthStr = sdfMonth.format(Date(est.createdAt))
         monthly[monthStr] = (monthly[monthStr] ?: 0) + 1
-    }
-    val fillCal = Calendar.getInstance().apply { timeInMillis = startCal.timeInMillis }
-    for (i in 0..11) {
-        val key = sdfMonth.format(fillCal.time)
-        if (!monthly.containsKey(key)) {
-            monthly[key] = 0
-        }
-        fillCal.add(Calendar.MONTH, 1)
     }
 
     // Team move counts in selected year/month
