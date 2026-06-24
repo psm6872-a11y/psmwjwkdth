@@ -1856,7 +1856,7 @@ fun GrowthComparisonCard(
                     .background(MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
             )
             
-            Spacer(modifier = Modifier.height(10.dp))
+            Spacer(modifier = Modifier.height(6.dp))
 
             // 2. Growth Badges Row (Horizontal layout)
             GrowthRateRow(
@@ -1933,7 +1933,7 @@ fun GrowthRateRow(
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(10.dp)
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         // 1. 전년 동월 대비
         GrowthRateBadgeItem(
@@ -1962,14 +1962,14 @@ fun GrowthRateBadgeItem(
 ) {
     Box(
         modifier = modifier
-            .clip(RoundedCornerShape(8.dp))
+            .clip(RoundedCornerShape(6.dp))
             .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.25f))
-            .padding(vertical = 6.dp, horizontal = 10.dp)
+            .padding(vertical = 4.dp, horizontal = 8.dp)
     ) {
         Column(
             modifier = Modifier.fillMaxWidth(),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(3.dp)
+            verticalArrangement = Arrangement.spacedBy(1.dp)
         ) {
             // 상단: 라벨
             Text(
@@ -1980,7 +1980,7 @@ fun GrowthRateBadgeItem(
                 maxLines = 1
             )
             
-            // 하단: 수치 배지 (12.sp로 소폭 축소)
+            // 하단: 수치 배지 (12.sp로 축소 유지)
             val isPositive = rate >= 0.0
             val displayColor = if (isPositive) Color(0xFF2E7D32) else Color(0xFFD32F2F)
             val bgColor = if (isPositive) Color(0xFFE8F5E9) else Color(0xFFFFEBEE)
@@ -1990,9 +1990,9 @@ fun GrowthRateBadgeItem(
             
             Box(
                 modifier = Modifier
-                    .clip(RoundedCornerShape(5.dp))
+                    .clip(RoundedCornerShape(4.dp))
                     .background(bgColor)
-                    .padding(horizontal = 8.dp, vertical = 2.dp)
+                    .padding(horizontal = 6.dp, vertical = 1.dp)
             ) {
                 Text(
                     text = "$arrow $sign${String.format("%.1f", rate)}$unit",
