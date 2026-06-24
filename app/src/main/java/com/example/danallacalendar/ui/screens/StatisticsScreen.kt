@@ -1820,7 +1820,7 @@ fun GrowthComparisonCard(
                     value = pastValue,
                     maxValue = maxValue,
                     displayVal = pastDisplay,
-                    barColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.15f),
+                    barColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.35f),
                     textColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
                 )
 
@@ -1830,7 +1830,7 @@ fun GrowthComparisonCard(
                     value = prevValue,
                     maxValue = maxValue,
                     displayVal = prevDisplay,
-                    barColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.35f),
+                    barColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.15f),
                     textColor = MaterialTheme.colorScheme.onSurfaceVariant
                 )
 
