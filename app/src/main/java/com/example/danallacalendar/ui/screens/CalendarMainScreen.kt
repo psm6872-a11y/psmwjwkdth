@@ -230,6 +230,10 @@ fun CalendarMainScreen(
     // 마감 날짜 Set - DB에서 영구 저장
     val deadlineDates by viewModel.deadlineDates.collectAsStateWithLifecycle()
 
+    var showConflictConfirmDialog by remember { mutableStateOf(false) }
+    var conflictMessage by remember { mutableStateOf("") }
+    var pendingNewEvent by remember { mutableStateOf<com.example.danallacalendar.data.Event?>(null) }
+
     val filePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
@@ -525,7 +529,23 @@ fun CalendarMainScreen(
                                             createdAt = System.currentTimeMillis(),
                                             updatedAt = System.currentTimeMillis()
                                         )
-                                        viewModel.addEvent(newEvent)
+
+                                        // 중복 일정 체크
+                                        val conflicts = viewModel.checkContractConflict(
+                                            dateStr = estimate.moveDate,
+                                            teamId = teamId,
+                                            slotPos = slotPos
+                                        )
+
+                                        if (conflicts.isNotEmpty()) {
+                                            val firstConf = conflicts.first()
+                                            val confTitle = firstConf.title.split("\n").firstOrNull() ?: ""
+                                            conflictMessage = "주의: 선택하신 날짜와 팀/시간대에 이미 확정된 일정이 있습니다.\n(기존 일정: $confTitle)\n\n그래도 중복으로 배정하시겠습니까?"
+                                            pendingNewEvent = newEvent
+                                            showConflictConfirmDialog = true
+                                        } else {
+                                            viewModel.addEvent(newEvent)
+                                        }
                                     }
                                 } catch (e: Exception) {
                                     android.util.Log.e("CalendarMainScreen", "Failed to auto-create move schedule", e)
@@ -550,6 +570,37 @@ fun CalendarMainScreen(
 
 
 
+        if (showConflictConfirmDialog) {
+            AlertDialog(
+                onDismissRequest = {
+                    showConflictConfirmDialog = false
+                    pendingNewEvent = null
+                },
+                title = { Text("일정 중복 경고", fontWeight = FontWeight.Bold) },
+                text = { Text(conflictMessage) },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            pendingNewEvent?.let { viewModel.addEvent(it) }
+                            showConflictConfirmDialog = false
+                            pendingNewEvent = null
+                        }
+                    ) {
+                        Text("확인", fontWeight = FontWeight.Bold)
+                    }
+                },
+                dismissButton = {
+                    TextButton(
+                        onClick = {
+                            showConflictConfirmDialog = false
+                            pendingNewEvent = null
+                        }
+                    ) {
+                        Text("취소")
+                    }
+                }
+            )
+        }
     }
 }
 
