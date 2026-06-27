@@ -105,7 +105,7 @@ object EstimateHtmlGenerator {
             .replace("{{moveInfo}}", estimate.moveInfo.ifBlank { estimate.moveType })
             .replace("{{startTime}}", estimate.startTime)
             .replace("{{customerName}}", estimate.customerName)
-            .replace("{{memo}}", estimate.memo)
+            .replace("{{memo}}", estimate.memo.replace("\n", "<br>"))
             .replace("{{totalVolume}}", if (estimate.totalVolume.isNotEmpty()) "${estimate.totalVolume} 톤" else "")
             .replace("{{workers}}", if (estimate.workersM.isNotEmpty() || estimate.workersF.isNotEmpty()) "남${estimate.workersM} 여${estimate.workersF}" else "")
             .replace("{{ladderStart}}", if (estimate.laddersStartFloor.isNotEmpty() || estimate.laddersStartCost.isNotEmpty()) "${estimate.laddersStartFloor}층 / ${estimate.laddersStartCost}만원" else "")
