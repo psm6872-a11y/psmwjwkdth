@@ -59,7 +59,7 @@ class UserPreferences(context: Context) {
     }
 
     fun isShareEnabled(): Boolean {
-        return prefs.getBoolean(KEY_IS_SHARE_ENABLED, false)
+        return prefs.getBoolean(KEY_IS_SHARE_ENABLED, true)
     }
 
     fun setShareEnabled(enabled: Boolean) {
