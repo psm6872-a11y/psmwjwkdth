@@ -949,31 +949,71 @@ fun AddEditEventScreen(
 
                     notesList.forEachIndexed { index, phone ->
                         key(index) {
+                            var showPhoneMenu by remember { mutableStateOf(false) }
+
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                IconButton(
-                                    onClick = {
-                                        if (phone.isNotBlank()) {
-                                            try {
-                                                val intent = Intent(Intent.ACTION_DIAL, Uri.parse("tel:${phone.trim()}"))
-                                                context.startActivity(intent)
-                                            } catch (e: Exception) {
-                                                Toast.makeText(context, "전화 기능을 실행할 수 없습니다.", Toast.LENGTH_SHORT).show()
+                                Box(
+                                    modifier = Modifier
+                                        .size(32.dp)
+                                        .clip(CircleShape)
+                                        .combinedClickable(
+                                            onClick = {
+                                                if (phone.isNotBlank()) {
+                                                    try {
+                                                        val intent = Intent(Intent.ACTION_DIAL, Uri.parse("tel:${phone.trim()}"))
+                                                        context.startActivity(intent)
+                                                    } catch (e: Exception) {
+                                                        Toast.makeText(context, "전화 기능을 실행할 수 없습니다.", Toast.LENGTH_SHORT).show()
+                                                    }
+                                                } else {
+                                                    Toast.makeText(context, "전화번호를 입력해주세요.", Toast.LENGTH_SHORT).show()
+                                                }
+                                            },
+                                            onLongClick = {
+                                                if (!isReadOnly) {
+                                                    showPhoneMenu = true
+                                                }
                                             }
-                                        } else {
-                                            Toast.makeText(context, "전화번호를 입력해주세요.", Toast.LENGTH_SHORT).show()
-                                        }
-                                    },
-                                    modifier = Modifier.size(28.dp)
+                                        ),
+                                    contentAlignment = Alignment.Center
                                 ) {
                                     Icon(
                                         imageVector = Icons.Default.Phone,
                                         contentDescription = "전화 걸기",
                                         tint = MaterialTheme.colorScheme.primary,
-                                        modifier = Modifier.size(16.dp)
+                                        modifier = Modifier.size(20.dp)
                                     )
+
+                                    DropdownMenu(
+                                        expanded = showPhoneMenu,
+                                        onDismissRequest = { showPhoneMenu = false }
+                                    ) {
+                                        DropdownMenuItem(
+                                            text = { Text("전화번호 추가", fontSize = 14.sp) },
+                                            onClick = {
+                                                showPhoneMenu = false
+                                                if (!isReadOnly) {
+                                                    notesList = notesList + ""
+                                                }
+                                            }
+                                        )
+                                        if (index > 0) {
+                                            DropdownMenuItem(
+                                                text = { Text("전화번호 삭제", fontSize = 14.sp, color = MaterialTheme.colorScheme.error) },
+                                                onClick = {
+                                                    showPhoneMenu = false
+                                                    if (!isReadOnly) {
+                                                        notesList = notesList.toMutableList().apply {
+                                                            removeAt(index)
+                                                        }
+                                                    }
+                                                }
+                                            )
+                                        }
+                                    }
                                 }
                                 Spacer(modifier = Modifier.width(4.dp))
                                 Box(
@@ -995,39 +1035,6 @@ fun AddEditEventScreen(
                                         isReadOnly = isReadOnly,
                                         focusManager = focusManager
                                     )
-                                }
-                                if (index == 0) {
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    // "추가" Button
-                                    Button(
-                                        onClick = {
-                                            if (!isReadOnly) {
-                                                notesList = notesList + ""
-                                            }
-                                        },
-                                        enabled = !isReadOnly,
-                                        contentPadding = PaddingValues(horizontal = 4.dp, vertical = 0.dp),
-                                        shape = RoundedCornerShape(6.dp),
-                                        colors = ButtonDefaults.buttonColors(
-                                            containerColor = MaterialTheme.colorScheme.primaryContainer,
-                                            contentColor = MaterialTheme.colorScheme.onPrimaryContainer
-                                        ),
-                                        modifier = Modifier
-                                            .defaultMinSize(minWidth = 1.dp, minHeight = 1.dp)
-                                            .height(22.dp)
-                                    ) {
-                                        Text(
-                                            text = "추가", 
-                                            fontSize = 9.sp, 
-                                            fontWeight = FontWeight.Bold,
-                                            style = androidx.compose.ui.text.TextStyle(
-                                                platformStyle = androidx.compose.ui.text.PlatformTextStyle(
-                                                    includeFontPadding = false
-                                                )
-                                            )
-                                        )
-                                    }
-                                    Spacer(modifier = Modifier.width(2.dp))
                                 }
                                 IconButton(
                                     onClick = {
