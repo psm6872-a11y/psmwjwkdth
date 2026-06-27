@@ -137,10 +137,10 @@ fun SettingsScreen(
     // Read team count from dataStore
     val teamCountFlow = remember(context) {
         context.settingsDataStore.data.map { preferences ->
-            preferences[TEAM_COUNT_KEY] ?: 1 // Default is 1
+            preferences[TEAM_COUNT_KEY] ?: 2 // Default is 2
         }
     }
-    val teamCount by teamCountFlow.collectAsState(initial = 1)
+    val teamCount by teamCountFlow.collectAsState(initial = 2)
     var isCompanySettingsExpanded by remember { mutableStateOf(false) }
     var isTeamSettingsExpanded by remember { mutableStateOf(false) }
     var isVisitSettingsExpanded by remember { mutableStateOf(false) }
@@ -288,10 +288,10 @@ fun SettingsScreen(
 
     val visitSlotCountFlow = remember(context) {
         context.settingsDataStore.data.map { preferences ->
-            preferences[VISIT_SLOT_COUNT_KEY] ?: 1
+            preferences[VISIT_SLOT_COUNT_KEY] ?: 3
         }
     }
-    val visitSlotCount by visitSlotCountFlow.collectAsState(initial = 1)
+    val visitSlotCount by visitSlotCountFlow.collectAsState(initial = 3)
 
     Scaffold(
         topBar = {

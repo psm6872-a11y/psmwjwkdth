@@ -146,10 +146,10 @@ fun CalendarMainScreen(
 
     val teamCountFlow = remember(context) {
         context.settingsDataStore.data.map { preferences ->
-            preferences[TEAM_COUNT_KEY] ?: 1
+            preferences[TEAM_COUNT_KEY] ?: 2
         }
     }
-    val slotCount by teamCountFlow.collectAsState(initial = 1)
+    val slotCount by teamCountFlow.collectAsState(initial = 2)
 
     val teamConfigsFlow = remember(context) {
         context.settingsDataStore.data.map { preferences ->
@@ -166,10 +166,10 @@ fun CalendarMainScreen(
 
     val visitSlotCountFlow = remember(context) {
         context.settingsDataStore.data.map { preferences ->
-            preferences[VISIT_SLOT_COUNT_KEY] ?: 1
+            preferences[VISIT_SLOT_COUNT_KEY] ?: 3
         }
     }
-    val visitSlotCount by visitSlotCountFlow.collectAsState(initial = 1)
+    val visitSlotCount by visitSlotCountFlow.collectAsState(initial = 3)
 
     val visitColorsFlow = remember(context) {
         context.settingsDataStore.data.map { preferences ->
