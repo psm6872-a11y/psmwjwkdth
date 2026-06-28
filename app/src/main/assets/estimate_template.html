@@ -54,7 +54,8 @@ td, th { border:1px solid #000; padding:2px 4px; vertical-align:middle; font-siz
 </style>
 </head>
 <body>
-<div class="page">
+<div class="page-container" style="width:794px; height:1122px; overflow:hidden; position:relative; margin:0 auto;">
+  <div class="page" style="width:794px; margin:0; padding:60px 10px 10px 10px; box-sizing:border-box;">
 
   <!-- 헤더 -->
   <div style="display:flex; align-items:center; margin-bottom:3px;">
@@ -217,18 +218,23 @@ td, th { border:1px solid #000; padding:2px 4px; vertical-align:middle; font-siz
     </tr>
   </table>
 
+  </div>
 </div>
 <script>
 window.addEventListener('load', function() {
+  var container = document.querySelector('.page-container');
   var page = document.querySelector('.page');
-  if (page) {
+  if (container && page) {
     var a4Height = 1122;
-    var currentHeight = page.offsetHeight;
+    page.style.height = 'auto';
+    var currentHeight = page.scrollHeight || page.offsetHeight;
+    
     if (currentHeight > a4Height) {
       var scale = a4Height / currentHeight;
       page.style.transform = 'scale(' + scale + ')';
       page.style.transformOrigin = 'top left';
-      page.style.height = a4Height + 'px';
+      // 가로 폭이 축소되어 오른쪽에 치우치지 않도록 스케일 비율만큼 보정
+      page.style.width = (794 / scale) + 'px';
     }
   }
 });
