@@ -3,6 +3,8 @@ package com.example.danallacalendar.ui.screens
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -75,7 +77,11 @@ val calendarColors = listOf(
     "#1abc9c"  // Turquoise
 )
 
-@OptIn(ExperimentalMaterial3Api::class, androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+@OptIn(
+    ExperimentalMaterial3Api::class,
+    androidx.compose.foundation.layout.ExperimentalLayoutApi::class,
+    ExperimentalFoundationApi::class
+)
 @Composable
 fun AddEditEventScreen(
     eventId: Int?,
