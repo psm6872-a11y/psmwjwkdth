@@ -73,6 +73,10 @@ class EstimateViewModel @Inject constructor(
     val deposit = MutableStateFlow("10")
     val balance = MutableStateFlow("")
     val optionCost = MutableStateFlow("")
+    val outDate = MutableStateFlow("미정")
+    val moveCostOut = MutableStateFlow("")
+    val balanceOut = MutableStateFlow("")
+    val storageCost = MutableStateFlow("")
 
     // Room-specific cargo items: Map<SpaceName, Map<ItemName, Count>>
     private val _roomItems = MutableStateFlow<Map<String, Map<String, Int>>>(emptyMap())
@@ -198,6 +202,10 @@ class EstimateViewModel @Inject constructor(
             startTime.value = "07시 00분"
             visitDate.value = ""
             moveInfo.value = "포장이사"
+            outDate.value = "미정"
+            moveCostOut.value = ""
+            balanceOut.value = ""
+            storageCost.value = ""
             totalVolume.value = ""
             workersM.value = "4"
             workersF.value = "1"
@@ -243,6 +251,10 @@ class EstimateViewModel @Inject constructor(
             deposit.value = originalEstimate.deposit.ifBlank { "10" }
             balance.value = originalEstimate.balance
             optionCost.value = originalEstimate.optionCost
+            outDate.value = originalEstimate.outDate.ifBlank { "미정" }
+            moveCostOut.value = originalEstimate.moveCostOut
+            balanceOut.value = originalEstimate.balanceOut
+            storageCost.value = originalEstimate.storageCost
 
             // roomItems 복사 (Long -> Int 변환)
             val convertedItems = originalEstimate.roomItems.mapValues { (_, innerMap) ->
@@ -290,19 +302,48 @@ class EstimateViewModel @Inject constructor(
     // 이사비용 또는 옵션비용 변경 시 총비용 자동계산
     fun onMoveCostOrOptionChanged() {
         val move = moveCost.value.toLongOrNull() ?: 0L
+        val moveOut = if (moveInfo.value == "보관이사") moveCostOut.value.toLongOrNull() ?: 0L else 0L
         val option = optionCost.value.toLongOrNull() ?: 0L
-        val total = move + option
+        val total = move + moveOut + option
         totalCost.value = if (total > 0) total.toString() else ""
-        // 잔금도 자동계산
+        // 잔금 자동계산
         val depositVal = deposit.value.toLongOrNull() ?: 0L
-        balance.value = if (total > 0) (total - depositVal).toString() else ""
+        val remaining = if (total > 0) total - depositVal else 0L
+        if (moveInfo.value == "보관이사") {
+            val half = remaining / 2
+            balance.value = if (total > 0) half.toString() else ""
+            balanceOut.value = if (total > 0) half.toString() else ""
+        } else {
+            balance.value = if (total > 0) remaining.toString() else ""
+        }
     }
 
     // 계약금 변경 시 잔금 자동계산
     fun onDepositChanged() {
         val total = totalCost.value.toLongOrNull() ?: 0L
         val dep = deposit.value.toLongOrNull() ?: 0L
-        balance.value = if (total > 0) (total - dep).toString() else ""
+        val remaining = if (total > 0) total - dep else 0L
+        if (moveInfo.value == "보관이사") {
+            val half = remaining / 2
+            balance.value = if (total > 0) half.toString() else ""
+            balanceOut.value = if (total > 0) half.toString() else ""
+        } else {
+            balance.value = if (total > 0) remaining.toString() else ""
+        }
+    }
+
+    // 이사 종류 변경 시 계약금/보관료/메모 기본값 설정
+    fun onMoveInfoChanged() {
+        if (moveInfo.value == "보관이사") {
+            deposit.value = "20"
+            storageCost.value = "20"
+            memo.value = " - 보관료는 별도이며 출고일에 잔금과 함께 추가로 계산됩니다."
+        } else {
+            deposit.value = "10"
+            storageCost.value = ""
+            memo.value = ""
+        }
+        onDepositChanged()
     }
 
     // 출발지사다리 금액 또는 도착지사다리 금액 변경 시 옵션비용 자동계산
@@ -354,6 +395,10 @@ class EstimateViewModel @Inject constructor(
             balance = balance.value,
             optionCost = optionCost.value,
             roomItems = convertRoomItemsToLong(roomItems.value),
+            outDate = outDate.value,
+            moveCostOut = moveCostOut.value,
+            balanceOut = balanceOut.value,
+            storageCost = storageCost.value,
             scheduleId = savedStateHandle.get<String>("scheduleId") ?: copiedScheduleId
         )
     }
@@ -406,6 +451,10 @@ class EstimateViewModel @Inject constructor(
             balance = balance.value,
             optionCost = optionCost.value,
             roomItems = convertRoomItemsToLong(roomItems.value),
+            outDate = outDate.value,
+            moveCostOut = moveCostOut.value,
+            balanceOut = balanceOut.value,
+            storageCost = storageCost.value,
             scheduleId = resolvedScheduleId
         )
 
@@ -459,6 +508,10 @@ class EstimateViewModel @Inject constructor(
             balance = balance.value,
             optionCost = optionCost.value,
             roomItems = convertRoomItemsToLong(roomItems.value),
+            outDate = outDate.value,
+            moveCostOut = moveCostOut.value,
+            balanceOut = balanceOut.value,
+            storageCost = storageCost.value,
             scheduleId = resolvedScheduleId
         )
 

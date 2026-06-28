@@ -9,7 +9,8 @@ import com.example.danallacalendar.data.local.UserPreferences
 object EstimateHtmlGenerator {
 
     fun generateEstimateHtml(context: Context, estimate: Estimate): String {
-        val template = context.assets.open("estimate_template.html").use { inputStream ->
+        val templateName = if (estimate.moveType == "보관이사") "storage_estimate_template.html" else "estimate_template.html"
+        val template = context.assets.open(templateName).use { inputStream ->
             inputStream.bufferedReader().use { it.readText() }
         }
 
@@ -104,6 +105,7 @@ object EstimateHtmlGenerator {
             .replace("{{phoneNumber}}", estimate.phoneNumber)
             .replace("{{moveInfo}}", estimate.moveInfo.ifBlank { estimate.moveType })
             .replace("{{startTime}}", estimate.startTime)
+            .replace("{{outDate}}", if (estimate.outDate == "미정") "" else estimate.outDate)
             .replace("{{customerName}}", estimate.customerName)
             .replace("{{memo}}", estimate.memo.replace("\n", "<br>"))
             .replace("{{totalVolume}}", if (estimate.totalVolume.isNotEmpty()) "${estimate.totalVolume} 톤" else "")
@@ -111,11 +113,14 @@ object EstimateHtmlGenerator {
             .replace("{{ladderStart}}", if (estimate.laddersStartFloor.isNotEmpty() || estimate.laddersStartCost.isNotEmpty()) "${estimate.laddersStartFloor}층 / ${estimate.laddersStartCost}만원" else "")
             .replace("{{ladderEnd}}", if (estimate.laddersEndFloor.isNotEmpty() || estimate.laddersEndCost.isNotEmpty()) "${estimate.laddersEndFloor}층 / ${estimate.laddersEndCost}만원" else "")
             .replace("{{extraTruck}}", formatCurrency(estimate.extraTruck))
+            .replace("{{storageCost}}", formatCurrency(estimate.storageCost))
             .replace("{{moveCost}}", formatCurrency(estimate.moveCost))
+            .replace("{{moveCostOut}}", formatCurrency(estimate.moveCostOut))
             .replace("{{optionCost}}", formatCurrency(estimate.optionCost))
             .replace("{{totalCost}}", formatCurrency(estimate.totalCost))
             .replace("{{deposit}}", formatCurrency(estimate.deposit))
             .replace("{{balance}}", formatCurrency(estimate.balance))
+            .replace("{{balanceOut}}", formatCurrency(estimate.balanceOut))
 
         // Replace room columns
         val columns = listOf("안방", "작은방1", "작은방2", "입구방", "거실", "주방", "그외")

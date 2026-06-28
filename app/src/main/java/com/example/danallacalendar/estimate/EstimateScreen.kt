@@ -277,6 +277,10 @@ fun EstimateScreen(
     val deposit by viewModel.deposit.collectAsStateWithLifecycle()
     val balance by viewModel.balance.collectAsStateWithLifecycle()
     val optionCost by viewModel.optionCost.collectAsStateWithLifecycle()
+    val outDate by viewModel.outDate.collectAsStateWithLifecycle()
+    val moveCostOut by viewModel.moveCostOut.collectAsStateWithLifecycle()
+    val balanceOut by viewModel.balanceOut.collectAsStateWithLifecycle()
+    val storageCost by viewModel.storageCost.collectAsStateWithLifecycle()
 
     val calendar = Calendar.getInstance()
 
@@ -344,6 +348,8 @@ fun EstimateScreen(
         Step1StartScreen(
             onCategorySelected = { type ->
                 viewModel.moveType.value = type
+                viewModel.moveInfo.value = type
+                viewModel.onMoveInfoChanged()
                 viewModel.autoSaveToFirestore()
                 currentStep = 2
             },
@@ -502,7 +508,7 @@ fun EstimateScreen(
                                     }
                                 },
                                 moveInfo = moveInfo,
-                                onMoveInfoChange = { viewModel.moveInfo.value = it; viewModel.autoSaveToFirestore() },
+                                onMoveInfoChange = { viewModel.moveInfo.value = it; viewModel.onMoveInfoChanged(); viewModel.autoSaveToFirestore() },
                                 totalVolume = totalVolume,
                                 onTotalVolumeChange = { viewModel.totalVolume.value = it; viewModel.debounceAutoSave() },
                                 workersM = workersM,
@@ -529,6 +535,19 @@ fun EstimateScreen(
                                 onBalanceChange = { viewModel.balance.value = it; viewModel.debounceAutoSave() },
                                 optionCost = optionCost,
                                 onOptionCostChange = { viewModel.optionCost.value = it; viewModel.onMoveCostOrOptionChanged(); viewModel.autoSaveToFirestore() },
+                                outDate = outDate,
+                                onSelectOutDate = {
+                                    showDatePicker(if (outDate == "미정") java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault()).format(java.util.Date()) else outDate) {
+                                        viewModel.outDate.value = it
+                                        viewModel.autoSaveToFirestore()
+                                    }
+                                },
+                                moveCostOut = moveCostOut,
+                                onMoveCostOutChange = { viewModel.moveCostOut.value = it; viewModel.onMoveCostOrOptionChanged(); viewModel.debounceAutoSave() },
+                                balanceOut = balanceOut,
+                                onBalanceOutChange = { viewModel.balanceOut.value = it; viewModel.debounceAutoSave() },
+                                storageCost = storageCost,
+                                onStorageCostChange = { viewModel.storageCost.value = it; viewModel.debounceAutoSave() },
                                 totalExpectedVolume = totalExpectedVolumeStr,
                                 onFieldFocus = { onCancelAction = it }
                             )
@@ -551,6 +570,12 @@ fun EstimateScreen(
                                     roomItemsSummary = viewModel.formatRoomItemsSummary(),
                                     saveState = saveState,
                                     totalExpectedVolume = totalExpectedVolumeStr,
+                                    outDate = outDate,
+                                    moveCost = moveCost,
+                                    moveCostOut = moveCostOut,
+                                    balance = balance,
+                                    balanceOut = balanceOut,
+                                    storageCost = storageCost,
                                     onPrint = {
                                         // WebView createPrintDocumentAdapter 방식: HTML을 직접 PrintManager에 전달
                                         // 이 방식은 Android가 A4 크기에 맞게 렌더링하므로 이미지 축소 문제 없음
@@ -2847,6 +2872,14 @@ fun Step3CustomerInfo(
     optionCost: String,
     onOptionCostChange: (String) -> Unit,
     totalExpectedVolume: String,
+    outDate: String = "미정",
+    onSelectOutDate: () -> Unit = {},
+    moveCostOut: String = "",
+    onMoveCostOutChange: (String) -> Unit = {},
+    balanceOut: String = "",
+    onBalanceOutChange: (String) -> Unit = {},
+    storageCost: String = "",
+    onStorageCostChange: (String) -> Unit = {},
     onFieldFocus: (() -> Unit) -> Unit = {}
 ) {
     val screenWidth = androidx.compose.ui.platform.LocalConfiguration.current.screenWidthDp
@@ -3035,13 +3068,26 @@ fun Step3CustomerInfo(
                     value = moveDate,
                     onValueChange = {},
                     readOnly = true,
-                    label = { Text("이사 날짜", maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                    label = { Text(if (moveInfo == "보관이사") "입고일" else "이사 날짜", maxLines = 1, overflow = TextOverflow.Ellipsis) },
                     trailingIcon = {
                         Icon(Icons.Default.DateRange, contentDescription = "Select Date", modifier = Modifier.clickable { onSelectMoveDate() })
                     },
                     colors = textFieldColors,
                     modifier = Modifier.fillMaxWidth()
                 )
+                if (moveInfo == "보관이사") {
+                    OutlinedTextField(
+                        value = outDate,
+                        onValueChange = {},
+                        readOnly = true,
+                        label = { Text("출고일", maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                        trailingIcon = {
+                            Icon(Icons.Default.DateRange, contentDescription = "Select Out Date", modifier = Modifier.clickable { onSelectOutDate() })
+                        },
+                        colors = textFieldColors,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
                 Box(modifier = Modifier.fillMaxWidth()) {
                     OutlinedTextField(
                         value = startTime,
@@ -3369,6 +3415,9 @@ fun Step3CustomerInfo(
         var isDepositFocused by remember { mutableStateOf(false) }
         var isExtraTruckFocused by remember { mutableStateOf(false) }
         var isBalanceFocused by remember { mutableStateOf(false) }
+        var isMoveCostOutFocused by remember { mutableStateOf(false) }
+        var isBalanceOutFocused by remember { mutableStateOf(false) }
+        var isStorageCostFocused by remember { mutableStateOf(false) }
 
         var lastTonnage by remember { mutableStateOf<Int?>(null) }
         val context = LocalContext.current
@@ -3514,7 +3563,7 @@ fun Step3CustomerInfo(
                             }
                         )
                         TableCell(
-                            label = "이사비용",
+                            label = if (moveInfo == "보관이사") "이사비용(입고)" else "이사비용",
                             value = moveCost,
                             onValueChange = onMoveCostChange,
                             modifier = Modifier.weight(1f),
@@ -3529,6 +3578,42 @@ fun Step3CustomerInfo(
                                 isMoveCostFocused = focused
                             }
                         )
+                    }
+                    if (moveInfo == "보관이사") {
+                        Row(modifier = Modifier.fillMaxWidth()) {
+                            TableCell(
+                                label = "보관료",
+                                value = storageCost,
+                                onValueChange = onStorageCostChange,
+                                modifier = Modifier.weight(1f),
+                                prefix = "월 ₩ ",
+                                suffix = " 만원",
+                                textFieldModifier = Modifier.width(amountFieldWidth),
+                                onFocusChanged = { focused ->
+                                    if (focused && !isStorageCostFocused) {
+                                        val backup = storageCost
+                                        onFieldFocus { onStorageCostChange(backup) }
+                                    }
+                                    isStorageCostFocused = focused
+                                }
+                            )
+                            TableCell(
+                                label = "이사비용(출고)",
+                                value = moveCostOut,
+                                onValueChange = onMoveCostOutChange,
+                                modifier = Modifier.weight(1f),
+                                prefix = "₩ ",
+                                suffix = " 만원",
+                                textFieldModifier = Modifier.width(amountFieldWidth),
+                                onFocusChanged = { focused ->
+                                    if (focused && !isMoveCostOutFocused) {
+                                        val backup = moveCostOut
+                                        onFieldFocus { onMoveCostOutChange(backup) }
+                                    }
+                                    isMoveCostOutFocused = focused
+                                }
+                            )
+                        }
                     }
                     // Row 2: 작업인원 / 옵션비용
                     Row(modifier = Modifier.fillMaxWidth()) {
@@ -3818,7 +3903,7 @@ fun Step3CustomerInfo(
                             }
                         )
                         TableCell(
-                            label = "잔금",
+                            label = if (moveInfo == "보관이사") "잔금(입고)" else "잔금",
                             value = balance,
                             onValueChange = onBalanceChange,
                             modifier = Modifier.weight(1f),
@@ -3833,6 +3918,33 @@ fun Step3CustomerInfo(
                                 isBalanceFocused = focused
                             }
                         )
+                    }
+                    if (moveInfo == "보관이사") {
+                        Row(modifier = Modifier.fillMaxWidth()) {
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .wrapContentHeight()
+                                    .border(0.5.dp, Color.White.copy(alpha = 0.2f))
+                                    .padding(horizontal = 8.dp, vertical = 8.dp)
+                            )
+                            TableCell(
+                                label = "잔금(출고)",
+                                value = balanceOut,
+                                onValueChange = onBalanceOutChange,
+                                modifier = Modifier.weight(1f),
+                                prefix = "₩ ",
+                                suffix = " 만원",
+                                textFieldModifier = Modifier.width(amountFieldWidth),
+                                onFocusChanged = { focused ->
+                                    if (focused && !isBalanceOutFocused) {
+                                        val backup = balanceOut
+                                        onFieldFocus { onBalanceOutChange(backup) }
+                                    }
+                                    isBalanceOutFocused = focused
+                                }
+                            )
+                        }
                     }
                 }
             }
@@ -3990,7 +4102,13 @@ fun Step4PreviewAndActions(
     saveState: SaveState,
     totalExpectedVolume: String,
     onPrint: () -> Unit,
-    onSendSms: (String) -> Unit
+    onSendSms: (String) -> Unit,
+    outDate: String = "미정",
+    moveCost: String = "",
+    moveCostOut: String = "",
+    balance: String = "",
+    balanceOut: String = "",
+    storageCost: String = ""
 ) {
     val formattedAmount = remember(amount) {
         val amt = amount.toLongOrNull() ?: 0L
@@ -4148,7 +4266,19 @@ fun Step4PreviewAndActions(
                 HorizontalDivider(color = Color.White.copy(alpha = 0.1f))
                 PreviewRow(label = "이사 물량", value = if (totalExpectedVolume.isNotBlank()) "${totalExpectedVolume}t" else "")
                 HorizontalDivider(color = Color.White.copy(alpha = 0.3f))
-                PreviewRow(label = "이사 비용", value = if (totalCost.isNotBlank()) "${totalCost}만원" else "", valueColor = Color(0xFFE040FB), isBold = true)
+                if (moveType == "보관이사") {
+                    PreviewRow(label = "보관료", value = if (storageCost.isNotBlank()) "${storageCost}만원" else "", valueColor = Color(0xFFE040FB), isBold = true)
+                    HorizontalDivider(color = Color.White.copy(alpha = 0.1f))
+                    PreviewRow(label = "이사비용(입고)", value = if (moveCost.isNotBlank()) "${moveCost}만원" else "", valueColor = Color(0xFFE040FB), isBold = true)
+                    HorizontalDivider(color = Color.White.copy(alpha = 0.1f))
+                    PreviewRow(label = "이사비용(출고)", value = if (moveCostOut.isNotBlank()) "${moveCostOut}만원" else "", valueColor = Color(0xFFE040FB), isBold = true)
+                    HorizontalDivider(color = Color.White.copy(alpha = 0.1f))
+                    PreviewRow(label = "잔금(입고)", value = if (balance.isNotBlank()) "${balance}만원" else "", valueColor = Color(0xFFE040FB), isBold = true)
+                    HorizontalDivider(color = Color.White.copy(alpha = 0.1f))
+                    PreviewRow(label = "잔금(출고)", value = if (balanceOut.isNotBlank()) "${balanceOut}만원" else "", valueColor = Color(0xFFE040FB), isBold = true)
+                } else {
+                    PreviewRow(label = "이사 비용", value = if (totalCost.isNotBlank()) "${totalCost}만원" else "", valueColor = Color(0xFFE040FB), isBold = true)
+                }
 
                 if (memo.isNotBlank()) {
                     HorizontalDivider(color = Color.White.copy(alpha = 0.1f))

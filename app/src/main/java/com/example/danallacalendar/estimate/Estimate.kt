@@ -32,6 +32,10 @@ data class Estimate(
     val createdAt: Long = System.currentTimeMillis(),
     val departureFloorType: String = "",
     val destinationFloorType: String = "",
+    val outDate: String = "미정",
+    val moveCostOut: String = "",
+    val balanceOut: String = "",
+    val storageCost: String = "",
     
     // 추가 필드 (UI 및 동기화 상태 제어용, 기본값 지정)
     val isSynced: Boolean = true,
