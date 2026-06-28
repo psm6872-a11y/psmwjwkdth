@@ -1,0 +1,223 @@
+<!-- 포장이사 견적서 양식 (Packing Move Estimate Template) -->
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=794, initial-scale=1.0">
+<title>다날라 익스프레스 견적서</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700;900&display=swap');
+* { margin:0; padding:0; box-sizing:border-box; }
+body { background:#fff; font-family:'Noto Sans KR', Arial, sans-serif; color:#000; }
+.page { width:794px; padding:60px 10px 10px 10px; margin:0 auto; box-sizing:border-box; }
+table { width:100%; border-collapse:collapse; table-layout:fixed; }
+td, th { border:1px solid #000; padding:2px 4px; vertical-align:middle; font-size:15pt; }
+.lbl { background:#d9d9d9; font-weight:700; text-align:center; }
+.lbl-normal { background:#d9d9d9; font-weight:400; text-align:center; }
+.lbl-blue { background:#d9d9d9; font-weight:700; text-align:center; color:#0000cc; }
+.ih { background:#fff; font-weight:700; text-align:center; color:#6600cc; height:24px; font-size:15pt; }
+.ic { font-size:15pt; vertical-align:top; white-space:pre-wrap; word-wrap:break-word; padding:2px 3px; }
+.opt-hd { color:#0000cc; font-weight:700; text-align:center; font-size:15pt; }
+.cost-lbl { background:#d9d9d9; font-weight:400; text-align:center; font-size:10pt; }
+.cost-red { background:#d9d9d9; color:#cc0000; font-weight:700; text-align:center; font-size:12pt; }
+.sec-blue { color:#0000cc; font-weight:700; font-size:15pt; text-align:center; padding:4px; }
+.sec-purple { color:#6600cc; font-weight:700; font-size:15pt; text-align:center; padding:4px; }
+.sec-red { color:#cc0000; font-weight:700; font-size:15pt; text-align:center; padding:4px; }
+</style>
+
+
+<style>
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 0;
+  }
+  body {
+    margin: 0;
+    padding: 0;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  .page {
+    width: 794px !important;
+    max-width: 794px !important;
+    margin: 0 auto !important;
+    padding: 60px 10px 10px 10px !important;
+    box-sizing: border-box !important;
+  }
+  table {
+    page-break-inside: auto;
+  }
+  tr {
+    page-break-inside: avoid;
+  }
+}
+</style>
+</head>
+<body>
+<div class="page-container" style="width:794px; height:1122px; overflow:hidden; position:relative; margin:0 auto;">
+  <div class="page" style="width:794px; margin:0; padding:60px 10px 10px 10px; box-sizing:border-box;">
+
+  <!-- 헤더 -->
+  <div style="display:flex; align-items:center; margin-bottom:3px;">
+    <img src="{{logoBase64}}" style="width:210px; height:110px; object-fit:contain;">
+    <div style="flex:1; text-align:center; margin-right:80px;">
+      <div style="font-size:40pt; font-weight:900; font-style:italic; letter-spacing:2px; line-height:1.1;">{{companyName}}</div>
+      <div style="font-size:22pt; font-weight:700; margin-top:8px; margin-bottom:20px;">이사 견적 / 계약서</div>
+    </div>
+  </div>
+  <div style="display:flex; justify-content:space-between; align-items:center; margin:10px 0 6px;">
+    <span style="color:#0000cc; font-weight:700; font-size:14pt;">{{licenseNumber}}</span>
+    <span style="font-size:12pt; font-weight:700;">{{ceoNickname}} &nbsp;{{companyPhone}}</span>
+  </div>
+
+  <!-- 기본정보 -->
+  <table style="border:2px solid #000;">
+    <colgroup>
+      <col style="width:72px"><col><col style="width:65px"><col><col style="width:50px"><col style="width:70px"><col style="width:115px">
+    </colgroup>
+    <tr style="height:32px;">
+      <td class="lbl" style="font-size:11pt;">출발지</td>
+      <td colspan="3" style="font-size:12pt; padding-left:10px;">{{departure}}</td>
+      <td style="font-size:11pt; text-align:center;">{{departureFloorType}}</td>
+      <td style="font-size:11pt; text-align:center; background:#d9d9d9; font-weight:400;">견적일</td>
+      <td style="font-size:11pt; text-align:center;">{{estimateDate}}</td>
+    </tr>
+    <tr style="height:32px;">
+      <td class="lbl" style="font-size:11pt;">도착지</td>
+      <td colspan="3" style="font-size:12pt; padding-left:10px;">{{destination}}</td>
+      <td style="font-size:11pt; text-align:center;">{{destinationFloorType}}</td>
+      <td class="lbl" style="font-size:11pt;">이사일</td>
+      <td style="font-size:11pt; text-align:center;">{{moveDate}}</td>
+    </tr>
+    <tr style="height:32px;">
+      <td class="lbl" style="font-size:11pt;">연락처</td>
+      <td style="font-size:12pt; text-align:left; padding-left:10px;">{{phoneNumber}}</td>
+      <td style="font-size:11pt; text-align:center; background:#d9d9d9; font-weight:400;">이사종류</td>
+      <td colspan="2" style="font-size:11pt; text-align:center;">{{moveInfo}}</td>
+      <td style="font-size:11pt; text-align:center; background:#d9d9d9; font-weight:400;">시작시간</td>
+      <td style="font-size:11pt; text-align:center;">{{startTime}}</td>
+    </tr>
+  </table>
+
+  <!-- 물품 내역 (테이블 하나로) -->
+  <table style="margin-top:5px; border:2px solid #000;">
+    <colgroup>
+      <col style="width:20%"><col style="width:20%"><col style="width:20%">
+      <col style="width:20%"><col style="width:20%">
+    </colgroup>
+    <tr style="height:30px;">
+      <th class="sec-blue" colspan="5" style="font-size:12pt; background:#fffff0;">이사 물품 내역</th>
+    </tr>
+    <tr style="height:30px;">
+      <th class="ih" contenteditable="true" style="font-size:11pt; font-weight:400; background:#fffff0; color:#1a6b1a;">{{header_1}}</th>
+      <th class="ih" contenteditable="true" style="font-size:11pt; font-weight:400; background:#fffff0; color:#1a6b1a;">{{header_2}}</th>
+      <th class="ih" contenteditable="true" style="font-size:11pt; font-weight:400; background:#fffff0; color:#1a6b1a;">{{header_3}}</th>
+      <th class="ih" contenteditable="true" style="font-size:11pt; font-weight:400; background:#fffff0; color:#1a6b1a;">{{header_4}}</th>
+      <th class="ih" contenteditable="true" style="font-size:11pt; font-weight:400; border-left:2px solid #000; background:#f5f0ff; color:#1a6b1a;">제외</th>
+    </tr>
+    <tr>
+      <td class="ic" contenteditable="true" style="height:170px; font-size:10pt; background:#fff;">{{room_col_1}}</td>
+      <td class="ic" contenteditable="true" style="height:170px; font-size:10pt; background:#fff;">{{room_col_2}}</td>
+      <td class="ic" contenteditable="true" style="height:170px; font-size:10pt; background:#fff;">{{room_col_3}}</td>
+      <td class="ic" contenteditable="true" style="height:170px; font-size:10pt; background:#fff;">{{room_col_4}}</td>
+      <td class="ic" contenteditable="true" style="height:170px; font-size:10pt; border-left:2px solid #000; background:#fff;">{{room_이동하지않음}}</td>
+    </tr>
+    <tr>
+      <td class="ic" contenteditable="true" style="height:35px; font-size:11pt; text-align:right; padding-right:10px; background:#fff;">{{volume_col_1}}</td>
+      <td class="ic" contenteditable="true" style="height:35px; font-size:11pt; text-align:right; padding-right:10px; background:#fff;">{{volume_col_2}}</td>
+      <td class="ic" contenteditable="true" style="height:35px; font-size:11pt; text-align:right; padding-right:10px; background:#fff;">{{volume_col_3}}</td>
+      <td class="ic" contenteditable="true" style="height:35px; font-size:11pt; text-align:right; padding-right:10px; background:#fff;">{{volume_col_4}}</td>
+      <td class="ic" contenteditable="true" style="height:35px; font-size:11pt; text-align:center; border-left:2px solid #000; background:#fff;"></td>
+    </tr>
+  </table>
+
+  
+
+  <!-- 주의사항 -->
+  <div style="border:2px solid #000; padding:5px 8px; font-size:10pt; line-height:1.5; margin-top:5px;">
+    <div style="font-weight:700; font-size:12pt; margin-bottom:1px;"><span style="color:#cc0000;">★ 확인 / 주의 사항</span></div>
+    - 현금영수증, 세금계산서, 카드결제시 <strong style="color:#cc0000;">부가세 10% 별도</strong> 입니다.<br>
+    - 현금, 유가증권, 귀금속은 고객이 직접 관리하며 사업자는 책임지지 않습니다.<br>
+    - 고가품, 골동품, 예술그림, 수석 등 중요물품은 반드시 사전에 고지 하셔야 합니다.<br>
+    - 본사는 고의 또는 과실이 없는 한 어떠한 법적 책임을 지지 않음을 알려드립니다.<br>
+    - 본 계약서를 작성 하였더라도 계약금 미입금시 계약의 효력이 상실됩니다.<br>
+    - 고객 변심에 의한 계약 취소 시 계약금은 반환되지 않습니다.
+  </div>
+
+  <!-- 하단 통합 테이블 -->
+  <table style="margin-top:5px; font-size:10pt !important; border:2px solid #000;">
+    <colgroup>
+      <col style="width:50%">
+      <col style="width:12%"><col style="width:12%">
+      <col style="width:11%"><col style="width:15%">
+    </colgroup>
+    <tr style="height:25px;">
+      <td rowspan="1" style="text-align:center; vertical-align:middle; background:#d9d9d9; font-size:11pt; font-weight:700; border:1px solid #000; padding:4px;">고객 요청사항 / 특이사항</td>
+      <td class="cost-lbl" style="font-size:10pt; font-weight:400; border-left:2px solid #000;">총견적물량</td><td style="font-size:10pt; text-align:right; padding-right:4px;">{{totalVolume}}</td>
+      <td class="cost-lbl" style="font-size:10pt; font-weight:400;">이사비용</td><td style="font-size:10pt; text-align:right; padding-right:4px;">{{moveCost}}</td>
+    </tr>
+    <tr style="height:25px;">
+      <td rowspan="9" style="vertical-align:top; padding:6px; background:#fff; border:1px solid #000; font-size:10pt; min-height:220px;">{{memo}}</td>
+      <td class="cost-lbl" style="font-size:10pt; font-weight:400; border-left:2px solid #000;">작업 인원</td><td style="font-size:10pt; text-align:right; padding-right:4px;">{{workers}}</td>
+      <td class="cost-lbl" style="font-size:10pt; font-weight:400;">옵션비용</td><td style="font-size:10pt; text-align:right; padding-right:4px;">{{optionCost}}</td>
+    </tr>
+    <tr style="height:25px;">
+      <td class="cost-lbl" style="font-size:10pt; font-weight:400; border-left:2px solid #000;">1T 추가 시</td><td style="font-size:10pt; text-align:right; padding-right:4px;">{{extraTruck}}</td>
+      <td class="cost-red" style="font-size:10pt;">총 비 용</td><td style="font-size:10pt; color:#000; font-weight:400; text-align:right; padding-right:4px;">{{totalCost}}</td>
+    </tr>
+    <tr style="height:25px;">
+      <td class="cost-lbl" style="font-size:10pt; font-weight:400; border-left:2px solid #000;">사다리(출발)</td><td style="font-size:10pt; text-align:right; padding-right:4px;">{{ladderStart}}</td>
+      <td class="cost-lbl" style="font-size:10pt; font-weight:400;">계약금</td><td style="font-size:10pt; text-align:right; padding-right:4px;">{{deposit}}</td>
+    </tr>
+    <tr style="height:25px;">
+      <td class="cost-lbl" style="font-size:10pt; font-weight:400; border-left:2px solid #000; border-bottom:2px solid #000;">사다리(도착)</td><td style="font-size:10pt; border-bottom:2px solid #000; text-align:right; padding-right:4px;">{{ladderEnd}}</td>
+      <td class="cost-lbl" style="font-weight:700; font-size:10pt; border-bottom:2px solid #000; color:#cc0000;">잔　금</td><td style="font-size:10pt; border-bottom:2px solid #000; text-align:right; padding-right:4px; color:#000; font-weight:400;">{{balance}}</td>
+    </tr>
+    <tr style="height:5px;">
+      <td style="border:none;"></td><td style="border:none;"></td><td style="border:none;"></td><td style="border:none;"></td>
+    </tr>
+    <tr style="height:25px;">
+      <td class="lbl-normal" style="font-size:10pt; border-top:2px solid #000; border-left:2px solid #000;">상　　호</td>
+      <td colspan="2" style="font-size:10pt; text-align:center; border-top:2px solid #000;">{{companyName}}</td>
+      <td style="font-size:10pt; text-align:center; border-top:2px solid #000;">대표자</td>
+      
+    </tr>
+    <tr style="height:25px;">
+      <td class="lbl-normal" style="font-size:10pt; border-left:2px solid #000;">사업자번호</td>
+      <td colspan="2" style="font-size:10pt; text-align:center;">{{bizNumber}}</td>
+      <td style="font-size:10pt; position:relative;"> &nbsp;{{ceoName}}&nbsp;인<img src="{{stampBase64}}" style="position:absolute; top:50%; right:4px; transform:translateY(-50%); width:55px; height:55px;"></td>
+    </tr>
+    <tr style="height:25px;">
+      <td class="lbl-normal" style="font-size:10pt; border-left:2px solid #000;">계좌번호</td>
+      <td colspan="3" style="font-size:10pt; text-align:center;">{{bankAccount}}</td>
+    </tr>
+    <tr style="height:25px;">
+      <td class="lbl-normal" style="font-size:10pt; border-left:2px solid #000;">고 객 명</td>
+      <td colspan="3" style="font-size:10pt; text-align:center;">{{customerName}}</td>
+    </tr>
+  </table>
+
+  </div>
+</div>
+<script>
+window.addEventListener('load', function() {
+  var container = document.querySelector('.page-container');
+  var page = document.querySelector('.page');
+  if (container && page) {
+    var a4Height = 1122;
+    page.style.height = 'auto';
+    var currentHeight = page.scrollHeight || page.offsetHeight;
+    
+    if (currentHeight > a4Height) {
+      var scale = a4Height / currentHeight;
+      page.style.transform = 'scale(' + scale + ')';
+      page.style.transformOrigin = 'top left';
+      // 가로 폭이 축소되어 오른쪽에 치우치지 않도록 스케일 비율만큼 보정
+      page.style.width = (794 / scale) + 'px';
+    }
+  }
+});
+</script>
+</body>
+</html>

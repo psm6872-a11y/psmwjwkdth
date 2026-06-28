@@ -9,7 +9,11 @@ import com.example.danallacalendar.data.local.UserPreferences
 object EstimateHtmlGenerator {
 
     fun generateEstimateHtml(context: Context, estimate: Estimate): String {
-        val templateName = if (estimate.moveType == "보관이사") "storage_estimate_template.html" else "estimate_template.html"
+        val templateName = when (estimate.moveType) {
+            "보관이사" -> "storage_estimate_template.html"
+            "사무실이사" -> "office_estimate_template.html"
+            else -> "estimate_template.html"
+        }
         val template = context.assets.open(templateName).use { inputStream ->
             inputStream.bufferedReader().use { it.readText() }
         }
@@ -123,13 +127,53 @@ object EstimateHtmlGenerator {
             .replace("{{balanceOut}}", formatCurrency(estimate.balanceOut))
 
         // Replace room columns
-        val columns = listOf("안방", "작은방1", "작은방2", "입구방", "거실", "주방", "그외")
-        columns.forEach { col ->
-            val itemsMap = estimate.roomItems[col] ?: emptyMap()
-            val formatted = itemsMap.entries.joinToString("\n") { (item, count) ->
-                if (count > 1) "$item x$count" else item
+        if (estimate.moveType == "사무실이사") {
+            val candidates = listOf("대표실", "사무실", "회의실", "기타")
+            val presentKeys = estimate.roomItems.keys.filter { it != "제외" && it != "이동하지않음" }
+            val displaySpaces = mutableListOf<String>()
+            
+            candidates.forEach { cand ->
+                if (cand in presentKeys) {
+                    displaySpaces.add(cand)
+                }
             }
-            html = html.replace("{{room_$col}}", formatted)
+            presentKeys.forEach { key ->
+                if (key !in displaySpaces) {
+                    displaySpaces.add(key)
+                }
+            }
+            candidates.forEach { cand ->
+                if (displaySpaces.size < 4 && cand !in displaySpaces) {
+                    displaySpaces.add(cand)
+                }
+            }
+            while (displaySpaces.size < 4) {
+                displaySpaces.add("")
+            }
+            
+            for (i in 0 until 4) {
+                val spaceName = displaySpaces[i]
+                html = html.replace("{{header_${i + 1}}}", spaceName)
+                
+                val itemsMap = if (spaceName.isNotEmpty()) estimate.roomItems[spaceName] ?: emptyMap() else emptyMap()
+                val formatted = itemsMap.entries.joinToString("\n") { (item, count) ->
+                    if (count > 1) "$item x$count" else item
+                }
+                html = html.replace("{{room_col_${i + 1}}}", formatted)
+
+                val vol = if (spaceName.isNotEmpty()) estimate.roomVolumes[spaceName] ?: "" else ""
+                val formattedVol = if (vol.isNotEmpty()) "${vol}t" else ""
+                html = html.replace("{{volume_col_${i + 1}}}", formattedVol)
+            }
+        } else {
+            val columns = listOf("안방", "작은방1", "작은방2", "입구방", "거실", "주방", "그외")
+            columns.forEach { col ->
+                val itemsMap = estimate.roomItems[col] ?: emptyMap()
+                val formatted = itemsMap.entries.joinToString("\n") { (item, count) ->
+                    if (count > 1) "$item x$count" else item
+                }
+                html = html.replace("{{room_$col}}", formatted)
+            }
         }
 
         // Replace combined disposal column (제자리, 1층, 폐기)

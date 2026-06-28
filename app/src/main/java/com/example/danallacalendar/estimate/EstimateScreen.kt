@@ -52,6 +52,7 @@ import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.KeyboardArrowRight
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Settings
@@ -171,8 +172,8 @@ fun EstimateScreen(
     var errorDetailMessage by remember { mutableStateOf("") }
     var completedSpaces by remember { mutableStateOf(setOf<String>()) }
     val isDriveUploading by viewModel.isDriveUploading.collectAsStateWithLifecycle()
-    var spaceExpectedVolumes by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
-    val totalVol = spaceExpectedVolumes.values.mapNotNull { it.toDoubleOrNull() }.sum()
+    val roomVolumes by viewModel.roomVolumes.collectAsStateWithLifecycle()
+    val totalVol = roomVolumes.values.mapNotNull { it.toDoubleOrNull() }.sum()
     val totalExpectedVolumeStr = if (totalVol > 0.0) {
         if (totalVol % 1.0 == 0.0) totalVol.toInt().toString() else String.format(Locale.US, "%.2f", totalVol).trimEnd('0').trimEnd('.')
     } else ""
@@ -281,6 +282,38 @@ fun EstimateScreen(
     val moveCostOut by viewModel.moveCostOut.collectAsStateWithLifecycle()
     val balanceOut by viewModel.balanceOut.collectAsStateWithLifecycle()
     val storageCost by viewModel.storageCost.collectAsStateWithLifecycle()
+
+    var officeSpaces by remember {
+        mutableStateOf(listOf("대표실", "사무실", "회의실", "기타"))
+    }
+
+    LaunchedEffect(roomItems) {
+        if (moveInfo == "사무실이사") {
+            val currentKeys = roomItems.keys.filter { it != "제외" && it != "이동하지않음" }
+            val merged = officeSpaces.toMutableList()
+            currentKeys.forEach { key ->
+                if (key !in merged) {
+                    merged.add(key)
+                }
+            }
+            officeSpaces = merged
+        }
+    }
+
+    val onRenameSpace = { oldName: String, newName: String ->
+        if (oldName != newName && newName.isNotBlank()) {
+            officeSpaces = officeSpaces.map { if (it == oldName) newName else it }
+
+
+            val newCompletedSpaces = completedSpaces.toMutableSet()
+            if (newCompletedSpaces.remove(oldName)) {
+                newCompletedSpaces.add(newName)
+            }
+            completedSpaces = newCompletedSpaces
+
+            viewModel.renameSpace(oldName, newName)
+        }
+    }
 
     val calendar = Calendar.getInstance()
 
@@ -449,9 +482,9 @@ fun EstimateScreen(
                                 onActiveSpaceChange = { activeSpaceForCargoInput = it },
                                 completedSpaces = completedSpaces,
                                 onCompletedSpacesChange = { completedSpaces = it },
-                                spaceExpectedVolumes = spaceExpectedVolumes,
+                                spaceExpectedVolumes = roomVolumes,
                                 onUpdateExpectedVolume = { space, volume ->
-                                    spaceExpectedVolumes = spaceExpectedVolumes + (space to volume)
+                                    viewModel.updateRoomVolume(space, volume)
                                 },
                                 onNavigateNext = {
                                     currentStep = 3
@@ -463,7 +496,10 @@ fun EstimateScreen(
                                 onUpdateCountTts = { text ->
                                     // Removed speak
                                 },
-                                onFieldFocus = { onCancelAction = it }
+                                onFieldFocus = { onCancelAction = it },
+                                moveInfo = moveInfo,
+                                officeSpaces = officeSpaces,
+                                onRenameSpace = onRenameSpace
                             )
                             3 -> Step3CustomerInfo(
                                 customerName = customerName,
@@ -552,10 +588,6 @@ fun EstimateScreen(
                                 onFieldFocus = { onCancelAction = it }
                             )
                             4 -> {
-                                val totalVol = spaceExpectedVolumes.values.mapNotNull { it.toDoubleOrNull() }.sum()
-                                val totalExpectedVolumeStr = if (totalVol > 0.0) {
-                                    if (totalVol % 1.0 == 0.0) totalVol.toInt().toString() else String.format(Locale.US, "%.2f", totalVol).trimEnd('0').trimEnd('.')
-                                } else ""
                                 Step4PreviewAndActions(
                                     customerName = customerName,
                                     phoneNumber = phoneNumber,
@@ -1120,7 +1152,10 @@ fun Step2CargoInput(
     onNavigateNext: () -> Unit,
     onSpaceClick: (String) -> Unit,
     onUpdateCountTts: (String) -> Unit,
-    onFieldFocus: (() -> Unit) -> Unit = {}
+    onFieldFocus: (() -> Unit) -> Unit = {},
+    moveInfo: String = "",
+    officeSpaces: List<String> = emptyList(),
+    onRenameSpace: (String, String) -> Unit = { _, _ -> }
 ) {
     if (activeSpace == null) {
         Step2SpaceSelection(
@@ -1128,7 +1163,10 @@ fun Step2CargoInput(
             completedSpaces = completedSpaces,
             spaceExpectedVolumes = spaceExpectedVolumes,
             onSpaceClick = onSpaceClick,
-            onNavigateNext = onNavigateNext
+            onNavigateNext = onNavigateNext,
+            moveInfo = moveInfo,
+            officeSpaces = officeSpaces,
+            onRenameSpace = onRenameSpace
         )
     } else {
         Step2ItemSelection(
@@ -1142,7 +1180,8 @@ fun Step2CargoInput(
                 onActiveSpaceChange(null)
             },
             onUpdateCountTts = onUpdateCountTts,
-            onFieldFocus = onFieldFocus
+            onFieldFocus = onFieldFocus,
+            officeSpaces = officeSpaces
         )
     }
 }
@@ -1153,8 +1192,54 @@ fun Step2SpaceSelection(
     completedSpaces: Set<String>,
     spaceExpectedVolumes: Map<String, String>,
     onSpaceClick: (String) -> Unit,
-    onNavigateNext: () -> Unit
+    onNavigateNext: () -> Unit,
+    moveInfo: String = "",
+    officeSpaces: List<String> = emptyList(),
+    onRenameSpace: (String, String) -> Unit = { _, _ -> }
 ) {
+    var showRenameDialog by remember { mutableStateOf<String?>(null) }
+    var newSpaceNameText by remember { mutableStateOf("") }
+
+    if (showRenameDialog != null) {
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { showRenameDialog = null },
+            title = { Text("공간 이름 수정", color = Color.White) },
+            text = {
+                OutlinedTextField(
+                    value = newSpaceNameText,
+                    onValueChange = { newSpaceNameText = it },
+                    label = { Text("공간 이름") },
+                    singleLine = true,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedTextColor = Color.White,
+                        unfocusedTextColor = Color.White,
+                        focusedBorderColor = Color(0xFFE040FB),
+                        unfocusedBorderColor = Color.White.copy(alpha = 0.5f)
+                    )
+                )
+            },
+            confirmButton = {
+                androidx.compose.material3.TextButton(
+                    onClick = {
+                        val old = showRenameDialog!!
+                        if (newSpaceNameText.isNotBlank() && old != newSpaceNameText) {
+                            onRenameSpace(old, newSpaceNameText.trim())
+                        }
+                        showRenameDialog = null
+                    }
+                ) {
+                    Text("수정", color = Color(0xFFE040FB))
+                }
+            },
+            dismissButton = {
+                androidx.compose.material3.TextButton(onClick = { showRenameDialog = null }) {
+                    Text("취소", color = Color.White)
+                }
+            },
+            containerColor = Color(0xFF1E1035)
+        )
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -1238,12 +1323,18 @@ fun Step2SpaceSelection(
                 modifier = Modifier.fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                val spacePairs = listOf(
-                    Pair("안방", "작은방1"),
-                    Pair("작은방2", "입구방"),
-                    Pair("거실", "주방"),
-                    Pair("그외", null)
-                )
+                val spacePairs = if (moveInfo == "사무실이사") {
+                    officeSpaces.chunked(2).map { chunk ->
+                        Pair(chunk[0], if (chunk.size > 1) chunk[1] else null)
+                    }
+                } else {
+                    listOf(
+                        Pair("안방", "작은방1"),
+                        Pair("작은방2", "입구방"),
+                        Pair("거실", "주방"),
+                        Pair("그외", null)
+                    )
+                }
 
                 spacePairs.forEach { pair ->
                     Row(
@@ -1256,6 +1347,10 @@ fun Step2SpaceSelection(
                             completedSpaces = completedSpaces,
                             expectedVolume = spaceExpectedVolumes[pair.first],
                             onClick = onSpaceClick,
+                            onRename = if (moveInfo == "사무실이사") { {
+                                showRenameDialog = pair.first
+                                newSpaceNameText = pair.first
+                            } } else null,
                             modifier = Modifier.weight(1f)
                         )
                         if (pair.second != null) {
@@ -1265,6 +1360,10 @@ fun Step2SpaceSelection(
                                 completedSpaces = completedSpaces,
                                 expectedVolume = spaceExpectedVolumes[pair.second!!],
                                 onClick = onSpaceClick,
+                                onRename = if (moveInfo == "사무실이사") { {
+                                    showRenameDialog = pair.second!!
+                                    newSpaceNameText = pair.second!!
+                                } } else null,
                                 modifier = Modifier.weight(1f)
                             )
                         } else {
@@ -1284,6 +1383,7 @@ fun SpaceCard(
     completedSpaces: Set<String>,
     expectedVolume: String?,
     onClick: (String) -> Unit,
+    onRename: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     val screenWidth = androidx.compose.ui.platform.LocalConfiguration.current.screenWidthDp.dp
@@ -1325,14 +1425,30 @@ fun SpaceCard(
                 Column(
                     modifier = Modifier.align(Alignment.CenterStart)
                 ) {
-                    Text(
-                        text = space,
-                        fontSize = 15.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Text(
+                            text = space,
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f, fill = false)
+                        )
+                        if (onRename != null) {
+                            Icon(
+                                imageVector = Icons.Default.Edit,
+                                contentDescription = "Rename Space",
+                                tint = Color.White.copy(alpha = 0.6f),
+                                modifier = Modifier
+                                    .size(16.dp)
+                                    .clickable { onRename() }
+                            )
+                        }
+                    }
 
                     if (!expectedVolume.isNullOrBlank()) {
                         Spacer(modifier = Modifier.height(1.dp)) // 행간 간격 2.dp -> 1.dp로 축소
@@ -1409,7 +1525,29 @@ fun SpaceCard(
                         "그외" -> {
                             Text(text = "📦", fontSize = 36.sp)
                         }
-                        else -> {}
+                        else -> {
+                            val lowerSpace = space.lowercase()
+                            when {
+                                lowerSpace.contains("대표") || lowerSpace.contains("사장") || lowerSpace.contains("임원") || lowerSpace.contains("이사") || lowerSpace.contains("회장") -> {
+                                    Text(text = "💼", fontSize = 36.sp)
+                                }
+                                lowerSpace.contains("회의") || lowerSpace.contains("세미나") || lowerSpace.contains("미팅") || lowerSpace.contains("접견") -> {
+                                    Text(text = "👥", fontSize = 36.sp)
+                                }
+                                lowerSpace.contains("사무") || lowerSpace.contains("개발") || lowerSpace.contains("디자인") || lowerSpace.contains("기획") || lowerSpace.contains("영업") || lowerSpace.contains("부서") || lowerSpace.contains("실") -> {
+                                    Text(text = "🖥️", fontSize = 36.sp)
+                                }
+                                lowerSpace.contains("창고") || lowerSpace.contains("서고") || lowerSpace.contains("기타") || lowerSpace.contains("박스") || lowerSpace.contains("제외") -> {
+                                    Text(text = "📦", fontSize = 36.sp)
+                                }
+                                lowerSpace.contains("탕비") || lowerSpace.contains("휴게") || lowerSpace.contains("카페") -> {
+                                    Text(text = "☕", fontSize = 36.sp)
+                                }
+                                else -> {
+                                    Text(text = "🏢", fontSize = 36.sp)
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -1426,9 +1564,24 @@ fun Step2ItemSelection(
     onUpdateExpectedVolume: (String) -> Unit,
     onComplete: () -> Unit,
     onUpdateCountTts: (String) -> Unit,
-    onFieldFocus: (() -> Unit) -> Unit = {}
+    onFieldFocus: (() -> Unit) -> Unit = {},
+    officeSpaces: List<String> = emptyList()
 ) {
-    val predefinedItems = spaceItemsMap[spaceName] ?: emptyList()
+    val predefinedItems = remember(spaceName, officeSpaces) {
+        if (spaceName in spaceItemsMap) {
+            spaceItemsMap[spaceName] ?: emptyList()
+        } else {
+            val officeIdx = officeSpaces.indexOf(spaceName)
+            val defaultKey = when (officeIdx) {
+                0 -> "대표실"
+                1 -> "사무실"
+                2 -> "회의실"
+                3 -> "기타"
+                else -> "그외"
+            }
+            spaceItemsMap[defaultKey] ?: emptyList()
+        }
+    }
     val chunkedItems = predefinedItems.chunked(3)
     var itemPendingOptions by remember { mutableStateOf<PredefinedItem?>(null) }
     var isSecondBubble by remember { mutableStateOf(false) }
@@ -2726,6 +2879,39 @@ private val spaceItemsMap = mapOf(
         PredefinedItem("직접입력", R.drawable.ic_add)
     ),
     "그외" to listOf(
+        PredefinedItem("직접입력", R.drawable.ic_add)
+    ),
+    "대표실" to listOf(
+        PredefinedItem("책상", R.drawable.ic_desk, listOf("임원용", "L형")),
+        PredefinedItem("의자", R.drawable.ic_chair, listOf("가죽", "회전식")),
+        PredefinedItem("책장", R.drawable.ic_bookshelf, listOf("3단", "5단")),
+        PredefinedItem("소파", R.drawable.ic_sofa, listOf("1인", "3인")),
+        PredefinedItem("테이블", R.drawable.ic_table, listOf("유리", "목재")),
+        PredefinedItem("직접입력", R.drawable.ic_add)
+    ),
+    "사무실" to listOf(
+        PredefinedItem("책상", R.drawable.ic_desk, listOf("사무용", "L형")),
+        PredefinedItem("의자", R.drawable.ic_chair, listOf("회전의자", "고정식")),
+        PredefinedItem("파티션", R.drawable.ic_hanger, listOf("H1200", "H1500")),
+        PredefinedItem("캐비닛", R.drawable.ic_cabinet, listOf("철제", "목재")),
+        PredefinedItem("서랍장", R.drawable.ic_drawers, listOf("3단", "5단")),
+        PredefinedItem("복사기", R.drawable.ic_refrigerator, listOf("대형", "소형")),
+        PredefinedItem("금고", R.drawable.ic_cabinet),
+        PredefinedItem("직접입력", R.drawable.ic_add)
+    ),
+    "회의실" to listOf(
+        PredefinedItem("회의탁자", R.drawable.ic_table, listOf("6인용", "10인용", "대형")),
+        PredefinedItem("회의의자", R.drawable.ic_chair, listOf("회전식", "고정식")),
+        PredefinedItem("화이트보드", R.drawable.ic_dressing_table),
+        PredefinedItem("프로젝터", R.drawable.ic_tv),
+        PredefinedItem("직접입력", R.drawable.ic_add)
+    ),
+    "기타" to listOf(
+        PredefinedItem("정수기", R.drawable.ic_water_purifier),
+        PredefinedItem("냉장고", R.drawable.ic_refrigerator),
+        PredefinedItem("냉온수기", R.drawable.ic_water_purifier),
+        PredefinedItem("신발장", R.drawable.ic_cabinet),
+        PredefinedItem("화분", R.drawable.ic_plant),
         PredefinedItem("직접입력", R.drawable.ic_add)
     )
 )

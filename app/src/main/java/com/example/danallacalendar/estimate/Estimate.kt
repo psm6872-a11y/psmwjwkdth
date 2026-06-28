@@ -29,6 +29,7 @@ data class Estimate(
     val balance: String = "",
     val optionCost: String = "",
     val roomItems: Map<String, Map<String, Long>> = emptyMap(),
+    val roomVolumes: Map<String, String> = emptyMap(),
     val createdAt: Long = System.currentTimeMillis(),
     val departureFloorType: String = "",
     val destinationFloorType: String = "",

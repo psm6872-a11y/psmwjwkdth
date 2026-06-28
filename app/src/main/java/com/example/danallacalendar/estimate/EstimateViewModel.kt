@@ -82,6 +82,21 @@ class EstimateViewModel @Inject constructor(
     private val _roomItems = MutableStateFlow<Map<String, Map<String, Int>>>(emptyMap())
     val roomItems = _roomItems.asStateFlow()
 
+    // Room volumes map: Map<SpaceName, String>
+    private val _roomVolumes = MutableStateFlow<Map<String, String>>(emptyMap())
+    val roomVolumes = _roomVolumes.asStateFlow()
+
+    fun updateRoomVolume(space: String, volume: String) {
+        val current = _roomVolumes.value.toMutableMap()
+        if (volume.isBlank()) {
+            current.remove(space)
+        } else {
+            current[space] = volume
+        }
+        _roomVolumes.value = current
+        debounceAutoSave()
+    }
+
     private val _saveState = MutableStateFlow<SaveState>(SaveState.Idle)
     val saveState = _saveState.asStateFlow()
 
@@ -261,6 +276,7 @@ class EstimateViewModel @Inject constructor(
                 innerMap.mapValues { (_, value) -> value.toInt() }
             }
             _roomItems.value = convertedItems
+            _roomVolumes.value = originalEstimate.roomVolumes
             android.util.Log.d("EstimateViewModel", "[COPY] All fields assigned synchronously successfully.")
 
             // 복제본 생성 시점에 Firestore에 바로 자동 저장하여 새로운 ID 획득
@@ -284,6 +300,25 @@ class EstimateViewModel @Inject constructor(
             current[space] = spaceMap
         }
         _roomItems.value = current
+        debounceAutoSave()
+    }
+
+    fun renameSpace(oldName: String, newName: String) {
+        if (oldName == newName || newName.isBlank()) return
+        val current = _roomItems.value.toMutableMap()
+        val spaceMap = current.remove(oldName)
+        if (spaceMap != null) {
+            current[newName] = spaceMap
+        }
+        _roomItems.value = current
+
+        val currentVols = _roomVolumes.value.toMutableMap()
+        val vol = currentVols.remove(oldName)
+        if (vol != null) {
+            currentVols[newName] = vol
+        }
+        _roomVolumes.value = currentVols
+
         debounceAutoSave()
     }
 
@@ -395,6 +430,7 @@ class EstimateViewModel @Inject constructor(
             balance = balance.value,
             optionCost = optionCost.value,
             roomItems = convertRoomItemsToLong(roomItems.value),
+            roomVolumes = roomVolumes.value,
             outDate = outDate.value,
             moveCostOut = moveCostOut.value,
             balanceOut = balanceOut.value,
@@ -451,6 +487,7 @@ class EstimateViewModel @Inject constructor(
             balance = balance.value,
             optionCost = optionCost.value,
             roomItems = convertRoomItemsToLong(roomItems.value),
+            roomVolumes = roomVolumes.value,
             outDate = outDate.value,
             moveCostOut = moveCostOut.value,
             balanceOut = balanceOut.value,
@@ -508,6 +545,7 @@ class EstimateViewModel @Inject constructor(
             balance = balance.value,
             optionCost = optionCost.value,
             roomItems = convertRoomItemsToLong(roomItems.value),
+            roomVolumes = roomVolumes.value,
             outDate = outDate.value,
             moveCostOut = moveCostOut.value,
             balanceOut = balanceOut.value,
