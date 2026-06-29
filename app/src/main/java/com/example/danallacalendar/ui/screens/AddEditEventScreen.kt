@@ -352,35 +352,60 @@ fun AddEditEventScreen(
                                     .clip(RoundedCornerShape(6.dp))
                                     .background(Color(0xFFF3E5F5))
                                     .border(1.dp, Color(0xFFAB47BC), RoundedCornerShape(6.dp))
-                                    .clickable {
-                                        // 1. 일정 제목 첫줄이 07-22 같은 날짜 형식(MM-dd)이면 스텝3 이사날짜에 자동입력
-                                        val firstLine = title.lineSequence().firstOrNull()?.trim() ?: ""
-                                        val isDatePattern = firstLine.matches(Regex("""^\d{2}-\d{2}$"""))
-                                        val resolvedMoveDate = if (isDatePattern) {
-                                            val currentYear = java.util.Calendar.getInstance().get(java.util.Calendar.YEAR)
-                                            "$currentYear-$firstLine"
-                                        } else {
-                                            ""
-                                        }
+                                    .pointerInput(Unit) {
+                                        detectTapGestures(
+                                            onTap = {
+                                                // 1. 일정 제목 첫줄이 07-22 같은 날짜 형식(MM-dd)이면 스텝3 이사날짜에 자동입력
+                                                val firstLine = title.lineSequence().firstOrNull()?.trim() ?: ""
+                                                val isDatePattern = firstLine.matches(Regex("""^\d{2}-\d{2}$"""))
+                                                val resolvedMoveDate = if (isDatePattern) {
+                                                    val currentYear = java.util.Calendar.getInstance().get(java.util.Calendar.YEAR)
+                                                    "$currentYear-$firstLine"
+                                                } else {
+                                                    ""
+                                                }
 
-                                        // 2. 일정의 출발지 주소 + 동/호수 구분자(|)로 결합하여 자동입력
-                                        val resolvedDeparture = if (location1b.isNotBlank()) {
-                                            "$location|$location1b"
-                                        } else {
-                                            location
-                                        }
+                                                // 2. 일정의 출발지 주소 + 동/호수 구분자(|)로 결합하여 자동입력
+                                                val resolvedDeparture = if (location1b.isNotBlank()) {
+                                                    "$location|$location1b"
+                                                } else {
+                                                    location
+                                                }
 
-                                        // 3. 일정의 도착지 주소 + 동/호수 구분자(|)로 결합하여 자동입력
-                                        val resolvedDestination = if (location2b.isNotBlank()) {
-                                            "$location2|$location2b"
-                                        } else {
-                                            location2
-                                        }
+                                                // 3. 일정의 도착지 주소 + 동/호수 구분자(|)로 결합하여 자동입력
+                                                val resolvedDestination = if (location2b.isNotBlank()) {
+                                                    "$location2|$location2b"
+                                                } else {
+                                                    location2
+                                                }
 
-                                        // 4. 일정의 전화번호를 스텝3 연락처에 자동입력
-                                        val resolvedPhone = notesList.firstOrNull { it.isNotBlank() } ?: ""
+                                                // 4. 일정의 전화번호를 스텝3 연락처에 자동입력
+                                                val resolvedPhone = notesList.firstOrNull { it.isNotBlank() } ?: ""
 
-                                         onNavigateToEstimate(resolvedMoveDate, resolvedDeparture, resolvedDestination, resolvedPhone, syncId ?: eventId?.toString(), null)
+                                                onNavigateToEstimate(resolvedMoveDate, resolvedDeparture, resolvedDestination, resolvedPhone, syncId ?: eventId?.toString(), null)
+                                            },
+                                            onLongPress = {
+                                                val phone = notesList.firstOrNull { it.isNotBlank() } ?: ""
+                                                if (phone.isBlank()) {
+                                                    Toast.makeText(context, "전화번호(메모 첫 줄)가 비어있어 매칭할 수 없습니다.", Toast.LENGTH_SHORT).show()
+                                                } else {
+                                                    coroutineScope.launch {
+                                                        val matched = viewModel.findEstimateByPhoneNumber(phone)
+                                                        if (matched != null) {
+                                                            linkedEstimateId = matched.id
+                                                            eventId?.let { id ->
+                                                                viewModel.getEventById(id)?.let { currentEvent ->
+                                                                    viewModel.updateEvent(currentEvent.copy(linkedEstimateId = matched.id))
+                                                                }
+                                                            }
+                                                            Toast.makeText(context, "전화번호가 같은 견적서(${matched.customerName})를 찾아서 연결했습니다.", Toast.LENGTH_SHORT).show()
+                                                        } else {
+                                                            Toast.makeText(context, "매칭되는 견적서를 찾을 수 없습니다.", Toast.LENGTH_SHORT).show()
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        )
                                     }
                                     .padding(horizontal = 8.dp),
                                 contentAlignment = Alignment.Center

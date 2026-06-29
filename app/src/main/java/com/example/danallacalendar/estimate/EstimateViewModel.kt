@@ -235,8 +235,8 @@ class EstimateViewModel @Inject constructor(
             balance.value = ""
             optionCost.value = ""
 
-            // UI 필드 복사 (ID는 신규 생성을 위해 의도적으로 빈 값 "" 세팅)
-            estimateId = "" 
+            // UI 필드 복사 (ID는 기존 수정을 위해 originalEstimate.id 세팅)
+            estimateId = originalEstimate.id 
             copiedScheduleId = originalEstimate.scheduleId
             customerName.value = originalEstimate.customerName
             phoneNumber.value = originalEstimate.phoneNumber
@@ -601,10 +601,13 @@ class EstimateViewModel @Inject constructor(
                         val gson = com.google.gson.Gson()
                         val estimateJson = gson.toJson(finalEstimate)
 
+                        val existingPdf = estimatePdfDao.getPdfByEstimateId(finalEstimate.id)
                         val estimatePdf = EstimatePdf(
+                            id = existingPdf?.id ?: 0,
                             date = monthDay,
                             fileName = fileName,
                             filePath = jpgPath,
+                            createdAt = existingPdf?.createdAt ?: System.currentTimeMillis(),
                             estimateId = finalEstimate.id,
                             customerName = finalEstimate.customerName,
                             phoneNumber = finalEstimate.phoneNumber,

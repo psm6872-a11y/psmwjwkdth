@@ -13,6 +13,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.platform.LocalDensity
@@ -118,6 +119,7 @@ fun EstimateListScreen(
     }
 
     var showInfoDialog by remember { mutableStateOf<String?>(null) }
+    var selectedFilter by remember { mutableStateOf("전체") }
     val context = LocalContext.current
 
     val teamCountFlow = remember(context) {
@@ -518,53 +520,111 @@ fun EstimateListScreen(
                         .fillMaxSize()
                         .widthIn(max = 450.dp)
                 ) {
-                    if (estimateList.isEmpty()) {
-                        Box(
-                            modifier = Modifier.fillMaxSize(),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = "저장된 공유 견적서가 없습니다.",
-                                color = Color.White.copy(alpha = 0.5f),
-                                fontSize = 15.sp,
-                                fontWeight = FontWeight.Medium
-                            )
+                    val filteredList = remember(estimateList, selectedFilter, linkedEvents) {
+                        when (selectedFilter) {
+                            "계약완료" -> {
+                                estimateList.filter { est ->
+                                    val estimateEvents = linkedEvents.filter { it.linkedEstimateId == est.id }
+                                    estimateEvents.isNotEmpty() && estimateEvents.any { it.isAllDay }
+                                }
+                            }
+                            "방문완료" -> {
+                                estimateList.filter { est ->
+                                    val estimateEvents = linkedEvents.filter { it.linkedEstimateId == est.id }
+                                    estimateEvents.isNotEmpty() && estimateEvents.none { it.isAllDay }
+                                }
+                            }
+                            else -> estimateList
                         }
-                    } else {
-                        LazyColumn(
+                    }
+
+                    Column(modifier = Modifier.fillMaxSize()) {
+                        // 3칸의 필터 헤더
+                        Row(
                             modifier = Modifier
-                                .fillMaxSize()
+                                .fillMaxWidth()
                                 .padding(horizontal = 16.dp, vertical = 8.dp),
-                            verticalArrangement = Arrangement.spacedBy(10.dp)
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            items(estimateList, key = { it.id }) { estimate ->
-                                val estimateEvents = remember(estimate.id, linkedEvents) {
-                                    linkedEvents.filter { it.linkedEstimateId == estimate.id }
+                            listOf("방문완료", "계약완료", "전체").forEach { filter ->
+                                val isSelected = selectedFilter == filter
+                                val backgroundColor = if (isSelected) Color(0xFFE040FB) else Color(0xFF1E1045)
+                                val contentColor = if (isSelected) Color.White else Color.White.copy(alpha = 0.7f)
+                                val borderStroke = if (isSelected) BorderStroke(1.dp, Color(0xFFE040FB)) else BorderStroke(1.dp, Color(0xFF311B92).copy(alpha = 0.5f))
+
+                                Box(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .height(36.dp)
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .background(backgroundColor)
+                                        .border(borderStroke, RoundedCornerShape(8.dp))
+                                        .clickable { selectedFilter = filter },
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = filter,
+                                        color = contentColor,
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
                                 }
-                                val badgeStatus = remember(estimateEvents) {
-                                    when {
-                                        estimateEvents.isEmpty() -> null
-                                        estimateEvents.any { it.isAllDay } -> "계약완료"
-                                        else -> "방문완료"
-                                    }
-                                }
-                                EstimateItemCard(
-                                    estimate = estimate,
-                                    badgeStatus = badgeStatus,
-                                    onItemClick = { selectedEstimate = estimate },
-                                    onSyncClick = { viewModel.syncEstimate(estimate) },
-                                    onDeleteClick = {
-                                        deleteEstimateTarget = estimate
-                                        showDeleteConfirmDialog = true
+                            }
+                        }
+
+                        if (filteredList.isEmpty()) {
+                            Box(
+                                modifier = Modifier.fillMaxSize().weight(1f),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = when (selectedFilter) {
+                                        "계약완료" -> "계약완료된 견적서가 없습니다."
+                                        "방문완료" -> "방문완료된 견적서가 없습니다."
+                                        else -> "저장된 공유 견적서가 없습니다."
                                     },
-                                    onConfirmContractClick = {
-                                        confirmContractEstimate = estimate
-                                        selectedTeamId = null
-                                        isAmSelected = false
-                                        isPmSelected = false
-                                        showConfirmConfirmDialog = true
-                                    }
+                                    color = Color.White.copy(alpha = 0.5f),
+                                    fontSize = 15.sp,
+                                    fontWeight = FontWeight.Medium
                                 )
+                            }
+                        } else {
+                            LazyColumn(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .weight(1f)
+                                    .padding(horizontal = 16.dp, vertical = 4.dp),
+                                verticalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                items(filteredList, key = { it.id }) { estimate ->
+                                    val estimateEvents = remember(estimate.id, linkedEvents) {
+                                        linkedEvents.filter { it.linkedEstimateId == estimate.id }
+                                    }
+                                    val badgeStatus = remember(estimateEvents) {
+                                        when {
+                                            estimateEvents.isEmpty() -> null
+                                            estimateEvents.any { it.isAllDay } -> "계약완료"
+                                            else -> "방문완료"
+                                        }
+                                    }
+                                    EstimateItemCard(
+                                        estimate = estimate,
+                                        badgeStatus = badgeStatus,
+                                        onItemClick = { selectedEstimate = estimate },
+                                        onSyncClick = { viewModel.syncEstimate(estimate) },
+                                        onDeleteClick = {
+                                            deleteEstimateTarget = estimate
+                                            showDeleteConfirmDialog = true
+                                        },
+                                        onConfirmContractClick = {
+                                            confirmContractEstimate = estimate
+                                            selectedTeamId = null
+                                            isAmSelected = false
+                                            isPmSelected = false
+                                            showConfirmConfirmDialog = true
+                                        }
+                                    )
+                                }
                             }
                         }
                     }

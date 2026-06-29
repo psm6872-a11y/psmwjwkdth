@@ -223,12 +223,48 @@ class CalendarRepository @Inject constructor(
         if (event.isSynced) {
             uploadEventToFirestore(event.copy(id = id.toInt()))
         }
+        event.linkedEstimateId?.let { estimateId ->
+            if (estimateId.isNotEmpty()) {
+                linkEstimateToSchedule(estimateId, id.toString())
+            }
+        }
     }
     
     suspend fun updateEvent(event: Event) {
         eventDao.updateEvent(event)
         if (event.isSynced) {
             uploadEventToFirestore(event)
+        }
+        event.linkedEstimateId?.let { estimateId ->
+            if (estimateId.isNotEmpty()) {
+                linkEstimateToSchedule(estimateId, event.id.toString())
+            }
+        }
+    }
+
+    suspend fun linkEstimateToSchedule(estimateId: String, scheduleId: String) {
+        try {
+            // 1. Local update
+            val pdf = estimatePdfDao.getPdfByEstimateId(estimateId)
+            if (pdf != null) {
+                val gson = Gson()
+                val est = gson.fromJson(pdf.estimateJson, Estimate::class.java)
+                val updatedEst = est.copy(scheduleId = scheduleId)
+                val updatedJson = gson.toJson(updatedEst)
+                val updatedPdf = pdf.copy(estimateJson = updatedJson)
+                estimatePdfDao.insertPdf(updatedPdf)
+            }
+            
+            // 2. Firestore update
+            val roomCode = userPreferences.getLastRoomCode()
+            val docRef = if (roomCode.isNotEmpty()) {
+                firestore.collection("rooms").document(roomCode).collection("estimates").document(estimateId)
+            } else {
+                firestore.collection("estimates").document(estimateId)
+            }
+            docRef.update("scheduleId", scheduleId).await()
+        } catch (e: Exception) {
+            android.util.Log.e("CalendarRepository", "Failed to link estimate to schedule", e)
         }
     }
     

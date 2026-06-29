@@ -653,6 +653,48 @@ class CalendarViewModel @Inject constructor(
 
         android.util.Log.d("CalendarViewModel", "[getEstimateByScheduleId] 최종 선택 → estimateId=${result?.id}, createdAt=${result?.createdAt}")
         return result
+     }
+
+    suspend fun findEstimateByPhoneNumber(phone: String): com.example.danallacalendar.estimate.Estimate? {
+        val cleanPhone = phone.replace(Regex("[^0-9]"), "")
+        if (cleanPhone.isEmpty()) return null
+
+        // 1. Local Room DB search
+        try {
+            val localPdfs = estimatePdfDao.getAllPdfsList()
+            for (pdf in localPdfs) {
+                val est = com.google.gson.Gson().fromJson(pdf.estimateJson, com.example.danallacalendar.estimate.Estimate::class.java)
+                val estCleanPhone = est.phoneNumber.replace(Regex("[^0-9]"), "")
+                if (estCleanPhone.isNotEmpty() && estCleanPhone == cleanPhone) {
+                    return est
+                }
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("CalendarViewModel", "Error searching local estimates by phone", e)
+        }
+
+        // 2. Remote Firestore search
+        val roomCode = userPreferences.getLastRoomCode()
+        if (roomCode.isNotEmpty()) {
+            try {
+                val snapshot = firestore.collection("rooms")
+                    .document(roomCode)
+                    .collection("estimates")
+                    .get().await()
+                for (doc in snapshot.documents) {
+                    val est = doc.toObject(com.example.danallacalendar.estimate.Estimate::class.java)
+                    if (est != null) {
+                        val estCleanPhone = est.phoneNumber.replace(Regex("[^0-9]"), "")
+                        if (estCleanPhone.isNotEmpty() && estCleanPhone == cleanPhone) {
+                            return est
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("CalendarViewModel", "Error searching remote estimates by phone", e)
+            }
+        }
+        return null
     }
 
     suspend fun checkContractConflict(
