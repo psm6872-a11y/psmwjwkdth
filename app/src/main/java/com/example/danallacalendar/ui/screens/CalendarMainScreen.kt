@@ -228,6 +228,7 @@ fun CalendarMainScreen(
     val eventFilter by viewModel.eventFilter.collectAsStateWithLifecycle()
 
     var isMonthViewExpanded by remember { mutableStateOf(false) }
+    var showDayEventsDialogDate by remember { mutableStateOf<Long?>(null) }
 
     LaunchedEffect(viewMode) {
         if (viewMode == CalendarViewMode.WEEK) {
@@ -413,7 +414,12 @@ fun CalendarMainScreen(
                         eventFilter = eventFilter,
                         visitSlotCount = visitSlotCount,
                         visitColors = visitColors,
-                        onDaySelected = { viewModel.selectDate(it) },
+                        onDaySelected = { dateMillis ->
+                            viewModel.selectDate(dateMillis)
+                            if (isMonthViewExpanded) {
+                                showDayEventsDialogDate = dateMillis
+                            }
+                        },
                         onMonthChanged = { viewModel.selectDate(it.timeInMillis) },
                         onWeekSelected = { viewModel.selectDate(it) },
                         onCollapseToggle = { viewModel.toggleViewMode() },
@@ -615,6 +621,23 @@ fun CalendarMainScreen(
                         Text("취소")
                     }
                 }
+            )
+        }
+
+        if (showDayEventsDialogDate != null) {
+            DayEventsDialog(
+                dateMillis = showDayEventsDialogDate!!,
+                events = monthlyEvents,
+                categories = categories,
+                onDismissRequest = { showDayEventsDialogDate = null },
+                onEventClick = { event ->
+                    showDayEventsDialogDate = null
+                    onNavigateToAddEditEvent(event.id)
+                },
+                onDeleteEvent = { viewModel.deleteEvent(it) },
+                onToggleComplete = { viewModel.updateEvent(it.copy(isCompleted = !it.isCompleted)) },
+                onUpdateEvent = { viewModel.updateEvent(it) },
+                viewModel = viewModel
             )
         }
     }
@@ -2914,5 +2937,113 @@ fun isSonEopNeunDay(timeInMillis: Long): Boolean {
 fun extractPhoneNumber(text: String): String? {
     val regex = Regex("""01[0-9][- ]?[0-9]{3,4}[- ]?[0-9]{4}""")
     return regex.find(text)?.value?.replace(Regex("""[- ]"""), "")
+}
+
+@Composable
+fun DayEventsDialog(
+    dateMillis: Long,
+    events: List<Event>,
+    categories: List<CalendarCategory>,
+    onDismissRequest: () -> Unit,
+    onEventClick: (Event) -> Unit,
+    onDeleteEvent: (Event) -> Unit,
+    onToggleComplete: (Event) -> Unit,
+    onUpdateEvent: (Event) -> Unit,
+    viewModel: CalendarViewModel
+) {
+    val configuration = androidx.compose.ui.platform.LocalConfiguration.current
+    val screenWidth = configuration.screenWidthDp.dp
+    val screenHeight = configuration.screenHeightDp.dp
+
+    val dateFormat = SimpleDateFormat("M월 d일 EEEE", Locale.KOREAN)
+    val lunarStr = getKoreanLunarDateString(dateMillis)
+    val titleStr = "${dateFormat.format(Date(dateMillis))} ($lunarStr)"
+
+    val dayEvents = remember(events, dateMillis) {
+        val pageStart = dateMillis
+        val pageEnd = dateMillis + 24 * 60 * 60 * 1000L - 1
+        events.filter { event ->
+            event.startMillis <= pageEnd && event.endMillis >= pageStart
+        }
+    }
+
+    androidx.compose.ui.window.Dialog(onDismissRequest = onDismissRequest) {
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(max = screenHeight * 0.75f)
+                .padding(16.dp),
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surface
+            ),
+            elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp)
+            ) {
+                // Header
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = titleStr,
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    IconButton(onClick = onDismissRequest) {
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = "닫기",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                // List
+                if (dayEvents.isEmpty()) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(120.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "일정이 없습니다.",
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                            fontSize = 15.sp
+                        )
+                    }
+                } else {
+                    LazyColumn(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(1f),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        items(dayEvents, key = { it.id }) { event ->
+                            val category = categories.find { it.id == event.calendarId }
+                            EventItemCard(
+                                event = event,
+                                category = category,
+                                onClick = { onEventClick(event) },
+                                onDelete = { onDeleteEvent(event) },
+                                onToggleComplete = { onToggleComplete(event) },
+                                onUpdate = onUpdateEvent,
+                                viewModel = viewModel
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
 }
 
