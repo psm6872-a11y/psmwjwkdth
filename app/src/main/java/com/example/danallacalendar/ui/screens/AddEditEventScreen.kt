@@ -1821,6 +1821,11 @@ fun AddEditEventScreen(
                                             }
                                             teamId = targetTeamId
                                             slotPosition = finalSlotPos
+                                            if (targetTeamId == 1) {
+                                                selectedColorHex = "#FF4CAF50"
+                                            } else if (targetTeamId == 2) {
+                                                selectedColorHex = "#FFFFEB3B"
+                                            }
                                             showChangeTeamSlotDialog = false
                                         }
                                     }
@@ -1896,6 +1901,11 @@ fun AddEditEventScreen(
                                 // 나의 배정 정보를 업데이트 (로컬 상태)
                                 teamId = targetTeam
                                 slotPosition = targetSlot
+                                if (targetTeam == 1) {
+                                    selectedColorHex = "#FF4CAF50"
+                                } else if (targetTeam == 2) {
+                                    selectedColorHex = "#FFFFEB3B"
+                                }
                                 
                                 Toast.makeText(context, "일정이 맞교환 되었습니다.", Toast.LENGTH_SHORT).show()
                             }
@@ -1933,6 +1943,11 @@ fun AddEditEventScreen(
                                 
                                 teamId = targetTeam
                                 slotPosition = targetSlot
+                                if (targetTeam == 1) {
+                                    selectedColorHex = "#FF4CAF50"
+                                } else if (targetTeam == 2) {
+                                    selectedColorHex = "#FFFFEB3B"
+                                }
                                 Toast.makeText(context, "동시 배정되었습니다.", Toast.LENGTH_SHORT).show()
                             }
                             showSwapConfirmDialog = false

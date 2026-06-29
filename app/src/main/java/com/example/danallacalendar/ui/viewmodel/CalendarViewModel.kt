@@ -746,10 +746,16 @@ class CalendarViewModel @Inject constructor(
     ) {
         viewModelScope.launch {
             try {
+                val updatedColorHex = when (newTeamId) {
+                    1 -> "#FF4CAF50"
+                    2 -> "#FFFFEB3B"
+                    else -> event.colorHex
+                }
                 val updatedEvent = event.copy(
                     teamId = newTeamId,
                     slotPosition = newSlotPos,
                     title = newTitle,
+                    colorHex = updatedColorHex,
                     updatedAt = System.currentTimeMillis()
                 )
                 repository.updateEvent(updatedEvent)
