@@ -227,6 +227,14 @@ fun CalendarMainScreen(
     val viewMode by viewModel.viewMode.collectAsStateWithLifecycle()
     val eventFilter by viewModel.eventFilter.collectAsStateWithLifecycle()
 
+    var isMonthViewExpanded by remember { mutableStateOf(false) }
+
+    LaunchedEffect(viewMode) {
+        if (viewMode == CalendarViewMode.WEEK) {
+            isMonthViewExpanded = false
+        }
+    }
+
     // 마감 날짜 Set - DB에서 영구 저장
     val deadlineDates by viewModel.deadlineDates.collectAsStateWithLifecycle()
 
@@ -390,26 +398,33 @@ fun CalendarMainScreen(
                     .padding(paddingValues)
             ) {
                 // Calendar Grid Component
-                CalendarGridSection(
-                    selectedDate = selectedDate,
-                    currentMonth = currentMonth,
-                    viewMode = viewMode,
-                    monthlyEvents = monthlyEvents,
-                    categories = categories,
-                    deadlineDates = deadlineDates,
-                    slotCount = slotCount,
-                    teamPrefsList = teamPrefsList,
-                    eventFilter = eventFilter,
-                    visitSlotCount = visitSlotCount,
-                    visitColors = visitColors,
-                    onDaySelected = { viewModel.selectDate(it) },
-                    onMonthChanged = { viewModel.selectDate(it.timeInMillis) },
-                    onWeekSelected = { viewModel.selectDate(it) },
-                    onCollapseToggle = { viewModel.toggleViewMode() }
-                )
+                Box(
+                    modifier = if (isMonthViewExpanded) Modifier.fillMaxWidth().weight(1f) else Modifier.fillMaxWidth().wrapContentHeight()
+                ) {
+                    CalendarGridSection(
+                        selectedDate = selectedDate,
+                        currentMonth = currentMonth,
+                        viewMode = viewMode,
+                        monthlyEvents = monthlyEvents,
+                        categories = categories,
+                        deadlineDates = deadlineDates,
+                        slotCount = slotCount,
+                        teamPrefsList = teamPrefsList,
+                        eventFilter = eventFilter,
+                        visitSlotCount = visitSlotCount,
+                        visitColors = visitColors,
+                        onDaySelected = { viewModel.selectDate(it) },
+                        onMonthChanged = { viewModel.selectDate(it.timeInMillis) },
+                        onWeekSelected = { viewModel.selectDate(it) },
+                        onCollapseToggle = { viewModel.toggleViewMode() },
+                        isMonthViewExpanded = isMonthViewExpanded,
+                        onMonthViewExpandedChanged = { isMonthViewExpanded = it }
+                    )
+                }
 
                 // Bottom Panel: Selected Date Header and Event List
-                EventListSection(
+                if (!isMonthViewExpanded) {
+                    EventListSection(
                     selectedDate = selectedDate,
                     events = monthlyEvents,
                     categories = categories,
@@ -565,6 +580,7 @@ fun CalendarMainScreen(
                     viewModel = viewModel
                 )
             }
+        }
         }
     }
 
@@ -788,7 +804,9 @@ fun CalendarGridSection(
     onDaySelected: (Long) -> Unit,
     onMonthChanged: (Calendar) -> Unit,
     onWeekSelected: (Long) -> Unit,
-    onCollapseToggle: () -> Unit
+    onCollapseToggle: () -> Unit,
+    isMonthViewExpanded: Boolean,
+    onMonthViewExpandedChanged: (Boolean) -> Unit
 ) {
     val configuration = androidx.compose.ui.platform.LocalConfiguration.current
     val screenWidth = configuration.screenWidthDp.dp
@@ -914,22 +932,27 @@ fun CalendarGridSection(
     Column(
         modifier = Modifier
             .fillMaxWidth()
+            .let { if (isMonthViewExpanded) it.fillMaxHeight() else it }
             .background(MaterialTheme.colorScheme.surface)
             .padding(
                 start = minOf(screenWidth, 400.dp) * 0.025f,
                 end = minOf(screenWidth, 400.dp) * 0.025f,
                 bottom = screenHeight * 0.01f
             )
-            .pointerInput(viewMode) {
+            .pointerInput(viewMode, isMonthViewExpanded) {
                 detectVerticalDragGestures(
                     onDragStart = { totalDragY = 0f },
                     onDragEnd = {
                         if (totalDragY < -50f) {
-                            if (viewMode == CalendarViewMode.MONTH) {
+                            if (isMonthViewExpanded) {
+                                onMonthViewExpandedChanged(false)
+                            } else if (viewMode == CalendarViewMode.MONTH) {
                                 onCollapseToggle()
                             }
                         } else if (totalDragY > 50f) {
-                            if (viewMode == CalendarViewMode.WEEK) {
+                            if (viewMode == CalendarViewMode.MONTH && !isMonthViewExpanded) {
+                                onMonthViewExpandedChanged(true)
+                            } else if (viewMode == CalendarViewMode.WEEK) {
                                 onCollapseToggle()
                             }
                         }
@@ -965,6 +988,7 @@ fun CalendarGridSection(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
+                .let { if (isMonthViewExpanded) it.fillMaxHeight() else it }
                 .animateContentSize(
                     animationSpec = spring(
                         dampingRatio = Spring.DampingRatioLowBouncy,
@@ -983,17 +1007,27 @@ fun CalendarGridSection(
                 if (targetMode == CalendarViewMode.MONTH) {
                     HorizontalPager(
                         state = monthPagerState,
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .let { if (isMonthViewExpanded) it.fillMaxHeight() else it }
                     ) { page ->
                         val pageMonthCal = getCalendarFromMonthPage(page)
                         val pageDays = getGridDays(pageMonthCal)
-                        Column {
+                        Column(
+                            modifier = if (isMonthViewExpanded) Modifier.fillMaxHeight() else Modifier.wrapContentHeight()
+                        ) {
                             val rowsCount = pageDays.size / 7
                             for (r in 0 until rowsCount) {
                                 Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .height(screenHeight * 0.068f)
+                                    modifier = if (isMonthViewExpanded) {
+                                        Modifier
+                                            .fillMaxWidth()
+                                            .weight(1f)
+                                    } else {
+                                        Modifier
+                                            .fillMaxWidth()
+                                            .height(screenHeight * 0.068f)
+                                    }
                                 ) {
                                     for (c in 0 until 7) {
                                         val dayIndex = r * 7 + c
