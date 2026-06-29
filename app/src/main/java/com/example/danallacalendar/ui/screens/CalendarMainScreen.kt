@@ -531,7 +531,11 @@ fun CalendarMainScreen(
                                         val locationField = "$departureAddr|||$departureDetail|||$destinationAddr|||$destinationDetail"
                                         
                                         val notesField = estimate.phoneNumber
-                                        val colorHexField = String.format("#%08X", teamColorLong)
+                                        val colorHexField = when (teamId) {
+                                            1 -> "#FF4CAF50"
+                                            2 -> "#FFFFEB3B"
+                                            else -> String.format("#%08X", teamColorLong)
+                                        }
                                         
                                         val newEvent = com.example.danallacalendar.data.Event(
                                             title = titleText,
@@ -2309,10 +2313,16 @@ fun EventItemCard(
                                             else -> "both"
                                         }
                                         val teamId = selectedTeamId ?: 1
+                                        val updatedColorHex = when (teamId) {
+                                            1 -> "#FF4CAF50"
+                                            2 -> "#FFFFEB3B"
+                                            else -> event.colorHex
+                                        }
                                         onUpdate(
                                             event.copy(
                                                 teamId = teamId,
-                                                slotPosition = finalSlotPosition
+                                                slotPosition = finalSlotPosition,
+                                                colorHex = updatedColorHex
                                             )
                                         )
                                         onConfirmContract(event, teamId, finalSlotPosition)
