@@ -229,6 +229,8 @@ fun CalendarMainScreen(
     val currentMonth by viewModel.currentMonth.collectAsStateWithLifecycle()
     val viewMode by viewModel.viewMode.collectAsStateWithLifecycle()
     val eventFilter by viewModel.eventFilter.collectAsStateWithLifecycle()
+    val pendingChangeNotification by viewModel.pendingChangeNotification.collectAsStateWithLifecycle()
+    val showChangeNotificationDialog by viewModel.showChangeNotificationDialog.collectAsStateWithLifecycle()
 
     var isMonthViewExpanded by remember { mutableStateOf(false) }
     var showDayEventsDialogDate by remember { mutableStateOf<Long?>(null) }
@@ -862,6 +864,62 @@ fun CalendarMainScreen(
                 estimate = selectedEstimateForDetail!!,
                 onDismiss = { showEstimateDetailDialog = false },
                 onEditClick = null
+            )
+        }
+
+        if (showChangeNotificationDialog && pendingChangeNotification != null) {
+            val pair = pendingChangeNotification!!
+            AlertDialog(
+                onDismissRequest = {
+                    viewModel.setShowChangeNotificationDialog(false)
+                    viewModel.clearPendingChangeNotification()
+                    viewModel.clearHighlightedEventSyncId()
+                },
+                title = {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Info,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(24.dp)
+                        )
+                        Text(
+                            text = pair.first,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 18.sp
+                        )
+                    }
+                },
+                text = {
+                    Text(
+                        text = pair.second,
+                        fontSize = 15.sp,
+                        lineHeight = 22.sp,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            viewModel.setShowChangeNotificationDialog(false)
+                            viewModel.clearPendingChangeNotification()
+                            viewModel.clearHighlightedEventSyncId()
+                        },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.primary
+                        )
+                    ) {
+                        Text("확인", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onPrimary)
+                    }
+                },
+                shape = RoundedCornerShape(16.dp),
+                properties = androidx.compose.ui.window.DialogProperties(
+                    dismissOnBackPress = true,
+                    dismissOnClickOutside = true
+                )
             )
         }
     }
@@ -1854,6 +1912,11 @@ fun EventItemCard(
     val screenWidth = configuration.screenWidthDp.dp
     val screenHeight = configuration.screenHeightDp.dp
 
+    val highlightedSyncId by viewModel.highlightedEventSyncId.collectAsStateWithLifecycle()
+    val isHighlighted = remember(highlightedSyncId, event.syncId) {
+        !highlightedSyncId.isNullOrBlank() && event.syncId == highlightedSyncId
+    }
+
     val teamCountFlow = remember(context) {
         context.settingsDataStore.data.map { preferences ->
             preferences[TEAM_COUNT_KEY] ?: 1
@@ -1933,8 +1996,12 @@ fun EventItemCard(
         var cardHeight by remember { mutableStateOf(0.dp) }
         val density = LocalDensity.current
 
-        Card(
-            modifier = Modifier
+        Box(
+            modifier = Modifier.fillMaxWidth(),
+            contentAlignment = Alignment.CenterStart
+        ) {
+            Card(
+                modifier = Modifier
                 .fillMaxWidth()
                 .onGloballyPositioned { coordinates ->
                     cardHeight = with(density) { coordinates.size.height.toDp() }
@@ -2255,7 +2322,31 @@ fun EventItemCard(
                 }
             }
         }
+
+        if (isHighlighted) {
+            val badgeStartOffset = (minOf(screenWidth, 400.dp) * 0.19f) - 17.dp
+            Box(
+                modifier = Modifier
+                    .padding(start = badgeStartOffset)
+                    .size(34.dp)
+                    .shadow(4.dp, CircleShape)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.primary)
+                    .clickable {
+                        viewModel.setShowChangeNotificationDialog(true)
+                    },
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Check,
+                    contentDescription = "수정됨",
+                    tint = MaterialTheme.colorScheme.onPrimary,
+                    modifier = Modifier.size(22.dp)
+                )
+            }
+        }
     }
+}
 
     if (showConfirmConfirmDialog) {
         Dialog(onDismissRequest = { showConfirmConfirmDialog = false }) {

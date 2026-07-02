@@ -71,6 +71,35 @@ class CalendarViewModel @Inject constructor(
     private val _userName = MutableStateFlow(userPreferences.getNickname())
     val userName = _userName.asStateFlow()
 
+    private val _pendingChangeNotification = MutableStateFlow<Pair<String, String>?>(null)
+    val pendingChangeNotification = _pendingChangeNotification.asStateFlow()
+
+    private val _highlightedEventSyncId = MutableStateFlow<String?>(null)
+    val highlightedEventSyncId = _highlightedEventSyncId.asStateFlow()
+
+    private val _showChangeNotificationDialog = MutableStateFlow(false)
+    val showChangeNotificationDialog = _showChangeNotificationDialog.asStateFlow()
+
+    fun setPendingChangeNotification(title: String, body: String) {
+        _pendingChangeNotification.value = Pair(title, body)
+    }
+
+    fun clearPendingChangeNotification() {
+        _pendingChangeNotification.value = null
+    }
+
+    fun setHighlightedEventSyncId(syncId: String?) {
+        _highlightedEventSyncId.value = syncId
+    }
+
+    fun clearHighlightedEventSyncId() {
+        _highlightedEventSyncId.value = null
+    }
+
+    fun setShowChangeNotificationDialog(show: Boolean) {
+        _showChangeNotificationDialog.value = show
+    }
+
     private var syncJob: kotlinx.coroutines.Job? = null
 
     private fun startSync(code: String) {

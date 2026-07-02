@@ -17,7 +17,7 @@ object NotificationHelper {
     private const val CHANNEL_DESC = "Notifications for shared calendar updates"
     private const val NOTIFICATION_ID = 1001
 
-    fun showNotification(context: Context, title: String, body: String, dateMillis: Long) {
+    fun showNotification(context: Context, title: String, body: String, dateMillis: Long, syncId: String? = null) {
         val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
 
         // Create channel for Android 8.0+
@@ -33,9 +33,12 @@ object NotificationHelper {
         }
 
         // Deep link Intent to open the app at the target date
+        val encodedTitle = Uri.encode(title)
+        val encodedBody = Uri.encode(body)
+        val encodedSyncId = if (syncId != null) Uri.encode(syncId) else ""
         val intent = Intent(
             Intent.ACTION_VIEW,
-            Uri.parse("danallacalendar://view?dateMillis=$dateMillis"),
+            Uri.parse("danallacalendar://view?dateMillis=$dateMillis&title=$encodedTitle&body=$encodedBody&syncId=$encodedSyncId"),
             context,
             MainActivity::class.java
         ).apply {

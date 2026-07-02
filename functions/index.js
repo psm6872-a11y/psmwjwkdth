@@ -53,8 +53,13 @@ exports.onCalendarEventWritten = onDocumentWritten("rooms/{roomCode}/events/{eve
     const afterIsCompleted = afterData ? (afterData.isCompleted || false) : false;
     const isCompletedChanged = changeType === "UPDATE" && (beforeIsCompleted !== afterIsCompleted);
 
-    // ✅ CREATE/UPDATE 시 30초 쿨다운 체크 (단, 완료 버튼 상태 변경은 예외)
-    if ((changeType === "CREATE" || changeType === "UPDATE") && !isCompletedChanged) {
+    // 견적서 신규 생성 및 연결 여부 확인
+    const beforeEstimateId = beforeData ? (beforeData.linkedEstimateId || "") : "";
+    const afterEstimateId = afterData ? (afterData.linkedEstimateId || "") : "";
+    const estimateLinkedNow = changeType === "UPDATE" && !beforeEstimateId && afterEstimateId;
+
+    // ✅ CREATE/UPDATE 시 30초 쿨다운 체크 (단, 완료 버튼 상태 변경 및 견적서 작성완료는 예외)
+    if ((changeType === "CREATE" || changeType === "UPDATE") && !isCompletedChanged && !estimateLinkedNow) {
         const cooldownRef = db.collection("rooms")
             .doc(roomCode)
             .collection("fcm_cooldown")
@@ -116,8 +121,12 @@ exports.onCalendarEventWritten = onDocumentWritten("rooms/{roomCode}/events/{eve
                 title = `${nickname}님이 완료 버튼을 해제했습니다.`;
                 body = `↩️ ${eventTitle}`;
             }
+        } else if (estimateLinkedNow) {
+            // ✅ 견적서 신규 생성 및 연결 감지
+            title = `${nickname}님이 견적서 작성완료`;
+            body = `📄 ${eventTitle}`;
         } else {
-            // isCompleted 변경 없음 → 기존 필드 변경 감지 로직
+            // isCompleted 변경 없음 & 견적서 연결 없음 → 기존 필드 변경 감지 로직
             title = `${nickname}님이 일정 수정`;
 
             const beforeTitle = beforeData.title || "(제목 없음)";
@@ -144,18 +153,18 @@ exports.onCalendarEventWritten = onDocumentWritten("rooms/{roomCode}/events/{eve
 
             const bodyParts = [];
             if (titleChanged) {
-                bodyParts.push(`${beforeTitle} → ${afterTitle}`);
+                bodyParts.push(`제목\n${beforeTitle} → ${afterTitle}`);
             }
             if (timeOrDateChanged) {
-                bodyParts.push(`${beforeFormatted} → ${afterFormatted}`);
+                bodyParts.push(`시간\n${beforeFormatted} → ${afterFormatted}`);
             }
             if (departureChanged && (beforeDepFirstWord || afterDepFirstWord)) {
-                bodyParts.push(`${beforeDepFirstWord || "(없음)"} → ${afterDepFirstWord || "(없음)"}`);
+                bodyParts.push(`주소\n${beforeDepFirstWord || "(없음)"} → ${afterDepFirstWord || "(없음)"}`);
             }
             if (phoneChanged && (beforePhone || afterPhone)) {
-                bodyParts.push(`${beforePhone || "(없음)"} → ${afterPhone || "(없음)"}`);
+                bodyParts.push(`전화번호\n${beforePhone || "(없음)"} → ${afterPhone || "(없음)"}`);
             }
-            body = bodyParts.join("\n");
+            body = bodyParts.join("\n\n");
         }
     } else if (changeType === "DELETE") {
         title = `${nickname}님이 일정 삭제`;
@@ -193,7 +202,8 @@ exports.onCalendarEventWritten = onDocumentWritten("rooms/{roomCode}/events/{eve
     const messageData = {
         title: title,
         click_action: "danallacalendar://view?dateMillis=" + targetDateMillis,
-        dateMillis: String(targetDateMillis)
+        dateMillis: String(targetDateMillis),
+        syncId: eventId
     };
     if (body) {
         messageData.body = body;

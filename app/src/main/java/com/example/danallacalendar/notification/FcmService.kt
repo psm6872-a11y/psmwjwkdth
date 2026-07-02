@@ -36,12 +36,14 @@ class FcmService : FirebaseMessagingService() {
             val body = remoteMessage.data["body"] ?: ""
             val dateMillisStr = remoteMessage.data["dateMillis"]
             val dateMillis = dateMillisStr?.toLongOrNull() ?: System.currentTimeMillis()
+            val syncId = remoteMessage.data["syncId"]
 
             NotificationHelper.showNotification(
                 context = this,
                 title = title,
                 body = body,
-                dateMillis = dateMillis
+                dateMillis = dateMillis,
+                syncId = syncId
             )
         }
     }

@@ -111,6 +111,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onNewIntent(intent: android.content.Intent) {
         super.onNewIntent(intent)
+        setIntent(intent)
         handleIntent(intent)
     }
 
@@ -128,6 +129,15 @@ class MainActivity : ComponentActivity() {
                     val dateMillis = dateMillisStr?.toLongOrNull()
                     if (dateMillis != null) {
                         calendarViewModel.selectDate(dateMillis)
+                    }
+                    val changeTitle = uri.getQueryParameter("title")
+                    val changeBody = uri.getQueryParameter("body")
+                    val syncId = uri.getQueryParameter("syncId")
+                    if (!syncId.isNullOrBlank()) {
+                        calendarViewModel.setHighlightedEventSyncId(syncId)
+                    }
+                    if (!changeTitle.isNullOrBlank() || !changeBody.isNullOrBlank()) {
+                        calendarViewModel.setPendingChangeNotification(changeTitle ?: "알림", changeBody ?: "")
                     }
                 }
             }
