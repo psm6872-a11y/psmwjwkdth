@@ -107,7 +107,7 @@ fun AddEditEventScreen(
     var linkedEstimateId by remember { mutableStateOf<String?>(null) }
     var isAllDay by remember { mutableStateOf(false) }
     var startMillis by remember { mutableStateOf(selectedDate) }
-    var endMillis by remember { mutableStateOf(selectedDate + 60 * 60 * 1000L) } // Default +1 hour
+    var endMillis by remember { mutableStateOf(selectedDate) } // Default same as start
     var location by remember { mutableStateOf("") }   // 위치 1 상단
     var location1b by remember { mutableStateOf("") } // 위치 1 하단
     var location2 by remember { mutableStateOf("") }  // 위치 2 상단
@@ -199,7 +199,7 @@ fun AddEditEventScreen(
             calStart.set(Calendar.MILLISECOND, 0)
             
             startMillis = calStart.timeInMillis
-            endMillis = calStart.timeInMillis + 60 * 60 * 1000L
+            endMillis = calStart.timeInMillis
             isTimeInitialized = true
         }
     }
@@ -1161,7 +1161,7 @@ fun AddEditEventScreen(
                                             set(Calendar.MILLISECOND, 0)
                                         }
                                         startMillis = cal.timeInMillis
-                                        endMillis = startMillis + 60 * 60 * 1000L
+                                        endMillis = startMillis
                                     }
                                 )
                             }
@@ -1258,6 +1258,9 @@ fun AddEditEventScreen(
                                                 set(Calendar.MILLISECOND, 0)
                                             }
                                             endMillis = cal.timeInMillis
+                                            if (endMillis < startMillis) {
+                                                endMillis = startMillis
+                                            }
                                         }
                                     )
                                 }
@@ -1582,8 +1585,8 @@ fun AddEditEventScreen(
                     set(Calendar.MILLISECOND, 0)
                 }
                 endMillis = newCal.timeInMillis
-                if (endMillis <= startMillis) {
-                    endMillis = startMillis + 60 * 60 * 1000L
+                if (endMillis < startMillis) {
+                    endMillis = startMillis
                 }
                 showEndDatePicker = false
             }
