@@ -229,6 +229,14 @@ fun CalendarMainScreen(
 
     var isMonthViewExpanded by remember { mutableStateOf(false) }
     var showDayEventsDialogDate by remember { mutableStateOf<Long?>(null) }
+    var autoInputToastMessage by remember { mutableStateOf<String?>(null) }
+
+    LaunchedEffect(autoInputToastMessage) {
+        if (autoInputToastMessage != null) {
+            kotlinx.coroutines.delay(2000L)
+            autoInputToastMessage = null
+        }
+    }
 
     LaunchedEffect(viewMode) {
         if (viewMode == CalendarViewMode.WEEK) {
@@ -393,11 +401,15 @@ fun CalendarMainScreen(
             },
             modifier = modifier
         ) { paddingValues ->
-            Column(
+            Box(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(paddingValues)
             ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                ) {
                 // Calendar Grid Component
                 Box(
                     modifier = if (isMonthViewExpanded) Modifier.fillMaxWidth().weight(1f) else Modifier.fillMaxWidth().wrapContentHeight()
@@ -570,6 +582,17 @@ fun CalendarMainScreen(
                                             showConflictConfirmDialog = true
                                         } else {
                                             viewModel.addEvent(newEvent)
+                                            val formattedDate = try {
+                                                val parsed = SimpleDateFormat("yyyy-MM-dd", Locale.KOREAN).parse(estimate.moveDate)
+                                                if (parsed != null) {
+                                                    SimpleDateFormat("M월 d일", Locale.KOREAN).format(parsed)
+                                                } else {
+                                                    estimate.moveDate
+                                                }
+                                            } catch (e: Exception) {
+                                                estimate.moveDate
+                                            }
+                                            autoInputToastMessage = "${formattedDate}에 일정이 자동 입력되었습니다."
                                         }
                                     }
                                 } catch (e: Exception) {
@@ -589,6 +612,30 @@ fun CalendarMainScreen(
                     modifier = Modifier.weight(1f),
                     viewModel = viewModel
                 )
+                }
+            }
+
+            autoInputToastMessage?.let { message ->
+                Card(
+                    colors = CardDefaults.cardColors(
+                        containerColor = Color(0xFF323232).copy(alpha = 0.9f)
+                    ),
+                    shape = RoundedCornerShape(16.dp),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 6.dp),
+                    modifier = Modifier
+                        .align(Alignment.Center)
+                        .padding(horizontal = 32.dp)
+                        .wrapContentSize()
+                ) {
+                    Text(
+                        text = message,
+                        color = Color.White,
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(horizontal = 24.dp, vertical = 16.dp),
+                        textAlign = TextAlign.Center
+                    )
+                }
             }
         }
         }
@@ -607,7 +654,15 @@ fun CalendarMainScreen(
                 confirmButton = {
                     TextButton(
                         onClick = {
-                            pendingNewEvent?.let { viewModel.addEvent(it) }
+                            pendingNewEvent?.let {
+                                viewModel.addEvent(it)
+                                val formattedDate = try {
+                                    SimpleDateFormat("M월 d일", Locale.KOREAN).format(Date(it.startMillis))
+                                } catch (e: Exception) {
+                                    ""
+                                }
+                                autoInputToastMessage = "${formattedDate}에 일정이 자동 입력되었습니다."
+                            }
                             showConflictConfirmDialog = false
                             pendingNewEvent = null
                         }
