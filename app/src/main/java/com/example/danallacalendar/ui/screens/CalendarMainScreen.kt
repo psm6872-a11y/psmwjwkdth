@@ -2,6 +2,9 @@ package com.example.danallacalendar.ui.screens
 
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
+import androidx.compose.runtime.saveable.rememberSaveable
+import com.example.danallacalendar.estimate.LocalEstimateViewerDialog
+import com.example.danallacalendar.estimate.Estimate
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -231,6 +234,25 @@ fun CalendarMainScreen(
     var showDayEventsDialogDate by remember { mutableStateOf<Long?>(null) }
     var autoInputToastMessage by remember { mutableStateOf<String?>(null) }
 
+    var dismissedContractIds by rememberSaveable { mutableStateOf(emptyList<Int>()) }
+    var expandedBannerId by remember { mutableStateOf<Int?>(null) }
+    var showEstimateDetailDialog by remember { mutableStateOf(false) }
+    var selectedEstimateForDetail by remember { mutableStateOf<com.example.danallacalendar.estimate.Estimate?>(null) }
+
+    val appLaunchTime = remember { System.currentTimeMillis() }
+
+    val activeRecentContracts = remember(monthlyEvents, dismissedContractIds) {
+        monthlyEvents
+            .filter { evt ->
+                evt.isAllDay &&
+                evt.teamId != null &&
+                !evt.linkedEstimateId.isNullOrBlank() &&
+                !dismissedContractIds.contains(evt.id) &&
+                evt.createdAt >= appLaunchTime
+            }
+            .sortedByDescending { it.createdAt }
+    }
+
     LaunchedEffect(autoInputToastMessage) {
         if (autoInputToastMessage != null) {
             kotlinx.coroutines.delay(2000L)
@@ -410,7 +432,7 @@ fun CalendarMainScreen(
                     modifier = Modifier
                         .fillMaxSize()
                 ) {
-                // Calendar Grid Component
+                    // Calendar Grid Component
                 Box(
                     modifier = if (isMonthViewExpanded) Modifier.fillMaxWidth().weight(1f) else Modifier.fillMaxWidth().wrapContentHeight()
                 ) {
@@ -615,6 +637,141 @@ fun CalendarMainScreen(
                 }
             }
 
+            if (activeRecentContracts.isNotEmpty()) {
+                Column(
+                    modifier = Modifier
+                        .align(Alignment.TopCenter)
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    activeRecentContracts.forEach { evt ->
+                        val isExpanded = expandedBannerId == evt.id
+                        val contractBannerText = remember(evt, teamPrefsList) {
+                            val cal = Calendar.getInstance().apply { timeInMillis = evt.startMillis }
+                            val m = cal.get(Calendar.MONTH) + 1
+                            val d = cal.get(Calendar.DAY_OF_MONTH)
+                            val teamName = teamPrefsList.getOrNull((evt.teamId ?: 1) - 1)?.first ?: "1팀"
+                            "${m}월 ${d}일 ${teamName} 계약확정"
+                        }
+
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            // The Banner Button
+                            Card(
+                                onClick = {
+                                    expandedBannerId = if (isExpanded) null else evt.id
+                                },
+                                colors = CardDefaults.cardColors(
+                                    containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.95f)
+                                ),
+                                border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.8f)),
+                                shape = RoundedCornerShape(12.dp),
+                                elevation = CardDefaults.cardElevation(defaultElevation = 6.dp),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 16.dp, vertical = 10.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Icon(
+                                            imageVector = Icons.Default.CheckCircle,
+                                            contentDescription = null,
+                                            tint = MaterialTheme.colorScheme.onPrimary,
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Text(
+                                            text = contractBannerText,
+                                            fontSize = 14.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = MaterialTheme.colorScheme.onPrimary
+                                        )
+                                    }
+                                    Icon(
+                                        imageVector = if (isExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.onPrimary,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
+                            }
+
+                            // The Action Bubble / Pop-up
+                            AnimatedVisibility(
+                                visible = isExpanded,
+                                enter = expandVertically() + fadeIn(),
+                                exit = shrinkVertically() + fadeOut()
+                            ) {
+                                Card(
+                                    colors = CardDefaults.cardColors(
+                                        containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.95f)
+                                    ),
+                                    shape = RoundedCornerShape(12.dp),
+                                    elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
+                                    modifier = Modifier
+                                        .padding(top = 4.dp)
+                                        .wrapContentWidth()
+                                ) {
+                                    Row(
+                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        // Left button: 견적서보기
+                                        TextButton(
+                                            onClick = {
+                                                scope.launch {
+                                                    val est = viewModel.getEstimateById(evt.linkedEstimateId!!)
+                                                    if (est != null) {
+                                                        selectedEstimateForDetail = est
+                                                        showEstimateDetailDialog = true
+                                                    } else {
+                                                        Toast.makeText(context, "견적서 정보를 찾을 수 없습니다.", Toast.LENGTH_SHORT).show()
+                                                    }
+                                                }
+                                            },
+                                            colors = ButtonDefaults.textButtonColors(
+                                                contentColor = MaterialTheme.colorScheme.primary
+                                            )
+                                        ) {
+                                            Text("견적서보기", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                                        }
+
+                                        // Divider
+                                        Box(
+                                            modifier = Modifier
+                                                .width(1.dp)
+                                                .height(16.dp)
+                                                .background(MaterialTheme.colorScheme.outline.copy(alpha = 0.5f))
+                                        )
+
+                                        // Right button: 확인
+                                        TextButton(
+                                            onClick = {
+                                                dismissedContractIds = dismissedContractIds + evt.id
+                                                if (expandedBannerId == evt.id) {
+                                                    expandedBannerId = null
+                                                }
+                                            },
+                                            colors = ButtonDefaults.textButtonColors(
+                                                contentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                        ) {
+                                            Text("확인", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
             autoInputToastMessage?.let { message ->
                 Card(
                     colors = CardDefaults.cardColors(
@@ -697,6 +854,14 @@ fun CalendarMainScreen(
                 onToggleComplete = { viewModel.updateEvent(it.copy(isCompleted = !it.isCompleted)) },
                 onUpdateEvent = { viewModel.updateEvent(it) },
                 viewModel = viewModel
+            )
+        }
+
+        if (showEstimateDetailDialog && selectedEstimateForDetail != null) {
+            LocalEstimateViewerDialog(
+                estimate = selectedEstimateForDetail!!,
+                onDismiss = { showEstimateDetailDialog = false },
+                onEditClick = null
             )
         }
     }
