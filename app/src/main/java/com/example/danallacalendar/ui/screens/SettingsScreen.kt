@@ -36,6 +36,7 @@ import androidx.compose.ui.focus.onFocusChanged
 
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.result.PickVisualMediaRequest
 import android.graphics.BitmapFactory
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.foundation.Image
@@ -199,7 +200,7 @@ fun SettingsScreen(
 
     // 갤러리 이미지 로드 후 로컬 상태만 변경 (백그라운드 스레드 처리로 UI 프리징 방지)
     val logoLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.GetContent()
+        contract = ActivityResultContracts.PickVisualMedia()
     ) { uri ->
         uri?.let {
             scope.launch(kotlinx.coroutines.Dispatchers.IO) {
@@ -215,7 +216,7 @@ fun SettingsScreen(
     }
 
     val stampLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.GetContent()
+        contract = ActivityResultContracts.PickVisualMedia()
     ) { uri ->
         uri?.let {
             scope.launch(kotlinx.coroutines.Dispatchers.IO) {
@@ -517,7 +518,7 @@ fun SettingsScreen(
                                 base64Str = logoBase64,
                                 enabled = isCreator,
                                 onSelectClick = {
-                                    logoLauncher.launch("image/*")
+                                    logoLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
                                 },
                                 onClearClick = {
                                     logoBase64 = ""
@@ -529,7 +530,7 @@ fun SettingsScreen(
                                 base64Str = stampBase64,
                                 enabled = isCreator,
                                 onSelectClick = {
-                                    stampLauncher.launch("image/*")
+                                    stampLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
                                 },
                                 onClearClick = {
                                     stampBase64 = ""
