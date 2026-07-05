@@ -272,10 +272,17 @@ class CalendarViewModel @Inject constructor(
             }
             isVisible && matchesFilter
         }.sortedWith(
-            compareBy(
-                { !it.isAllDay },
-                { if (it.isAllDay) it.title else "" },
-                { if (!it.isAllDay) it.startMillis else 0L }
+            compareBy<Event>(
+                { it.teamId ?: 999 },
+                {
+                    when (it.slotPosition) {
+                        "top" -> 0
+                        "bottom" -> 1
+                        "both" -> 2
+                        else -> 3
+                    }
+                },
+                { it.startMillis }
             )
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
@@ -305,10 +312,17 @@ class CalendarViewModel @Inject constructor(
             }
             isVisible && matchesFilter
         }.sortedWith(
-            compareBy(
-                { !it.isAllDay },
-                { if (it.isAllDay) it.title else "" },
-                { if (!it.isAllDay) it.startMillis else 0L }
+            compareBy<Event>(
+                { it.teamId ?: 999 },
+                {
+                    when (it.slotPosition) {
+                        "top" -> 0
+                        "bottom" -> 1
+                        "both" -> 2
+                        else -> 3
+                    }
+                },
+                { it.startMillis }
             )
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
@@ -329,10 +343,17 @@ class CalendarViewModel @Inject constructor(
         events.filter { event ->
             cats.find { it.id == event.calendarId }?.isVisible ?: true
         }.sortedWith(
-            compareBy(
-                { !it.isAllDay },
-                { if (it.isAllDay) it.title else "" },
-                { if (!it.isAllDay) it.startMillis else 0L }
+            compareBy<Event>(
+                { it.teamId ?: 999 },
+                {
+                    when (it.slotPosition) {
+                        "top" -> 0
+                        "bottom" -> 1
+                        "both" -> 2
+                        else -> 3
+                    }
+                },
+                { it.startMillis }
             )
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())

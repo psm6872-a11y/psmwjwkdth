@@ -133,10 +133,12 @@ class MainActivity : ComponentActivity() {
                     val changeTitle = uri.getQueryParameter("title")
                     val changeBody = uri.getQueryParameter("body")
                     val syncId = uri.getQueryParameter("syncId")
-                    if (!syncId.isNullOrBlank()) {
+                    val isCompleteNotification = changeTitle?.contains("완료 버튼") == true
+
+                    if (!syncId.isNullOrBlank() && !isCompleteNotification) {
                         calendarViewModel.setHighlightedEventSyncId(syncId)
                     }
-                    if (!changeTitle.isNullOrBlank() || !changeBody.isNullOrBlank()) {
+                    if ((!changeTitle.isNullOrBlank() || !changeBody.isNullOrBlank()) && !isCompleteNotification) {
                         calendarViewModel.setPendingChangeNotification(changeTitle ?: "알림", changeBody ?: "")
                     }
                 }

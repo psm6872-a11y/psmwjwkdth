@@ -42,7 +42,15 @@ interface EventDao {
             (events.endMillis >= :start AND events.endMillis <= :end) OR
             (events.startMillis <= :start AND events.endMillis >= :end)
         )
-        ORDER BY events.startMillis ASC
+        ORDER BY 
+            CASE WHEN events.teamId IS NULL THEN 999 ELSE events.teamId END ASC,
+            CASE 
+                WHEN events.slotPosition = 'top' THEN 0 
+                WHEN events.slotPosition = 'bottom' THEN 1 
+                WHEN events.slotPosition = 'both' THEN 2 
+                ELSE 3 
+            END ASC,
+            events.startMillis ASC
     """)
     fun getEventsInRange(start: Long, end: Long): Flow<List<Event>>
 
@@ -55,7 +63,15 @@ interface EventDao {
             (events.endMillis >= :start AND events.endMillis <= :end) OR
             (events.startMillis <= :start AND events.endMillis >= :end)
         )
-        ORDER BY events.startMillis ASC
+        ORDER BY 
+            CASE WHEN events.teamId IS NULL THEN 999 ELSE events.teamId END ASC,
+            CASE 
+                WHEN events.slotPosition = 'top' THEN 0 
+                WHEN events.slotPosition = 'bottom' THEN 1 
+                WHEN events.slotPosition = 'both' THEN 2 
+                ELSE 3 
+            END ASC,
+            events.startMillis ASC
     """)
     suspend fun getEventsInRangeList(start: Long, end: Long): List<Event>
 
@@ -64,7 +80,15 @@ interface EventDao {
         INNER JOIN calendar_categories ON events.calendarId = calendar_categories.id 
         WHERE calendar_categories.isVisible = 1 
         AND (events.title LIKE :query OR events.notes LIKE :query OR events.location LIKE :query) 
-        ORDER BY events.startMillis ASC
+        ORDER BY 
+            CASE WHEN events.teamId IS NULL THEN 999 ELSE events.teamId END ASC,
+            CASE 
+                WHEN events.slotPosition = 'top' THEN 0 
+                WHEN events.slotPosition = 'bottom' THEN 1 
+                WHEN events.slotPosition = 'both' THEN 2 
+                ELSE 3 
+            END ASC,
+            events.startMillis ASC
     """)
     fun searchEvents(query: String): Flow<List<Event>>
 
