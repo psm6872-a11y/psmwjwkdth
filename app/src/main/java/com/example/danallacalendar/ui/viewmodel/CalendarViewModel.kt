@@ -904,6 +904,31 @@ class CalendarViewModel @Inject constructor(
         }
     }
 
+    suspend fun getEventsForDateString(dateStr: String): List<Event> {
+        val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.KOREAN)
+        return try {
+            val parsedDate = dateFormat.parse(dateStr) ?: return emptyList()
+            val cal = Calendar.getInstance()
+            cal.time = parsedDate
+            
+            cal.set(Calendar.HOUR_OF_DAY, 0)
+            cal.set(Calendar.MINUTE, 0)
+            cal.set(Calendar.SECOND, 0)
+            cal.set(Calendar.MILLISECOND, 0)
+            val start = cal.timeInMillis
+            
+            cal.set(Calendar.HOUR_OF_DAY, 23)
+            cal.set(Calendar.MINUTE, 59)
+            cal.set(Calendar.SECOND, 59)
+            cal.set(Calendar.MILLISECOND, 999)
+            val end = cal.timeInMillis
+            
+            repository.eventDao.getEventsInRangeList(start, end)
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
+
     fun updateEventTitleAndAssignment(
         event: Event,
         newTeamId: Int,

@@ -700,9 +700,9 @@ fun CalendarMainScreen(
                                     expandedBannerId = if (isExpanded) null else evt.id
                                 },
                                 colors = CardDefaults.cardColors(
-                                    containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.95f)
+                                    containerColor = Color(0xFFEF5350).copy(alpha = 0.95f)
                                 ),
-                                border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.8f)),
+                                border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFEF5350).copy(alpha = 0.8f)),
                                 shape = RoundedCornerShape(12.dp),
                                 elevation = CardDefaults.cardElevation(defaultElevation = 6.dp),
                                 modifier = Modifier.fillMaxWidth()
@@ -718,7 +718,7 @@ fun CalendarMainScreen(
                                         Icon(
                                             imageVector = Icons.Default.CheckCircle,
                                             contentDescription = null,
-                                            tint = MaterialTheme.colorScheme.onPrimary,
+                                            tint = Color.White,
                                             modifier = Modifier.size(18.dp)
                                         )
                                         Spacer(modifier = Modifier.width(8.dp))
@@ -726,13 +726,13 @@ fun CalendarMainScreen(
                                             text = contractBannerText,
                                             fontSize = 14.sp,
                                             fontWeight = FontWeight.Bold,
-                                            color = MaterialTheme.colorScheme.onPrimary
+                                            color = Color.White
                                         )
                                     }
                                     Icon(
                                         imageVector = if (isExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
                                         contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.onPrimary,
+                                        tint = Color.White,
                                         modifier = Modifier.size(20.dp)
                                     )
                                 }
@@ -1909,7 +1909,7 @@ fun EventListSection(
                             bottom = screenHeight * 0.3f
                         ),
                         verticalArrangement = Arrangement.spacedBy(screenHeight * 0.012f)
-                    ) {
+) {
                         items(dayEvents, key = { "${it.id}_${it.startMillis}" }) { event ->
                             val category = categories.find { it.id == event.calendarId }
                             EventItemCard(
@@ -1943,6 +1943,7 @@ fun EventItemCard(
     viewModel: CalendarViewModel
 ) {
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
     val configuration = androidx.compose.ui.platform.LocalConfiguration.current
     val screenWidth = configuration.screenWidthDp.dp
     val screenHeight = configuration.screenHeightDp.dp
@@ -1980,6 +1981,10 @@ fun EventItemCard(
         mutableStateOf(event.slotPosition == "bottom" || event.slotPosition == "both" || event.slotPosition == null)
     }
 
+    var moveDateStr by remember { mutableStateOf("") }
+    var existingEventsForMoveDate by remember { mutableStateOf<List<Event>>(emptyList()) }
+    var isLoadingExistingEvents by remember { mutableStateOf(false) }
+
     val colorHex = event.colorHex ?: category?.colorHex ?: "#1c62f2"
     val catColor = Color(android.graphics.Color.parseColor(colorHex))
 
@@ -2002,7 +2007,6 @@ fun EventItemCard(
     var secondBubbleHeight by remember { mutableStateOf(54.dp) }
     var contractButtonHeight by remember { mutableStateOf(0.dp) }
 
-    val scope = rememberCoroutineScope()
     var showEditTemplateDialog by remember { mutableStateOf(false) }
     var templateText by remember { mutableStateOf("") }
     var editingTemplateType by remember { mutableStateOf("visit") }
@@ -2023,6 +2027,26 @@ fun EventItemCard(
             selectedTeamId = null
             isAmSelected = false
             isPmSelected = false
+            moveDateStr = ""
+            existingEventsForMoveDate = emptyList()
+            
+            val estimateId = event.linkedEstimateId
+            if (!estimateId.isNullOrBlank()) {
+                isLoadingExistingEvents = true
+                scope.launch {
+                    try {
+                        val estimate = viewModel.getEstimateById(estimateId)
+                        if (estimate != null && !estimate.moveDate.isNullOrBlank()) {
+                            moveDateStr = estimate.moveDate
+                            existingEventsForMoveDate = viewModel.getEventsForDateString(estimate.moveDate)
+                        }
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                    } finally {
+                        isLoadingExistingEvents = false
+                    }
+                }
+            }
         }
     }
 
@@ -2430,6 +2454,104 @@ fun EventItemCard(
                             modifier = Modifier.fillMaxWidth(),
                             textAlign = TextAlign.Center
                         )
+
+                        // Existing events list on the target date
+                        if (moveDateStr.isNotEmpty()) {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f), RoundedCornerShape(12.dp))
+                                    .padding(12.dp),
+                                verticalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = "📅 이사 예정일: $moveDateStr",
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                    if (isLoadingExistingEvents) {
+                                        CircularProgressIndicator(
+                                            modifier = Modifier.size(14.dp),
+                                            strokeWidth = 1.5.dp,
+                                            color = MaterialTheme.colorScheme.primary
+                                        )
+                                    }
+                                }
+
+                                val confirmedEvents = existingEventsForMoveDate.filter { it.teamId != null }
+                                val visitEvents = existingEventsForMoveDate.filter { it.teamId == null }
+
+                                if (existingEventsForMoveDate.isEmpty() && !isLoadingExistingEvents) {
+                                    Text(
+                                        text = "해당 날짜에 등록된 일정이 없습니다. (모든 팀 배정 가능)",
+                                        fontSize = 12.sp,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                } else {
+                                    if (confirmedEvents.isNotEmpty()) {
+                                        Text(
+                                            text = "배정된 팀 현황:",
+                                            fontSize = 12.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = MaterialTheme.colorScheme.primary
+                                        )
+                                        confirmedEvents.sortedWith(compareBy({ it.teamId }, { it.slotPosition })).forEach { conf ->
+                                            val tPref = teamPrefsList.getOrNull((conf.teamId ?: 1) - 1) 
+                                                ?: (TeamConfigs.getOrNull((conf.teamId ?: 1) - 1)?.let { it.defaultName to it.defaultColor } ?: ("" to 0xFF4CAF50L))
+                                            val tName = tPref.first
+                                            val slotText = when (conf.slotPosition) {
+                                                "top" -> "오전"
+                                                "bottom" -> "오후"
+                                                else -> "하루종일"
+                                            }
+                                            val titleClean = conf.title.lineSequence().firstOrNull()?.replace("$tName.", "")?.trim() ?: ""
+                                            Row(
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                            ) {
+                                                Box(
+                                                    modifier = Modifier
+                                                        .size(8.dp)
+                                                        .clip(CircleShape)
+                                                        .background(Color(tPref.second))
+                                                )
+                                                Text(
+                                                    text = "[$tName / $slotText] $titleClean",
+                                                    fontSize = 12.sp,
+                                                    fontWeight = FontWeight.Medium,
+                                                    color = MaterialTheme.colorScheme.onSurface
+                                                )
+                                            }
+                                        }
+                                    }
+                                    if (visitEvents.isNotEmpty()) {
+                                        Spacer(modifier = Modifier.height(2.dp))
+                                        Text(
+                                            text = "방문예약 현황:",
+                                            fontSize = 12.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = MaterialTheme.colorScheme.secondary
+                                        )
+                                        visitEvents.forEach { visit ->
+                                            val tFormat = SimpleDateFormat("HH:mm", Locale.KOREAN)
+                                            val timeText = if (visit.isAllDay) "하루종일" else tFormat.format(Date(visit.startMillis))
+                                            val titleClean = visit.title.lineSequence().firstOrNull() ?: ""
+                                            Text(
+                                                text = "• [$timeText] $titleClean",
+                                                fontSize = 12.sp,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
 
                         // Team Selection
                         Column(
