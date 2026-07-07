@@ -232,6 +232,23 @@ fun CalendarMainScreen(
     val pendingChangeNotification by viewModel.pendingChangeNotification.collectAsStateWithLifecycle()
     val showChangeNotificationDialog by viewModel.showChangeNotificationDialog.collectAsStateWithLifecycle()
 
+    val isCheckingForUpdate by viewModel.isCheckingForUpdate.collectAsStateWithLifecycle()
+    val isUpdateDownloaded by viewModel.isUpdateDownloaded.collectAsStateWithLifecycle()
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    LaunchedEffect(isUpdateDownloaded) {
+        if (isUpdateDownloaded) {
+            val result = snackbarHostState.showSnackbar(
+                message = "업데이트가 준비되었습니다. 재시작하시겠습니까?",
+                actionLabel = "재시작",
+                duration = SnackbarDuration.Indefinite
+            )
+            if (result == SnackbarResult.ActionPerformed) {
+                viewModel.completeUpdate()
+            }
+        }
+    }
+
     var isMonthViewExpanded by remember { mutableStateOf(false) }
     var showDayEventsDialogDate by remember { mutableStateOf<Long?>(null) }
     var autoInputToastMessage by remember { mutableStateOf<String?>(null) }
@@ -394,12 +411,30 @@ fun CalendarMainScreen(
                     onTrashClick = {
                         scope.launch { drawerState.close() }
                         onNavigateToTrash()
+                    },
+                    isCheckingForUpdate = isCheckingForUpdate,
+                    onCheckForUpdateClick = {
+                        var act: android.app.Activity? = null
+                        var ctx = context
+                        while (ctx is android.content.ContextWrapper) {
+                            if (ctx is android.app.Activity) {
+                                act = ctx
+                                break
+                            }
+                            ctx = ctx.baseContext
+                        }
+                        if (act != null) {
+                            viewModel.checkForUpdates(act)
+                        } else {
+                            android.widget.Toast.makeText(context, "Activity를 찾을 수 없습니다.", android.widget.Toast.LENGTH_SHORT).show()
+                        }
                     }
                 )
             }
         }
     ) {
         Scaffold(
+            snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
             topBar = {
                 MainTopAppBar(
                     currentMonth = currentMonth,

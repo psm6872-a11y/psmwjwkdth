@@ -93,4 +93,12 @@ object AppModule {
     ): com.example.danallacalendar.backup.BackupRepository {
         return com.example.danallacalendar.backup.BackupRepository(firestore)
     }
+
+    @Provides
+    @Singleton
+    fun provideAppUpdateManager(
+        @ApplicationContext context: Context
+    ): com.google.android.play.core.appupdate.AppUpdateManager {
+        return com.google.android.play.core.appupdate.AppUpdateManagerFactory.create(context)
+    }
 }

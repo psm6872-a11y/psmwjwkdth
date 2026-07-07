@@ -47,10 +47,20 @@ class MainActivity : ComponentActivity() {
     @Inject
     lateinit var userPreferences: UserPreferences
 
+    @Inject
+    lateinit var appUpdateManager: com.google.android.play.core.appupdate.AppUpdateManager
+
     private val calendarViewModel: CalendarViewModel by viewModels()
+
+    private val installStateUpdatedListener = com.google.android.play.core.install.InstallStateUpdatedListener { state ->
+        if (state.installStatus() == com.google.android.play.core.install.model.InstallStatus.DOWNLOADED) {
+            calendarViewModel.setUpdateDownloaded(true)
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        appUpdateManager.registerListener(installStateUpdatedListener)
 
         // Request all required runtime permissions at once on app launch
         val permissionsToRequest = mutableListOf(
@@ -144,6 +154,31 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        appUpdateManager.appUpdateInfo.addOnSuccessListener { appUpdateInfo ->
+            if (appUpdateInfo.installStatus() == com.google.android.play.core.install.model.InstallStatus.DOWNLOADED) {
+                calendarViewModel.setUpdateDownloaded(true)
+            } else if (appUpdateInfo.updateAvailability() == com.google.android.play.core.install.model.UpdateAvailability.DEVELOPER_TRIGGERED_UPDATE_IN_PROGRESS) {
+                try {
+                    appUpdateManager.startUpdateFlowForResult(
+                        appUpdateInfo,
+                        com.google.android.play.core.install.model.AppUpdateType.FLEXIBLE,
+                        this,
+                        5001
+                    )
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
+            }
+        }
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        appUpdateManager.unregisterListener(installStateUpdatedListener)
     }
 }
 

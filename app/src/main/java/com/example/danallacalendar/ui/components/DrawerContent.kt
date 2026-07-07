@@ -87,6 +87,8 @@ fun DrawerContent(
     isCreator: Boolean,
     onRemoveMember: (String) -> Unit,
     onTransferHost: (String) -> Unit,
+    isCheckingForUpdate: Boolean,
+    onCheckForUpdateClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -213,12 +215,37 @@ fun DrawerContent(
                 }
             }
             Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                text = "v${com.example.danallacalendar.BuildConfig.VERSION_NAME}",
-                color = MaterialTheme.colorScheme.onBackground,
-                fontSize = 16.sp,
-                fontWeight = FontWeight.SemiBold
-            )
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Text(
+                    text = "현재 버전: v${com.example.danallacalendar.BuildConfig.VERSION_NAME}",
+                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f),
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
+                if (isCheckingForUpdate) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(16.dp),
+                        strokeWidth = 2.dp,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                } else {
+                    TextButton(
+                        onClick = onCheckForUpdateClick,
+                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
+                        modifier = Modifier.height(28.dp)
+                    ) {
+                        Text(
+                            text = "업데이트 확인",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                }
+            }
         }
 
         Spacer(modifier = Modifier.height(8.dp))

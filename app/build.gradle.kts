@@ -15,8 +15,8 @@ android {
         applicationId = "com.danalla.calendar"
         minSdk = 24
         targetSdk = 35
-        versionCode = 339
-        versionName = "1.7.54"
+        versionCode = 340
+        versionName = "1.7.55"
     }
 
     signingConfigs {
@@ -134,6 +134,9 @@ dependencies {
 
   // Google Sign-In & Drive API
   implementation("com.google.android.gms:play-services-auth:21.1.1")
+  // Google Play In-App Update
+  implementation("com.google.android.play:app-update:2.1.0")
+  implementation("com.google.android.play:app-update-ktx:2.1.0")
   implementation("com.google.api-client:google-api-client-android:2.2.0") {
       exclude(group = "org.apache.httpcomponents")
   }

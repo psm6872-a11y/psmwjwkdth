@@ -26,6 +26,10 @@ import kotlinx.coroutines.withContext
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import kotlinx.coroutines.tasks.await
+import com.google.android.play.core.appupdate.AppUpdateManager
+import com.google.android.play.core.install.model.AppUpdateType
+import com.google.android.play.core.install.model.UpdateAvailability
+import android.app.Activity
 
 enum class CalendarViewMode {
     MONTH, WEEK
@@ -42,8 +46,51 @@ class CalendarViewModel @Inject constructor(
     private val estimatePdfDao: com.example.danallacalendar.data.EstimatePdfDao,
     private val estimateRepository: com.example.danallacalendar.estimate.EstimateRepository,
     @ApplicationContext private val context: Context,
-    private val firestore: com.google.firebase.firestore.FirebaseFirestore
+    private val firestore: com.google.firebase.firestore.FirebaseFirestore,
+    private val appUpdateManager: AppUpdateManager
 ) : ViewModel() {
+
+    private val _isCheckingForUpdate = MutableStateFlow(false)
+    val isCheckingForUpdate: StateFlow<Boolean> = _isCheckingForUpdate.asStateFlow()
+
+    private val _isUpdateDownloaded = MutableStateFlow(false)
+    val isUpdateDownloaded: StateFlow<Boolean> = _isUpdateDownloaded.asStateFlow()
+
+    fun setUpdateDownloaded(downloaded: Boolean) {
+        _isUpdateDownloaded.value = downloaded
+    }
+
+    fun checkForUpdates(activity: Activity) {
+        if (_isCheckingForUpdate.value) return
+        _isCheckingForUpdate.value = true
+
+        appUpdateManager.appUpdateInfo.addOnSuccessListener { appUpdateInfo ->
+            _isCheckingForUpdate.value = false
+            if (appUpdateInfo.updateAvailability() == UpdateAvailability.UPDATE_AVAILABLE &&
+                appUpdateInfo.isUpdateTypeAllowed(AppUpdateType.FLEXIBLE)
+            ) {
+                try {
+                    appUpdateManager.startUpdateFlowForResult(
+                        appUpdateInfo,
+                        AppUpdateType.FLEXIBLE,
+                        activity,
+                        5001
+                    )
+                } catch (e: Exception) {
+                    android.widget.Toast.makeText(context, "업데이트 시작 실패: ${e.localizedMessage}", android.widget.Toast.LENGTH_LONG).show()
+                }
+            } else {
+                android.widget.Toast.makeText(context, "최신 버전입니다.", android.widget.Toast.LENGTH_SHORT).show()
+            }
+        }.addOnFailureListener { e ->
+            _isCheckingForUpdate.value = false
+            android.widget.Toast.makeText(context, "업데이트 확인 실패: ${e.localizedMessage}", android.widget.Toast.LENGTH_LONG).show()
+        }
+    }
+
+    fun completeUpdate() {
+        appUpdateManager.completeUpdate()
+    }
 
 
     private fun isNetworkAvailable(context: Context): Boolean {
