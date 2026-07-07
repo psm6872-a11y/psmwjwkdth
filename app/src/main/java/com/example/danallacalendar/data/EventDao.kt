@@ -40,7 +40,8 @@ interface EventDao {
         AND (
             (events.startMillis >= :start AND events.startMillis <= :end) OR 
             (events.endMillis >= :start AND events.endMillis <= :end) OR
-            (events.startMillis <= :start AND events.endMillis >= :end)
+            (events.startMillis <= :start AND events.endMillis >= :end) OR
+            (events.repeatType != 'NONE' AND events.startMillis <= :end)
         )
         ORDER BY 
             CASE WHEN events.teamId IS NULL THEN 999 ELSE events.teamId END ASC,
@@ -61,7 +62,8 @@ interface EventDao {
         AND (
             (events.startMillis >= :start AND events.startMillis <= :end) OR 
             (events.endMillis >= :start AND events.endMillis <= :end) OR
-            (events.startMillis <= :start AND events.endMillis >= :end)
+            (events.startMillis <= :start AND events.endMillis >= :end) OR
+            (events.repeatType != 'NONE' AND events.startMillis <= :end)
         )
         ORDER BY 
             CASE WHEN events.teamId IS NULL THEN 999 ELSE events.teamId END ASC,

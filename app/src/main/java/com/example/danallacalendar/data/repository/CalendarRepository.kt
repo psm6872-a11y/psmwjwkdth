@@ -30,6 +30,9 @@ import kotlin.coroutines.resumeWithException
 import com.example.danallacalendar.data.EstimatePdfDao
 import com.example.danallacalendar.data.BlacklistItem
 import javax.inject.Inject
+import android.content.Context
+import dagger.hilt.android.qualifiers.ApplicationContext
+import com.example.danallacalendar.notification.EventReminderHelper
 
 class CalendarRepository @Inject constructor(
     private val firestore: FirebaseFirestore,
@@ -37,7 +40,8 @@ class CalendarRepository @Inject constructor(
     val eventDao: EventDao,
     val trashDao: TrashDao,
     val estimatePdfDao: EstimatePdfDao,
-    val blacklistDao: com.example.danallacalendar.data.BlacklistDao
+    val blacklistDao: com.example.danallacalendar.data.BlacklistDao,
+    @ApplicationContext private val context: Context
 ) {
     private val syncMutex = Mutex()
     // Suspending wrapper for createRoom with offline fallback
@@ -220,8 +224,10 @@ class CalendarRepository @Inject constructor(
     
     suspend fun insertEvent(event: Event) {
         val id = eventDao.insertEvent(event)
+        val eventWithId = event.copy(id = id.toInt())
+        EventReminderHelper.scheduleAlarm(context, eventWithId)
         if (event.isSynced) {
-            uploadEventToFirestore(event.copy(id = id.toInt()))
+            uploadEventToFirestore(eventWithId)
         }
         event.linkedEstimateId?.let { estimateId ->
             if (estimateId.isNotEmpty()) {
@@ -232,6 +238,7 @@ class CalendarRepository @Inject constructor(
     
     suspend fun updateEvent(event: Event) {
         eventDao.updateEvent(event)
+        EventReminderHelper.scheduleAlarm(context, event)
         if (event.isSynced) {
             uploadEventToFirestore(event)
         }
@@ -270,6 +277,7 @@ class CalendarRepository @Inject constructor(
     
     suspend fun deleteEvent(event: Event) {
         eventDao.deleteEvent(event)
+        EventReminderHelper.cancelAlarm(context, event.id)
         if (event.isSynced && event.syncId != null) {
             deleteEventFromFirestore(event.syncId)
         }
@@ -606,15 +614,19 @@ class CalendarRepository @Inject constructor(
                                             mainExisting.slotPosition != remote.slotPosition
                                         ) {
                                             eventDao.updateEvent(updated)
+                                            EventReminderHelper.scheduleAlarm(context, updated)
                                         }
                                         // Clean up any extra duplicates
                                         if (existingList.size > 1) {
                                             existingList.drop(1).forEach { duplicate ->
                                                 eventDao.deleteEvent(duplicate)
+                                                EventReminderHelper.cancelAlarm(context, duplicate.id)
                                             }
                                         }
                                     } else {
-                                        eventDao.insertEvent(remote)
+                                        val generatedId = eventDao.insertEvent(remote)
+                                        val insertedEvent = remote.copy(id = generatedId.toInt())
+                                        EventReminderHelper.scheduleAlarm(context, insertedEvent)
                                     }
                                 }
                                 
@@ -624,6 +636,7 @@ class CalendarRepository @Inject constructor(
                                 localSynced.forEach { local ->
                                     if (local.syncId !in remoteSyncIds) {
                                         eventDao.deleteEvent(local)
+                                        EventReminderHelper.cancelAlarm(context, local.id)
                                     }
                                 }
                             } catch (e: Exception) {

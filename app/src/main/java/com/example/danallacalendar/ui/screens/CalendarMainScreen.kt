@@ -1875,7 +1875,7 @@ fun EventListSection(
                         ),
                         verticalArrangement = Arrangement.spacedBy(screenHeight * 0.012f)
                     ) {
-                        items(dayEvents, key = { it.id }) { event ->
+                        items(dayEvents, key = { "${it.id}_${it.startMillis}" }) { event ->
                             val category = categories.find { it.id == event.calendarId }
                             EventItemCard(
                                 event = event,
@@ -2060,12 +2060,32 @@ fun EventItemCard(
                     
                     // Category Color Bar indicator
                     Box(
-                        modifier = Modifier
-                            .width(minOf(screenWidth, 400.dp) * 0.01f)
-                            .height(screenHeight * 0.035f)
-                            .clip(RoundedCornerShape(1.dp))
-                            .background(catColor.copy(alpha = if (event.isCompleted) 0.5f else 1f))
-                    )
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .width(minOf(screenWidth, 400.dp) * 0.01f)
+                                .height(screenHeight * 0.035f)
+                                .clip(RoundedCornerShape(1.dp))
+                                .background(catColor.copy(alpha = if (event.isCompleted) 0.5f else 1f))
+                        )
+                        if (event.repeatType != "NONE") {
+                            Box(
+                                modifier = Modifier
+                                    .shadow(2.dp, RoundedCornerShape(4.dp))
+                                    .background(MaterialTheme.colorScheme.primary, RoundedCornerShape(4.dp))
+                                    .padding(horizontal = 4.dp, vertical = 2.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = "반복",
+                                    fontSize = 8.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onPrimary
+                                )
+                            }
+                        }
+                    }
                     Spacer(modifier = Modifier.width(minOf(screenWidth, 400.dp) * 0.025f))
                 }
 
@@ -3349,7 +3369,7 @@ fun DayEventsDialog(
                             .weight(1f),
                         verticalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        items(dayEvents, key = { it.id }) { event ->
+                        items(dayEvents, key = { "${it.id}_${it.startMillis}" }) { event ->
                             val category = categories.find { it.id == event.calendarId }
                             EventItemCard(
                                 event = event,

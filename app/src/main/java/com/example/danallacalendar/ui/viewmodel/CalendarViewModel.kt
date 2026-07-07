@@ -253,12 +253,79 @@ class CalendarViewModel @Inject constructor(
         .map { list -> list.map { it.dateMillis }.toSet() }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptySet())
 
+    private fun expandEventsForRange(events: List<Event>, rangeStart: Long, rangeEnd: Long): List<Event> {
+        val expandedList = mutableListOf<Event>()
+        for (event in events) {
+            if (event.repeatType == "NONE") {
+                expandedList.add(event)
+                continue
+            }
+
+            val calStart = Calendar.getInstance().apply { timeInMillis = event.startMillis }
+            val duration = event.endMillis - event.startMillis
+            val limitCal = Calendar.getInstance().apply { timeInMillis = rangeEnd }
+            
+            val currentCal = Calendar.getInstance().apply { 
+                timeInMillis = event.startMillis 
+            }
+            
+            // Fast forward DAILY/WEEKLY repeating events if they start way in the past
+            if (currentCal.timeInMillis < rangeStart) {
+                when (event.repeatType) {
+                    "DAILY" -> {
+                        val diffDays = (rangeStart - event.startMillis) / (24 * 60 * 60 * 1000L)
+                        if (diffDays > 1) {
+                            currentCal.add(Calendar.DAY_OF_YEAR, diffDays.toInt() - 1)
+                        }
+                    }
+                    "WEEKLY" -> {
+                        val diffWeeks = (rangeStart - event.startMillis) / (7 * 24 * 60 * 60 * 1000L)
+                        if (diffWeeks > 1) {
+                            currentCal.add(Calendar.WEEK_OF_YEAR, diffWeeks.toInt() - 1)
+                        }
+                    }
+                }
+            }
+            
+            var iterations = 0
+            while (currentCal.timeInMillis <= limitCal.timeInMillis && iterations < 1000) {
+                val instStart = currentCal.timeInMillis
+                val instEnd = instStart + duration
+                
+                val overlaps = (instStart >= rangeStart && instStart <= rangeEnd) ||
+                               (instEnd >= rangeStart && instEnd <= rangeEnd) ||
+                               (instStart <= rangeStart && instEnd >= rangeEnd)
+                
+                if (overlaps) {
+                    expandedList.add(
+                        event.copy(
+                            startMillis = instStart,
+                            endMillis = instEnd
+                        )
+                    )
+                }
+                
+                when (event.repeatType) {
+                    "DAILY" -> currentCal.add(Calendar.DAY_OF_YEAR, 1)
+                    "WEEKLY" -> currentCal.add(Calendar.WEEK_OF_YEAR, 1)
+                    "MONTHLY" -> currentCal.add(Calendar.MONTH, 1)
+                    "YEARLY" -> currentCal.add(Calendar.YEAR, 1)
+                    else -> break
+                }
+                iterations++
+            }
+        }
+        return expandedList
+    }
+
     @OptIn(ExperimentalCoroutinesApi::class)
     val monthlyEvents: StateFlow<List<Event>> = combine(
         _currentMonth.flatMapLatest { cal ->
             val start = cal.timeInMillis - (45 * 24 * 60 * 60 * 1000L) // -45 days
             val end = cal.timeInMillis + (75 * 24 * 60 * 60 * 1000L) // +75 days
-            repository.getEventsInRange(start, end)
+            repository.getEventsInRange(start, end).map { list ->
+                expandEventsForRange(list, start, end)
+            }
         },
         categories,
         _eventFilter
@@ -298,7 +365,9 @@ class CalendarViewModel @Inject constructor(
             cal.set(Calendar.SECOND, 59)
             cal.set(Calendar.MILLISECOND, 999)
             val end = cal.timeInMillis
-            repository.getEventsInRange(start, end)
+            repository.getEventsInRange(start, end).map { list ->
+                expandEventsForRange(list, start, end)
+            }
         },
         categories,
         _eventFilter

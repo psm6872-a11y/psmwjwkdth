@@ -80,9 +80,10 @@ object AppModule {
         eventDao: EventDao,
         trashDao: TrashDao,
         estimatePdfDao: EstimatePdfDao,
-        blacklistDao: com.example.danallacalendar.data.BlacklistDao
+        blacklistDao: com.example.danallacalendar.data.BlacklistDao,
+        @ApplicationContext context: Context
     ): CalendarRepository {
-        return CalendarRepository(firestore, userPreferences, eventDao, trashDao, estimatePdfDao, blacklistDao)
+        return CalendarRepository(firestore, userPreferences, eventDao, trashDao, estimatePdfDao, blacklistDao, context)
     }
 
     @Provides
