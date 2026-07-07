@@ -598,7 +598,8 @@ class CalendarRepository @Inject constructor(
                                     val existingList = eventDao.getEventsListBySyncId(remote.syncId ?: "")
                                     if (existingList.isNotEmpty()) {
                                         val mainExisting = existingList.first()
-                                        val updated = remote.copy(id = mainExisting.id)
+                                        // Preserve local reminderMinutes setting so sync does not overwrite it
+                                        val updated = remote.copy(id = mainExisting.id, reminderMinutes = mainExisting.reminderMinutes)
                                         if (mainExisting.title != remote.title ||
                                             mainExisting.startMillis != remote.startMillis ||
                                             mainExisting.endMillis != remote.endMillis ||
@@ -624,8 +625,9 @@ class CalendarRepository @Inject constructor(
                                             }
                                         }
                                     } else {
-                                        val generatedId = eventDao.insertEvent(remote)
-                                        val insertedEvent = remote.copy(id = generatedId.toInt())
+                                        // Default new remote events to no reminder (-1) for this device
+                                        val generatedId = eventDao.insertEvent(remote.copy(reminderMinutes = -1))
+                                        val insertedEvent = remote.copy(id = generatedId.toInt(), reminderMinutes = -1)
                                         EventReminderHelper.scheduleAlarm(context, insertedEvent)
                                     }
                                 }
@@ -662,7 +664,6 @@ class CalendarRepository @Inject constructor(
             "location" to event.location,
             "notes" to event.notes,
             "repeatType" to event.repeatType,
-            "reminderMinutes" to event.reminderMinutes,
             "syncId" to event.syncId,
             "colorHex" to event.colorHex,
             "isCompleted" to event.isCompleted,
