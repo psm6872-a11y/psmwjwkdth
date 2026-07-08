@@ -323,7 +323,7 @@ fun EstimateTabContent(estimates: List<Estimate>, events: List<Event>, year: Int
                     Text("${month + 1}월 주간 견적 건수", fontWeight = FontWeight.Bold, fontSize = 15.sp)
                     Spacer(modifier = Modifier.height(16.dp))
                     
-                    val weekOrder = listOf("1주차", "2주차", "3주차", "4주차", "5주차")
+                    val weekOrder = listOf("1주차", "2주차", "3주차", "4주차", "5주차", "6주차")
                     val chartData = stats.weeklyRequests.entries
                         .sortedBy { weekOrder.indexOf(it.key) }
                         .map { it.value.toFloat() to it.key }
@@ -2019,36 +2019,31 @@ fun computeEstimateContractStats(estimates: List<Estimate>, events: List<Event>,
 
     val sdfMonth = SimpleDateFormat("yyyy-MM", Locale.KOREAN)
     
-    // Initialize weekly map keys
-    weekly["1주차"] = 0
-    weekly["2주차"] = 0
-    weekly["3주차"] = 0
-    weekly["4주차"] = 0
-    val maxDays = Calendar.getInstance().apply {
+    // Initialize weekly map keys dynamically based on the actual calendar week rows
+    val maxWeek = Calendar.getInstance().apply {
+        firstDayOfWeek = Calendar.SUNDAY
         set(Calendar.YEAR, year)
         set(Calendar.MONTH, month)
-    }.getActualMaximum(Calendar.DAY_OF_MONTH)
+        set(Calendar.DAY_OF_MONTH, getActualMaximum(Calendar.DAY_OF_MONTH))
+    }.get(Calendar.WEEK_OF_MONTH)
     
-    if (maxDays > 28) {
-        weekly["5주차"] = 0
+    for (w in 1..maxWeek) {
+        weekly["${w}주차"] = 0
     }
 
     filteredEstimates.forEach { est ->
-        val cal = Calendar.getInstance().apply { timeInMillis = est.createdAt }
+        val cal = Calendar.getInstance().apply { 
+            timeInMillis = est.createdAt
+            firstDayOfWeek = Calendar.SUNDAY
+        }
         val dayOfWeek = cal.get(Calendar.DAY_OF_WEEK)
         dayOfWeekRequests[dayOfWeek] = (dayOfWeekRequests[dayOfWeek] ?: 0) + 1
         
         val hour = cal.get(Calendar.HOUR_OF_DAY)
         hourly[hour] = (hourly[hour] ?: 0) + 1
 
-        val day = cal.get(Calendar.DAY_OF_MONTH)
-        val weekKey = when {
-            day <= 7 -> "1주차"
-            day <= 14 -> "2주차"
-            day <= 21 -> "3주차"
-            day <= 28 -> "4주차"
-            else -> "5주차"
-        }
+        val weekNum = cal.get(Calendar.WEEK_OF_MONTH)
+        val weekKey = "${weekNum}주차"
         weekly[weekKey] = (weekly[weekKey] ?: 0) + 1
     }
 
