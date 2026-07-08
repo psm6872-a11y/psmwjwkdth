@@ -146,6 +146,9 @@ interface EventDao {
     @Query("DELETE FROM deadline_dates WHERE dateMillis = :dateMillis")
     suspend fun deleteDeadlineDate(dateMillis: Long)
 
+    @Query("DELETE FROM events WHERE calendarId NOT IN (SELECT id FROM calendar_categories)")
+    suspend fun pruneOrphanedEvents()
+
     @Query("DELETE FROM events")
     suspend fun deleteAllEvents()
 }

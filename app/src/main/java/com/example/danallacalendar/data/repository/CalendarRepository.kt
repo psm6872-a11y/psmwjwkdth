@@ -44,6 +44,17 @@ class CalendarRepository @Inject constructor(
     @ApplicationContext private val context: Context
 ) {
     private val syncMutex = Mutex()
+
+    init {
+        kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+            try {
+                eventDao.pruneOrphanedEvents()
+            } catch (e: Exception) {
+                android.util.Log.e("CalendarRepository", "Failed to prune orphaned events", e)
+            }
+        }
+    }
+
     // Suspending wrapper for createRoom with offline fallback
     suspend fun createRoomSuspended(): String {
         return try {
