@@ -1992,8 +1992,7 @@ fun computeEstimateContractStats(estimates: List<Estimate>, events: List<Event>,
                 it.get(Calendar.YEAR) == year && it.get(Calendar.MONTH) == month
             }
         }
-        val hasMoveDateInMonth = est.moveDate.startsWith(selectedYearMonthStr) && est.moveDate.isNotBlank() && estEvents.any { it.isAllDay }
-        hasAllDayInMonth || hasMoveDateInMonth
+        hasAllDayInMonth
     }
     val actualContractedCount = contractedEstimatesInMonth.size
     val totalContractedCost = contractedEstimatesInMonth.sumOf { est ->
@@ -2958,8 +2957,7 @@ fun computeGrowthStats(estimates: List<Estimate>, events: List<Event>, year: Int
                     it.get(Calendar.YEAR) == y && it.get(Calendar.MONTH) == m
                 }
             }
-            val hasMoveDateInMonth = est.moveDate.startsWith(targetMonthStr) && est.moveDate.isNotBlank() && estEvents.any { it.isAllDay }
-            hasAllDayInMonth || hasMoveDateInMonth
+            hasAllDayInMonth
         }
         if (contractedInMonth.isEmpty()) return 0L
         val totalPrice = contractedInMonth.sumOf { est ->
