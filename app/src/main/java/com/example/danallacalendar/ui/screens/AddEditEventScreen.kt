@@ -204,12 +204,13 @@ fun AddEditEventScreen(
         }
     }
 
-    // Load event if editing
     var isLoaded by remember { mutableStateOf(false) }
+    var originalEvent by remember { mutableStateOf<Event?>(null) }
     LaunchedEffect(eventId, categories) {
         if (eventId != null && !isLoaded && categories.isNotEmpty()) {
             val event = viewModel.getEventById(eventId)
             if (event != null) {
+                originalEvent = event
                 title = event.title
                 teamId = event.teamId
                 slotPosition = event.slotPosition
@@ -314,10 +315,32 @@ fun AddEditEventScreen(
                 teamId = teamId,
                 slotPosition = slotPosition
             )
-            if (eventId == null) {
-                viewModel.addEvent(event)
+            val hasChanged = if (eventId != null && originalEvent != null) {
+                val orig = originalEvent!!
+                orig.title != event.title ||
+                orig.startMillis != event.startMillis ||
+                orig.endMillis != event.endMillis ||
+                orig.isAllDay != event.isAllDay ||
+                orig.location != event.location ||
+                orig.notes != event.notes ||
+                orig.repeatType != event.repeatType ||
+                orig.reminderMinutes != event.reminderMinutes ||
+                orig.calendarId != event.calendarId ||
+                orig.colorHex != event.colorHex ||
+                orig.isCompleted != event.isCompleted ||
+                orig.linkedEstimateId != event.linkedEstimateId ||
+                orig.teamId != event.teamId ||
+                orig.slotPosition != event.slotPosition
             } else {
-                viewModel.updateEvent(event)
+                true
+            }
+
+            if (hasChanged) {
+                if (eventId == null) {
+                    viewModel.addEvent(event)
+                } else {
+                    viewModel.updateEvent(event)
+                }
             }
             prefs.edit()
                 .putString("last_used_color_hex", selectedColorHex)
