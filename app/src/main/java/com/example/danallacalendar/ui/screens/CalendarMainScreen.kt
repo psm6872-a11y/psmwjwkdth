@@ -28,10 +28,12 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
@@ -146,6 +148,7 @@ fun CalendarMainScreen(
     val isLoggedIn by viewModel.isLoggedIn.collectAsStateWithLifecycle()
     val userName by viewModel.userName.collectAsStateWithLifecycle()
     var showPermissionGuideDialog by remember { mutableStateOf(false) }
+    var isContextMenuOpen by remember { mutableStateOf(false) }
 
     val teamCountFlow = remember(context) {
         context.settingsDataStore.data.map { preferences ->
@@ -353,8 +356,11 @@ fun CalendarMainScreen(
 
     Box(modifier = Modifier.fillMaxSize()) {
         ModalNavigationDrawer(
+            modifier = Modifier
+                .fillMaxSize()
+                .blur(if (isContextMenuOpen) 8.dp else 0.dp),
             drawerState = drawerState,
-            gesturesEnabled = !drawerState.isClosed,
+            gesturesEnabled = !drawerState.isClosed && !isContextMenuOpen,
         drawerContent = {
             ModalDrawerSheet {
                 DrawerContent(
@@ -669,7 +675,9 @@ fun CalendarMainScreen(
                     onSwipeUp = { viewModel.setViewMode(CalendarViewMode.WEEK) },
                     onDateSelected = { viewModel.selectDate(it) },
                     modifier = Modifier.weight(1f),
-                    viewModel = viewModel
+                    viewModel = viewModel,
+                    isContextMenuOpen = isContextMenuOpen,
+                    onShowContextMenuChanged = { isContextMenuOpen = it }
                 )
                 }
             }
@@ -832,6 +840,19 @@ fun CalendarMainScreen(
                 }
             }
         }
+        }
+
+        if (isContextMenuOpen) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = 0.4f))
+                    .pointerInput(Unit) {
+                        detectTapGestures {
+                            isContextMenuOpen = false
+                        }
+                    }
+            )
         }
     }
 
@@ -1714,7 +1735,9 @@ fun EventListSection(
     onSwipeUp: () -> Unit = {},
     onDateSelected: (Long) -> Unit = {},
     modifier: Modifier = Modifier,
-    viewModel: CalendarViewModel
+    viewModel: CalendarViewModel,
+    isContextMenuOpen: Boolean = false,
+    onShowContextMenuChanged: (Boolean) -> Unit = {}
 ) {
     val configuration = androidx.compose.ui.platform.LocalConfiguration.current
     val screenWidth = configuration.screenWidthDp.dp
@@ -1920,7 +1943,9 @@ fun EventListSection(
                                 onToggleComplete = { onToggleComplete(event) },
                                 onUpdate = onUpdateEvent,
                                 onConfirmContract = onConfirmContract,
-                                viewModel = viewModel
+                                viewModel = viewModel,
+                                isContextMenuOpen = isContextMenuOpen,
+                                onShowContextMenuChanged = onShowContextMenuChanged
                             )
                         }
                     }
@@ -1940,7 +1965,9 @@ fun EventItemCard(
     onToggleComplete: () -> Unit,
     onUpdate: (Event) -> Unit = {},
     onConfirmContract: (Event, Int, String) -> Unit = { _, _, _ -> },
-    viewModel: CalendarViewModel
+    viewModel: CalendarViewModel,
+    isContextMenuOpen: Boolean = false,
+    onShowContextMenuChanged: (Boolean) -> Unit = {}
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -2001,6 +2028,15 @@ fun EventItemCard(
 
     var showContextMenu by remember { mutableStateOf(false) }
     var showSecondBubble by remember { mutableStateOf(false) }
+    LaunchedEffect(showContextMenu) {
+        onShowContextMenuChanged(showContextMenu)
+    }
+    LaunchedEffect(isContextMenuOpen) {
+        if (!isContextMenuOpen) {
+            showContextMenu = false
+            showSecondBubble = false
+        }
+    }
     var showConfirmConfirmDialog by remember { mutableStateOf(false) }
     var showDeleteConfirmDialog by remember { mutableStateOf(false) }
     var visitButtonWidth by remember { mutableStateOf(90.dp) }
