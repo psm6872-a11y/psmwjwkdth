@@ -146,7 +146,7 @@ fun EstimateScreen(
             }
         }
     }
-    var currentStep by remember { mutableStateOf(if (viewModel.copyFromEstimateJson != null) 2 else 1) }
+    var currentStep by remember { mutableStateOf(1) }
     var hasSaved by remember { mutableStateOf(false) }
     var activeSpaceForCargoInput by remember { mutableStateOf<String?>(null) }
     var savedSmsBody by remember { mutableStateOf("") }

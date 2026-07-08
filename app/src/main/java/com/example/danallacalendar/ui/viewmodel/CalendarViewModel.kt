@@ -387,6 +387,7 @@ class CalendarViewModel @Inject constructor(
             isVisible && matchesFilter
         }.sortedWith(
             compareBy<Event>(
+                { if (it.isAllDay) 0 else 1 },
                 { it.teamId ?: 999 },
                 {
                     when (it.slotPosition) {
@@ -429,6 +430,7 @@ class CalendarViewModel @Inject constructor(
             isVisible && matchesFilter
         }.sortedWith(
             compareBy<Event>(
+                { if (it.isAllDay) 0 else 1 },
                 { it.teamId ?: 999 },
                 {
                     when (it.slotPosition) {
@@ -460,6 +462,7 @@ class CalendarViewModel @Inject constructor(
             cats.find { it.id == event.calendarId }?.isVisible ?: true
         }.sortedWith(
             compareBy<Event>(
+                { if (it.isAllDay) 0 else 1 },
                 { it.teamId ?: 999 },
                 {
                     when (it.slotPosition) {
