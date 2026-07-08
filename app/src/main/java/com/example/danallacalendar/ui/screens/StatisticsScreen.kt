@@ -71,9 +71,9 @@ fun StatisticsScreen(
 
     val tabs = remember(isCreator) {
         if (isCreator) {
-            listOf("견적", "계약", "성장률", "거리/지역", "누적 매출")
+            listOf("계약", "견적", "성장률", "거리/지역", "누적 매출")
         } else {
-            listOf("견적", "계약", "성장률", "거리/지역")
+            listOf("계약", "견적", "성장률", "거리/지역")
         }
     }
 
@@ -188,8 +188,8 @@ fun StatisticsScreen(
                     }
                 } else {
                     when (selectedTab) {
-                        0 -> EstimateTabContent(allEstimates, allEvents, selectedYear, selectedMonth)
-                        1 -> ContractTabContent(allEstimates, allEvents, selectedYear, selectedMonth)
+                        0 -> ContractTabContent(allEstimates, allEvents, selectedYear, selectedMonth)
+                        1 -> EstimateTabContent(allEstimates, allEvents, selectedYear, selectedMonth)
                         2 -> GrowthRateTabContent(allEstimates, allEvents, selectedYear, selectedMonth)
                         3 -> DistanceRegionTabContent(allEstimates, companyAddress, activeAreas, selectedYear, selectedMonth)
                         4 -> {
@@ -273,7 +273,7 @@ fun EstimateTabContent(estimates: List<Estimate>, events: List<Event>, year: Int
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f))
                 ) {
                     Column(modifier = Modifier.padding(6.dp)) {
-                        Text("총 견적 요청 수", fontSize = 11.sp, color = MaterialTheme.colorScheme.outline, maxLines = 1)
+                        Text("견적 요청 건수", fontSize = 11.sp, color = MaterialTheme.colorScheme.outline, maxLines = 1)
                         Spacer(modifier = Modifier.height(2.dp))
                         Text("${stats.totalEstimates}건", fontSize = 15.sp, fontWeight = FontWeight.Bold)
                     }
@@ -531,7 +531,7 @@ fun ContractTabContent(estimates: List<Estimate>, events: List<Event>, year: Int
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f))
                 ) {
                     Column(modifier = Modifier.padding(6.dp)) {
-                        Text("총 견적 요청 수", fontSize = 11.sp, color = MaterialTheme.colorScheme.outline, maxLines = 1)
+                        Text("견적 요청 건수", fontSize = 11.sp, color = MaterialTheme.colorScheme.outline, maxLines = 1)
                         Spacer(modifier = Modifier.height(2.dp))
                         Text("${stats.totalEstimates}건", fontSize = 15.sp, fontWeight = FontWeight.Bold)
                     }
