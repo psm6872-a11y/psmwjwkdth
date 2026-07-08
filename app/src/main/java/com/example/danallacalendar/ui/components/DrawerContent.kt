@@ -220,7 +220,7 @@ fun DrawerContent(
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Text(
-                    text = "현재 버전: v${com.example.danallacalendar.BuildConfig.VERSION_NAME}",
+                    text = "v${com.example.danallacalendar.BuildConfig.VERSION_NAME}",
                     color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f),
                     fontSize = 14.sp,
                     fontWeight = FontWeight.SemiBold
