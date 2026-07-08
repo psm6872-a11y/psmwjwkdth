@@ -266,16 +266,16 @@ fun EstimateTabContent(estimates: List<Estimate>, events: List<Event>, year: Int
             // Stats Row: Total Requests & Average Amount
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Card(
                     modifier = Modifier.weight(1f),
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f))
                 ) {
-                    Column(modifier = Modifier.padding(8.dp)) {
-                        Text("총 견적 요청 수", fontSize = 13.sp, color = MaterialTheme.colorScheme.outline)
+                    Column(modifier = Modifier.padding(6.dp)) {
+                        Text("총 견적 요청 수", fontSize = 11.sp, color = MaterialTheme.colorScheme.outline, maxLines = 1)
                         Spacer(modifier = Modifier.height(2.dp))
-                        Text("${stats.totalEstimates}건", fontSize = 17.sp, fontWeight = FontWeight.Bold)
+                        Text("${stats.totalEstimates}건", fontSize = 15.sp, fontWeight = FontWeight.Bold)
                     }
                 }
 
@@ -283,10 +283,21 @@ fun EstimateTabContent(estimates: List<Estimate>, events: List<Event>, year: Int
                     modifier = Modifier.weight(1f),
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f))
                 ) {
-                    Column(modifier = Modifier.padding(8.dp)) {
-                        Text("평균 견적 금액", fontSize = 13.sp, color = MaterialTheme.colorScheme.outline)
+                    Column(modifier = Modifier.padding(6.dp)) {
+                        Text("계약된 건수", fontSize = 11.sp, color = MaterialTheme.colorScheme.outline, maxLines = 1)
                         Spacer(modifier = Modifier.height(2.dp))
-                        Text(formatManwon(stats.averageEstimateAmount), fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                        Text("${stats.contractedCount}건", fontSize = 15.sp, fontWeight = FontWeight.Bold)
+                    }
+                }
+
+                Card(
+                    modifier = Modifier.weight(1f),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f))
+                ) {
+                    Column(modifier = Modifier.padding(6.dp)) {
+                        Text("평균 견적 금액", fontSize = 11.sp, color = MaterialTheme.colorScheme.outline, maxLines = 1)
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(formatManwon(stats.averageEstimateAmount), fontSize = 14.sp, fontWeight = FontWeight.Bold)
                     }
                 }
             }
@@ -513,16 +524,16 @@ fun ContractTabContent(estimates: List<Estimate>, events: List<Event>, year: Int
             // Stats Row: Contracted Count & Average Contract Amount
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Card(
                     modifier = Modifier.weight(1f),
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f))
                 ) {
-                    Column(modifier = Modifier.padding(8.dp)) {
-                        Text("계약된 완료 건수", fontSize = 13.sp, color = MaterialTheme.colorScheme.outline)
+                    Column(modifier = Modifier.padding(6.dp)) {
+                        Text("총 견적 요청 수", fontSize = 11.sp, color = MaterialTheme.colorScheme.outline, maxLines = 1)
                         Spacer(modifier = Modifier.height(2.dp))
-                        Text("${stats.contractedCount}건", fontSize = 17.sp, fontWeight = FontWeight.Bold)
+                        Text("${stats.totalEstimates}건", fontSize = 15.sp, fontWeight = FontWeight.Bold)
                     }
                 }
 
@@ -530,10 +541,21 @@ fun ContractTabContent(estimates: List<Estimate>, events: List<Event>, year: Int
                     modifier = Modifier.weight(1f),
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f))
                 ) {
-                    Column(modifier = Modifier.padding(8.dp)) {
-                        Text("평균 계약완료 금액", fontSize = 13.sp, color = MaterialTheme.colorScheme.outline)
+                    Column(modifier = Modifier.padding(6.dp)) {
+                        Text("계약된 건수", fontSize = 11.sp, color = MaterialTheme.colorScheme.outline, maxLines = 1)
                         Spacer(modifier = Modifier.height(2.dp))
-                        Text(formatManwon(stats.averageContractAmount), fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                        Text("${stats.contractedCount}건", fontSize = 15.sp, fontWeight = FontWeight.Bold)
+                    }
+                }
+
+                Card(
+                    modifier = Modifier.weight(1f),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f))
+                ) {
+                    Column(modifier = Modifier.padding(6.dp)) {
+                        Text("평균 계약 금액", fontSize = 11.sp, color = MaterialTheme.colorScheme.outline, maxLines = 1)
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(formatManwon(stats.averageContractAmount), fontSize = 14.sp, fontWeight = FontWeight.Bold)
                     }
                 }
             }
@@ -551,7 +573,7 @@ fun ContractTabContent(estimates: List<Estimate>, events: List<Event>, year: Int
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text("팀별 계약 건수", fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                        Text("팀별 이사 건수", fontWeight = FontWeight.Bold, fontSize = 15.sp)
                         Box {
                             TextButton(
                                 onClick = { menuExpanded = true },
@@ -1985,14 +2007,9 @@ fun computeEstimateContractStats(estimates: List<Estimate>, events: List<Event>,
         0L
     }
 
-    val contractedEstimatesInMonth = uniqueEstimates.filter { est ->
+    val contractedEstimatesInMonth = filteredEstimates.filter { est ->
         val estEvents = events.filter { it.linkedEstimateId == est.id }
-        val hasAllDayInMonth = estEvents.any { evt ->
-            evt.isAllDay && Calendar.getInstance().apply { timeInMillis = evt.startMillis }.let {
-                it.get(Calendar.YEAR) == year && it.get(Calendar.MONTH) == month
-            }
-        }
-        hasAllDayInMonth
+        estEvents.any { it.isAllDay }
     }
     val actualContractedCount = contractedEstimatesInMonth.size
     val totalContractedCost = contractedEstimatesInMonth.sumOf { est ->
@@ -2062,15 +2079,15 @@ fun computeEstimateContractStats(estimates: List<Estimate>, events: List<Event>,
     }
 
     // Team move counts in selected year/month
+    // Team move counts in selected year/month (all-day events with team assigned)
     val filteredEvents = events.filter { evt ->
         val cal = Calendar.getInstance().apply { timeInMillis = evt.startMillis }
+        evt.isAllDay && evt.teamId != null &&
         cal.get(Calendar.YEAR) == year && cal.get(Calendar.MONTH) == month
     }
     val teamCounts = mutableMapOf<Int, Int>()
     filteredEvents.forEach { evt ->
-        if (evt.teamId != null) {
-            teamCounts[evt.teamId] = (teamCounts[evt.teamId] ?: 0) + 1
-        }
+        teamCounts[evt.teamId!!] = (teamCounts[evt.teamId] ?: 0) + 1
     }
 
     // Tonnage average prices
@@ -2951,13 +2968,11 @@ fun computeGrowthStats(estimates: List<Estimate>, events: List<Event>, year: Int
     fun getAverageContractPrice(y: Int, m: Int): Long {
         val targetMonthStr = String.format("%04d-%02d", y, m + 1)
         val contractedInMonth = uniqueEstimates.filter { est ->
+            val cal = Calendar.getInstance().apply { timeInMillis = est.createdAt }
+            val isTargetMonth = cal.get(Calendar.YEAR) == y && cal.get(Calendar.MONTH) == m
             val estEvents = events.filter { it.linkedEstimateId == est.id }
-            val hasAllDayInMonth = estEvents.any { evt ->
-                evt.isAllDay && Calendar.getInstance().apply { timeInMillis = evt.startMillis }.let {
-                    it.get(Calendar.YEAR) == y && it.get(Calendar.MONTH) == m
-                }
-            }
-            hasAllDayInMonth
+            val isContracted = estEvents.any { it.isAllDay }
+            isTargetMonth && isContracted
         }
         if (contractedInMonth.isEmpty()) return 0L
         val totalPrice = contractedInMonth.sumOf { est ->

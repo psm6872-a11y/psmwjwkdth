@@ -388,13 +388,17 @@ class CalendarViewModel @Inject constructor(
         }.sortedWith(
             compareBy<Event>(
                 { if (it.isAllDay) 0 else 1 },
-                { it.teamId ?: 999 },
+                { if (it.isAllDay) (it.teamId ?: 999) else 0 },
                 {
-                    when (it.slotPosition) {
-                        "top" -> 0
-                        "bottom" -> 1
-                        "both" -> 2
-                        else -> 3
+                    if (it.isAllDay) {
+                        when (it.slotPosition) {
+                            "top" -> 0
+                            "bottom" -> 1
+                            "both" -> 2
+                            else -> 3
+                        }
+                    } else {
+                        0
                     }
                 },
                 { it.startMillis }
@@ -431,13 +435,17 @@ class CalendarViewModel @Inject constructor(
         }.sortedWith(
             compareBy<Event>(
                 { if (it.isAllDay) 0 else 1 },
-                { it.teamId ?: 999 },
+                { if (it.isAllDay) (it.teamId ?: 999) else 0 },
                 {
-                    when (it.slotPosition) {
-                        "top" -> 0
-                        "bottom" -> 1
-                        "both" -> 2
-                        else -> 3
+                    if (it.isAllDay) {
+                        when (it.slotPosition) {
+                            "top" -> 0
+                            "bottom" -> 1
+                            "both" -> 2
+                            else -> 3
+                        }
+                    } else {
+                        0
                     }
                 },
                 { it.startMillis }
@@ -463,13 +471,17 @@ class CalendarViewModel @Inject constructor(
         }.sortedWith(
             compareBy<Event>(
                 { if (it.isAllDay) 0 else 1 },
-                { it.teamId ?: 999 },
+                { if (it.isAllDay) (it.teamId ?: 999) else 0 },
                 {
-                    when (it.slotPosition) {
-                        "top" -> 0
-                        "bottom" -> 1
-                        "both" -> 2
-                        else -> 3
+                    if (it.isAllDay) {
+                        when (it.slotPosition) {
+                            "top" -> 0
+                            "bottom" -> 1
+                            "both" -> 2
+                            else -> 3
+                        }
+                    } else {
+                        0
                     }
                 },
                 { it.startMillis }
