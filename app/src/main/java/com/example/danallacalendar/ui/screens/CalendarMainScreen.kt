@@ -11,6 +11,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.layout.*
@@ -2478,6 +2480,8 @@ fun EventItemCard(
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
+                            .weight(1f, fill = false)
+                            .verticalScroll(rememberScrollState())
                             .padding(24.dp),
                         verticalArrangement = Arrangement.spacedBy(20.dp)
                     ) {
@@ -2521,67 +2525,45 @@ fun EventItemCard(
                                 }
 
                                 val confirmedEvents = existingEventsForMoveDate.filter { it.teamId != null }
-                                val visitEvents = existingEventsForMoveDate.filter { it.teamId == null }
 
-                                if (existingEventsForMoveDate.isEmpty() && !isLoadingExistingEvents) {
+                                if (confirmedEvents.isEmpty() && !isLoadingExistingEvents) {
                                     Text(
-                                        text = "해당 날짜에 등록된 일정이 없습니다. (모든 팀 배정 가능)",
+                                        text = "해당 날짜에 배정된 팀이 없습니다.",
                                         fontSize = 12.sp,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
-                                } else {
-                                    if (confirmedEvents.isNotEmpty()) {
-                                        Text(
-                                            text = "배정된 팀 현황:",
-                                            fontSize = 12.sp,
-                                            fontWeight = FontWeight.Bold,
-                                            color = MaterialTheme.colorScheme.primary
-                                        )
-                                        confirmedEvents.sortedWith(compareBy({ it.teamId }, { it.slotPosition })).forEach { conf ->
-                                            val tPref = teamPrefsList.getOrNull((conf.teamId ?: 1) - 1) 
-                                                ?: (TeamConfigs.getOrNull((conf.teamId ?: 1) - 1)?.let { it.defaultName to it.defaultColor } ?: ("" to 0xFF4CAF50L))
-                                            val tName = tPref.first
-                                            val slotText = when (conf.slotPosition) {
-                                                "top" -> "오전"
-                                                "bottom" -> "오후"
-                                                else -> "하루종일"
-                                            }
-                                            val titleClean = conf.title.lineSequence().firstOrNull()?.replace("$tName.", "")?.trim() ?: ""
-                                            Row(
-                                                verticalAlignment = Alignment.CenterVertically,
-                                                horizontalArrangement = Arrangement.spacedBy(6.dp)
-                                            ) {
-                                                Box(
-                                                    modifier = Modifier
-                                                        .size(8.dp)
-                                                        .clip(CircleShape)
-                                                        .background(Color(tPref.second))
-                                                )
-                                                Text(
-                                                    text = "[$tName / $slotText] $titleClean",
-                                                    fontSize = 12.sp,
-                                                    fontWeight = FontWeight.Medium,
-                                                    color = MaterialTheme.colorScheme.onSurface
-                                                )
-                                            }
+                                } else if (confirmedEvents.isNotEmpty()) {
+                                    Text(
+                                        text = "배정된 팀 현황:",
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+                                    confirmedEvents.sortedWith(compareBy({ it.teamId }, { it.slotPosition })).forEach { conf ->
+                                        val tPref = teamPrefsList.getOrNull((conf.teamId ?: 1) - 1) 
+                                            ?: (TeamConfigs.getOrNull((conf.teamId ?: 1) - 1)?.let { it.defaultName to it.defaultColor } ?: ("" to 0xFF4CAF50L))
+                                        val tName = tPref.first
+                                        val slotText = when (conf.slotPosition) {
+                                            "top" -> "오전"
+                                            "bottom" -> "오후"
+                                            else -> "하루종일"
                                         }
-                                    }
-                                    if (visitEvents.isNotEmpty()) {
-                                        Spacer(modifier = Modifier.height(2.dp))
-                                        Text(
-                                            text = "방문예약 현황:",
-                                            fontSize = 12.sp,
-                                            fontWeight = FontWeight.Bold,
-                                            color = MaterialTheme.colorScheme.secondary
-                                        )
-                                        visitEvents.forEach { visit ->
-                                            val tFormat = SimpleDateFormat("HH:mm", Locale.KOREAN)
-                                            val timeText = if (visit.isAllDay) "하루종일" else tFormat.format(Date(visit.startMillis))
-                                            val titleClean = visit.title.lineSequence().firstOrNull() ?: ""
+                                        val titleClean = conf.title.lineSequence().firstOrNull()?.replace("$tName.", "")?.trim() ?: ""
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                        ) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .size(8.dp)
+                                                    .clip(CircleShape)
+                                                    .background(Color(tPref.second))
+                                            )
                                             Text(
-                                                text = "• [$timeText] $titleClean",
+                                                text = "[$tName / $slotText] $titleClean",
                                                 fontSize = 12.sp,
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                                fontWeight = FontWeight.Medium,
+                                                color = MaterialTheme.colorScheme.onSurface
                                             )
                                         }
                                     }
