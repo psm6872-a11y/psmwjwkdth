@@ -149,6 +149,9 @@ fun EstimateListScreen(
     var isAmSelected by remember { mutableStateOf(false) }
     var isPmSelected by remember { mutableStateOf(false) }
     var confirmContractEstimate by remember { mutableStateOf<Estimate?>(null) }
+    var existingEventsForMoveDate by remember { mutableStateOf<List<Event>>(emptyList()) }
+    var isLoadingExistingEvents by remember { mutableStateOf(false) }
+    var moveDateStr by remember { mutableStateOf("") }
 
     var showConflictConfirmDialog by remember { mutableStateOf(false) }
     var conflictTargetEstimate by remember { mutableStateOf<Estimate?>(null) }
@@ -165,6 +168,26 @@ fun EstimateListScreen(
     var pendingSignInAction by remember { mutableStateOf<String?>(null) } // "save" or "auto"
 
     val scope = rememberCoroutineScope()
+    LaunchedEffect(showConfirmConfirmDialog) {
+        if (showConfirmConfirmDialog) {
+            existingEventsForMoveDate = emptyList()
+            moveDateStr = ""
+            val est = confirmContractEstimate
+            if (est != null && est.moveDate.isNotBlank()) {
+                moveDateStr = est.moveDate
+                isLoadingExistingEvents = true
+                scope.launch {
+                    try {
+                        existingEventsForMoveDate = viewModel.getEventsForDateString(est.moveDate)
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                    } finally {
+                        isLoadingExistingEvents = false
+                    }
+                }
+            }
+        }
+    }
     var showEditTemplateDialog by remember { mutableStateOf(false) }
     var templateText by remember { mutableStateOf("") }
     var editingTemplateType by remember { mutableStateOf("contract") }
@@ -671,6 +694,82 @@ fun EstimateListScreen(
                                             modifier = Modifier.fillMaxWidth(),
                                             textAlign = TextAlign.Center
                                         )
+
+                                        // Existing events list on the target date
+                                        if (moveDateStr.isNotEmpty()) {
+                                            Column(
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f), RoundedCornerShape(12.dp))
+                                                    .padding(12.dp),
+                                                verticalArrangement = Arrangement.spacedBy(6.dp)
+                                            ) {
+                                                Row(
+                                                    modifier = Modifier.fillMaxWidth(),
+                                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                                    verticalAlignment = Alignment.CenterVertically
+                                                ) {
+                                                    Text(
+                                                        text = "📅 이사 예정일: $moveDateStr",
+                                                        fontSize = 13.sp,
+                                                        fontWeight = FontWeight.Bold,
+                                                        color = MaterialTheme.colorScheme.onSurface
+                                                    )
+                                                    if (isLoadingExistingEvents) {
+                                                        CircularProgressIndicator(
+                                                            modifier = Modifier.size(14.dp),
+                                                            strokeWidth = 1.5.dp,
+                                                            color = MaterialTheme.colorScheme.primary
+                                                        )
+                                                    }
+                                                }
+
+                                                val confirmedEvents = existingEventsForMoveDate.filter { it.teamId != null }
+
+                                                if (confirmedEvents.isEmpty() && !isLoadingExistingEvents) {
+                                                    Text(
+                                                        text = "해당 날짜에 배정된 팀이 없습니다.",
+                                                        fontSize = 12.sp,
+                                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                                    )
+                                                } else if (confirmedEvents.isNotEmpty()) {
+                                                    Text(
+                                                        text = "배정된 팀 현황:",
+                                                        fontSize = 12.sp,
+                                                        fontWeight = FontWeight.Bold,
+                                                        color = MaterialTheme.colorScheme.primary
+                                                    )
+                                                    confirmedEvents.sortedWith(compareBy({ it.teamId }, { it.slotPosition })).forEach { conf ->
+                                                        val tPref = teamPrefsList.getOrNull((conf.teamId ?: 1) - 1) 
+                                                            ?: (TeamConfigs.getOrNull((conf.teamId ?: 1) - 1)?.let { it.defaultName to it.defaultColor } ?: ("" to 0xFF4CAF50L))
+                                                        val tName = tPref.first
+                                                        val slotText = when (conf.slotPosition) {
+                                                            "top" -> "오전"
+                                                            "bottom" -> "오후"
+                                                            else -> "하루종일"
+                                                        }
+                                                        val titleClean = conf.title.lineSequence().firstOrNull()?.replace("$tName.", "")?.trim() ?: ""
+                                                        Row(
+                                                            verticalAlignment = Alignment.CenterVertically,
+                                                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                                        ) {
+                                                            Box(
+                                                                modifier = Modifier
+                                                                    .size(8.dp)
+                                                                    .clip(CircleShape)
+                                                                    .background(Color(tPref.second))
+                                                            )
+                                                            Text(
+                                                                text = "[$tName / $slotText] $titleClean",
+                                                                fontSize = 12.sp,
+                                                                fontWeight = FontWeight.Medium,
+                                                                color = MaterialTheme.colorScheme.onSurface
+                                                            )
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
 
                                         // Team Selection
                                         Column(

@@ -131,6 +131,9 @@ fun AddEditEventScreen(
 
     var showChangeTeamSlotDialog by remember { mutableStateOf(false) }
     var showSwapConfirmDialog by remember { mutableStateOf(false) }
+    var isDateSwap by remember { mutableStateOf(false) }
+    var preConflictStartMillis by remember { mutableStateOf(0L) }
+    var preConflictEndMillis by remember { mutableStateOf(0L) }
     var swapTargetEvent by remember { mutableStateOf<Event?>(null) }
     var swapTargetTeamId by remember { mutableStateOf<Int?>(null) }
     var swapTargetSlotPos by remember { mutableStateOf<String?>(null) }
@@ -141,6 +144,7 @@ fun AddEditEventScreen(
     var tempIsPmSelected by remember { mutableStateOf(false) }
 
     val isReadOnly = false
+    val localScope = rememberCoroutineScope()
 
     // Dialog control states
     var showStartDatePicker by remember { mutableStateOf(false) }
@@ -1585,9 +1589,50 @@ fun AddEditEventScreen(
                     set(Calendar.SECOND, 0)
                     set(Calendar.MILLISECOND, 0)
                 }
-                val duration = endMillis - startMillis
-                startMillis = newCal.timeInMillis
-                endMillis = startMillis + duration
+                
+                val currentTeamId = teamId
+                if (currentTeamId != null) {
+                    val finalSlotPos = slotPosition ?: "both"
+                    val sdfDate = SimpleDateFormat("yyyy-MM-dd", Locale.KOREAN)
+                    val dateStr = sdfDate.format(Date(newCal.timeInMillis))
+                    
+                    localScope.launch {
+                        val conflicts = viewModel.checkContractConflict(
+                            dateStr = dateStr,
+                            teamId = currentTeamId,
+                            slotPos = finalSlotPos,
+                            excludeEventId = eventId
+                        )
+                        if (conflicts.isNotEmpty()) {
+                            swapTargetEvent = conflicts.first()
+                            swapTargetTeamId = currentTeamId
+                            swapTargetSlotPos = finalSlotPos
+                            isDateSwap = true
+                            
+                            // Save original dates to revert if canceled
+                            preConflictStartMillis = startMillis
+                            preConflictEndMillis = endMillis
+                            
+                            // Temporarily update local start/end millis so swapTargetEvent knows we want to swap to this new date
+                            val duration = endMillis - startMillis
+                            startMillis = newCal.timeInMillis
+                            endMillis = startMillis + duration
+                            
+                            val firstConf = conflicts.first()
+                            val confTitle = firstConf.title.split("\n").firstOrNull() ?: ""
+                            swapMessage = "주의: 선택하신 날짜와 팀/시간대에 이미 확정된 일정이 있습니다.\n(기존 일정: $confTitle)\n\n어떤 작업을 수행하시겠습니까?"
+                            showSwapConfirmDialog = true
+                        } else {
+                            val duration = endMillis - startMillis
+                            startMillis = newCal.timeInMillis
+                            endMillis = startMillis + duration
+                        }
+                    }
+                } else {
+                    val duration = endMillis - startMillis
+                    startMillis = newCal.timeInMillis
+                    endMillis = startMillis + duration
+                }
                 showStartDatePicker = false
             }
         )
@@ -1872,10 +1917,15 @@ fun AddEditEventScreen(
     if (showSwapConfirmDialog && swapTargetEvent != null) {
         AlertDialog(
             onDismissRequest = {
+                if (isDateSwap && preConflictStartMillis > 0L) {
+                    startMillis = preConflictStartMillis
+                    endMillis = preConflictEndMillis
+                }
                 showSwapConfirmDialog = false
                 swapTargetEvent = null
                 swapTargetTeamId = null
                 swapTargetSlotPos = null
+                isDateSwap = false
             },
             title = { Text("배정 중복 발생", color = Color.White, fontWeight = FontWeight.Bold) },
             text = { Text(swapMessage, color = Color.White.copy(alpha = 0.8f)) },
@@ -1891,54 +1941,96 @@ fun AddEditEventScreen(
                             val targetTeam = swapTargetTeamId
                             val targetSlot = swapTargetSlotPos
                             if (targetEvent != null && targetTeam != null && targetSlot != null) {
-                                // 상대방 이벤트의 기존 타이틀의 팀명을 현재 나의 기존 팀명으로 변경
-                                val myOldTeamName = teamId?.let { teamPrefsList.getOrNull(it - 1)?.first } ?: ""
-                                val targetOldTeamName = teamPrefsList.getOrNull(targetTeam - 1)?.first ?: ""
-                                
-                                var newTargetTitle = targetEvent.title
-                                if (targetOldTeamName.isNotEmpty() && newTargetTitle.startsWith("$targetOldTeamName.")) {
-                                    newTargetTitle = newTargetTitle.replaceFirst(
-                                        "$targetOldTeamName.", 
-                                        if (myOldTeamName.isNotEmpty()) "$myOldTeamName." else ""
-                                    )
-                                }
-                                
-                                // 상대방 이벤트를 나의 예전 배정정보로 업데이트 (DB 반영)
-                                viewModel.updateEventTitleAndAssignment(
-                                    event = targetEvent,
-                                    newTeamId = teamId ?: 0,
-                                    newSlotPos = slotPosition ?: "",
-                                    newTitle = newTargetTitle
-                                )
-                                
-                                // 나의 타이틀 팀명 접두사를 상대방이 가졌던 팀명으로 변경
-                                val myNewTeamName = teamPrefsList.getOrNull(targetTeam - 1)?.first ?: ""
-                                if (myOldTeamName.isNotEmpty() && title.startsWith("$myOldTeamName.")) {
-                                    title = title.replaceFirst("$myOldTeamName.", "$myNewTeamName.")
-                                } else {
-                                    val dotIndex = title.indexOf('.')
-                                    if (dotIndex in 1..10) {
-                                        title = myNewTeamName + title.substring(dotIndex)
-                                    } else {
-                                        title = "$myNewTeamName. $title"
+                                if (isDateSwap && preConflictStartMillis > 0L) {
+                                    // ── 날짜 맞교환 (Date Swap) ──
+                                    val myOldTeamName = teamId?.let { teamPrefsList.getOrNull(it - 1)?.first } ?: ""
+                                    val targetOldTeamName = teamPrefsList.getOrNull(targetTeam - 1)?.first ?: ""
+                                    
+                                    var newTargetTitle = targetEvent.title
+                                    if (targetOldTeamName.isNotEmpty() && newTargetTitle.startsWith("$targetOldTeamName.")) {
+                                        newTargetTitle = newTargetTitle.replaceFirst(
+                                            "$targetOldTeamName.", 
+                                            if (myOldTeamName.isNotEmpty()) "$myOldTeamName." else ""
+                                        )
                                     }
+                                    
+                                    // 상대방 이벤트를 나의 예전 날짜 및 배정 정보로 업데이트 (DB 반영)
+                                    val updatedTargetEvent = targetEvent.copy(
+                                        startMillis = preConflictStartMillis,
+                                        endMillis = preConflictEndMillis,
+                                        teamId = teamId ?: 0,
+                                        slotPosition = slotPosition ?: "",
+                                        title = newTargetTitle,
+                                        updatedAt = System.currentTimeMillis()
+                                    )
+                                    viewModel.updateEvent(updatedTargetEvent)
+                                    
+                                    // 나의 타이틀 팀명 접두사를 상대방이 가졌던 팀명으로 변경
+                                    val myNewTeamName = teamPrefsList.getOrNull(targetTeam - 1)?.first ?: ""
+                                    if (myOldTeamName.isNotEmpty() && title.startsWith("$myOldTeamName.")) {
+                                        title = title.replaceFirst("$myOldTeamName.", "$myNewTeamName.")
+                                    } else {
+                                        val dotIndex = title.indexOf('.')
+                                        if (dotIndex in 1..10) {
+                                            title = myNewTeamName + title.substring(dotIndex)
+                                        } else {
+                                            title = "$myNewTeamName. $title"
+                                        }
+                                    }
+                                    
+                                    Toast.makeText(context, "일정 날짜가 맞교환 되었습니다.", Toast.LENGTH_SHORT).show()
+                                } else {
+                                    // ── 기존 팀/시간대 맞교환 ──
+                                    // 상대방 이벤트의 기존 타이틀의 팀명을 현재 나의 기존 팀명으로 변경
+                                    val myOldTeamName = teamId?.let { teamPrefsList.getOrNull(it - 1)?.first } ?: ""
+                                    val targetOldTeamName = teamPrefsList.getOrNull(targetTeam - 1)?.first ?: ""
+                                    
+                                    var newTargetTitle = targetEvent.title
+                                    if (targetOldTeamName.isNotEmpty() && newTargetTitle.startsWith("$targetOldTeamName.")) {
+                                        newTargetTitle = newTargetTitle.replaceFirst(
+                                            "$targetOldTeamName.", 
+                                            if (myOldTeamName.isNotEmpty()) "$myOldTeamName." else ""
+                                        )
+                                    }
+                                    
+                                    // 상대방 이벤트를 나의 예전 배정정보로 업데이트 (DB 반영)
+                                    viewModel.updateEventTitleAndAssignment(
+                                        event = targetEvent,
+                                        newTeamId = teamId ?: 0,
+                                        newSlotPos = slotPosition ?: "",
+                                        newTitle = newTargetTitle
+                                    )
+                                    
+                                    // 나의 타이틀 팀명 접두사를 상대방이 가졌던 팀명으로 변경
+                                    val myNewTeamName = teamPrefsList.getOrNull(targetTeam - 1)?.first ?: ""
+                                    if (myOldTeamName.isNotEmpty() && title.startsWith("$myOldTeamName.")) {
+                                        title = title.replaceFirst("$myOldTeamName.", "$myNewTeamName.")
+                                    } else {
+                                        val dotIndex = title.indexOf('.')
+                                        if (dotIndex in 1..10) {
+                                            title = myNewTeamName + title.substring(dotIndex)
+                                        } else {
+                                            title = "$myNewTeamName. $title"
+                                        }
+                                    }
+                                    
+                                    // 나의 배정 정보를 업데이트 (로컬 상태)
+                                    teamId = targetTeam
+                                    slotPosition = targetSlot
+                                    if (targetTeam == 1) {
+                                        selectedColorHex = "#FF4CAF50"
+                                    } else if (targetTeam == 2) {
+                                        selectedColorHex = "#FFFFEB3B"
+                                    }
+                                    
+                                    Toast.makeText(context, "일정이 맞교환 되었습니다.", Toast.LENGTH_SHORT).show()
                                 }
-                                
-                                // 나의 배정 정보를 업데이트 (로컬 상태)
-                                teamId = targetTeam
-                                slotPosition = targetSlot
-                                if (targetTeam == 1) {
-                                    selectedColorHex = "#FF4CAF50"
-                                } else if (targetTeam == 2) {
-                                    selectedColorHex = "#FFFFEB3B"
-                                }
-                                
-                                Toast.makeText(context, "일정이 맞교환 되었습니다.", Toast.LENGTH_SHORT).show()
                             }
                             showSwapConfirmDialog = false
                             swapTargetEvent = null
                             swapTargetTeamId = null
                             swapTargetSlotPos = null
+                            isDateSwap = false
                         },
                         colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
                         modifier = Modifier.fillMaxWidth(),
@@ -1980,6 +2072,7 @@ fun AddEditEventScreen(
                             swapTargetEvent = null
                             swapTargetTeamId = null
                             swapTargetSlotPos = null
+                            isDateSwap = false
                         },
                         colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFFB74D)), // Orange accent
                         modifier = Modifier.fillMaxWidth(),
@@ -1991,10 +2084,15 @@ fun AddEditEventScreen(
                     // 3. 취소
                     OutlinedButton(
                         onClick = {
+                            if (isDateSwap && preConflictStartMillis > 0L) {
+                                startMillis = preConflictStartMillis
+                                endMillis = preConflictEndMillis
+                            }
                             showSwapConfirmDialog = false
                             swapTargetEvent = null
                             swapTargetTeamId = null
                             swapTargetSlotPos = null
+                            isDateSwap = false
                         },
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(12.dp)
