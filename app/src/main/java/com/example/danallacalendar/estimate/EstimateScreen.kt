@@ -3367,23 +3367,53 @@ fun Step3CustomerInfo(
                 val destinationDetail = remember(destinationParts) { destinationParts.getOrNull(1) ?: "" }
 
                 var isDepartureAddrFocused by remember { mutableStateOf(false) }
-                OutlinedTextField(
-                    value = departureAddr,
-                    onValueChange = { newAddr ->
-                        onDepartureChange("$newAddr|$departureDetail")
-                    },
-                    label = { Text("출발지 주소", maxLines = 1, overflow = TextOverflow.Ellipsis) },
-                    colors = textFieldColors,
-                    modifier = Modifier.fillMaxWidth().onFocusChanged { focusState ->
-                        if (focusState.isFocused && !isDepartureAddrFocused) {
-                            val backup = departure
-                            onFieldFocus { onDepartureChange(backup) }
-                        }
-                        isDepartureAddrFocused = focusState.isFocused
-                    },
-                    singleLine = false,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text)
-                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    OutlinedTextField(
+                        value = departureAddr,
+                        onValueChange = { newAddr ->
+                            onDepartureChange("$newAddr|$departureDetail")
+                        },
+                        label = { Text("출발지 주소", maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                        colors = textFieldColors,
+                        modifier = Modifier.weight(1f).onFocusChanged { focusState ->
+                            if (focusState.isFocused && !isDepartureAddrFocused) {
+                                val backup = departure
+                                onFieldFocus { onDepartureChange(backup) }
+                            }
+                            isDepartureAddrFocused = focusState.isFocused
+                        },
+                        singleLine = false,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Button(
+                        onClick = {
+                            if (departureAddr.isNotBlank()) {
+                                try {
+                                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse("nmap://search?query=${Uri.encode(departureAddr)}&appname=com.example.danallacalendar"))
+                                    context.startActivity(intent)
+                                } catch (e: Exception) {
+                                    val webIntent = Intent(Intent.ACTION_VIEW, Uri.parse("https://m.map.naver.com/search2/search.naver?query=${Uri.encode(departureAddr)}"))
+                                    context.startActivity(webIntent)
+                                }
+                            } else {
+                                Toast.makeText(context, "출발지 주소를 입력해주세요.", Toast.LENGTH_SHORT).show()
+                            }
+                        },
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
+                        shape = RoundedCornerShape(8.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.primaryContainer,
+                            contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                        ),
+                        modifier = Modifier.height(32.dp)
+                    ) {
+                        Text("지도", fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                    }
+                }
 
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -3477,23 +3507,53 @@ fun Step3CustomerInfo(
                 }
 
                 var isDestinationAddrFocused by remember { mutableStateOf(false) }
-                OutlinedTextField(
-                    value = destinationAddr,
-                    onValueChange = { newAddr ->
-                        onDestinationChange("$newAddr|$destinationDetail")
-                    },
-                    label = { Text("도착지 주소", maxLines = 1, overflow = TextOverflow.Ellipsis) },
-                    colors = textFieldColors,
-                    modifier = Modifier.fillMaxWidth().onFocusChanged { focusState ->
-                        if (focusState.isFocused && !isDestinationAddrFocused) {
-                            val backup = destination
-                            onFieldFocus { onDestinationChange(backup) }
-                        }
-                        isDestinationAddrFocused = focusState.isFocused
-                    },
-                    singleLine = false,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text)
-                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    OutlinedTextField(
+                        value = destinationAddr,
+                        onValueChange = { newAddr ->
+                            onDestinationChange("$newAddr|$destinationDetail")
+                        },
+                        label = { Text("도착지 주소", maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                        colors = textFieldColors,
+                        modifier = Modifier.weight(1f).onFocusChanged { focusState ->
+                            if (focusState.isFocused && !isDestinationAddrFocused) {
+                                val backup = destination
+                                onFieldFocus { onDestinationChange(backup) }
+                            }
+                            isDestinationAddrFocused = focusState.isFocused
+                        },
+                        singleLine = false,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Button(
+                        onClick = {
+                            if (destinationAddr.isNotBlank()) {
+                                try {
+                                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse("nmap://search?query=${Uri.encode(destinationAddr)}&appname=com.example.danallacalendar"))
+                                    context.startActivity(intent)
+                                } catch (e: Exception) {
+                                    val webIntent = Intent(Intent.ACTION_VIEW, Uri.parse("https://m.map.naver.com/search2/search.naver?query=${Uri.encode(destinationAddr)}"))
+                                    context.startActivity(webIntent)
+                                }
+                            } else {
+                                Toast.makeText(context, "도착지 주소를 입력해주세요.", Toast.LENGTH_SHORT).show()
+                            }
+                        },
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
+                        shape = RoundedCornerShape(8.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.primaryContainer,
+                            contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                        ),
+                        modifier = Modifier.height(32.dp)
+                    ) {
+                        Text("지도", fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                    }
+                }
 
                 Row(
                     modifier = Modifier.fillMaxWidth(),
