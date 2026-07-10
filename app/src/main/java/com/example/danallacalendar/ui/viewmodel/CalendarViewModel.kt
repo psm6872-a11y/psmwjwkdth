@@ -671,7 +671,12 @@ class CalendarViewModel @Inject constructor(
             } else {
                 event
             }
-            repository.insertEvent(eventToInsert)
+            val currentNickname = userPreferences.getNickname()
+            val eventWithAuthor = eventToInsert.copy(
+                createdBy = eventToInsert.createdBy.ifBlank { currentNickname },
+                updatedBy = eventToInsert.updatedBy.ifBlank { currentNickname }
+            )
+            repository.insertEvent(eventWithAuthor)
         }
     }
 
@@ -686,7 +691,11 @@ class CalendarViewModel @Inject constructor(
             } else {
                 event
             }
-            repository.updateEvent(eventToUpdate)
+            val currentNickname = userPreferences.getNickname()
+            val eventWithAuthor = eventToUpdate.copy(
+                updatedBy = currentNickname
+            )
+            repository.updateEvent(eventWithAuthor)
         }
     }
 

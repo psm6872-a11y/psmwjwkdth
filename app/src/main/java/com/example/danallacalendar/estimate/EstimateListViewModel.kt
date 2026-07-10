@@ -444,6 +444,7 @@ class EstimateListViewModel @Inject constructor(
                 val colorHexField = String.format("#%08X", teamColorLong)
                 
                 val syncId = java.util.UUID.randomUUID().toString()
+                val currentNickname = com.example.danallacalendar.data.local.UserPreferences(context).getNickname()
                 val newEvent = com.example.danallacalendar.data.Event(
                     title = titleText,
                     startMillis = startMillis,
@@ -459,7 +460,9 @@ class EstimateListViewModel @Inject constructor(
                     teamId = teamId,
                     slotPosition = slotPos,
                     createdAt = System.currentTimeMillis(),
-                    updatedAt = System.currentTimeMillis()
+                    updatedAt = System.currentTimeMillis(),
+                    createdBy = currentNickname,
+                    updatedBy = currentNickname
                 )
                 com.example.danallacalendar.data.local.UserPreferences(context).addDismissedContractSyncId(syncId)
                 calendarRepository.insertEvent(newEvent)

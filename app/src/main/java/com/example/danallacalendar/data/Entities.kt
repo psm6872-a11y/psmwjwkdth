@@ -35,7 +35,9 @@ data class Event(
     val updatedAt: Long = System.currentTimeMillis(),
     val linkedEstimateId: String? = null,
     val teamId: Int? = null,
-    val slotPosition: String? = null
+    val slotPosition: String? = null,
+    val createdBy: String = "",
+    val updatedBy: String = ""
 )
 
 @Entity(tableName = "deadline_dates")

@@ -581,6 +581,8 @@ class CalendarRepository @Inject constructor(
                                     val updatedAt = doc.getLong("updatedAt") ?: System.currentTimeMillis()
                                     val teamId = doc.getLong("teamId")?.toInt()
                                     val slotPosition = doc.getString("slotPosition")
+                                    val createdBy = doc.getString("createdBy") ?: ""
+                                    val updatedBy = doc.getString("updatedBy") ?: ""
                                     
                                     Event(
                                         title = title,
@@ -600,7 +602,9 @@ class CalendarRepository @Inject constructor(
                                         updatedAt = updatedAt,
                                         linkedEstimateId = linkedEstimateId,
                                         teamId = teamId,
-                                        slotPosition = slotPosition
+                                        slotPosition = slotPosition,
+                                        createdBy = createdBy,
+                                        updatedBy = updatedBy
                                     )
                                 }
                                 
@@ -623,7 +627,9 @@ class CalendarRepository @Inject constructor(
                                             mainExisting.updatedAt != remote.updatedAt ||
                                             mainExisting.linkedEstimateId != remote.linkedEstimateId ||
                                             mainExisting.teamId != remote.teamId ||
-                                            mainExisting.slotPosition != remote.slotPosition
+                                            mainExisting.slotPosition != remote.slotPosition ||
+                                            mainExisting.createdBy != remote.createdBy ||
+                                            mainExisting.updatedBy != remote.updatedBy
                                         ) {
                                             eventDao.updateEvent(updated)
                                             EventReminderHelper.scheduleAlarm(context, updated)
@@ -680,7 +686,8 @@ class CalendarRepository @Inject constructor(
             "isCompleted" to event.isCompleted,
             "linkedEstimateId" to event.linkedEstimateId,
             "lastUpdatedBy" to userPreferences.getDeviceUUID(),
-            "createdBy" to userPreferences.getDeviceUUID(),
+            "createdBy" to event.createdBy.ifBlank { userPreferences.getNickname() },
+            "updatedBy" to event.updatedBy.ifBlank { userPreferences.getNickname() },
             "createdAt" to event.createdAt,
             "updatedAt" to event.updatedAt,
             "teamId" to event.teamId,

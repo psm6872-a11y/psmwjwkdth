@@ -633,7 +633,9 @@ fun CalendarMainScreen(
                                             teamId = teamId,
                                             slotPosition = slotPos,
                                             createdAt = System.currentTimeMillis(),
-                                            updatedAt = System.currentTimeMillis()
+                                            updatedAt = System.currentTimeMillis(),
+                                            createdBy = userName,
+                                            updatedBy = userName
                                         )
 
                                         // 중복 일정 체크

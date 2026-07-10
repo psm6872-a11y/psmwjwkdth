@@ -1,4 +1,4 @@
-package com.example.danallacalendar.ui.screens
+﻿package com.example.danallacalendar.ui.screens
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -123,6 +123,8 @@ fun AddEditEventScreen(
     var isCompleted by remember { mutableStateOf(false) }
     var createdAt by remember { mutableStateOf(System.currentTimeMillis()) }
     var updatedAt by remember { mutableStateOf(System.currentTimeMillis()) }
+    var createdBy by remember { mutableStateOf("") }
+    var updatedBy by remember { mutableStateOf("") }
     var isDestinationExpanded by remember { mutableStateOf(false) }
     var isEndExpanded by remember { mutableStateOf(false) }
 
@@ -243,6 +245,8 @@ fun AddEditEventScreen(
                 isCompleted = event.isCompleted
                 createdAt = if (event.createdAt <= 0L) System.currentTimeMillis() else event.createdAt
                 updatedAt = if (event.updatedAt <= 0L) System.currentTimeMillis() else event.updatedAt
+                createdBy = event.createdBy
+                updatedBy = event.updatedBy
                 // linkedEstimateId로 찾은 견적서 (기존 연결)
                 val estById = event.linkedEstimateId?.let { viewModel.getEstimateById(it) }
                 // scheduleId로 가장 최신 견적서 조회 (수정 이력 반영)
@@ -324,7 +328,9 @@ fun AddEditEventScreen(
                 updatedAt = now,
                 linkedEstimateId = linkedEstimateId,
                 teamId = teamId,
-                slotPosition = slotPosition
+                slotPosition = slotPosition,
+                createdBy = if (eventId == null) viewModel.userName.value else createdBy,
+                updatedBy = viewModel.userName.value
             )
             val hasChanged = if (eventId != null && originalEvent != null) {
                 val orig = originalEvent!!
@@ -1529,14 +1535,14 @@ fun AddEditEventScreen(
                 val sdf = remember { SimpleDateFormat("yyyy년 M월 d일 HH:mm:ss", Locale.KOREAN) }
                 
                 Text(
-                    text = "생성: ${sdf.format(Date(createdAt))}",
+                    text = "생성: ${sdf.format(Date(createdAt))}${if (createdBy.isNotBlank()) " ($createdBy)" else ""}",
                     fontSize = 12.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
                 )
                 
                 if (eventId != null && (updatedAt - createdAt >= 1000L)) {
                     Text(
-                        text = "수정: ${sdf.format(Date(updatedAt))}",
+                        text = "수정: ${sdf.format(Date(updatedAt))}${if (updatedBy.isNotBlank()) " ($updatedBy)" else ""}",
                         fontSize = 12.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
                     )
