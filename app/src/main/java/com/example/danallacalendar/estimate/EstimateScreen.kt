@@ -3428,7 +3428,7 @@ fun Step3CustomerInfo(
                                 )
                             },
                             singleLine = true,
-                            enabled = false
+                            enabled = true
                         )
                         Box(
                             modifier = Modifier
@@ -3538,7 +3538,7 @@ fun Step3CustomerInfo(
                                 )
                             },
                             singleLine = true,
-                            enabled = false
+                            enabled = true
                         )
                         Box(
                             modifier = Modifier

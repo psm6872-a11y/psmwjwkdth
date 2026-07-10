@@ -101,4 +101,14 @@ class UserPreferences(context: Context) {
     fun clearAll() {
         prefs.edit().remove(KEY_NICKNAME).remove(KEY_LAST_ROOM_CODE).apply()
     }
+
+    fun getDismissedContractSyncIds(): Set<String> {
+        return prefs.getStringSet("dismissed_contract_sync_ids", null) ?: emptySet()
+    }
+
+    fun addDismissedContractSyncId(syncId: String) {
+        val current = getDismissedContractSyncIds().toMutableSet()
+        current.add(syncId)
+        prefs.edit().putStringSet("dismissed_contract_sync_ids", current).apply()
+    }
 }

@@ -56,8 +56,18 @@ class CalendarViewModel @Inject constructor(
     private val _isUpdateDownloaded = MutableStateFlow(false)
     val isUpdateDownloaded: StateFlow<Boolean> = _isUpdateDownloaded.asStateFlow()
 
+    private val _dismissedContractSyncIds = MutableStateFlow<Set<String>>(emptySet())
+    val dismissedContractSyncIds: StateFlow<Set<String>> = _dismissedContractSyncIds.asStateFlow()
+
     fun setUpdateDownloaded(downloaded: Boolean) {
         _isUpdateDownloaded.value = downloaded
+    }
+
+    fun dismissContract(syncId: String) {
+        val current = userPreferences.getDismissedContractSyncIds().toMutableSet()
+        current.add(syncId)
+        userPreferences.addDismissedContractSyncId(syncId)
+        _dismissedContractSyncIds.value = current
     }
 
     fun checkForUpdates(activity: Activity) {
@@ -215,6 +225,7 @@ class CalendarViewModel @Inject constructor(
     }
 
     init {
+        _dismissedContractSyncIds.value = userPreferences.getDismissedContractSyncIds()
         viewModelScope.launch {
             // 1. Deduplicate existing categories by name
             val currentList = repository.eventDao.getAllCategoriesList()
@@ -268,6 +279,66 @@ class CalendarViewModel @Inject constructor(
             val initialRoomCode = _roomCodeState.value
             if (initialRoomCode.isNotEmpty()) {
                 startSync(initialRoomCode)
+            }
+
+            // 3. Clean up mismatched linkedEstimateId links
+            launch(Dispatchers.IO) {
+                try {
+                    val allEvents = repository.eventDao.getAllEventsList()
+                    val allPdfs = estimatePdfDao.getAllPdfsList()
+                    val localEstimates = allPdfs.mapNotNull { p ->
+                        try {
+                            com.google.gson.Gson().fromJson(p.estimateJson, com.example.danallacalendar.estimate.Estimate::class.java)
+                        } catch (e: Exception) {
+                            null
+                        }
+                    }
+                    
+                    val roomCode = userPreferences.getLastRoomCode()
+                    val remoteEstimates = if (roomCode.isNotEmpty()) {
+                        try {
+                            val snapshot = firestore.collection("rooms").document(roomCode).collection("estimates").get().await()
+                            snapshot.documents.mapNotNull { it.toObject(com.example.danallacalendar.estimate.Estimate::class.java) }
+                        } catch (e: Exception) {
+                            emptyList()
+                        }
+                    } else {
+                        emptyList()
+                    }
+                    
+                    val allEstimatesMap = (localEstimates + remoteEstimates).associateBy { it.id }
+                    
+                    for (event in allEvents) {
+                        val estId = event.linkedEstimateId
+                        if (!estId.isNullOrBlank()) {
+                            val estimate = allEstimatesMap[estId]
+                            if (estimate != null) {
+                                val eventPhoneClean = event.notes.split("|||").firstOrNull { it.isNotBlank() }?.replace(Regex("[^0-9]"), "") ?: ""
+                                val estPhoneClean = estimate.phoneNumber.replace(Regex("[^0-9]"), "")
+                                if (eventPhoneClean.isNotEmpty() && estPhoneClean.isNotEmpty() && eventPhoneClean != estPhoneClean) {
+                                    android.util.Log.d("CalendarViewModel", "Mismatched phone number found! Clearing link: eventId=${event.id}, estId=$estId (Event phone: $eventPhoneClean, Est phone: $estPhoneClean)")
+                                    val updatedEvent = event.copy(linkedEstimateId = null)
+                                    repository.eventDao.updateEvent(updatedEvent)
+                                    
+                                    if (roomCode.isNotEmpty() && !event.syncId.isNullOrBlank() && event.syncId.toIntOrNull() == null) {
+                                        try {
+                                            firestore.collection("rooms")
+                                                .document(roomCode)
+                                                .collection("events")
+                                                .document(event.syncId)
+                                                .update("linkedEstimateId", null)
+                                                .await()
+                                        } catch (fe: Exception) {
+                                            fe.printStackTrace()
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                } catch (e: Exception) {
+                    android.util.Log.e("CalendarViewModel", "Error cleaning up mismatched estimates", e)
+                }
             }
         }
 

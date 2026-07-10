@@ -443,6 +443,7 @@ class EstimateListViewModel @Inject constructor(
                 val notesField = estimate.phoneNumber
                 val colorHexField = String.format("#%08X", teamColorLong)
                 
+                val syncId = java.util.UUID.randomUUID().toString()
                 val newEvent = com.example.danallacalendar.data.Event(
                     title = titleText,
                     startMillis = startMillis,
@@ -452,7 +453,7 @@ class EstimateListViewModel @Inject constructor(
                     notes = notesField,
                     colorHex = colorHexField,
                     calendarId = sharedCategoryId,
-                    syncId = java.util.UUID.randomUUID().toString(),
+                    syncId = syncId,
                     isSynced = true,
                     linkedEstimateId = estimate.id,
                     teamId = teamId,
@@ -460,6 +461,7 @@ class EstimateListViewModel @Inject constructor(
                     createdAt = System.currentTimeMillis(),
                     updatedAt = System.currentTimeMillis()
                 )
+                com.example.danallacalendar.data.local.UserPreferences(context).addDismissedContractSyncId(syncId)
                 calendarRepository.insertEvent(newEvent)
                 onSuccess()
             } catch (e: Exception) {

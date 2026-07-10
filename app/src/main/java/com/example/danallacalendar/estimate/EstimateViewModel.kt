@@ -369,14 +369,26 @@ class EstimateViewModel @Inject constructor(
 
     // 이사 종류 변경 시 계약금/보관료/메모 기본값 설정
     fun onMoveInfoChanged() {
-        if (moveInfo.value == "보관이사") {
-            deposit.value = "20"
-            storageCost.value = "20"
-            memo.value = " - 보관료는 별도이며 출고일에 잔금과 함께 추가로 계산됩니다."
+        val isStoring = moveInfo.value == "보관이사"
+        
+        // 만약 복사/수정 모드(isCopyMode)이거나 기존 값이 이미 채워져 있다면 초기화를 스킵합니다.
+        if (!isCopyMode) {
+            deposit.value = if (isStoring) "20" else "10"
+            storageCost.value = if (isStoring) "20" else ""
+            memo.value = if (isStoring) " - 보관료는 별도이며 출고일에 잔금과 함께 추가로 계산됩니다." else ""
         } else {
-            deposit.value = "10"
-            storageCost.value = ""
-            memo.value = ""
+            // 복사/수정 모드여도 기존 값이 완전히 비어있는 경우에만 기본값을 적용해 줍니다.
+            if (deposit.value.isBlank()) {
+                deposit.value = if (isStoring) "20" else "10"
+            }
+            if (isStoring) {
+                if (storageCost.value.isBlank()) {
+                    storageCost.value = "20"
+                }
+                if (memo.value.isBlank()) {
+                    memo.value = " - 보관료는 별도이며 출고일에 잔금과 함께 추가로 계산됩니다."
+                }
+            }
         }
         onDepositChanged()
     }
@@ -440,69 +452,8 @@ class EstimateViewModel @Inject constructor(
     }
 
     fun autoSaveToFirestore() {
-        if (!userPreferences.isShareEnabled()) {
-            android.util.Log.d("EstimateViewModel", "Auto save to Firestore skipped since sharing is disabled.")
-            return
-        }
-
-        // 신규 작성 모드에서는 Firestore 자동저장 비활성화
-        // 미완성 견적서가 견적목록에 쌓이는 문제 방지
-        // 최종 저장(saveEstimate)에서만 Firestore에 업로드됨
-        if (!isCopyMode) {
-            android.util.Log.d("EstimateViewModel", "Auto save to Firestore skipped: new estimate mode (not copy mode). Will save on final submit only.")
-            return
-        }
-
-        val amt = amount.value.toLongOrNull() ?: 0L
-        val actualMemo = memo.value.trim()
-        val scheduleIdParam = savedStateHandle.get<String>("scheduleId")
-        val resolvedScheduleId = scheduleIdParam.takeIf { !it.isNullOrBlank() } ?: copiedScheduleId
-
-        val estimate = Estimate(
-            id = estimateId,
-            customerName = customerName.value.ifBlank { "임시 고객" },
-            phoneNumber = phoneNumber.value,
-            departure = departure.value,
-            destination = destination.value,
-            moveDate = moveDate.value,
-            moveType = moveType.value,
-            cargoSize = cargoSize.value,
-            amount = amt,
-            memo = actualMemo,
-            estimateDate = estimateDate.value,
-            startTime = startTime.value,
-            visitDate = visitDate.value,
-            moveInfo = moveInfo.value,
-            totalVolume = totalVolume.value,
-            workersM = workersM.value,
-            workersF = workersF.value,
-            laddersStartFloor = laddersStartFloor.value,
-            laddersStartCost = laddersStartCost.value,
-            laddersEndFloor = laddersEndFloor.value,
-            laddersEndCost = laddersEndCost.value,
-            extraTruck = extraTruck.value,
-            moveCost = moveCost.value,
-            totalCost = totalCost.value,
-            deposit = deposit.value,
-            balance = balance.value,
-            optionCost = optionCost.value,
-            roomItems = convertRoomItemsToLong(roomItems.value),
-            roomVolumes = roomVolumes.value,
-            outDate = outDate.value,
-            moveCostOut = moveCostOut.value,
-            balanceOut = balanceOut.value,
-            storageCost = storageCost.value,
-            scheduleId = resolvedScheduleId
-        )
-
-        viewModelScope.launch(Dispatchers.IO) {
-            try {
-                val savedId = repository.saveToFirestore(estimate)
-                estimateId = savedId
-            } catch (e: Exception) {
-                android.util.Log.e("EstimateViewModel", "Auto save to Firestore failed", e)
-            }
-        }
+        // 실시간 자동저장 비활성화: 스텝3의 "저장 및 다음" 버튼 클릭 시에만 일괄 저장하도록 수정하여 중간 이탈 시의 비정합 데이터 방지
+        android.util.Log.d("EstimateViewModel", "Auto save to Firestore skipped: Batch saving will be executed on final submit (Step 3).")
     }
 
     fun saveEstimate(context: android.content.Context, onCompleted: (smsBody: String, pdfPath: String?) -> Unit) {
@@ -630,27 +581,51 @@ class EstimateViewModel @Inject constructor(
                         val event = calendarRepository.eventDao.getEventBySyncId(scheduleIdStr)
                             ?: scheduleIdStr.toIntOrNull()?.let { calendarRepository.getEventById(it) }
                         if (event != null) {
-                            val updatedEvent = event.copy(linkedEstimateId = finalEstimate.id)
-                            calendarRepository.updateEvent(updatedEvent)
-                            android.util.Log.d("EstimateViewModel", "Schedule linked success by scheduleId: eventId=${event.id}, estimateId=${finalEstimate.id}")
-                        }
-
-                        // Firestore의 해당 일정 도큐먼트도 함께 업데이트
-                        val roomCode = userPreferences.getLastRoomCode()
-                        if (roomCode.isNotEmpty()) {
-                            val syncId = event?.syncId ?: scheduleIdStr
-                            if (syncId.toIntOrNull() == null) { // 로컬 ID(숫자)가 아닌 Firestore syncId 형태인 경우에만 업데이트
-                                firestore.collection("rooms")
-                                    .document(roomCode)
-                                    .collection("events")
-                                    .document(syncId)
-                                    .update("linkedEstimateId", finalEstimate.id)
-                                    .addOnSuccessListener {
-                                        android.util.Log.d("EstimateViewModel", "Firestore event linkedEstimateId updated successfully: syncId=$syncId, estimateId=${finalEstimate.id}")
+                            val eventPhoneClean = event.notes.split("|||").firstOrNull { it.isNotBlank() }?.replace(Regex("[^0-9]"), "") ?: ""
+                            val estPhoneClean = finalEstimate.phoneNumber.replace(Regex("[^0-9]"), "")
+                            
+                            if (eventPhoneClean.isEmpty() || estPhoneClean.isEmpty() || eventPhoneClean == estPhoneClean) {
+                                val updatedEvent = event.copy(linkedEstimateId = finalEstimate.id)
+                                calendarRepository.updateEvent(updatedEvent)
+                                android.util.Log.d("EstimateViewModel", "Schedule linked success by scheduleId: eventId=${event.id}, estimateId=${finalEstimate.id}")
+                                
+                                // Firestore의 해당 일정 도큐먼트도 함께 업데이트
+                                val roomCode = userPreferences.getLastRoomCode()
+                                if (roomCode.isNotEmpty()) {
+                                    val syncId = event.syncId ?: scheduleIdStr
+                                    if (syncId.toIntOrNull() == null) { // 로컬 ID(숫자)가 아닌 Firestore syncId 형태인 경우에만 업데이트
+                                        firestore.collection("rooms")
+                                            .document(roomCode)
+                                            .collection("events")
+                                            .document(syncId)
+                                            .update("linkedEstimateId", finalEstimate.id)
+                                            .addOnSuccessListener {
+                                                android.util.Log.d("EstimateViewModel", "Firestore event linkedEstimateId updated successfully: syncId=$syncId, estimateId=${finalEstimate.id}")
+                                            }
+                                            .addOnFailureListener { e ->
+                                                android.util.Log.e("EstimateViewModel", "Failed to update linkedEstimateId in Firestore for syncId=$syncId", e)
+                                            }
                                     }
-                                    .addOnFailureListener { e ->
-                                        android.util.Log.e("EstimateViewModel", "Failed to update linkedEstimateId in Firestore for syncId=$syncId", e)
+                                }
+                            } else {
+                                // 전화번호가 다른 경우: 기존 연결이 있는 경우 해제 처리
+                                if (event.linkedEstimateId == finalEstimate.id) {
+                                    val updatedEvent = event.copy(linkedEstimateId = null)
+                                    calendarRepository.updateEvent(updatedEvent)
+                                    
+                                    val roomCode = userPreferences.getLastRoomCode()
+                                    if (roomCode.isNotEmpty()) {
+                                        val syncId = event.syncId ?: scheduleIdStr
+                                        if (syncId.toIntOrNull() == null) {
+                                            firestore.collection("rooms")
+                                                .document(roomCode)
+                                                .collection("events")
+                                                .document(syncId)
+                                                .update("linkedEstimateId", null)
+                                        }
                                     }
+                                    android.util.Log.d("EstimateViewModel", "Severed link due to phone number mismatch: eventId=${event.id}, eventPhone=$eventPhoneClean, estPhone=$estPhoneClean")
+                                }
                             }
                         }
                     }

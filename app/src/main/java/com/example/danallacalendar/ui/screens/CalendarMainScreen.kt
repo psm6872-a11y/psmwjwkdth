@@ -1,4 +1,4 @@
-package com.example.danallacalendar.ui.screens
+﻿package com.example.danallacalendar.ui.screens
 
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
@@ -258,20 +258,21 @@ fun CalendarMainScreen(
     var showDayEventsDialogDate by remember { mutableStateOf<Long?>(null) }
     var autoInputToastMessage by remember { mutableStateOf<String?>(null) }
 
-    var dismissedContractIds by rememberSaveable { mutableStateOf(emptyList<Int>()) }
+    val dismissedContractSyncIds by viewModel.dismissedContractSyncIds.collectAsStateWithLifecycle()
     var expandedBannerId by remember { mutableStateOf<Int?>(null) }
     var showEstimateDetailDialog by remember { mutableStateOf(false) }
     var selectedEstimateForDetail by remember { mutableStateOf<com.example.danallacalendar.estimate.Estimate?>(null) }
 
     val appLaunchTime = remember { System.currentTimeMillis() }
 
-    val activeRecentContracts = remember(monthlyEvents, dismissedContractIds) {
+    val activeRecentContracts = remember(monthlyEvents, dismissedContractSyncIds) {
         monthlyEvents
             .filter { evt ->
                 evt.isAllDay &&
                 evt.teamId != null &&
                 !evt.linkedEstimateId.isNullOrBlank() &&
-                !dismissedContractIds.contains(evt.id) &&
+                !evt.syncId.isNullOrBlank() &&
+                !dismissedContractSyncIds.contains(evt.syncId!!) &&
                 evt.createdAt >= appLaunchTime
             }
             .sortedByDescending { it.createdAt }
@@ -616,6 +617,7 @@ fun CalendarMainScreen(
                                             else -> String.format("#%08X", teamColorLong)
                                         }
                                         
+                                        val syncId = java.util.UUID.randomUUID().toString()
                                         val newEvent = com.example.danallacalendar.data.Event(
                                             title = titleText,
                                             startMillis = startMillis,
@@ -625,7 +627,7 @@ fun CalendarMainScreen(
                                             notes = notesField,
                                             colorHex = colorHexField,
                                             calendarId = sharedCategoryId,
-                                            syncId = java.util.UUID.randomUUID().toString(),
+                                            syncId = syncId,
                                             isSynced = true,
                                             linkedEstimateId = estimateId,
                                             teamId = teamId,
@@ -648,6 +650,7 @@ fun CalendarMainScreen(
                                             pendingNewEvent = newEvent
                                             showConflictConfirmDialog = true
                                         } else {
+                                            viewModel.dismissContract(syncId)
                                             viewModel.addEvent(newEvent)
                                             val formattedDate = try {
                                                 val parsed = SimpleDateFormat("yyyy-MM-dd", Locale.KOREAN).parse(estimate.moveDate)
@@ -800,7 +803,7 @@ fun CalendarMainScreen(
                                         // Right button: 확인
                                         TextButton(
                                             onClick = {
-                                                dismissedContractIds = dismissedContractIds + evt.id
+                                                evt.syncId?.let { viewModel.dismissContract(it) }
                                                 if (expandedBannerId == evt.id) {
                                                     expandedBannerId = null
                                                 }
@@ -872,6 +875,7 @@ fun CalendarMainScreen(
                     TextButton(
                         onClick = {
                             pendingNewEvent?.let {
+                                it.syncId?.let { syncId -> viewModel.dismissContract(syncId) }
                                 viewModel.addEvent(it)
                                 val formattedDate = try {
                                     SimpleDateFormat("M월 d일", Locale.KOREAN).format(Date(it.startMillis))

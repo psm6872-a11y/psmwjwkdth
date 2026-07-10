@@ -248,7 +248,7 @@ fun AddEditEventScreen(
                 // scheduleId로 가장 최신 견적서 조회 (수정 이력 반영)
                 val estBySchedule = viewModel.getEstimateByScheduleId(event.syncId ?: eventId.toString())
                 // 둘 다 있으면 createdAt 기준으로 최신 것 선택, 하나만 있으면 그걸 사용
-                val est = when {
+                var est = when {
                     estById != null && estBySchedule != null ->
                         if (estBySchedule.createdAt >= estById.createdAt) estBySchedule else estById
                     estBySchedule != null -> estBySchedule
@@ -256,10 +256,17 @@ fun AddEditEventScreen(
                     else -> null
                 }
                 if (est != null) {
+                    val eventPhoneClean = (notesList.firstOrNull { it.isNotBlank() } ?: "").replace(Regex("[^0-9]"), "")
+                    val estPhoneClean = est.phoneNumber.replace(Regex("[^0-9]"), "")
+                    if (eventPhoneClean.isNotEmpty() && estPhoneClean.isNotEmpty() && eventPhoneClean != estPhoneClean) {
+                        est = null
+                    }
+                }
+                if (est != null) {
                     linkedEstimateId = est.id
                     selectedEstimateForDetail = est
                 } else {
-                    linkedEstimateId = event.linkedEstimateId
+                    linkedEstimateId = null
                 }
                 isLoaded = true
             }
