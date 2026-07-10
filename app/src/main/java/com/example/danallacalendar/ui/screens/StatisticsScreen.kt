@@ -304,57 +304,6 @@ fun EstimateTabContent(estimates: List<Estimate>, events: List<Event>, year: Int
         }
 
         item {
-            // Day of Week Requests for selected year/month
-            Card(modifier = Modifier.fillMaxWidth()) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Text("요일별 견적 건수", fontWeight = FontWeight.Bold, fontSize = 15.sp)
-                    Spacer(modifier = Modifier.height(16.dp))
-                    
-                    val dayLabels = listOf("일", "월", "화", "수", "목", "금", "토")
-                    val chartData = dayLabels.mapIndexed { index, label ->
-                        val count = stats.dayOfWeekRequests[index + 1] ?: 0
-                        count.toFloat() to label
-                    }
-
-                    BarChart(
-                        data = chartData,
-                        barColor = MaterialTheme.colorScheme.secondary,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(110.dp)
-                    )
-                }
-            }
-        }
-
-        item {
-            // Weekly Inquiries for the selected month
-            Card(modifier = Modifier.fillMaxWidth()) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Text("${month + 1}월 주간 견적 건수", fontWeight = FontWeight.Bold, fontSize = 15.sp)
-                    Spacer(modifier = Modifier.height(16.dp))
-                    
-                    val weekOrder = listOf("1주차", "2주차", "3주차", "4주차", "5주차", "6주차")
-                    val chartData = stats.weeklyRequests.entries
-                        .sortedBy { weekOrder.indexOf(it.key) }
-                        .map { it.value.toFloat() to it.key }
-
-                    if (chartData.isNotEmpty()) {
-                        BarChart(
-                            data = chartData,
-                            barColor = Color(0xFFFF9800),
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(110.dp)
-                        )
-                    } else {
-                        Text("표시할 차트 데이터가 없습니다.", fontSize = 13.sp, color = MaterialTheme.colorScheme.outline)
-                    }
-                }
-            }
-        }
-
-        item {
             // Chart: Monthly Request Trend (Split into Jan-Jun / Jul-Dec)
             val monthlyData = stats.monthlyRequests.entries
                 .filter { it.key.startsWith(year.toString()) }
@@ -393,6 +342,57 @@ fun EstimateTabContent(estimates: List<Estimate>, events: List<Event>, year: Int
                     } else {
                         Text("표시할 차트 데이터가 없습니다.", fontSize = 13.sp, color = MaterialTheme.colorScheme.outline)
                     }
+                }
+            }
+        }
+
+        item {
+            // Weekly Inquiries for the selected month
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text("${month + 1}월 주간 견적 건수", fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                    Spacer(modifier = Modifier.height(16.dp))
+                    
+                    val weekOrder = listOf("1주차", "2주차", "3주차", "4주차", "5주차", "6주차")
+                    val chartData = stats.weeklyRequests.entries
+                        .sortedBy { weekOrder.indexOf(it.key) }
+                        .map { it.value.toFloat() to it.key }
+
+                    if (chartData.isNotEmpty()) {
+                        BarChart(
+                            data = chartData,
+                            barColor = Color(0xFFFF9800),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(110.dp)
+                        )
+                    } else {
+                        Text("표시할 차트 데이터가 없습니다.", fontSize = 13.sp, color = MaterialTheme.colorScheme.outline)
+                    }
+                }
+            }
+        }
+
+        item {
+            // Day of Week Requests for selected year/month
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text("요일별 견적 건수", fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                    Spacer(modifier = Modifier.height(16.dp))
+                    
+                    val dayLabels = listOf("일", "월", "화", "수", "목", "금", "토")
+                    val chartData = dayLabels.mapIndexed { index, label ->
+                        val count = stats.dayOfWeekRequests[index + 1] ?: 0
+                        count.toFloat() to label
+                    }
+
+                    BarChart(
+                        data = chartData,
+                        barColor = MaterialTheme.colorScheme.secondary,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(110.dp)
+                    )
                 }
             }
         }
@@ -702,30 +702,6 @@ fun ContractTabContent(estimates: List<Estimate>, events: List<Event>, year: Int
         }
 
         item {
-            // Day of week moves chart
-            Card(modifier = Modifier.fillMaxWidth()) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Text("요일별 이사 건수", fontWeight = FontWeight.Bold, fontSize = 15.sp)
-                    Spacer(modifier = Modifier.height(16.dp))
-                    
-                    val dayLabels = listOf("일", "월", "화", "수", "목", "금", "토")
-                    val chartData = dayLabels.mapIndexed { index, label ->
-                        val count = opsStats.dayOfWeekMoveCounts[index + 1] ?: 0
-                        count.toFloat() to label
-                    }
-
-                    BarChart(
-                        data = chartData,
-                        barColor = Color(0xFF9C27B0),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(110.dp)
-                    )
-                }
-            }
-        }
-
-        item {
             // Chart: Monthly Move Trend (Split into Jan-Jun / Jul-Dec)
             val monthlyData = opsStats.monthlyMoveCounts.entries
                 .filter { it.key.startsWith(year.toString()) }
@@ -764,6 +740,30 @@ fun ContractTabContent(estimates: List<Estimate>, events: List<Event>, year: Int
                     } else {
                         Text("표시할 차트 데이터가 없습니다.", fontSize = 13.sp, color = MaterialTheme.colorScheme.outline)
                     }
+                }
+            }
+        }
+
+        item {
+            // Day of week moves chart
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text("요일별 이사 건수", fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                    Spacer(modifier = Modifier.height(16.dp))
+                    
+                    val dayLabels = listOf("일", "월", "화", "수", "목", "금", "토")
+                    val chartData = dayLabels.mapIndexed { index, label ->
+                        val count = opsStats.dayOfWeekMoveCounts[index + 1] ?: 0
+                        count.toFloat() to label
+                    }
+
+                    BarChart(
+                        data = chartData,
+                        barColor = Color(0xFF9C27B0),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(110.dp)
+                    )
                 }
             }
         }
