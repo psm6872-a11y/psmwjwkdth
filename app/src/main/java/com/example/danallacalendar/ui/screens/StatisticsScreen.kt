@@ -565,7 +565,8 @@ fun ContractTabContent(estimates: List<Estimate>, events: List<Event>, year: Int
             // Team Contract Counts
             Card(modifier = Modifier.fillMaxWidth()) {
                 var menuExpanded by remember { mutableStateOf(false) }
-                var visibleTeamsCount by remember { mutableIntStateOf(3) }
+                val sharedPrefs = remember(context) { context.getSharedPreferences("statistics_prefs", android.content.Context.MODE_PRIVATE) }
+                var visibleTeamsCount by remember { mutableIntStateOf(sharedPrefs.getInt("visible_teams_count", 3)) }
 
                 Column(modifier = Modifier.padding(16.dp)) {
                     Row(
@@ -595,6 +596,7 @@ fun ContractTabContent(estimates: List<Estimate>, events: List<Event>, year: Int
                                         text = { Text("${num}개 팀", fontSize = 13.sp) },
                                         onClick = {
                                             visibleTeamsCount = num
+                                            sharedPrefs.edit().putInt("visible_teams_count", num).apply()
                                             menuExpanded = false
                                         }
                                     )

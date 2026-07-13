@@ -231,6 +231,8 @@ class CalendarRepository @Inject constructor(
     
     fun searchEvents(query: String): Flow<List<Event>> = eventDao.searchEvents("%$query%")
     
+    fun getAllEventsFlow(): Flow<List<Event>> = eventDao.getAllEventsFlow()
+    
     suspend fun getEventById(id: Int): Event? = eventDao.getEventById(id)
     
     suspend fun insertEvent(event: Event) {

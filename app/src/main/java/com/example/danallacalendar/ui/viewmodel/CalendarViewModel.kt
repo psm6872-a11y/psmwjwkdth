@@ -59,6 +59,19 @@ class CalendarViewModel @Inject constructor(
     private val _dismissedContractSyncIds = MutableStateFlow<Set<String>>(emptySet())
     val dismissedContractSyncIds: StateFlow<Set<String>> = _dismissedContractSyncIds.asStateFlow()
 
+    val activeRecentContracts: StateFlow<List<Event>> = combine(
+        repository.getAllEventsFlow(),
+        dismissedContractSyncIds
+    ) { events, dismissedIds ->
+        events.filter { evt ->
+            evt.isAllDay &&
+            evt.teamId != null &&
+            !evt.linkedEstimateId.isNullOrBlank() &&
+            !evt.syncId.isNullOrBlank() &&
+            !dismissedIds.contains(evt.syncId!!)
+        }.sortedByDescending { it.createdAt }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
     fun setUpdateDownloaded(downloaded: Boolean) {
         _isUpdateDownloaded.value = downloaded
     }

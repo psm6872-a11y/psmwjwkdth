@@ -1,4 +1,4 @@
-﻿package com.example.danallacalendar.ui.screens
+package com.example.danallacalendar.ui.screens
 
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
@@ -259,24 +259,11 @@ fun CalendarMainScreen(
     var autoInputToastMessage by remember { mutableStateOf<String?>(null) }
 
     val dismissedContractSyncIds by viewModel.dismissedContractSyncIds.collectAsStateWithLifecycle()
+    val activeRecentContracts by viewModel.activeRecentContracts.collectAsStateWithLifecycle()
     var expandedBannerId by remember { mutableStateOf<Int?>(null) }
     var showEstimateDetailDialog by remember { mutableStateOf(false) }
     var selectedEstimateForDetail by remember { mutableStateOf<com.example.danallacalendar.estimate.Estimate?>(null) }
 
-    val appLaunchTime = remember { System.currentTimeMillis() }
-
-    val activeRecentContracts = remember(monthlyEvents, dismissedContractSyncIds) {
-        monthlyEvents
-            .filter { evt ->
-                evt.isAllDay &&
-                evt.teamId != null &&
-                !evt.linkedEstimateId.isNullOrBlank() &&
-                !evt.syncId.isNullOrBlank() &&
-                !dismissedContractSyncIds.contains(evt.syncId!!) &&
-                evt.createdAt >= appLaunchTime
-            }
-            .sortedByDescending { it.createdAt }
-    }
 
     LaunchedEffect(autoInputToastMessage) {
         if (autoInputToastMessage != null) {
