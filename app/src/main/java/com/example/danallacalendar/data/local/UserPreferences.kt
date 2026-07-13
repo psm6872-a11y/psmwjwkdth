@@ -55,7 +55,21 @@ class UserPreferences(context: Context) {
     }
 
     fun setLastRoomCode(roomCode: String) {
+        val currentCode = getLastRoomCode()
+        if (roomCode.isEmpty()) {
+            prefs.edit().putLong("room_join_time", 0L).apply()
+        } else if (roomCode != currentCode) {
+            prefs.edit().putLong("room_join_time", System.currentTimeMillis()).apply()
+        }
         prefs.edit().putString(KEY_LAST_ROOM_CODE, roomCode).apply()
+    }
+
+    fun getRoomJoinTime(): Long {
+        return prefs.getLong("room_join_time", 0L)
+    }
+
+    fun setRoomJoinTime(time: Long) {
+        prefs.edit().putLong("room_join_time", time).apply()
     }
 
     fun isShareEnabled(): Boolean {

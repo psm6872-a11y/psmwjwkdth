@@ -63,12 +63,14 @@ class CalendarViewModel @Inject constructor(
         repository.getAllEventsFlow(),
         dismissedContractSyncIds
     ) { events, dismissedIds ->
+        val joinTime = userPreferences.getRoomJoinTime()
         events.filter { evt ->
             evt.isAllDay &&
             evt.teamId != null &&
             !evt.linkedEstimateId.isNullOrBlank() &&
             !evt.syncId.isNullOrBlank() &&
-            !dismissedIds.contains(evt.syncId!!)
+            !dismissedIds.contains(evt.syncId!!) &&
+            evt.createdAt >= joinTime
         }.sortedByDescending { it.createdAt }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
