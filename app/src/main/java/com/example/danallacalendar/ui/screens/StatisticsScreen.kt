@@ -574,7 +574,7 @@ fun ContractTabContent(estimates: List<Estimate>, events: List<Event>, year: Int
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text("팀별 이사 건수", fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                        Text("${month + 1}월 팀별 이사 건수", fontWeight = FontWeight.Bold, fontSize = 15.sp)
                         Box {
                             TextButton(
                                 onClick = { menuExpanded = true },
@@ -650,52 +650,6 @@ fun ContractTabContent(estimates: List<Estimate>, events: List<Event>, year: Int
                                 }
                                 Spacer(modifier = Modifier.width(12.dp))
                                 Text("${count}건", fontSize = 13.sp, fontWeight = FontWeight.Bold)
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        item {
-            // Avg Price by Tonnage (Collapsible)
-            Card(modifier = Modifier.fillMaxWidth().animateContentSize()) {
-                var isTonnageCardExpanded by remember { mutableStateOf(false) }
-
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { isTonnageCardExpanded = !isTonnageCardExpanded },
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text("계약완료된 평균 금액(톤수별)", fontWeight = FontWeight.Bold, fontSize = 15.sp)
-                        Icon(
-                            imageVector = if (isTonnageCardExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
-                            contentDescription = if (isTonnageCardExpanded) "접기" else "펼치기"
-                        )
-                    }
-
-                    if (isTonnageCardExpanded) {
-                        Spacer(modifier = Modifier.height(12.dp))
-
-                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            for (ton in 6 downTo 1) {
-                                val avgPrice = stats.tonnageAvgPrices[ton] ?: 0L
-                                val count = stats.tonnageCounts[ton] ?: 0
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween
-                                ) {
-                                    Text("${ton}톤 (${count}건)", fontSize = 14.sp)
-                                    Text(
-                                        text = if (avgPrice > 0L) formatCurrency(avgPrice) else "데이터 없음",
-                                        fontSize = 14.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = if (avgPrice > 0L) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline
-                                    )
-                                }
                             }
                         }
                     }
@@ -825,6 +779,52 @@ fun ContractTabContent(estimates: List<Estimate>, events: List<Event>, year: Int
                                     maxLines = 1,
                                     textAlign = TextAlign.End
                                 )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        item {
+            // Avg Price by Tonnage (Collapsible)
+            Card(modifier = Modifier.fillMaxWidth().animateContentSize()) {
+                var isTonnageCardExpanded by remember { mutableStateOf(false) }
+
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { isTonnageCardExpanded = !isTonnageCardExpanded },
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text("계약완료된 평균 금액(톤수별)", fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                        Icon(
+                            imageVector = if (isTonnageCardExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                            contentDescription = if (isTonnageCardExpanded) "접기" else "펼치기"
+                        )
+                    }
+
+                    if (isTonnageCardExpanded) {
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            for (ton in 6 downTo 1) {
+                                val avgPrice = stats.tonnageAvgPrices[ton] ?: 0L
+                                val count = stats.tonnageCounts[ton] ?: 0
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Text("${ton}톤 (${count}건)", fontSize = 14.sp)
+                                    Text(
+                                        text = if (avgPrice > 0L) formatCurrency(avgPrice) else "데이터 없음",
+                                        fontSize = 14.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = if (avgPrice > 0L) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline
+                                    )
+                                }
                             }
                         }
                     }
