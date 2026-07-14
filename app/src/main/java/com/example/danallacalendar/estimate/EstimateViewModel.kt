@@ -451,9 +451,75 @@ class EstimateViewModel @Inject constructor(
         )
     }
 
+    fun getDraftEstimateJson(): String {
+        return userPreferences.getDraftEstimateJson()
+    }
+
+    fun clearDraftEstimate() {
+        userPreferences.setDraftEstimateJson("")
+    }
+
+    fun loadDraftEstimate(draftJson: String) {
+        try {
+            val gson = com.google.gson.Gson()
+            val originalEstimate = gson.fromJson(draftJson, Estimate::class.java)
+
+            customerName.value = originalEstimate.customerName
+            phoneNumber.value = originalEstimate.phoneNumber
+            departure.value = originalEstimate.departure
+            destination.value = originalEstimate.destination
+            departureFloorType.value = originalEstimate.departureFloorType
+            destinationFloorType.value = originalEstimate.destinationFloorType
+            moveDate.value = originalEstimate.moveDate
+            moveType.value = originalEstimate.moveType
+            cargoSize.value = originalEstimate.cargoSize
+            amount.value = if (originalEstimate.amount > 0) originalEstimate.amount.toString() else ""
+            memo.value = originalEstimate.memo
+            estimateDate.value = originalEstimate.estimateDate
+            startTime.value = originalEstimate.startTime
+            visitDate.value = originalEstimate.visitDate
+            moveInfo.value = originalEstimate.moveInfo
+            totalVolume.value = originalEstimate.totalVolume
+            workersM.value = originalEstimate.workersM
+            workersF.value = originalEstimate.workersF
+            laddersStartFloor.value = originalEstimate.laddersStartFloor
+            laddersStartCost.value = originalEstimate.laddersStartCost
+            laddersEndFloor.value = originalEstimate.laddersEndFloor
+            laddersEndCost.value = originalEstimate.laddersEndCost
+            extraTruck.value = originalEstimate.extraTruck
+            moveCost.value = originalEstimate.moveCost
+            totalCost.value = originalEstimate.totalCost
+            deposit.value = originalEstimate.deposit.ifBlank { "10" }
+            balance.value = originalEstimate.balance
+            optionCost.value = originalEstimate.optionCost
+            outDate.value = originalEstimate.outDate.ifBlank { "미정" }
+            moveCostOut.value = originalEstimate.moveCostOut
+            balanceOut.value = originalEstimate.balanceOut
+            storageCost.value = originalEstimate.storageCost
+
+            val convertedItems = originalEstimate.roomItems.mapValues { (_, innerMap) ->
+                innerMap.mapValues { (_, value) -> value.toInt() }
+            }
+            _roomItems.value = convertedItems
+            _roomVolumes.value = originalEstimate.roomVolumes
+            estimateId = originalEstimate.id
+            copiedScheduleId = originalEstimate.scheduleId
+            android.util.Log.d("EstimateViewModel", "Draft loaded successfully: customerName=${originalEstimate.customerName}")
+        } catch (e: Exception) {
+            android.util.Log.e("EstimateViewModel", "Failed to load draft estimate", e)
+        }
+    }
+
     fun autoSaveToFirestore() {
-        // 실시간 자동저장 비활성화: 스텝3의 "저장 및 다음" 버튼 클릭 시에만 일괄 저장하도록 수정하여 중간 이탈 시의 비정합 데이터 방지
-        android.util.Log.d("EstimateViewModel", "Auto save to Firestore skipped: Batch saving will be executed on final submit (Step 3).")
+        try {
+            val current = buildCurrentEstimate()
+            val gson = com.google.gson.Gson()
+            val json = gson.toJson(current)
+            userPreferences.setDraftEstimateJson(json)
+            android.util.Log.d("EstimateViewModel", "Draft auto-saved locally successfully.")
+        } catch (e: Exception) {
+            android.util.Log.e("EstimateViewModel", "Failed to auto-save draft locally", e)
+        }
     }
 
     fun saveEstimate(context: android.content.Context, onCompleted: (smsBody: String, pdfPath: String?) -> Unit) {
@@ -634,6 +700,7 @@ class EstimateViewModel @Inject constructor(
                 }
 
                 isSaved = true
+                userPreferences.setDraftEstimateJson("")
                 _saveState.value = SaveState.Success
                 android.util.Log.d("EstimateViewModel", "[LOG] [THREAD: ${Thread.currentThread().name}] SaveState updated to Success")
 

@@ -152,6 +152,38 @@ fun EstimateScreen(
     var savedSmsBody by remember { mutableStateOf("") }
     var savedJpgPath by remember { mutableStateOf<String?>(null) }
 
+    val isCopyMode = viewModel.isCopyMode
+    val draftJson = remember { viewModel.getDraftEstimateJson() }
+    var showDraftResumeDialog by remember { mutableStateOf(!isCopyMode && draftJson.isNotEmpty()) }
+
+    if (showDraftResumeDialog) {
+        AlertDialog(
+            onDismissRequest = { showDraftResumeDialog = false },
+            title = { Text("임시 저장된 견적서", fontWeight = FontWeight.Bold) },
+            text = { Text("이전에 작성 중이던 임시 저장된 견적서가 존재합니다. 이어서 작성하시겠습니까?") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        viewModel.loadDraftEstimate(draftJson)
+                        showDraftResumeDialog = false
+                    }
+                ) {
+                    Text("이어서 작성", fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = {
+                        viewModel.clearDraftEstimate()
+                        showDraftResumeDialog = false
+                    }
+                ) {
+                    Text("새로 작성")
+                }
+            }
+        )
+    }
+
     val googleSignInLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartActivityForResult()
     ) { result ->

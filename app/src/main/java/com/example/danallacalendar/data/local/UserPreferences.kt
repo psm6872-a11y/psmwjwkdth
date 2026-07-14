@@ -125,4 +125,12 @@ class UserPreferences(context: Context) {
         current.add(syncId)
         prefs.edit().putStringSet("dismissed_contract_sync_ids", current).apply()
     }
+
+    fun getDraftEstimateJson(): String {
+        return prefs.getString("draft_estimate_json", "") ?: ""
+    }
+
+    fun setDraftEstimateJson(json: String) {
+        prefs.edit().putString("draft_estimate_json", json).apply()
+    }
 }
