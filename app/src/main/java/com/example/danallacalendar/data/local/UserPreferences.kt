@@ -133,4 +133,20 @@ class UserPreferences(context: Context) {
     fun setDraftEstimateJson(json: String) {
         prefs.edit().putString("draft_estimate_json", json).apply()
     }
+
+    fun getLastInstalledVersionCode(): Int {
+        return prefs.getInt("last_installed_version_code", 0)
+    }
+
+    fun setLastInstalledVersionCode(code: Int) {
+        prefs.edit().putInt("last_installed_version_code", code).apply()
+    }
+
+    fun getLastAppUpdateTime(): Long {
+        return prefs.getLong("last_app_update_time", 0L)
+    }
+
+    fun setLastAppUpdateTime(time: Long) {
+        prefs.edit().putLong("last_app_update_time", time).apply()
+    }
 }

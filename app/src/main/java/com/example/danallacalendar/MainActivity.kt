@@ -62,6 +62,24 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         appUpdateManager.registerListener(installStateUpdatedListener)
 
+        // Check for app update and record baseline time
+        try {
+            val packageInfo = packageManager.getPackageInfo(packageName, 0)
+            val currentVersionCode = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                (packageInfo.longVersionCode and 0xFFFFFFFFL).toInt()
+            } else {
+                packageInfo.versionCode
+            }
+            val lastVersionCode = userPreferences.getLastInstalledVersionCode()
+            if (currentVersionCode != lastVersionCode) {
+                userPreferences.setLastAppUpdateTime(System.currentTimeMillis())
+                userPreferences.setLastInstalledVersionCode(currentVersionCode)
+                android.util.Log.d("MainActivity", "App version changed from $lastVersionCode to $currentVersionCode. Recorded update time.")
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("MainActivity", "Failed to check version code for update baseline", e)
+        }
+
         // Request all required runtime permissions at once on app launch
         val permissionsToRequest = mutableListOf(
             android.Manifest.permission.RECORD_AUDIO,
