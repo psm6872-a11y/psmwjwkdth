@@ -39,5 +39,10 @@ service cloud.firestore {
         allow read, write: if true;
       }
     }
+
+    // 사용자 신고 데이터 규칙 추가 (전체 읽기/쓰기 허용)
+    match /user_reports/{document} {
+      allow read, write: if true;
+    }
   }
 }

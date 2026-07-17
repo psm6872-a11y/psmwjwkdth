@@ -4,6 +4,8 @@ import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -56,6 +58,41 @@ fun SuggestionScreen(
     val comments by viewModel.comments.collectAsStateWithLifecycle()
     val blockedUsers by viewModel.blockedUsers.collectAsStateWithLifecycle()
     val myUUID = remember { viewModel.getCurrentUserUUID() }
+    
+    var showGuidelinesDialog by remember { mutableStateOf(false) }
+    var reportTargetUser by remember { mutableStateOf<Pair<String, String>?>(null) } // (userId, nickname)
+
+    if (showGuidelinesDialog) {
+        CommunityGuidelinesDialog(onDismissRequest = { showGuidelinesDialog = false })
+    }
+
+    if (reportTargetUser != null) {
+        AlertDialog(
+            onDismissRequest = { reportTargetUser = null },
+            title = { Text("사용자 신고") },
+            text = { Text("${reportTargetUser?.second}님을 불량 사용자로 신고하시겠습니까?\n신고 시 신고 내용이 운영자에게 전송되어 검토 및 제재가 진행되며, 해당 사용자는 내 화면에서 즉시 차단 처리됩니다.") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        reportTargetUser?.let { (id, nickname) ->
+                            viewModel.reportUser(id, nickname, "부적절한 닉네임 및 악성 게시글 도배")
+                        }
+                        reportTargetUser = null
+                        Toast.makeText(context, "신고 및 차단 처리되었습니다.", Toast.LENGTH_SHORT).show()
+                        viewModel.stopObservingComments()
+                        screenState = SuggestionScreenState.List
+                    }
+                ) {
+                    Text("신고", color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { reportTargetUser = null }) {
+                    Text("취소")
+                }
+            }
+        )
+    }
 
     // Handle system back press
     BackHandler {
@@ -143,13 +180,23 @@ fun SuggestionScreen(
                                     modifier = Modifier.size(24.dp)
                                 )
                                 Spacer(modifier = Modifier.width(12.dp))
-                                Text(
-                                    text = "건의함 이용안내:\n깨끗한 소통 공간을 위해 비방, 욕설, 허위사실 등 부적절한 내용은 예고 없이 삭제될 수 있습니다. 부적절한 글 발견 시 신고/차단 기능을 적극 활용해 주세요.",
-                                    fontSize = 11.sp,
-                                    lineHeight = 15.sp,
-                                    color = MaterialTheme.colorScheme.onErrorContainer,
-                                    fontWeight = FontWeight.Medium
-                                )
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = "건의함 이용안내:\n깨끗한 소통 공간을 위해 비방, 욕설, 허위사실 등 부적절한 내용은 예고 없이 삭제될 수 있습니다. 부적절한 글 발견 시 신고/차단 기능을 적극 활용해 주세요.",
+                                        fontSize = 11.sp,
+                                        lineHeight = 15.sp,
+                                        color = MaterialTheme.colorScheme.onErrorContainer,
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Text(
+                                        text = "👉 이용규칙(가이드라인) 전문 보기",
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.clickable { showGuidelinesDialog = true }
+                                    )
+                                }
                             }
                         }
 
@@ -289,13 +336,21 @@ fun SuggestionScreen(
                                 checked = agreeRules,
                                 onCheckedChange = { agreeRules = it }
                             )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                text = "[필수] 비방, 욕설, 광고글 등 부적절한 게시글 작성 시 제재를 받을 수 있음에 동의합니다.",
-                                fontSize = 12.sp,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.clickable { agreeRules = !agreeRules }
-                            )
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = "[필수] 비방, 욕설, 광고글 등 부적절한 게시글 작성 시 제재를 받을 수 있음에 동의합니다.",
+                                    fontSize = 12.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.clickable { agreeRules = !agreeRules }
+                                )
+                                Text(
+                                    text = "이용규칙 전문 보기",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.clickable { showGuidelinesDialog = true }
+                                )
+                            }
                         }
 
                         Button(
@@ -489,6 +544,13 @@ fun SuggestionScreen(
                                                     }
                                                 )
                                                 DropdownMenuItem(
+                                                    text = { Text("사용자 신고", color = MaterialTheme.colorScheme.error) },
+                                                    onClick = {
+                                                        showDetailMenu = false
+                                                        reportTargetUser = item.authorId to item.authorNickname
+                                                    }
+                                                )
+                                                DropdownMenuItem(
                                                     text = { Text("작성자 차단") },
                                                     onClick = {
                                                         showDetailMenu = false
@@ -615,6 +677,13 @@ fun SuggestionScreen(
                                                             }
                                                         )
                                                         DropdownMenuItem(
+                                                            text = { Text("사용자 신고", color = MaterialTheme.colorScheme.error) },
+                                                            onClick = {
+                                                                showCommentMenu = false
+                                                                reportTargetUser = comment.authorId to comment.authorNickname
+                                                            }
+                                                        )
+                                                        DropdownMenuItem(
                                                             text = { Text("작성자 차단") },
                                                             onClick = {
                                                                 showCommentMenu = false
@@ -685,3 +754,67 @@ fun SuggestionScreen(
         }
     }
 }
+
+@Composable
+fun CommunityGuidelinesDialog(
+    onDismissRequest: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismissRequest,
+        title = {
+            Text(
+                text = "이용약관 및 커뮤니티 가이드라인",
+                fontWeight = FontWeight.Bold,
+                fontSize = 16.sp
+            )
+        },
+        text = {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(max = 300.dp)
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Text(
+                    text = "본 가이드라인은 안전하고 유익한 건의함 이용을 위해 모든 사용자가 준수해야 할 규칙을 명시합니다.",
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Text(
+                    text = "1. 금지 행위 및 콘텐츠 종류\n" +
+                            "- 욕설, 비방, 인신공격 및 타인을 비하하는 조롱성 표현\n" +
+                            "- 음란성 콘텐츠, 혐오 표현, 성적 수치심을 유발하는 표현\n" +
+                            "- 상업적 광고, 스팸, 동일 내용의 무단 도배성 글\n" +
+                            "- 허위 사실 유포, 사칭 및 타인의 명예를 훼손하는 콘텐츠\n" +
+                            "- 타인의 전화번호, 개인정보를 무단 기재 및 노출하는 행위",
+                    fontSize = 12.sp,
+                    lineHeight = 18.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Text(
+                    text = "2. 위반 시 조치 및 제재 방침\n" +
+                            "- 금지된 내용이 포함된 글이나 댓글은 다른 사용자의 신고 또는 관리자 모니터링을 통해 사전 예고 없이 즉시 삭제 조치됩니다.\n" +
+                            "- 부적절한 게시물을 지속적으로 게재하거나 규칙을 반복하여 위반할 경우, 해당 계정(디바이스)의 글쓰기 권한이 영구 제한될 수 있습니다.",
+                    fontSize = 12.sp,
+                    lineHeight = 18.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Text(
+                    text = "3. 사용자 신고 및 차단 기능 안내\n" +
+                            "- 모든 사용자는 부적절한 글이나 댓글 우측 상단의 메뉴를 통해 즉시 신고(운영자 전송) 및 해당 유저 차단(내 화면에서 영구 필터링)을 수행할 수 있습니다.",
+                    fontSize = 12.sp,
+                    lineHeight = 18.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismissRequest) {
+                Text("확인", fontWeight = FontWeight.Bold)
+            }
+        }
+    )
+}
+

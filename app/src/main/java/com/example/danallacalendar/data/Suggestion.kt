@@ -20,3 +20,12 @@ data class SuggestionComment(
     val reportedByUserIds: List<String> = emptyList(),
     val isReported: Boolean = false
 )
+
+data class UserReport(
+    val id: String = "",
+    val reportedUserId: String = "",
+    val reportedUserNickname: String = "",
+    val reportedBy: String = "",
+    val createdAt: Long = System.currentTimeMillis(),
+    val reason: String = "부적절한 닉네임 및 악성 게시물 도배"
+)

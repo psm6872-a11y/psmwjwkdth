@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.danallacalendar.data.Suggestion
 import com.example.danallacalendar.data.SuggestionComment
+import com.example.danallacalendar.data.UserReport
 import com.example.danallacalendar.data.local.UserPreferences
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
@@ -194,6 +195,27 @@ class SuggestionViewModel @Inject constructor(
     fun blockUser(userId: String) {
         userPreferences.blockUser(userId)
         loadBlockedUsers()
+    }
+
+    fun reportUser(reportedUserId: String, reportedUserNickname: String, reason: String) {
+        viewModelScope.launch {
+            try {
+                val ref = firestore.collection("user_reports").document()
+                val report = UserReport(
+                    id = ref.id,
+                    reportedUserId = reportedUserId,
+                    reportedUserNickname = reportedUserNickname,
+                    reportedBy = userPreferences.getDeviceUUID(),
+                    createdAt = System.currentTimeMillis(),
+                    reason = reason
+                )
+                ref.set(report).await()
+                // Automatically block the user locally
+                blockUser(reportedUserId)
+            } catch (e: Exception) {
+                android.util.Log.e("SuggestionViewModel", "Failed to report user", e)
+            }
+        }
     }
 
     fun getCurrentUserUUID(): String {
