@@ -88,6 +88,9 @@ object EstimateHtmlGenerator {
             return "₩ $clean 만원"
         }
 
+        val optionCostVal = estimate.optionCost.toLongOrNull() ?: 0L
+        val optionLabel = if (optionCostVal < 0) "할인" else "옵션비용"
+
         // Replace basic fields
         var html = template
             .replace("{{companyName}}", companyName)
@@ -125,6 +128,7 @@ object EstimateHtmlGenerator {
             .replace("{{deposit}}", formatCurrency(estimate.deposit))
             .replace("{{balance}}", formatCurrency(estimate.balance))
             .replace("{{balanceOut}}", formatCurrency(estimate.balanceOut))
+            .replace("옵션비용", optionLabel)
 
         // Replace room columns
         if (estimate.moveType == "사무실이사") {
