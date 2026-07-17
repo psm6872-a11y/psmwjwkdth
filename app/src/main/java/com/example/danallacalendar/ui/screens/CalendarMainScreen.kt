@@ -3360,8 +3360,10 @@ fun getKoreanHolidayName(dateInMillis: Long): String? {
     when {
         month == 1 && day == 1 -> return "신정"
         month == 3 && day == 1 -> return "삼일절"
+        month == 5 && day == 1 -> return "노동절"
         month == 5 && day == 5 -> return "어린이날"
         month == 6 && day == 6 -> return "현충일"
+        month == 7 && day == 17 -> return "제헌절"
         month == 8 && day == 15 -> return "광복절"
         month == 10 && day == 3 -> return "개천절"
         month == 10 && day == 9 -> return "한글날"
@@ -3407,7 +3409,10 @@ fun getKoreanHolidayName(dateInMillis: Long): String? {
             if (month == 2 && day == 8) return "설날 연휴"
             if (month == 2 && day == 9) return "대체공휴일(설날)"
             
+            if (month == 5 && day == 3) return "대체공휴일(노동절)"
             if (month == 5 && day == 13) return "부처님오신날"
+            
+            if (month == 7 && day == 19) return "대체공휴일(제헌절)"
             
             if (month == 8 && day == 16) return "대체공휴일(광복절)"
             
