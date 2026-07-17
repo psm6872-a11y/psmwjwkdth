@@ -61,7 +61,7 @@ class EventReminderReceiver : BroadcastReceiver() {
         startMillis: Long
     ) {
         val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        val channelId = "event_reminder_channel_danalla"
+        val channelId = "event_reminder_channel_danalla_v2"
         val channelName = "일정 알림"
         val soundUri = Uri.parse("android.resource://${context.packageName}/${R.raw.danalla}")
 

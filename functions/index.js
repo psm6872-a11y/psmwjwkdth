@@ -82,31 +82,41 @@ exports.onCalendarEventWritten = onDocumentWritten("rooms/{roomCode}/events/{eve
         await cooldownRef.set({ lastSentAt: now });
     }
 
-    if (lastUpdatedBy) {
-        try {
-            const memberDoc = await db.collection("rooms")
-                .doc(roomCode)
-                .collection("members")
-                .doc(lastUpdatedBy)
-                .get();
-            if (memberDoc.exists) {
-                nickname = memberDoc.data().nickname || "알 수 없는 멤버";
-            } else {
+    if (changeType === "CREATE") {
+        nickname = afterData.createdBy || afterData.updatedBy || "";
+    } else if (changeType === "UPDATE") {
+        nickname = afterData.updatedBy || afterData.createdBy || "";
+    } else if (changeType === "DELETE") {
+        nickname = beforeData.updatedBy || beforeData.createdBy || "";
+    }
+
+    if (!nickname || nickname === "공유 멤버" || nickname === "알 수 없는 멤버") {
+        if (lastUpdatedBy) {
+            try {
+                const memberDoc = await db.collection("rooms")
+                    .doc(roomCode)
+                    .collection("members")
+                    .doc(lastUpdatedBy)
+                    .get();
+                if (memberDoc.exists) {
+                    nickname = memberDoc.data().nickname || "알 수 없는 멤버";
+                } else {
+                    nickname = "공유 멤버";
+                }
+            } catch (err) {
+                console.error("Error getting member nickname:", err);
                 nickname = "공유 멤버";
             }
-        } catch (err) {
-            console.error("Error getting member nickname:", err);
+        } else {
             nickname = "공유 멤버";
         }
-    } else {
-        nickname = "공유 멤버";
     }
 
     let title = "";
     let body = "";
 
     if (changeType === "CREATE") {
-        title = `${nickname}님이 일정 추가`;
+        title = `${nickname}님이 일정을 추가했습니다.`;
         const formattedTime = formatEventDateTime(afterData.startMillis, afterData.isAllDay);
         body = `📅 ${eventTitle} - ${formattedTime}`;
     } else if (changeType === "UPDATE") {
@@ -127,7 +137,7 @@ exports.onCalendarEventWritten = onDocumentWritten("rooms/{roomCode}/events/{eve
             body = `📄 ${eventTitle}`;
         } else {
             // isCompleted 변경 없음 & 견적서 연결 없음 → 기존 필드 변경 감지 로직
-            title = `${nickname}님이 일정 수정`;
+            title = `${nickname}님이 일정을 변경했습니다.`;
 
             const beforeTitle = beforeData.title || "(제목 없음)";
             const afterTitle = afterData.title || "(제목 없음)";
@@ -164,10 +174,16 @@ exports.onCalendarEventWritten = onDocumentWritten("rooms/{roomCode}/events/{eve
             if (phoneChanged && (beforePhone || afterPhone)) {
                 bodyParts.push(`전화번호\n${beforePhone || "(없음)"} → ${afterPhone || "(없음)"}`);
             }
+
+            if (bodyParts.length === 0) {
+                console.log("No significant fields changed in UPDATE. Skipping notification.");
+                return null;
+            }
+
             body = bodyParts.join("\n\n");
         }
     } else if (changeType === "DELETE") {
-        title = `${nickname}님이 일정 삭제`;
+        title = `${nickname}님이 일정을 삭제했습니다.`;
         body = `🗑️ ${eventTitle}`;
     }
 
