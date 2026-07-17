@@ -495,8 +495,10 @@ fun CalendarMainScreen(
                     )
                 }
 
-                // Bottom Panel: Selected Date Header and Event List
                 if (!isMonthViewExpanded) {
+                    val config = androidx.compose.ui.platform.LocalConfiguration.current
+                    val localScreenHeight = config.screenHeightDp.dp
+                    Spacer(modifier = Modifier.height(localScreenHeight * 0.01f))
                     EventListSection(
                     selectedDate = selectedDate,
                     events = monthlyEvents,
