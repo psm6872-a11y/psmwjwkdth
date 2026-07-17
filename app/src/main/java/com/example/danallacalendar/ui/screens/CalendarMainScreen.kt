@@ -498,7 +498,12 @@ fun CalendarMainScreen(
                 if (!isMonthViewExpanded) {
                     val config = androidx.compose.ui.platform.LocalConfiguration.current
                     val localScreenHeight = config.screenHeightDp.dp
-                    Spacer(modifier = Modifier.height(localScreenHeight * 0.01f))
+                    Spacer(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(localScreenHeight * 0.03f)
+                            .background(MaterialTheme.colorScheme.surface)
+                    )
                     EventListSection(
                     selectedDate = selectedDate,
                     events = monthlyEvents,
