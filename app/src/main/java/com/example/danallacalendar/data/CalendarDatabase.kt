@@ -185,26 +185,26 @@ abstract class CalendarDatabase : RoomDatabase() {
                     mainHoliday.id
                 }
 
-                val count = dao.getEventCountForCategory(holidayId)
-                if (count == 0) {
-                    val calendar = Calendar.getInstance()
-                    for (year in 2025..2028) {
-                        val holidays = getKoreanHolidaysList(year)
-                        for (holiday in holidays) {
-                            val hMonth = holiday.first
-                            val hDay = holiday.second
-                            val hTitle = holiday.third
-                            
-                            calendar.clear()
-                            calendar.set(Calendar.YEAR, year)
-                            calendar.set(Calendar.MONTH, hMonth - 1)
-                            calendar.set(Calendar.DAY_OF_MONTH, hDay)
-                            calendar.set(Calendar.HOUR_OF_DAY, 0)
-                            calendar.set(Calendar.MINUTE, 0)
-                            calendar.set(Calendar.SECOND, 0)
-                            calendar.set(Calendar.MILLISECOND, 0)
-                            val startMillis = calendar.timeInMillis
-                            
+                val calendar = Calendar.getInstance()
+                for (year in 2025..2028) {
+                    val holidays = getKoreanHolidaysList(year)
+                    for (holiday in holidays) {
+                        val hMonth = holiday.first
+                        val hDay = holiday.second
+                        val hTitle = holiday.third
+                        
+                        calendar.clear()
+                        calendar.set(Calendar.YEAR, year)
+                        calendar.set(Calendar.MONTH, hMonth - 1)
+                        calendar.set(Calendar.DAY_OF_MONTH, hDay)
+                        calendar.set(Calendar.HOUR_OF_DAY, 0)
+                        calendar.set(Calendar.MINUTE, 0)
+                        calendar.set(Calendar.SECOND, 0)
+                        calendar.set(Calendar.MILLISECOND, 0)
+                        val startMillis = calendar.timeInMillis
+                        
+                        val exists = dao.hasHolidayEvent(holidayId, hTitle, startMillis)
+                        if (!exists) {
                             calendar.set(Calendar.HOUR_OF_DAY, 23)
                             calendar.set(Calendar.MINUTE, 59)
                             calendar.set(Calendar.SECOND, 59)
@@ -231,8 +231,10 @@ abstract class CalendarDatabase : RoomDatabase() {
             val list = mutableListOf(
                 Triple(1, 1, "신정"),
                 Triple(3, 1, "삼일절"),
+                Triple(5, 1, "노동절"),
                 Triple(5, 5, "어린이날"),
                 Triple(6, 6, "현충일"),
+                Triple(7, 17, "제헌절"),
                 Triple(8, 15, "광복절"),
                 Triple(10, 3, "개천절"),
                 Triple(10, 9, "한글날"),

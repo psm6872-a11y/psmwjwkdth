@@ -23,6 +23,9 @@ interface EventDao {
     @Query("SELECT COUNT(*) FROM events WHERE calendarId = :categoryId")
     suspend fun getEventCountForCategory(categoryId: Int): Int
 
+    @Query("SELECT COUNT(*) > 0 FROM events WHERE calendarId = :categoryId AND title = :title AND startMillis = :startMillis")
+    suspend fun hasHolidayEvent(categoryId: Int, title: String, startMillis: Long): Boolean
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertCategory(category: CalendarCategory): Long
 
