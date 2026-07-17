@@ -149,4 +149,20 @@ class UserPreferences(context: Context) {
     fun setLastAppUpdateTime(time: Long) {
         prefs.edit().putLong("last_app_update_time", time).apply()
     }
+
+    fun getBlockedUserIds(): Set<String> {
+        return prefs.getStringSet("blocked_user_ids", null) ?: emptySet()
+    }
+
+    fun blockUser(userId: String) {
+        val current = getBlockedUserIds().toMutableSet()
+        current.add(userId)
+        prefs.edit().putStringSet("blocked_user_ids", current).apply()
+    }
+
+    fun unblockUser(userId: String) {
+        val current = getBlockedUserIds().toMutableSet()
+        current.remove(userId)
+        prefs.edit().putStringSet("blocked_user_ids", current).apply()
+    }
 }

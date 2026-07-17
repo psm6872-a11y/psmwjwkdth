@@ -37,7 +37,9 @@ import com.example.danallacalendar.backup.BackupScreen
 import com.example.danallacalendar.estimate.EstimateListScreen
 import com.example.danallacalendar.ui.screens.TrashScreen
 import com.example.danallacalendar.ui.screens.BlacklistScreen
+import com.example.danallacalendar.ui.screens.SuggestionScreen
 import com.example.danallacalendar.ui.viewmodel.TrashViewModel
+import com.example.danallacalendar.ui.viewmodel.SuggestionViewModel
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
 
@@ -325,12 +327,23 @@ fun AppNavigation(userPreferences: UserPreferences) {
                 onNavigateToStatistics = { isCreator ->
                     navController.navigate("statistics?isCreator=$isCreator")
                 },
+                onNavigateToSuggestions = {
+                    navController.navigate("suggestions")
+                },
                 onExitRoom = {
                     userPreferences.setLastRoomCode("")
                     navController.navigate("room") {
                         popUpTo("calendar") { inclusive = true }
                     }
                 }
+            )
+        }
+
+        composable("suggestions") {
+            val viewModel: SuggestionViewModel = hiltViewModel()
+            SuggestionScreen(
+                viewModel = viewModel,
+                onNavigateBack = { navController.popBackStack() }
             )
         }
 

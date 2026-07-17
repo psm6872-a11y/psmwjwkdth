@@ -140,6 +140,7 @@ fun CalendarMainScreen(
     onNavigateToTrash: () -> Unit,
     onNavigateToBlacklist: () -> Unit,
     onNavigateToStatistics: (Boolean) -> Unit,
+    onNavigateToSuggestions: () -> Unit,
     onExitRoom: () -> Unit,
     viewModel: CalendarViewModel,
     modifier: Modifier = Modifier
@@ -392,6 +393,10 @@ fun CalendarMainScreen(
                     onStatisticsClick = {
                         scope.launch { drawerState.close() }
                         onNavigateToStatistics(isCreator)
+                    },
+                    onSuggestionsClick = {
+                        scope.launch { drawerState.close() }
+                        onNavigateToSuggestions()
                     },
                     onCloseClick = {
                         scope.launch { drawerState.close() }

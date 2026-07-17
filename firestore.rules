@@ -31,5 +31,13 @@ service cloud.firestore {
     match /company_info/{document} {
       allow read, write: if true;
     }
+
+    // 건의함 데이터 규칙 추가 (전체 읽기/쓰기 허용)
+    match /suggestions/{document} {
+      allow read, write: if true;
+      match /{subcollection=**} {
+        allow read, write: if true;
+      }
+    }
   }
 }
