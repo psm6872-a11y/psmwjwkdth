@@ -9,6 +9,7 @@ import androidx.activity.SystemBarStyle
 import android.view.WindowManager
 import androidx.activity.viewModels
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
@@ -130,7 +131,7 @@ class MainActivity : ComponentActivity() {
         setContent {
             DanallaCalendarTheme {
                 Surface(
-                    modifier = Modifier.fillMaxSize(),
+                    modifier = Modifier.fillMaxSize().safeDrawingPadding(),
                     color = MaterialTheme.colorScheme.background
                 ) {
                     AppNavigation(userPreferences)
