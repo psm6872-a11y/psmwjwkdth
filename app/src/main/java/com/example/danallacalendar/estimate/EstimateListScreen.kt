@@ -1322,7 +1322,9 @@ fun EstimateItemCard(
                                 color = Color.White,
                                 fontSize = 15.sp,
                                 fontWeight = FontWeight.Bold,
-                                modifier = Modifier.padding(bottom = 6.dp)
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .padding(bottom = 6.dp)
                             )
                             
                             Column(
