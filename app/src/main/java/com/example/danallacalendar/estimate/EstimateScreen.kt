@@ -128,6 +128,14 @@ fun EstimateScreen(
 ) {
     val context = LocalContext.current
     val userPrefs = remember { com.example.danallacalendar.data.local.UserPreferences(context) }
+    
+    LaunchedEffect(Unit) {
+        if (!userPrefs.hasWritePermission()) {
+            Toast.makeText(context, "읽기 전용 멤버는 견적 작성 화면에 접근할 수 없습니다.", Toast.LENGTH_SHORT).show()
+            onNavigateBack()
+        }
+    }
+
     val focusManager = androidx.compose.ui.platform.LocalFocusManager.current
     var onCancelAction by remember { mutableStateOf<(() -> Unit)?>(null) }
     DisposableEffect(Unit) {

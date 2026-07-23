@@ -98,6 +98,13 @@ fun AddEditEventScreen(
     val prefs: SharedPreferences = remember { context.getSharedPreferences("calendar_prefs", Context.MODE_PRIVATE) }
     val userPreferences = remember { com.example.danallacalendar.data.local.UserPreferences(context) }
 
+    LaunchedEffect(Unit) {
+        if (!userPreferences.hasWritePermission()) {
+            Toast.makeText(context, "읽기 전용 멤버는 일정 추가/편집 화면에 접근할 수 없습니다.", Toast.LENGTH_SHORT).show()
+            onNavigateBack()
+        }
+    }
+
     var focusedField by remember { mutableStateOf<String?>(null) }
     var originalValue by remember { mutableStateOf("") }
 

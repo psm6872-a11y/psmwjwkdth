@@ -198,6 +198,13 @@ fun CalendarMainScreen(
     val isCreator by memberViewModel.isCreator.collectAsStateWithLifecycle()
     val creatorUUID by memberViewModel.creatorUUID.collectAsStateWithLifecycle()
     val hasWritePermission by memberViewModel.hasWritePermission.collectAsStateWithLifecycle()
+    val isReadOnlySharedMember = isLoggedIn && !isCreator && !hasWritePermission
+
+    LaunchedEffect(isReadOnlySharedMember) {
+        if (isReadOnlySharedMember) {
+            viewModel.setEventFilter(EventFilter.CONTRACT)
+        }
+    }
 
     LaunchedEffect(isLoggedIn) {
         if (!isLoggedIn) {
@@ -449,18 +456,21 @@ fun CalendarMainScreen(
                     onToggleDrawer = { scope.launch { drawerState.open() } },
                     onToggleViewMode = { viewModel.toggleViewMode() },
                     onNavigateToSearch = { onNavigateToSearch() },
-                    onGoToToday = { viewModel.selectDate(System.currentTimeMillis()) }
+                    onGoToToday = { viewModel.selectDate(System.currentTimeMillis()) },
+                    isReadOnlySharedMember = isReadOnlySharedMember
                 )
             },
             floatingActionButton = {
-                FloatingActionButton(
-                    onClick = { onNavigateToAddEditEvent(null) },
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    contentColor = MaterialTheme.colorScheme.onPrimary,
-                    shape = CircleShape,
-                    modifier = Modifier.padding(bottom = 16.dp)
-                ) {
-                    Icon(imageVector = Icons.Default.Add, contentDescription = "일정 추가")
+                if (!isReadOnlySharedMember) {
+                    FloatingActionButton(
+                        onClick = { onNavigateToAddEditEvent(null) },
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor = MaterialTheme.colorScheme.onPrimary,
+                        shape = CircleShape,
+                        modifier = Modifier.padding(bottom = 16.dp)
+                    ) {
+                        Icon(imageVector = Icons.Default.Add, contentDescription = "일정 추가")
+                    }
                 }
             },
             modifier = modifier
@@ -517,7 +527,13 @@ fun CalendarMainScreen(
                     selectedDate = selectedDate,
                     events = monthlyEvents,
                     categories = categories,
-                    onEventClick = { onNavigateToAddEditEvent(it.id) },
+                    onEventClick = {
+                        if (isReadOnlySharedMember) {
+                            Toast.makeText(context, "읽기 전용 멤버는 일정 편집 화면에 접근할 수 없습니다.", Toast.LENGTH_SHORT).show()
+                        } else {
+                            onNavigateToAddEditEvent(it.id)
+                        }
+                    },
                     onDeleteEvent = {
                         if (!hasWritePermission) {
                             Toast.makeText(context, "쓰기 권한이 없습니다. 방장에게 권한을 요청하세요.", Toast.LENGTH_SHORT).show()
@@ -942,8 +958,12 @@ fun CalendarMainScreen(
                 categories = categories,
                 onDismissRequest = { showDayEventsDialogDate = null },
                 onEventClick = { event ->
-                    showDayEventsDialogDate = null
-                    onNavigateToAddEditEvent(event.id)
+                    if (isReadOnlySharedMember) {
+                        Toast.makeText(context, "읽기 전용 멤버는 일정 편집 화면에 접근할 수 없습니다.", Toast.LENGTH_SHORT).show()
+                    } else {
+                        showDayEventsDialogDate = null
+                        onNavigateToAddEditEvent(event.id)
+                    }
                 },
                 onDeleteEvent = {
                     if (!hasWritePermission) {
@@ -1047,7 +1067,8 @@ fun MainTopAppBar(
     onToggleDrawer: () -> Unit,
     onToggleViewMode: () -> Unit,
     onNavigateToSearch: () -> Unit,
-    onGoToToday: () -> Unit
+    onGoToToday: () -> Unit,
+    isReadOnlySharedMember: Boolean = false
 ) {
     val monthFormat = SimpleDateFormat("M월", Locale.KOREAN)
     val monthStr = monthFormat.format(currentMonth.time)
@@ -1070,28 +1091,30 @@ fun MainTopAppBar(
                     )
                 }
 
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(4.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier
-                        .padding(end = 8.dp)
-                        .offset(x = (-8).dp, y = 2.dp)
-                ) {
-                    FilterButton(
-                        text = "방문",
-                        isSelected = selectedFilter == EventFilter.ESTIMATE,
-                        onClick = { onFilterSelected(EventFilter.ESTIMATE) }
-                    )
-                    FilterButton(
-                        text = "계약",
-                        isSelected = selectedFilter == EventFilter.CONTRACT,
-                        onClick = { onFilterSelected(EventFilter.CONTRACT) }
-                    )
-                    FilterButton(
-                        text = "전체",
-                        isSelected = selectedFilter == EventFilter.ALL,
-                        onClick = { onFilterSelected(EventFilter.ALL) }
-                    )
+                if (!isReadOnlySharedMember) {
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier
+                            .padding(end = 8.dp)
+                            .offset(x = (-8).dp, y = 2.dp)
+                    ) {
+                        FilterButton(
+                            text = "방문",
+                            isSelected = selectedFilter == EventFilter.ESTIMATE,
+                            onClick = { onFilterSelected(EventFilter.ESTIMATE) }
+                        )
+                        FilterButton(
+                            text = "계약",
+                            isSelected = selectedFilter == EventFilter.CONTRACT,
+                            onClick = { onFilterSelected(EventFilter.CONTRACT) }
+                        )
+                        FilterButton(
+                            text = "전체",
+                            isSelected = selectedFilter == EventFilter.ALL,
+                            onClick = { onFilterSelected(EventFilter.ALL) }
+                        )
+                    }
                 }
             }
         },
