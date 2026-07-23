@@ -650,7 +650,9 @@ fun CalendarMainScreen(
                                         
                                         val locationField = "$departureAddr|||$departureDetail|||$destinationAddr|||$destinationDetail"
                                         
-                                        val notesField = estimate.phoneNumber
+                                        val isStorageMove = estimate.moveInfo == "보관이사"
+                                        val finalTitleText = if (isStorageMove) "[보관입고] $titleText" else titleText
+                                        val notesField = if (isStorageMove) "${estimate.phoneNumber}|||보관이사" else estimate.phoneNumber
                                         val colorHexField = when (teamId) {
                                             1 -> "#FF4CAF50"
                                             2 -> "#FFFFEB3B"
@@ -659,7 +661,7 @@ fun CalendarMainScreen(
                                         
                                         val syncId = java.util.UUID.randomUUID().toString()
                                         val newEvent = com.example.danallacalendar.data.Event(
-                                            title = titleText,
+                                            title = finalTitleText,
                                             startMillis = startMillis,
                                             endMillis = endMillis,
                                             isAllDay = true,
@@ -694,6 +696,42 @@ fun CalendarMainScreen(
                                         } else {
                                             viewModel.dismissContract(syncId)
                                             viewModel.addEvent(newEvent)
+
+                                            // 보관이사인 경우 출고일 일정도 함께 자동 생성 (출고일이 '미정'이 아닌 경우만)
+                                            if (isStorageMove && estimate.outDate.isNotBlank() && estimate.outDate != "미정") {
+                                                try {
+                                                    val outCal = Calendar.getInstance()
+                                                    val parsedOutDate = dateFormat.parse(estimate.outDate)
+                                                    if (parsedOutDate != null) {
+                                                        outCal.time = parsedOutDate
+                                                        outCal.set(Calendar.HOUR_OF_DAY, 0)
+                                                        outCal.set(Calendar.MINUTE, 0)
+                                                        outCal.set(Calendar.SECOND, 0)
+                                                        outCal.set(Calendar.MILLISECOND, 0)
+                                                        val outStartMillis = outCal.timeInMillis
+
+                                                        outCal.set(Calendar.HOUR_OF_DAY, 23)
+                                                        outCal.set(Calendar.MINUTE, 59)
+                                                        outCal.set(Calendar.SECOND, 59)
+                                                        outCal.set(Calendar.MILLISECOND, 999)
+                                                        val outEndMillis = outCal.timeInMillis
+
+                                                        val outSyncId = java.util.UUID.randomUUID().toString()
+                                                        val outTitleText = "[보관출고] $titleText"
+                                                        val newEventOut = newEvent.copy(
+                                                            title = outTitleText,
+                                                            startMillis = outStartMillis,
+                                                            endMillis = outEndMillis,
+                                                            syncId = outSyncId
+                                                        )
+                                                        viewModel.dismissContract(outSyncId)
+                                                        viewModel.addEvent(newEventOut)
+                                                    }
+                                                } catch (e: Exception) {
+                                                    android.util.Log.e("CalendarMainScreen", "Error creating storage out event", e)
+                                                }
+                                            }
+
                                             val formattedDate = try {
                                                 val parsed = SimpleDateFormat("yyyy-MM-dd", Locale.KOREAN).parse(estimate.moveDate)
                                                 if (parsed != null) {
@@ -924,6 +962,52 @@ fun CalendarMainScreen(
                             pendingNewEvent?.let {
                                 it.syncId?.let { syncId -> viewModel.dismissContract(syncId) }
                                 viewModel.addEvent(it)
+                                
+                                val isStorageMove = it.notes?.contains("보관이사") == true
+                                if (isStorageMove) {
+                                    scope.launch {
+                                        try {
+                                            val estimateId = it.linkedEstimateId
+                                            if (!estimateId.isNullOrBlank()) {
+                                                val estimate = viewModel.getEstimateById(estimateId)
+                                                if (estimate != null && estimate.outDate.isNotBlank() && estimate.outDate != "미정") {
+                                                    val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.KOREAN)
+                                                    val parsedOutDate = dateFormat.parse(estimate.outDate)
+                                                    if (parsedOutDate != null) {
+                                                        val outCal = Calendar.getInstance()
+                                                        outCal.time = parsedOutDate
+                                                        outCal.set(Calendar.HOUR_OF_DAY, 0)
+                                                        outCal.set(Calendar.MINUTE, 0)
+                                                        outCal.set(Calendar.SECOND, 0)
+                                                        outCal.set(Calendar.MILLISECOND, 0)
+                                                        val outStartMillis = outCal.timeInMillis
+
+                                                        outCal.set(Calendar.HOUR_OF_DAY, 23)
+                                                        outCal.set(Calendar.MINUTE, 59)
+                                                        outCal.set(Calendar.SECOND, 59)
+                                                        outCal.set(Calendar.MILLISECOND, 999)
+                                                        val outEndMillis = outCal.timeInMillis
+
+                                                        val outSyncId = java.util.UUID.randomUUID().toString()
+                                                        val rawTitle = it.title.replace("[보관입고] ", "")
+                                                        val outTitleText = "[보관출고] $rawTitle"
+                                                        val newEventOut = it.copy(
+                                                            title = outTitleText,
+                                                            startMillis = outStartMillis,
+                                                            endMillis = outEndMillis,
+                                                            syncId = outSyncId
+                                                        )
+                                                        viewModel.dismissContract(outSyncId)
+                                                        viewModel.addEvent(newEventOut)
+                                                    }
+                                                }
+                                            }
+                                        } catch (e: Exception) {
+                                            android.util.Log.e("CalendarMainScreen", "Error creating storage out event from dialog", e)
+                                        }
+                                    }
+                                }
+
                                 val formattedDate = try {
                                     SimpleDateFormat("M월 d일", Locale.KOREAN).format(Date(it.startMillis))
                                 } catch (e: Exception) {
