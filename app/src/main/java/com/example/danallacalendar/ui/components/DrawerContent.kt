@@ -91,6 +91,8 @@ fun DrawerContent(
     onTransferHost: (String) -> Unit,
     isCheckingForUpdate: Boolean,
     onCheckForUpdateClick: () -> Unit,
+    creatorUUID: String? = null,
+    onToggleWritePermission: ((String, Boolean) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -571,14 +573,43 @@ fun DrawerContent(
                                             .background(Color(0xFF34C759)) // Green dot
                                     )
                                 }
+                                Spacer(modifier = Modifier.height(2.dp))
+                                val isMemberCreator = creatorUUID != null && member.deviceUUID == creatorUUID
+                                val statusText = if (isMemberCreator) {
+                                    "방장"
+                                } else if (member.hasWritePermission) {
+                                    "읽기/쓰기 가능"
+                                } else {
+                                    "읽기 전용"
+                                }
+                                Text(
+                                    text = statusText,
+                                    fontSize = 11.sp,
+                                    color = if (isMemberCreator) Color(0xFFF2C94C) else if (member.hasWritePermission) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                                    fontWeight = FontWeight.Medium
+                                )
                             }
                         }
                         
                         if (isCreator && !isMe) {
+                            val isMemberCreator = creatorUUID != null && member.deviceUUID == creatorUUID
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(4.dp)
                             ) {
+                                if (!isMemberCreator) {
+                                    IconButton(
+                                        onClick = { onToggleWritePermission?.invoke(member.deviceUUID, !member.hasWritePermission) },
+                                        modifier = Modifier.size(24.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Edit,
+                                            contentDescription = "쓰기 권한 토글",
+                                            tint = if (member.hasWritePermission) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                    }
+                                }
                                 IconButton(
                                     onClick = { memberToTransferHost = member },
                                     modifier = Modifier.size(24.dp)

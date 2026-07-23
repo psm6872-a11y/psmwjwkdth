@@ -1,4 +1,4 @@
-﻿package com.example.danallacalendar.ui.screens
+package com.example.danallacalendar.ui.screens
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -96,6 +96,7 @@ fun AddEditEventScreen(
     val context = LocalContext.current
     val focusManager = LocalFocusManager.current
     val prefs: SharedPreferences = remember { context.getSharedPreferences("calendar_prefs", Context.MODE_PRIVATE) }
+    val userPreferences = remember { com.example.danallacalendar.data.local.UserPreferences(context) }
 
     var focusedField by remember { mutableStateOf<String?>(null) }
     var originalValue by remember { mutableStateOf("") }
@@ -278,7 +279,9 @@ fun AddEditEventScreen(
     }
 
     val onSaveClick = {
-        if (title.isNotBlank() && selectedCategory != null) {
+        if (!userPreferences.hasWritePermission()) {
+            Toast.makeText(context, "쓰기 권한이 없습니다. 방장에게 권한을 요청하세요.", Toast.LENGTH_SHORT).show()
+        } else if (title.isNotBlank() && selectedCategory != null) {
             val now = System.currentTimeMillis()
             
             val finalStart: Long

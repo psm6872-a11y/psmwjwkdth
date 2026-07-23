@@ -165,4 +165,13 @@ class UserPreferences(context: Context) {
         current.remove(userId)
         prefs.edit().putStringSet("blocked_user_ids", current).apply()
     }
+
+    fun hasWritePermission(): Boolean {
+        if (getLastRoomCode().isEmpty()) return true
+        return prefs.getBoolean("has_write_permission", false)
+    }
+
+    fun setWritePermission(allowed: Boolean) {
+        prefs.edit().putBoolean("has_write_permission", allowed).apply()
+    }
 }

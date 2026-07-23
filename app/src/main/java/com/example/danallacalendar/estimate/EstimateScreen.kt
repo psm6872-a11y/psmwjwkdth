@@ -127,6 +127,7 @@ fun EstimateScreen(
     onNavigateBack: () -> Unit
 ) {
     val context = LocalContext.current
+    val userPrefs = remember { com.example.danallacalendar.data.local.UserPreferences(context) }
     val focusManager = androidx.compose.ui.platform.LocalFocusManager.current
     var onCancelAction by remember { mutableStateOf<(() -> Unit)?>(null) }
     DisposableEffect(Unit) {
@@ -743,10 +744,14 @@ fun EstimateScreen(
                             } else if (currentStep == 3) {
                                 Button(
                                     onClick = {
-                                        if (customerName.isNotBlank()) {
-                                            hasSaved = true
+                                        if (!userPrefs.hasWritePermission()) {
+                                            Toast.makeText(context, "쓰기 권한이 없습니다. 방장에게 권한을 요청하세요.", Toast.LENGTH_SHORT).show()
+                                        } else {
+                                            if (customerName.isNotBlank()) {
+                                                hasSaved = true
+                                            }
+                                            onSaveEstimate()
                                         }
-                                        onSaveEstimate()
                                     },
                                     enabled = !hasSaved && saveState !is SaveState.Loading && saveState !is SaveState.Success,
                                     modifier = Modifier
@@ -765,7 +770,6 @@ fun EstimateScreen(
                                         if (isDriveUploading) return@Button
                                         // 업로드 완료 후 화면 이탈 (업로드 없으면 즉시 이탈)
                                         savedJpgPath?.let { path ->
-                                            val userPrefs = UserPreferences(context)
                                             val isDriveSyncOn = userPrefs.isGoogleDriveSaveEnabled() || userPrefs.isAutoDriveSyncEnabled()
                                             val hasPerm = GoogleDriveHelper.hasDrivePermission(context)
                                             val account = GoogleDriveHelper.getSignedInAccount(context)

@@ -196,6 +196,8 @@ fun CalendarMainScreen(
     val memberViewModel: MemberViewModel = hiltViewModel()
     val members by memberViewModel.members.collectAsStateWithLifecycle()
     val isCreator by memberViewModel.isCreator.collectAsStateWithLifecycle()
+    val creatorUUID by memberViewModel.creatorUUID.collectAsStateWithLifecycle()
+    val hasWritePermission by memberViewModel.hasWritePermission.collectAsStateWithLifecycle()
 
     LaunchedEffect(isLoggedIn) {
         if (!isLoggedIn) {
@@ -364,6 +366,8 @@ fun CalendarMainScreen(
                     isCreator = isCreator,
                     onRemoveMember = { memberViewModel.removeMember(it) },
                     onTransferHost = { memberViewModel.transferHost(it) },
+                    creatorUUID = creatorUUID,
+                    onToggleWritePermission = { targetUUID, hasWrite -> memberViewModel.updateWritePermission(targetUUID, hasWrite) },
                     onLogoutClick = { viewModel.logout() },
                     onToggleCategory = { viewModel.toggleCategoryVisibility(it) },
                     onImportClick = {
@@ -514,11 +518,32 @@ fun CalendarMainScreen(
                     events = monthlyEvents,
                     categories = categories,
                     onEventClick = { onNavigateToAddEditEvent(it.id) },
-                    onDeleteEvent = { viewModel.deleteEvent(it) },
-                    onToggleComplete = { viewModel.updateEvent(it.copy(isCompleted = !it.isCompleted)) },
-                    onUpdateEvent = { viewModel.updateEvent(it) },
+                    onDeleteEvent = {
+                        if (!hasWritePermission) {
+                            Toast.makeText(context, "쓰기 권한이 없습니다. 방장에게 권한을 요청하세요.", Toast.LENGTH_SHORT).show()
+                        } else {
+                            viewModel.deleteEvent(it)
+                        }
+                    },
+                    onToggleComplete = {
+                        if (!hasWritePermission) {
+                            Toast.makeText(context, "쓰기 권한이 없습니다. 방장에게 권한을 요청하세요.", Toast.LENGTH_SHORT).show()
+                        } else {
+                            viewModel.updateEvent(it.copy(isCompleted = !it.isCompleted))
+                        }
+                    },
+                    onUpdateEvent = {
+                        if (!hasWritePermission) {
+                            Toast.makeText(context, "쓰기 권한이 없습니다. 방장에게 권한을 요청하세요.", Toast.LENGTH_SHORT).show()
+                        } else {
+                            viewModel.updateEvent(it)
+                        }
+                    },
                     onConfirmContract = { evt, teamId, slotPos ->
-                        val estimateId = evt.linkedEstimateId
+                        if (!hasWritePermission) {
+                            Toast.makeText(context, "쓰기 권한이 없습니다. 방장에게 권한을 요청하세요.", Toast.LENGTH_SHORT).show()
+                        } else {
+                            val estimateId = evt.linkedEstimateId
                         if (!estimateId.isNullOrBlank()) {
                             scope.launch {
                                 try {
@@ -671,10 +696,15 @@ fun CalendarMainScreen(
                                 }
                             }
                         }
+                        }
                     },
                     isDeadlineSet = deadlineDates.any { isSameDay(it, selectedDate) },
                     onDeadlineToggle = { dateMillis ->
-                        viewModel.toggleDeadlineDate(dateMillis)
+                        if (!hasWritePermission) {
+                            Toast.makeText(context, "쓰기 권한이 없습니다. 방장에게 권한을 요청하세요.", Toast.LENGTH_SHORT).show()
+                        } else {
+                            viewModel.toggleDeadlineDate(dateMillis)
+                        }
                     },
                     viewMode = viewMode,
                     onSwipeDownAtTop = { viewModel.setViewMode(CalendarViewMode.MONTH) },
@@ -915,9 +945,27 @@ fun CalendarMainScreen(
                     showDayEventsDialogDate = null
                     onNavigateToAddEditEvent(event.id)
                 },
-                onDeleteEvent = { viewModel.deleteEvent(it) },
-                onToggleComplete = { viewModel.updateEvent(it.copy(isCompleted = !it.isCompleted)) },
-                onUpdateEvent = { viewModel.updateEvent(it) },
+                onDeleteEvent = {
+                    if (!hasWritePermission) {
+                        Toast.makeText(context, "쓰기 권한이 없습니다. 방장에게 권한을 요청하세요.", Toast.LENGTH_SHORT).show()
+                    } else {
+                        viewModel.deleteEvent(it)
+                    }
+                },
+                onToggleComplete = {
+                    if (!hasWritePermission) {
+                        Toast.makeText(context, "쓰기 권한이 없습니다. 방장에게 권한을 요청하세요.", Toast.LENGTH_SHORT).show()
+                    } else {
+                        viewModel.updateEvent(it.copy(isCompleted = !it.isCompleted))
+                    }
+                },
+                onUpdateEvent = {
+                    if (!hasWritePermission) {
+                        Toast.makeText(context, "쓰기 권한이 없습니다. 방장에게 권한을 요청하세요.", Toast.LENGTH_SHORT).show()
+                    } else {
+                        viewModel.updateEvent(it)
+                    }
+                },
                 viewModel = viewModel
             )
         }

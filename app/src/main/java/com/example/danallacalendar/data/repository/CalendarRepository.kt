@@ -159,57 +159,96 @@ class CalendarRepository @Inject constructor(
         val currentNickname = userPreferences.getNickname()
         if (roomCode.isEmpty() || currentNickname.isEmpty()) return
 
+        val targetDeviceUUID = userPreferences.getDeviceUUID()
+
         firestore.collection("rooms")
             .document(roomCode)
-            .collection("members")
-            .whereEqualTo("nickname", currentNickname)
+            .collection("info")
+            .document("details")
             .get()
-            .addOnSuccessListener { querySnapshot ->
-                var targetDeviceUUID = userPreferences.getDeviceUUID()
-                if (querySnapshot != null && !querySnapshot.isEmpty) {
-                    val existingDoc = querySnapshot.documents[0]
-                    val existingUUID = existingDoc.id
-                    if (existingUUID != targetDeviceUUID) {
-                        userPreferences.setDeviceUUID(existingUUID)
-                        targetDeviceUUID = existingUUID
-                        android.util.Log.d("CalendarRepository", "Restored existing deviceUUID ($existingUUID) for nickname: $currentNickname")
-                    }
-                }
-                
-                com.google.firebase.messaging.FirebaseMessaging.getInstance().token
-                    .addOnCompleteListener { task ->
-                        val fcmToken = if (task.isSuccessful) task.result else ""
-                        val memberData = hashMapOf(
-                            "nickname" to currentNickname,
-                            "fcmToken" to fcmToken,
-                            "updatedAt" to Timestamp.now()
-                        )
-                        val docRef = firestore.collection("rooms")
-                            .document(roomCode)
-                            .collection("members")
-                            .document(targetDeviceUUID)
-                            
-                        docRef.get().addOnSuccessListener { memberDoc ->
-                            if (!memberDoc.exists() || memberDoc.get("joinedAt") == null) {
-                                memberData["joinedAt"] = Timestamp.now()
+            .addOnSuccessListener { detailsDoc ->
+                val creatorUUID = detailsDoc.getString("createdBy") ?: ""
+                val isCreator = creatorUUID.isNotEmpty() && creatorUUID == targetDeviceUUID
+
+                firestore.collection("rooms")
+                    .document(roomCode)
+                    .collection("members")
+                    .whereEqualTo("nickname", currentNickname)
+                    .get()
+                    .addOnSuccessListener { querySnapshot ->
+                        var finalUUID = targetDeviceUUID
+                        if (querySnapshot != null && !querySnapshot.isEmpty) {
+                            val existingDoc = querySnapshot.documents[0]
+                            val existingUUID = existingDoc.id
+                            if (existingUUID != targetDeviceUUID) {
+                                userPreferences.setDeviceUUID(existingUUID)
+                                finalUUID = existingUUID
                             }
-                            docRef.set(memberData, com.google.firebase.firestore.SetOptions.merge())
-                        }.addOnFailureListener {
-                            memberData["joinedAt"] = Timestamp.now()
-                            docRef.set(memberData, com.google.firebase.firestore.SetOptions.merge())
                         }
+
+                        com.google.firebase.messaging.FirebaseMessaging.getInstance().token
+                            .addOnCompleteListener { task ->
+                                val fcmToken = if (task.isSuccessful) task.result else ""
+                                val memberData = hashMapOf<String, Any>(
+                                    "nickname" to currentNickname,
+                                    "fcmToken" to fcmToken,
+                                    "updatedAt" to Timestamp.now()
+                                )
+
+                                val docRef = firestore.collection("rooms")
+                                    .document(roomCode)
+                                    .collection("members")
+                                    .document(finalUUID)
+
+                                docRef.get().addOnSuccessListener { memberDoc ->
+                                    if (!memberDoc.exists() || memberDoc.get("joinedAt") == null) {
+                                        memberData["joinedAt"] = Timestamp.now()
+                                    }
+                                    if (!memberDoc.exists() || memberDoc.get("hasWritePermission") == null) {
+                                        memberData["hasWritePermission"] = isCreator
+                                    } else {
+                                        if (isCreator) {
+                                            memberData["hasWritePermission"] = true
+                                        }
+                                    }
+                                    docRef.set(memberData, com.google.firebase.firestore.SetOptions.merge())
+                                }.addOnFailureListener {
+                                    memberData["joinedAt"] = Timestamp.now()
+                                    memberData["hasWritePermission"] = isCreator
+                                    docRef.set(memberData, com.google.firebase.firestore.SetOptions.merge())
+                                }
+                            }
+                    }
+                    .addOnFailureListener {
+                        com.google.firebase.messaging.FirebaseMessaging.getInstance().token
+                            .addOnCompleteListener { task ->
+                                val fcmToken = if (task.isSuccessful) task.result else ""
+                                val memberData = hashMapOf<String, Any>(
+                                    "nickname" to currentNickname,
+                                    "fcmToken" to fcmToken,
+                                    "updatedAt" to Timestamp.now(),
+                                    "joinedAt" to Timestamp.now(),
+                                    "hasWritePermission" to isCreator
+                                )
+                                firestore.collection("rooms")
+                                    .document(roomCode)
+                                    .collection("members")
+                                    .document(targetDeviceUUID)
+                                    .set(memberData, com.google.firebase.firestore.SetOptions.merge())
+                            }
                     }
             }
             .addOnFailureListener {
-                val targetDeviceUUID = userPreferences.getDeviceUUID()
+                // If details cannot be loaded, fallback to checking nickname
                 com.google.firebase.messaging.FirebaseMessaging.getInstance().token
                     .addOnCompleteListener { task ->
                         val fcmToken = if (task.isSuccessful) task.result else ""
-                        val memberData = hashMapOf(
+                        val memberData = hashMapOf<String, Any>(
                             "nickname" to currentNickname,
                             "fcmToken" to fcmToken,
                             "updatedAt" to Timestamp.now(),
-                            "joinedAt" to Timestamp.now()
+                            "joinedAt" to Timestamp.now(),
+                            "hasWritePermission" to false // default to false
                         )
                         firestore.collection("rooms")
                             .document(roomCode)

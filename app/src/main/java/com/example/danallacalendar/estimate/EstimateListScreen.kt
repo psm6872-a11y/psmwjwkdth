@@ -123,6 +123,7 @@ fun EstimateListScreen(
     var showInfoDialog by remember { mutableStateOf<String?>(null) }
     var selectedFilter by remember { mutableStateOf("전체") }
     val context = LocalContext.current
+    val userPreferences = remember { com.example.danallacalendar.data.local.UserPreferences(context) }
 
     val teamCountFlow = remember(context) {
         context.settingsDataStore.data.map { preferences ->
@@ -658,8 +659,12 @@ fun EstimateListScreen(
                             estimate = estimate,
                             onDismiss = { selectedEstimate = null },
                             onEditClick = {
-                                selectedEstimate = null
-                                onNavigateToEstimateCopy(com.google.gson.Gson().toJson(estimate))
+                                if (!userPreferences.hasWritePermission()) {
+                                    Toast.makeText(context, "쓰기 권한이 없습니다. 방장에게 권한을 요청하세요.", Toast.LENGTH_SHORT).show()
+                                } else {
+                                    selectedEstimate = null
+                                    onNavigateToEstimateCopy(com.google.gson.Gson().toJson(estimate))
+                                }
                             }
                         )
                     }
@@ -985,43 +990,47 @@ fun EstimateListScreen(
                                                     if (selectedTeamId == null || (!isAmSelected && !isPmSelected)) {
                                                         Toast.makeText(context, "팀과 시간대를 선택해주세요", Toast.LENGTH_SHORT).show()
                                                     } else {
-                                                        val finalSlotPosition = when {
-                                                            isAmSelected && isPmSelected -> "both"
-                                                            isAmSelected -> "top"
-                                                            isPmSelected -> "bottom"
-                                                            else -> "both"
-                                                        }
-                                                        val teamId = selectedTeamId ?: 1
-                                                        confirmContractEstimate?.let { est ->
-                                                            scope.launch {
-                                                                val conflicts = viewModel.checkContractConflict(
-                                                                    dateStr = est.moveDate,
-                                                                    teamId = teamId,
-                                                                    slotPos = finalSlotPosition
-                                                                )
-                                                                if (conflicts.isNotEmpty()) {
-                                                                    val firstConf = conflicts.first()
-                                                                    val confTitle = firstConf.title.split("\n").firstOrNull() ?: ""
-                                                                    conflictTargetEstimate = est
-                                                                    conflictTeamId = teamId
-                                                                    conflictSlotPos = finalSlotPosition
-                                                                    conflictMessage = "주의: 선택하신 날짜와 팀/시간대에 이미 확정된 일정이 있습니다.\n(기존 일정: $confTitle)\n\n그래도 중복으로 배정하시겠습니까?"
-                                                                    showConflictConfirmDialog = true
-                                                                    showConfirmConfirmDialog = false
-                                                                } else {
-                                                                    viewModel.confirmContract(
-                                                                        estimate = est,
+                                                        if (!userPreferences.hasWritePermission()) {
+                                                            Toast.makeText(context, "쓰기 권한이 없습니다. 방장에게 권한을 요청하세요.", Toast.LENGTH_SHORT).show()
+                                                        } else {
+                                                            val finalSlotPosition = when {
+                                                                isAmSelected && isPmSelected -> "both"
+                                                                isAmSelected -> "top"
+                                                                isPmSelected -> "bottom"
+                                                                else -> "both"
+                                                            }
+                                                            val teamId = selectedTeamId ?: 1
+                                                            confirmContractEstimate?.let { est ->
+                                                                scope.launch {
+                                                                    val conflicts = viewModel.checkContractConflict(
+                                                                        dateStr = est.moveDate,
                                                                         teamId = teamId,
-                                                                        slotPos = finalSlotPosition,
-                                                                        onSuccess = {
-                                                                            Toast.makeText(context, "계약이 확정되었습니다.", Toast.LENGTH_SHORT).show()
-                                                                        },
-                                                                        onError = { e ->
-                                                                            Toast.makeText(context, "오류: ${e.localizedMessage}", Toast.LENGTH_LONG).show()
-                                                                        }
+                                                                        slotPos = finalSlotPosition
                                                                     )
-                                                                    showConfirmConfirmDialog = false
-                                                                    confirmContractEstimate = null
+                                                                    if (conflicts.isNotEmpty()) {
+                                                                        val firstConf = conflicts.first()
+                                                                        val confTitle = firstConf.title.split("\n").firstOrNull() ?: ""
+                                                                        conflictTargetEstimate = est
+                                                                        conflictTeamId = teamId
+                                                                        conflictSlotPos = finalSlotPosition
+                                                                        conflictMessage = "주의: 선택하신 날짜와 팀/시간대에 이미 확정된 일정이 있습니다.\n(기존 일정: $confTitle)\n\n그래도 중복으로 배정하시겠습니까?"
+                                                                        showConflictConfirmDialog = true
+                                                                        showConfirmConfirmDialog = false
+                                                                    } else {
+                                                                        viewModel.confirmContract(
+                                                                            estimate = est,
+                                                                            teamId = teamId,
+                                                                            slotPos = finalSlotPosition,
+                                                                            onSuccess = {
+                                                                                Toast.makeText(context, "계약이 확정되었습니다.", Toast.LENGTH_SHORT).show()
+                                                                            },
+                                                                            onError = { e ->
+                                                                                Toast.makeText(context, "오류: ${e.localizedMessage}", Toast.LENGTH_LONG).show()
+                                                                            }
+                                                                        )
+                                                                        showConfirmConfirmDialog = false
+                                                                        confirmContractEstimate = null
+                                                                    }
                                                                 }
                                                             }
                                                         }
@@ -1110,8 +1119,12 @@ fun EstimateListScreen(
                             confirmButton = {
                                 TextButton(
                                     onClick = {
-                                        deleteEstimateTarget?.let { est ->
-                                            viewModel.deleteEstimate(est)
+                                        if (!userPreferences.hasWritePermission()) {
+                                            Toast.makeText(context, "쓰기 권한이 없습니다. 방장에게 권한을 요청하세요.", Toast.LENGTH_SHORT).show()
+                                        } else {
+                                            deleteEstimateTarget?.let { est ->
+                                                viewModel.deleteEstimate(est)
+                                            }
                                         }
                                         showDeleteConfirmDialog = false
                                         deleteEstimateTarget = null

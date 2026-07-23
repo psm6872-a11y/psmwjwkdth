@@ -26,6 +26,12 @@ class MemberViewModel @Inject constructor(
     private val _isCreator = MutableStateFlow(false)
     val isCreator: StateFlow<Boolean> = _isCreator.asStateFlow()
 
+    private val _creatorUUID = MutableStateFlow<String?>(null)
+    val creatorUUID: StateFlow<String?> = _creatorUUID.asStateFlow()
+
+    private val _hasWritePermission = MutableStateFlow(userPreferences.getLastRoomCode().isEmpty() || userPreferences.hasWritePermission())
+    val hasWritePermission: StateFlow<Boolean> = _hasWritePermission.asStateFlow()
+
     private val _kickedEvent = kotlinx.coroutines.flow.MutableSharedFlow<Unit>()
     val kickedEvent = _kickedEvent.asSharedFlow()
 
@@ -35,7 +41,10 @@ class MemberViewModel @Inject constructor(
         private set
 
     fun initializeRoom(roomCode: String) {
-        if (roomCode.isBlank()) return
+        if (roomCode.isBlank()) {
+            _hasWritePermission.value = true
+            return
+        }
         currentRoomCode = roomCode
         registerCurrentUser()
         observeMembers(roomCode)
@@ -54,6 +63,16 @@ class MemberViewModel @Inject constructor(
         viewModelScope.launch {
             memberRepository.getMembersFlow(roomCode).collect { memberList ->
                 _members.value = memberList
+                
+                val me = memberList.firstOrNull { it.deviceUUID == deviceUUID }
+                if (me != null) {
+                    val allowed = _isCreator.value || me.hasWritePermission
+                    userPreferences.setWritePermission(allowed)
+                    _hasWritePermission.value = allowed
+                } else if (_isCreator.value) {
+                    userPreferences.setWritePermission(true)
+                    _hasWritePermission.value = true
+                }
                 
                 val nickname = userPreferences.getNickname()
                 if (nickname.isNotEmpty()) {
@@ -86,7 +105,13 @@ class MemberViewModel @Inject constructor(
     private fun observeCreator(roomCode: String) {
         viewModelScope.launch {
             memberRepository.getRoomCreatorFlow(roomCode).collect { creatorUUID ->
-                _isCreator.value = (creatorUUID != null && creatorUUID == deviceUUID)
+                _creatorUUID.value = creatorUUID
+                val isMeCreator = (creatorUUID != null && creatorUUID == deviceUUID)
+                _isCreator.value = isMeCreator
+                if (isMeCreator) {
+                    userPreferences.setWritePermission(true)
+                    _hasWritePermission.value = true
+                }
             }
         }
     }
@@ -110,6 +135,18 @@ class MemberViewModel @Inject constructor(
                     memberRepository.transferHost(currentRoomCode, newHostUUID)
                 } catch (e: Exception) {
                     android.util.Log.e("MemberViewModel", "Failed to transfer host privilege", e)
+                }
+            }
+        }
+    }
+
+    fun updateWritePermission(targetDeviceUUID: String, hasWrite: Boolean) {
+        if (currentRoomCode.isNotEmpty() && targetDeviceUUID.isNotEmpty()) {
+            viewModelScope.launch {
+                try {
+                    memberRepository.updateWritePermission(currentRoomCode, targetDeviceUUID, hasWrite)
+                } catch (e: Exception) {
+                    android.util.Log.e("MemberViewModel", "Failed to update write permission", e)
                 }
             }
         }
