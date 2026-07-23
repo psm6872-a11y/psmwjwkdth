@@ -2256,7 +2256,7 @@ fun EventItemCard(
         val isStorageMove = event.notes.contains("보관이사") || event.title.contains("[보관입고]") || event.title.contains("[보관출고]")
 
         Box(
-            modifier = Modifier.fillMaxWidth().padding(top = if (isStorageMove) 12.dp else 0.dp),
+            modifier = Modifier.fillMaxWidth().padding(top = if (isStorageMove) 6.dp else 0.dp),
             contentAlignment = Alignment.CenterStart
         ) {
             val boxScope = this
@@ -2435,24 +2435,17 @@ fun EventItemCard(
                 }
             }
             if (isStorageMove) {
-                androidx.compose.material3.Surface(
+                Image(
+                    painter = painterResource(id = R.drawable.ic_moving_day),
+                    contentDescription = "보관이사",
+                    colorFilter = androidx.compose.ui.graphics.ColorFilter.tint(Color(0xFFE040FB)),
                     modifier = with(boxScope) {
                         Modifier
+                            .size(18.dp)
                             .align(Alignment.TopStart)
-                            .offset(x = 16.dp, y = (-12).dp)
-                    },
-                    shape = RoundedCornerShape(topStart = 8.dp, topEnd = 8.dp, bottomEnd = 8.dp, bottomStart = 2.dp),
-                    color = Color(0xFFE040FB),
-                    shadowElevation = 2.dp
-                ) {
-                    Text(
-                        text = "보관이사",
-                        color = Color.White,
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
-                    )
-                }
+                            .offset(x = 8.dp, y = (-6).dp)
+                    }
+                )
             }
         }
 
