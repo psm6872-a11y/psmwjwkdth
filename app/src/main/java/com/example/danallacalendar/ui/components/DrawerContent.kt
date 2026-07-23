@@ -1,5 +1,8 @@
 package com.example.danallacalendar.ui.components
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -46,6 +49,8 @@ import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.CloudUpload
 import androidx.compose.material.icons.filled.List
+import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.Star
 
 private fun getAvatarColor(nickname: String): Color {
@@ -108,6 +113,7 @@ fun DrawerContent(
     var memberToRemove: Member? by remember { mutableStateOf(null) }
     var memberToTransferHost: Member? by remember { mutableStateOf(null) }
     var showSettingsScreen by remember { mutableStateOf(false) }
+    var isMembersExpanded by remember { mutableStateOf(false) }
 
     if (showSettingsScreen) {
         Dialog(
@@ -508,129 +514,149 @@ fun DrawerContent(
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // 참여 멤버
-            Text(
-                text = "참여 멤버",
-                fontSize = 14.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(vertical = 4.dp)
-            )
-
-            Column(
-                verticalArrangement = Arrangement.spacedBy(10.dp),
+            // 참여 멤버 Header Row (clickable)
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 4.dp, vertical = 4.dp)
+                    .clickable { isMembersExpanded = !isMembersExpanded }
+                    .padding(vertical = 8.dp)
             ) {
-                members.forEach { member ->
-                    val isMe = member.deviceUUID == currentDeviceUUID
-                    val displayName = if (isMe) "${member.nickname} (나)" else member.nickname
-                    val firstChar = member.nickname.firstOrNull()?.toString() ?: "?"
-                    val avatarColor = getAvatarColor(member.nickname)
+                Text(
+                    text = "참여 멤버 (${members.size})",
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(modifier = Modifier.weight(1f))
+                Icon(
+                    imageVector = if (isMembersExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                    contentDescription = if (isMembersExpanded) "접기" else "펼치기",
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+
+            AnimatedVisibility(
+                visible = isMembersExpanded,
+                enter = expandVertically() + androidx.compose.animation.fadeIn(),
+                exit = shrinkVertically() + androidx.compose.animation.fadeOut()
+            ) {
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 4.dp, vertical = 4.dp)
+                ) {
+                    members.forEach { member ->
+                        val isMe = member.deviceUUID == currentDeviceUUID
+                        val displayName = if (isMe) "${member.nickname} (나)" else member.nickname
+                        val firstChar = member.nickname.firstOrNull()?.toString() ?: "?"
+                        val avatarColor = getAvatarColor(member.nickname)
  
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.weight(1f)
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            // Avatar
-                            Box(
-                                contentAlignment = Alignment.Center,
-                                modifier = Modifier
-                                    .size(32.dp)
-                                    .clip(CircleShape)
-                                    .background(avatarColor)
-                            ) {
-                                Text(
-                                    text = firstChar,
-                                    color = Color.White,
-                                    fontSize = 13.sp,
-                                    fontWeight = FontWeight.Bold
-                                )
-                            }
- 
-                            Spacer(modifier = Modifier.width(12.dp))
- 
-                            // Info
-                            Column {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Text(
-                                        text = displayName,
-                                        fontSize = 14.sp,
-                                        fontWeight = if (isMe) FontWeight.Bold else FontWeight.Medium,
-                                        color = MaterialTheme.colorScheme.onSurface
-                                    )
-                                    Spacer(modifier = Modifier.width(6.dp))
-                                    Box(
-                                        modifier = Modifier
-                                            .size(5.dp)
-                                            .clip(CircleShape)
-                                            .background(Color(0xFF34C759)) // Green dot
-                                    )
-                                }
-                                Spacer(modifier = Modifier.height(2.dp))
-                                val isMemberCreator = creatorUUID != null && member.deviceUUID == creatorUUID
-                                val statusText = if (isMemberCreator) {
-                                    "방장"
-                                } else if (member.hasWritePermission) {
-                                    "읽기/쓰기 가능"
-                                } else {
-                                    "읽기 전용"
-                                }
-                                Text(
-                                    text = statusText,
-                                    fontSize = 11.sp,
-                                    color = if (isMemberCreator) Color(0xFFF2C94C) else if (member.hasWritePermission) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
-                                    fontWeight = FontWeight.Medium
-                                )
-                            }
-                        }
-                        
-                        if (isCreator && !isMe) {
-                            val isMemberCreator = creatorUUID != null && member.deviceUUID == creatorUUID
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                modifier = Modifier.weight(1f)
                             ) {
-                                if (!isMemberCreator) {
+                                // Avatar
+                                Box(
+                                    contentAlignment = Alignment.Center,
+                                    modifier = Modifier
+                                        .size(32.dp)
+                                        .clip(CircleShape)
+                                        .background(avatarColor)
+                                ) {
+                                    Text(
+                                        text = firstChar,
+                                        color = Color.White,
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+ 
+                                Spacer(modifier = Modifier.width(12.dp))
+ 
+                                // Info
+                                Column {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Text(
+                                            text = displayName,
+                                            fontSize = 14.sp,
+                                            fontWeight = if (isMe) FontWeight.Bold else FontWeight.Medium,
+                                            color = MaterialTheme.colorScheme.onSurface
+                                        )
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        Box(
+                                            modifier = Modifier
+                                                .size(5.dp)
+                                                .clip(CircleShape)
+                                                .background(Color(0xFF34C759)) // Green dot
+                                        )
+                                    }
+                                    Spacer(modifier = Modifier.height(2.dp))
+                                    val isMemberCreator = creatorUUID != null && member.deviceUUID == creatorUUID
+                                    val statusText = if (isMemberCreator) {
+                                        "방장"
+                                    } else if (member.hasWritePermission) {
+                                        "읽기/쓰기 가능"
+                                    } else {
+                                        "읽기 전용"
+                                    }
+                                    Text(
+                                        text = statusText,
+                                        fontSize = 11.sp,
+                                        color = if (isMemberCreator) Color(0xFFF2C94C) else if (member.hasWritePermission) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                }
+                            }
+                            
+                            if (isCreator && !isMe) {
+                                val isMemberCreator = creatorUUID != null && member.deviceUUID == creatorUUID
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    if (!isMemberCreator) {
+                                        IconButton(
+                                            onClick = { onToggleWritePermission?.invoke(member.deviceUUID, !member.hasWritePermission) },
+                                            modifier = Modifier.size(24.dp)
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.Edit,
+                                                contentDescription = "쓰기 권한 토글",
+                                                tint = if (member.hasWritePermission) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
+                                                modifier = Modifier.size(16.dp)
+                                            )
+                                        }
+                                    }
                                     IconButton(
-                                        onClick = { onToggleWritePermission?.invoke(member.deviceUUID, !member.hasWritePermission) },
+                                        onClick = { memberToTransferHost = member },
                                         modifier = Modifier.size(24.dp)
                                     ) {
                                         Icon(
-                                            imageVector = Icons.Default.Edit,
-                                            contentDescription = "쓰기 권한 토글",
-                                            tint = if (member.hasWritePermission) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
+                                            imageVector = Icons.Default.Star,
+                                            contentDescription = "방장 위임",
+                                            tint = Color(0xFFF2C94C),
                                             modifier = Modifier.size(16.dp)
                                         )
                                     }
-                                }
-                                IconButton(
-                                    onClick = { memberToTransferHost = member },
-                                    modifier = Modifier.size(24.dp)
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Star,
-                                        contentDescription = "방장 위임",
-                                        tint = Color(0xFFF2C94C),
-                                        modifier = Modifier.size(16.dp)
-                                    )
-                                }
-                                IconButton(
-                                    onClick = { memberToRemove = member },
-                                    modifier = Modifier.size(24.dp)
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Close,
-                                        contentDescription = "내보내기",
-                                        tint = MaterialTheme.colorScheme.error,
-                                        modifier = Modifier.size(16.dp)
-                                    )
+                                    IconButton(
+                                        onClick = { memberToRemove = member },
+                                        modifier = Modifier.size(24.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Close,
+                                            contentDescription = "내보내기",
+                                            tint = MaterialTheme.colorScheme.error,
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                    }
                                 }
                             }
                         }
