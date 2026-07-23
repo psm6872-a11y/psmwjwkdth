@@ -15,8 +15,8 @@ android {
         applicationId = "com.danalla.calendar"
         minSdk = 24
         targetSdk = 36
-        versionCode = 372
-        versionName = "1.8.03"
+        versionCode = 373
+        versionName = "1.8.04"
     }
 
     signingConfigs {
@@ -78,7 +78,7 @@ dependencies {
   implementation(libs.androidx.compose.ui)
   implementation(libs.androidx.compose.ui.tooling.preview)
   implementation(libs.androidx.compose.material3)
-  implementation("androidx.compose.foundation:foundation:1.6.0")
+  implementation("androidx.compose.foundation:foundation")
   // Tooling
   debugImplementation(libs.androidx.compose.ui.tooling)
   // Instrumented tests
