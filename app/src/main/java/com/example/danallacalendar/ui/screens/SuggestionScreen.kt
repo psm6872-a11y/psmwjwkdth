@@ -363,10 +363,15 @@ fun SuggestionScreen(
                                     Toast.makeText(context, "이용규칙 동의 항목에 체크해 주세요.", Toast.LENGTH_SHORT).show()
                                     return@Button
                                 }
-                                viewModel.addSuggestion(title, content) {
-                                    Toast.makeText(context, "건의사항이 등록되었습니다.", Toast.LENGTH_SHORT).show()
-                                    screenState = SuggestionScreenState.List
-                                }
+                                viewModel.addSuggestion(title, content,
+                                    onSuccess = {
+                                        Toast.makeText(context, "건의사항이 등록되었습니다.", Toast.LENGTH_SHORT).show()
+                                        screenState = SuggestionScreenState.List
+                                    },
+                                    onError = { errorMsg ->
+                                        Toast.makeText(context, "등록 실패: $errorMsg", Toast.LENGTH_LONG).show()
+                                    }
+                                )
                             },
                             modifier = Modifier.fillMaxWidth(),
                             colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
@@ -735,10 +740,15 @@ fun SuggestionScreen(
                                 IconButton(
                                     onClick = {
                                         if (commentText.isBlank()) return@IconButton
-                                        viewModel.addComment(item.id, commentText) {
-                                            commentText = ""
-                                            Toast.makeText(context, "댓글이 작성되었습니다.", Toast.LENGTH_SHORT).show()
-                                        }
+                                        viewModel.addComment(item.id, commentText,
+                                            onSuccess = {
+                                                commentText = ""
+                                                Toast.makeText(context, "댓글이 작성되었습니다.", Toast.LENGTH_SHORT).show()
+                                            },
+                                            onError = { errorMsg ->
+                                                Toast.makeText(context, "댓글 등록 실패: $errorMsg", Toast.LENGTH_LONG).show()
+                                            }
+                                        )
                                     },
                                     colors = IconButtonDefaults.iconButtonColors(
                                         contentColor = MaterialTheme.colorScheme.primary

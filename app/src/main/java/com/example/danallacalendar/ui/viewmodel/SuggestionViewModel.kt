@@ -80,7 +80,7 @@ class SuggestionViewModel @Inject constructor(
         _comments.value = emptyList()
     }
 
-    fun addSuggestion(title: String, content: String, onSuccess: () -> Unit) {
+    fun addSuggestion(title: String, content: String, onSuccess: () -> Unit, onError: (String) -> Unit = {}) {
         viewModelScope.launch {
             try {
                 val ref = firestore.collection("suggestions").document()
@@ -96,11 +96,12 @@ class SuggestionViewModel @Inject constructor(
                 onSuccess()
             } catch (e: Exception) {
                 android.util.Log.e("SuggestionViewModel", "Failed to add suggestion", e)
+                onError(e.message ?: "건의사항 등록에 실패했습니다.")
             }
         }
     }
 
-    fun addComment(suggestionId: String, content: String, onSuccess: () -> Unit) {
+    fun addComment(suggestionId: String, content: String, onSuccess: () -> Unit, onError: (String) -> Unit = {}) {
         viewModelScope.launch {
             try {
                 val ref = firestore.collection("suggestions")
@@ -118,6 +119,7 @@ class SuggestionViewModel @Inject constructor(
                 onSuccess()
             } catch (e: Exception) {
                 android.util.Log.e("SuggestionViewModel", "Failed to add comment", e)
+                onError(e.message ?: "댓글 등록에 실패했습니다.")
             }
         }
     }
