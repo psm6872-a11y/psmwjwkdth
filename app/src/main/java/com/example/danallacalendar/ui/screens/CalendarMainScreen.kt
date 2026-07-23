@@ -386,7 +386,7 @@ fun CalendarMainScreen(
                         try {
                             val shareIntent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
                                 type = "text/plain"
-                                putExtra(android.content.Intent.EXTRA_TEXT, "다날라 캘린더 앱을 설치해보세요!\n다운로드: https://github.com/psm6872-a11y/psmwjwkdth/releases/latest")
+                                putExtra(android.content.Intent.EXTRA_TEXT, "다날라 캘린더 앱을 설치해보세요!\n다운로드: https://play.google.com/store/apps/details?id=com.danalla.calendar")
                             }
                             context.startActivity(android.content.Intent.createChooser(shareIntent, "공유하기"))
                         } catch (e: Exception) {
