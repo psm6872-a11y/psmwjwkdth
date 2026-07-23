@@ -416,6 +416,9 @@ class EstimateListViewModel @Inject constructor(
 
                 val titleText = "$teamName. $resolvedStartTime. $resolvedVolume\n$departureFirstWord. $destinationFirstWord. $departureFloor/$destinationFloor"
                 
+                val isStorageMove = estimate.moveInfo == "보관이사"
+                val finalTitleText = if (isStorageMove) "[보관입고] $titleText" else titleText
+                
                 val departureAddr: String
                 val departureDetail: String
                 if (estimate.departure.contains("|")) {
@@ -440,13 +443,13 @@ class EstimateListViewModel @Inject constructor(
                 
                 val locationField = "$departureAddr|||$departureDetail|||$destinationAddr|||$destinationDetail"
                 
-                val notesField = estimate.phoneNumber
+                val notesField = if (isStorageMove) "${estimate.phoneNumber}|||보관이사" else estimate.phoneNumber
                 val colorHexField = String.format("#%08X", teamColorLong)
                 
                 val syncId = java.util.UUID.randomUUID().toString()
                 val currentNickname = com.example.danallacalendar.data.local.UserPreferences(context).getNickname()
                 val newEvent = com.example.danallacalendar.data.Event(
-                    title = titleText,
+                    title = finalTitleText,
                     startMillis = startMillis,
                     endMillis = endMillis,
                     isAllDay = true,
@@ -466,6 +469,43 @@ class EstimateListViewModel @Inject constructor(
                 )
                 com.example.danallacalendar.data.local.UserPreferences(context).addDismissedContractSyncId(syncId)
                 calendarRepository.insertEvent(newEvent)
+
+                // 보관이사인 경우 출고일 일정도 함께 자동 생성 (출고일이 '미정'이 아닌 경우만)
+                if (isStorageMove && estimate.outDate.isNotBlank() && estimate.outDate != "미정") {
+                    try {
+                        val outCal = java.util.Calendar.getInstance()
+                        val parsedOutDate = dateFormat.parse(estimate.outDate)
+                        if (parsedOutDate != null) {
+                            outCal.time = parsedOutDate
+                            outCal.set(java.util.Calendar.HOUR_OF_DAY, 0)
+                            outCal.set(java.util.Calendar.MINUTE, 0)
+                            outCal.set(java.util.Calendar.SECOND, 0)
+                            outCal.set(java.util.Calendar.MILLISECOND, 0)
+                            val outStartMillis = outCal.timeInMillis
+
+                            outCal.set(java.util.Calendar.HOUR_OF_DAY, 23)
+                            outCal.set(java.util.Calendar.MINUTE, 59)
+                            outCal.set(java.util.Calendar.SECOND, 59)
+                            outCal.set(java.util.Calendar.MILLISECOND, 999)
+                            val outEndMillis = outCal.timeInMillis
+
+                            val outSyncId = java.util.UUID.randomUUID().toString()
+                            val outTitleText = "[보관출고] $titleText"
+                            val newEventOut = newEvent.copy(
+                                title = outTitleText,
+                                startMillis = outStartMillis,
+                                endMillis = outEndMillis,
+                                syncId = outSyncId
+                            )
+                            com.example.danallacalendar.data.local.UserPreferences(context).addDismissedContractSyncId(outSyncId)
+                            calendarRepository.insertEvent(newEventOut)
+                            android.util.Log.d("EstimateListViewModel", "Storage out event created successfully: date=${estimate.outDate}")
+                        }
+                    } catch (e: Exception) {
+                        android.util.Log.e("EstimateListViewModel", "Error creating storage out event", e)
+                    }
+                }
+                
                 onSuccess()
             } catch (e: Exception) {
                 android.util.Log.e("EstimateListViewModel", "Failed to confirm contract from estimate list", e)
