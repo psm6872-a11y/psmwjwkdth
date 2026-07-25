@@ -37,6 +37,12 @@ import com.example.danallacalendar.ui.viewmodel.SuggestionViewModel
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.foundation.text.ClickableText
 
 sealed interface SuggestionScreenState {
     object List : SuggestionScreenState
@@ -593,10 +599,9 @@ fun SuggestionScreen(
                                     color = MaterialTheme.colorScheme.surfaceVariant
                                 )
 
-                                Text(
+                                LinkifiedText(
                                     text = item.content,
-                                    fontSize = 15.sp,
-                                    lineHeight = 22.sp,
+                                    style = TextStyle(fontSize = 15.sp, lineHeight = 22.sp),
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
@@ -700,9 +705,9 @@ fun SuggestionScreen(
                                             }
                                         }
                                         Spacer(modifier = Modifier.height(4.dp))
-                                        Text(
+                                        LinkifiedText(
                                             text = comment.content,
-                                            fontSize = 13.sp,
+                                            style = TextStyle(fontSize = 13.sp),
                                             color = MaterialTheme.colorScheme.onSurface
                                         )
                                     }
@@ -824,6 +829,65 @@ fun CommunityGuidelinesDialog(
             TextButton(onClick = onDismissRequest) {
                 Text("확인", fontWeight = FontWeight.Bold)
             }
+        }
+    )
+}
+
+@Composable
+fun LinkifiedText(
+    text: String,
+    modifier: Modifier = Modifier,
+    style: TextStyle = TextStyle.Default,
+    color: Color = Color.Unspecified,
+    linkColor: Color = MaterialTheme.colorScheme.primary
+) {
+    val uriHandler = LocalUriHandler.current
+
+    val annotatedString = remember(text, linkColor) {
+        buildAnnotatedString {
+            append(text)
+            val matcher = android.util.Patterns.WEB_URL.matcher(text)
+            while (matcher.find()) {
+                val start = matcher.start()
+                val end = matcher.end()
+                val rawUrl = matcher.group()
+                val validUrl = if (!rawUrl.startsWith("http://") && !rawUrl.startsWith("https://")) {
+                    "https://$rawUrl"
+                } else {
+                    rawUrl
+                }
+                addStyle(
+                    style = SpanStyle(
+                        color = linkColor,
+                        textDecoration = TextDecoration.Underline,
+                        fontWeight = FontWeight.SemiBold
+                    ),
+                    start = start,
+                    end = end
+                )
+                addStringAnnotation(
+                    tag = "URL",
+                    annotation = validUrl,
+                    start = start,
+                    end = end
+                )
+            }
+        }
+    }
+
+    ClickableText(
+        text = annotatedString,
+        modifier = modifier,
+        style = style.copy(color = if (color != Color.Unspecified) color else style.color),
+        onClick = { offset ->
+            annotatedString.getStringAnnotations(tag = "URL", start = offset, end = offset)
+                .firstOrNull()?.let { annotation ->
+                    try {
+                        uriHandler.openUri(annotation.item)
+                    } catch (e: Exception) {
+                        // ignore malformed URLs
+                    }
+                }
         }
     )
 }
