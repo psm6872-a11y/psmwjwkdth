@@ -63,6 +63,9 @@ import androidx.compose.material.icons.filled.Sms
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Chat
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -110,6 +113,7 @@ fun EstimateListScreen(
     val googleAccount by viewModel.googleAccount.collectAsStateWithLifecycle()
     val linkedEvents by viewModel.linkedEvents.collectAsStateWithLifecycle()
     var selectedEstimate by remember { mutableStateOf<Estimate?>(null) }
+    var isSettingsExpanded by remember { mutableStateOf(false) }
 
     LaunchedEffect(highlightId, estimateList) {
         if (!highlightId.isNullOrBlank() && estimateList.isNotEmpty()) {
@@ -349,186 +353,214 @@ fun EstimateListScreen(
                         }
                     }
 
-                    // 1단: "참여한 멤버와 공유" 텍스트 + 스위치 토글 (우측 정렬, 반응형 높이)
+                    // 접기/펼치기 토글 헤더 (우측 정렬)
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(rowHeight)
-                            .padding(horizontal = 16.dp),
+                            .clickable { isSettingsExpanded = !isSettingsExpanded }
+                            .padding(horizontal = 16.dp, vertical = 6.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.End
                     ) {
                         Text(
-                            text = "참여한 멤버와 공유",
-                            color = Color.White,
-                            fontSize = 16.sp,
+                            text = "공유 및 저장 설정",
+                            color = Color.White.copy(alpha = 0.85f),
+                            fontSize = 14.sp,
                             fontWeight = FontWeight.Medium
                         )
                         Spacer(modifier = Modifier.width(4.dp))
-                        IconButton(
-                            onClick = { showInfoDialog = "share" },
-                            modifier = Modifier.size(24.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Info,
-                                tint = Color.White.copy(alpha = 0.7f),
-                                contentDescription = "정보",
-                                modifier = Modifier.size(18.dp)
-                            )
-                        }
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Switch(
-                            checked = isShareEnabled,
-                            onCheckedChange = { viewModel.toggleShareEnabled(it) },
-                            modifier = Modifier.scale(0.70f),
-                            colors = SwitchDefaults.colors(
-                                checkedThumbColor = Color(0xFFE040FB),
-                                checkedTrackColor = Color(0xFFE040FB).copy(alpha = 0.5f),
-                                uncheckedThumbColor = Color.Gray,
-                                uncheckedTrackColor = Color.LightGray
-                            )
+                        Icon(
+                            imageVector = if (isSettingsExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                            contentDescription = if (isSettingsExpanded) "접기" else "펼치기",
+                            tint = Color.White.copy(alpha = 0.85f),
+                            modifier = Modifier.size(20.dp)
                         )
                     }
 
-                    Spacer(modifier = Modifier.height(6.dp))
-
-                    // 2단: "내 구글드라이브에 저장" 텍스트 + 스위치 토글 (우측 정렬, 반응형 높이)
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(rowHeight)
-                            .padding(horizontal = 16.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.End
-                    ) {
-                        Text(
-                            text = "내 구글드라이브에 저장",
-                            color = Color.White,
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.Medium
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        IconButton(
-                            onClick = { showInfoDialog = "save" },
-                            modifier = Modifier.size(24.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Info,
-                                tint = Color.White.copy(alpha = 0.7f),
-                                contentDescription = "정보",
-                                modifier = Modifier.size(18.dp)
-                            )
-                        }
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Switch(
-                            checked = isGoogleDriveSaveEnabled,
-                            onCheckedChange = { checked ->
-                                if (checked) {
-                                    val hasPerm = GoogleDriveHelper.hasDrivePermission(context)
-                                    if (googleAccount == null || !hasPerm) {
-                                        pendingSignInAction = "save"
-                                        googleSignInLauncher.launch(GoogleDriveHelper.getGoogleSignInClient(context).signInIntent)
-                                    } else {
-                                        viewModel.toggleGoogleDriveSaveEnabled(true)
-                                    }
-                                } else {
-                                    viewModel.toggleGoogleDriveSaveEnabled(false)
+                    AnimatedVisibility(visible = isSettingsExpanded) {
+                        Column {
+                            // 1단: "참여한 멤버와 공유" 텍스트 + 스위치 토글 (우측 정렬, 반응형 높이)
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(rowHeight)
+                                    .padding(horizontal = 16.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.End
+                            ) {
+                                Text(
+                                    text = "참여한 멤버와 공유",
+                                    color = Color.White,
+                                    fontSize = 16.sp,
+                                    fontWeight = FontWeight.Medium
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                IconButton(
+                                    onClick = { showInfoDialog = "share" },
+                                    modifier = Modifier.size(24.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Info,
+                                        tint = Color.White.copy(alpha = 0.7f),
+                                        contentDescription = "정보",
+                                        modifier = Modifier.size(18.dp)
+                                    )
                                 }
-                            },
-                            modifier = Modifier.scale(0.70f),
-                            colors = SwitchDefaults.colors(
-                                checkedThumbColor = Color(0xFFE040FB),
-                                checkedTrackColor = Color(0xFFE040FB).copy(alpha = 0.5f),
-                                uncheckedThumbColor = Color.Gray,
-                                uncheckedTrackColor = Color.LightGray
-                            )
-                        )
-                    }
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Switch(
+                                    checked = isShareEnabled,
+                                    onCheckedChange = { viewModel.toggleShareEnabled(it) },
+                                    modifier = Modifier.scale(0.70f),
+                                    colors = SwitchDefaults.colors(
+                                        checkedThumbColor = Color(0xFFE040FB),
+                                        checkedTrackColor = Color(0xFFE040FB).copy(alpha = 0.5f),
+                                        uncheckedThumbColor = Color.Gray,
+                                        uncheckedTrackColor = Color.LightGray
+                                    )
+                                )
+                            }
 
-                    Spacer(modifier = Modifier.height(6.dp))
+                            Spacer(modifier = Modifier.height(6.dp))
 
-                    // 3단: "공유받은 견적서 자동 저장" 텍스트 + 스위치 토글 (우측 정렬, 반응형 높이)
-                    val isAutoDriveSyncEnabled by viewModel.isAutoDriveSyncEnabled.collectAsStateWithLifecycle()
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(rowHeight)
-                            .padding(horizontal = 16.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.End
-                    ) {
-                        Text(
-                            text = "공유받은 견적서 자동 저장",
-                            color = Color.White,
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.Medium
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        IconButton(
-                            onClick = { showInfoDialog = "auto" },
-                            modifier = Modifier.size(24.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Info,
-                                tint = Color.White.copy(alpha = 0.7f),
-                                contentDescription = "정보",
-                                modifier = Modifier.size(18.dp)
-                            )
-                        }
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Switch(
-                            checked = isAutoDriveSyncEnabled,
-                            onCheckedChange = { checked ->
-                                if (checked) {
-                                    val hasPerm = GoogleDriveHelper.hasDrivePermission(context)
-                                    if (googleAccount == null || !hasPerm) {
-                                        pendingSignInAction = "auto"
-                                        googleSignInLauncher.launch(GoogleDriveHelper.getGoogleSignInClient(context).signInIntent)
-                                    } else {
-                                        viewModel.toggleAutoDriveSyncEnabled(true)
-                                    }
-                                } else {
-                                    viewModel.toggleAutoDriveSyncEnabled(false)
+                            // 2단: "내 구글드라이브에 저장" 텍스트 + 스위치 토글 (우측 정렬, 반응형 높이)
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(rowHeight)
+                                    .padding(horizontal = 16.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.End
+                            ) {
+                                Text(
+                                    text = "내 구글드라이브에 저장",
+                                    color = Color.White,
+                                    fontSize = 16.sp,
+                                    fontWeight = FontWeight.Medium
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                IconButton(
+                                    onClick = { showInfoDialog = "save" },
+                                    modifier = Modifier.size(24.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Info,
+                                        tint = Color.White.copy(alpha = 0.7f),
+                                        contentDescription = "정보",
+                                        modifier = Modifier.size(18.dp)
+                                    )
                                 }
-                            },
-                            modifier = Modifier.scale(0.70f),
-                            colors = SwitchDefaults.colors(
-                                checkedThumbColor = Color(0xFFE040FB),
-                                checkedTrackColor = Color(0xFFE040FB).copy(alpha = 0.5f),
-                                uncheckedThumbColor = Color.Gray,
-                                uncheckedTrackColor = Color.LightGray
-                            )
-                        )
-                    }
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Switch(
+                                    checked = isGoogleDriveSaveEnabled,
+                                    onCheckedChange = { checked ->
+                                        if (checked) {
+                                            val hasPerm = GoogleDriveHelper.hasDrivePermission(context)
+                                            if (googleAccount == null || !hasPerm) {
+                                                pendingSignInAction = "save"
+                                                googleSignInLauncher.launch(GoogleDriveHelper.getGoogleSignInClient(context).signInIntent)
+                                            } else {
+                                                viewModel.toggleGoogleDriveSaveEnabled(true)
+                                            }
+                                        } else {
+                                            viewModel.toggleGoogleDriveSaveEnabled(false)
+                                        }
+                                    },
+                                    modifier = Modifier.scale(0.70f),
+                                    colors = SwitchDefaults.colors(
+                                        checkedThumbColor = Color(0xFFE040FB),
+                                        checkedTrackColor = Color(0xFFE040FB).copy(alpha = 0.5f),
+                                        uncheckedThumbColor = Color.Gray,
+                                        uncheckedTrackColor = Color.LightGray
+                                    )
+                                )
+                            }
 
-                    // 4단: 구글 드라이브 로그인된 경우 계정 정보 표시 및 로그아웃 버튼
-                    googleAccount?.let { account ->
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 16.dp, vertical = 2.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.End
-                        ) {
-                            Text(
-                                text = "연동 계정: ${account.email ?: ""}",
-                                color = Color.White.copy(alpha = 0.7f),
-                                fontSize = 12.sp
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                text = "로그아웃",
-                                color = Color(0xFFE040FB),
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Bold,
-                                modifier = Modifier.clickable {
-                                    GoogleDriveHelper.getGoogleSignInClient(context).signOut().addOnCompleteListener {
-                                        viewModel.updateGoogleAccount(null)
-                                        viewModel.toggleGoogleDriveSaveEnabled(false)
-                                        viewModel.toggleAutoDriveSyncEnabled(false)
-                                    }
+                            Spacer(modifier = Modifier.height(6.dp))
+
+                            // 3단: "공유받은 견적서 자동 저장" 텍스트 + 스위치 토글 (우측 정렬, 반응형 높이)
+                            val isAutoDriveSyncEnabled by viewModel.isAutoDriveSyncEnabled.collectAsStateWithLifecycle()
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(rowHeight)
+                                    .padding(horizontal = 16.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.End
+                            ) {
+                                Text(
+                                    text = "공유받은 견적서 자동 저장",
+                                    color = Color.White,
+                                    fontSize = 16.sp,
+                                    fontWeight = FontWeight.Medium
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                IconButton(
+                                    onClick = { showInfoDialog = "auto" },
+                                    modifier = Modifier.size(24.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Info,
+                                        tint = Color.White.copy(alpha = 0.7f),
+                                        contentDescription = "정보",
+                                        modifier = Modifier.size(18.dp)
+                                    )
                                 }
-                            )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Switch(
+                                    checked = isAutoDriveSyncEnabled,
+                                    onCheckedChange = { checked ->
+                                        if (checked) {
+                                            val hasPerm = GoogleDriveHelper.hasDrivePermission(context)
+                                            if (googleAccount == null || !hasPerm) {
+                                                pendingSignInAction = "auto"
+                                                googleSignInLauncher.launch(GoogleDriveHelper.getGoogleSignInClient(context).signInIntent)
+                                            } else {
+                                                viewModel.toggleAutoDriveSyncEnabled(true)
+                                            }
+                                        } else {
+                                            viewModel.toggleAutoDriveSyncEnabled(false)
+                                        }
+                                    },
+                                    modifier = Modifier.scale(0.70f),
+                                    colors = SwitchDefaults.colors(
+                                        checkedThumbColor = Color(0xFFE040FB),
+                                        checkedTrackColor = Color(0xFFE040FB).copy(alpha = 0.5f),
+                                        uncheckedThumbColor = Color.Gray,
+                                        uncheckedTrackColor = Color.LightGray
+                                    )
+                                )
+                            }
+
+                            // 4단: 구글 드라이브 로그인된 경우 계정 정보 표시 및 로그아웃 버튼
+                            googleAccount?.let { account ->
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 16.dp, vertical = 2.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.End
+                                ) {
+                                    Text(
+                                        text = "연동 계정: ${account.email ?: ""}",
+                                        color = Color.White.copy(alpha = 0.7f),
+                                        fontSize = 12.sp
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(
+                                        text = "로그아웃",
+                                        color = Color(0xFFE040FB),
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        modifier = Modifier.clickable {
+                                            GoogleDriveHelper.getGoogleSignInClient(context).signOut().addOnCompleteListener {
+                                                viewModel.updateGoogleAccount(null)
+                                                viewModel.toggleGoogleDriveSaveEnabled(false)
+                                                viewModel.toggleAutoDriveSyncEnabled(false)
+                                            }
+                                        }
+                                    )
+                                }
+                            }
                         }
                     }
                 }
