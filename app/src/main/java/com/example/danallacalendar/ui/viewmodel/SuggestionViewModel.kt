@@ -44,14 +44,20 @@ class SuggestionViewModel @Inject constructor(
 
     private fun observeSuggestions() {
         firestore.collection("suggestions")
-            .orderBy("createdAt", Query.Direction.DESCENDING)
             .addSnapshotListener { snapshot, error ->
                 if (error != null) {
                     android.util.Log.e("SuggestionViewModel", "Error listening to suggestions", error)
                     return@addSnapshotListener
                 }
                 if (snapshot != null) {
-                    val list = snapshot.toObjects(Suggestion::class.java)
+                    val list = snapshot.documents.mapNotNull { doc ->
+                        try {
+                            doc.toObject(Suggestion::class.java)
+                        } catch (e: Exception) {
+                            android.util.Log.e("SuggestionViewModel", "Failed to parse suggestion doc ${doc.id}", e)
+                            null
+                        }
+                    }.sortedByDescending { it.createdAt }
                     _suggestions.value = list
                 }
             }
@@ -62,14 +68,21 @@ class SuggestionViewModel @Inject constructor(
         commentsListenerRegistration = firestore.collection("suggestions")
             .document(suggestionId)
             .collection("comments")
-            .orderBy("createdAt", Query.Direction.ASCENDING)
             .addSnapshotListener { snapshot, error ->
                 if (error != null) {
                     android.util.Log.e("SuggestionViewModel", "Error listening to comments", error)
                     return@addSnapshotListener
                 }
                 if (snapshot != null) {
-                    _comments.value = snapshot.toObjects(SuggestionComment::class.java)
+                    val list = snapshot.documents.mapNotNull { doc ->
+                        try {
+                            doc.toObject(SuggestionComment::class.java)
+                        } catch (e: Exception) {
+                            android.util.Log.e("SuggestionViewModel", "Failed to parse comment doc ${doc.id}", e)
+                            null
+                        }
+                    }.sortedBy { it.createdAt }
+                    _comments.value = list
                 }
             }
     }
@@ -93,6 +106,13 @@ class SuggestionViewModel @Inject constructor(
                     createdAt = System.currentTimeMillis()
                 )
                 ref.set(suggestion).await()
+
+                // 로컬 리스트에 즉시 추가 (네트워크 지연이나 렌더링 타이밍 이슈 방지)
+                val currentList = _suggestions.value.toMutableList()
+                currentList.removeAll { it.id == suggestion.id }
+                currentList.add(0, suggestion)
+                _suggestions.value = currentList
+
                 onSuccess()
             } catch (e: Exception) {
                 android.util.Log.e("SuggestionViewModel", "Failed to add suggestion", e)
@@ -116,6 +136,13 @@ class SuggestionViewModel @Inject constructor(
                     createdAt = System.currentTimeMillis()
                 )
                 ref.set(comment).await()
+
+                // 로컬 댓글 리스트에 즉시 추가
+                val currentComments = _comments.value.toMutableList()
+                currentComments.removeAll { it.id == comment.id }
+                currentComments.add(comment)
+                _comments.value = currentComments
+
                 onSuccess()
             } catch (e: Exception) {
                 android.util.Log.e("SuggestionViewModel", "Failed to add comment", e)

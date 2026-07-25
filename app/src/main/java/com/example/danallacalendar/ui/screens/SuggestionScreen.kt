@@ -301,6 +301,7 @@ fun SuggestionScreen(
                     var title by remember { mutableStateOf("") }
                     var content by remember { mutableStateOf("") }
                     var agreeRules by remember { mutableStateOf(false) }
+                    var isSubmitting by remember { mutableStateOf(false) }
 
                     Column(
                         modifier = Modifier
@@ -361,6 +362,7 @@ fun SuggestionScreen(
 
                         Button(
                             onClick = {
+                                if (isSubmitting) return@Button
                                 if (title.isBlank() || content.isBlank()) {
                                     Toast.makeText(context, "제목과 내용을 모두 입력해 주세요.", Toast.LENGTH_SHORT).show()
                                     return@Button
@@ -369,20 +371,34 @@ fun SuggestionScreen(
                                     Toast.makeText(context, "이용규칙 동의 항목에 체크해 주세요.", Toast.LENGTH_SHORT).show()
                                     return@Button
                                 }
+                                isSubmitting = true
                                 viewModel.addSuggestion(title, content,
                                     onSuccess = {
+                                        isSubmitting = false
                                         Toast.makeText(context, "건의사항이 등록되었습니다.", Toast.LENGTH_SHORT).show()
                                         screenState = SuggestionScreenState.List
                                     },
                                     onError = { errorMsg ->
+                                        isSubmitting = false
                                         Toast.makeText(context, "등록 실패: $errorMsg", Toast.LENGTH_LONG).show()
                                     }
                                 )
                             },
+                            enabled = !isSubmitting,
                             modifier = Modifier.fillMaxWidth(),
                             colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
                         ) {
-                            Text("등록하기", color = Color.White, fontWeight = FontWeight.Bold)
+                            if (isSubmitting) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(20.dp),
+                                    color = Color.White,
+                                    strokeWidth = 2.dp
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("등록 중...", color = Color.White, fontWeight = FontWeight.Bold)
+                            } else {
+                                Text("등록하기", color = Color.White, fontWeight = FontWeight.Bold)
+                            }
                         }
                     }
                 }

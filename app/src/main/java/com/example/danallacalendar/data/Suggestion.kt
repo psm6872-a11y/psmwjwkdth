@@ -1,5 +1,7 @@
 package com.example.danallacalendar.data
 
+import com.google.firebase.firestore.PropertyName
+
 data class Suggestion(
     val id: String = "",
     val title: String = "",
@@ -8,7 +10,9 @@ data class Suggestion(
     val authorNickname: String = "",
     val createdAt: Long = System.currentTimeMillis(),
     val reportedByUserIds: List<String> = emptyList(),
-    val isReported: Boolean = false
+    @get:PropertyName("isReported")
+    @set:PropertyName("isReported")
+    var isReported: Boolean = false
 )
 
 data class SuggestionComment(
@@ -18,7 +22,9 @@ data class SuggestionComment(
     val authorNickname: String = "",
     val createdAt: Long = System.currentTimeMillis(),
     val reportedByUserIds: List<String> = emptyList(),
-    val isReported: Boolean = false
+    @get:PropertyName("isReported")
+    @set:PropertyName("isReported")
+    var isReported: Boolean = false
 )
 
 data class UserReport(
