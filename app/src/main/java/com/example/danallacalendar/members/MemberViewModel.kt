@@ -46,9 +46,11 @@ class MemberViewModel @Inject constructor(
             return
         }
         currentRoomCode = roomCode
+        // 로컬에 이미 저장된 쓰기 권한이 있으면 즉시 반영 (방 생성자 재진입 시 Race Condition 방지)
+        _hasWritePermission.value = userPreferences.hasWritePermission()
         registerCurrentUser()
-        observeMembers(roomCode)
-        observeCreator(roomCode)
+        observeCreator(roomCode)   // 방장 여부를 먼저 확인한 후
+        observeMembers(roomCode)   // 멤버 목록 관찰 (isCreator가 이미 설정된 상태)
     }
 
     fun registerCurrentUser() {
@@ -66,7 +68,8 @@ class MemberViewModel @Inject constructor(
                 
                 val me = memberList.firstOrNull { it.deviceUUID == deviceUUID }
                 if (me != null) {
-                    val allowed = _isCreator.value || me.hasWritePermission
+                    // 방장은 항상 쓰기 권한 보장 (Race Condition 방지)
+                    val allowed = if (_isCreator.value) true else me.hasWritePermission
                     userPreferences.setWritePermission(allowed)
                     _hasWritePermission.value = allowed
                 } else if (_isCreator.value) {

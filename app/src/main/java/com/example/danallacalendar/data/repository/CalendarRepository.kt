@@ -110,6 +110,7 @@ class CalendarRepository @Inject constructor(
     ) {
         val roomCode = generateRoomCode()
         userPreferences.setLastRoomCode(roomCode) // Save locally first for offline support!
+        userPreferences.setWritePermission(true) // 방 생성자는 즉시 쓰기 권한 부여 (Race Condition 방지)
         
         val roomData = Room(
             createdAt = Timestamp.now(),
