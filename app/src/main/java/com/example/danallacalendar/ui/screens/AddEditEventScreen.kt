@@ -280,6 +280,57 @@ fun AddEditEventScreen(
                 } else {
                     linkedEstimateId = null
                 }
+
+                val initStart: Long
+                val initEnd: Long
+                if (isAllDay) {
+                    val calStart = Calendar.getInstance().apply {
+                        timeInMillis = startMillis
+                        set(Calendar.HOUR_OF_DAY, 0)
+                        set(Calendar.MINUTE, 0)
+                        set(Calendar.SECOND, 0)
+                        set(Calendar.MILLISECOND, 0)
+                    }
+                    val calEnd = Calendar.getInstance().apply {
+                        timeInMillis = endMillis
+                        set(Calendar.HOUR_OF_DAY, 23)
+                        set(Calendar.MINUTE, 59)
+                        set(Calendar.SECOND, 59)
+                        set(Calendar.MILLISECOND, 999)
+                    }
+                    if (calEnd.timeInMillis < calStart.timeInMillis) {
+                        calEnd.timeInMillis = calStart.timeInMillis + 24 * 60 * 60 * 1000L - 1000L
+                    }
+                    initStart = calStart.timeInMillis
+                    initEnd = calEnd.timeInMillis
+                } else {
+                    initStart = startMillis
+                    initEnd = endMillis
+                }
+
+                originalEvent = Event(
+                    id = event.id,
+                    title = title,
+                    startMillis = initStart,
+                    endMillis = initEnd,
+                    isAllDay = isAllDay,
+                    location = listOf(location, location1b, location2, location2b).joinToString("|||"),
+                    notes = notesList.filter { it.isNotBlank() }.joinToString("|||"),
+                    repeatType = repeatType,
+                    reminderMinutes = reminderMinutes,
+                    calendarId = selectedCategory?.id ?: event.calendarId,
+                    syncId = syncId,
+                    isSynced = isSynced,
+                    colorHex = selectedColorHex,
+                    isCompleted = isCompleted,
+                    createdAt = createdAt,
+                    updatedAt = updatedAt,
+                    linkedEstimateId = linkedEstimateId,
+                    teamId = teamId,
+                    slotPosition = slotPosition,
+                    createdBy = createdBy,
+                    updatedBy = updatedBy
+                )
                 isLoaded = true
             }
         }
@@ -343,21 +394,7 @@ fun AddEditEventScreen(
                 updatedBy = viewModel.userName.value
             )
             val hasChanged = if (eventId != null && originalEvent != null) {
-                val orig = originalEvent!!
-                orig.title != event.title ||
-                orig.startMillis != event.startMillis ||
-                orig.endMillis != event.endMillis ||
-                orig.isAllDay != event.isAllDay ||
-                orig.location != event.location ||
-                orig.notes != event.notes ||
-                orig.repeatType != event.repeatType ||
-                orig.reminderMinutes != event.reminderMinutes ||
-                orig.calendarId != event.calendarId ||
-                orig.colorHex != event.colorHex ||
-                orig.isCompleted != event.isCompleted ||
-                orig.linkedEstimateId != event.linkedEstimateId ||
-                orig.teamId != event.teamId ||
-                orig.slotPosition != event.slotPosition
+                hasEventSubstantiallyChanged(originalEvent!!, event)
             } else {
                 true
             }
@@ -2538,5 +2575,53 @@ fun PhoneInputField(
         ),
         modifier = modifier.fillMaxWidth()
     )
+}
+
+fun hasEventSubstantiallyChanged(orig: Event, newEvent: Event): Boolean {
+    // 1. Title
+    if (orig.title.trim() != newEvent.title.trim()) return true
+
+    // 2. Dates & Times
+    if (orig.isAllDay != newEvent.isAllDay) return true
+    if (newEvent.isAllDay) {
+        val cal1 = Calendar.getInstance().apply { timeInMillis = orig.startMillis }
+        val cal2 = Calendar.getInstance().apply { timeInMillis = newEvent.startMillis }
+        if (cal1.get(Calendar.YEAR) != cal2.get(Calendar.YEAR) ||
+            cal1.get(Calendar.DAY_OF_YEAR) != cal2.get(Calendar.DAY_OF_YEAR)) return true
+
+        val calEnd1 = Calendar.getInstance().apply { timeInMillis = orig.endMillis }
+        val calEnd2 = Calendar.getInstance().apply { timeInMillis = newEvent.endMillis }
+        if (calEnd1.get(Calendar.YEAR) != calEnd2.get(Calendar.YEAR) ||
+            calEnd1.get(Calendar.DAY_OF_YEAR) != calEnd2.get(Calendar.DAY_OF_YEAR)) return true
+    } else {
+        if (kotlin.math.abs(orig.startMillis - newEvent.startMillis) >= 1000L) return true
+        if (kotlin.math.abs(orig.endMillis - newEvent.endMillis) >= 1000L) return true
+    }
+
+    // 3. Location (normalize empty trailing parts)
+    val normOrigLoc = orig.location.split("|||").map { it.trim() }.dropLastWhile { it.isEmpty() }.joinToString("|||")
+    val normNewLoc = newEvent.location.split("|||").map { it.trim() }.dropLastWhile { it.isEmpty() }.joinToString("|||")
+    if (normOrigLoc != normNewLoc) return true
+
+    // 4. Notes (normalize non-blank lines)
+    val normOrigNotes = orig.notes.split("|||").map { it.trim() }.filter { it.isNotEmpty() }.joinToString("|||")
+    val normNewNotes = newEvent.notes.split("|||").map { it.trim() }.filter { it.isNotEmpty() }.joinToString("|||")
+    if (normOrigNotes != normNewNotes) return true
+
+    // 5. Category & Color
+    if (orig.calendarId != newEvent.calendarId) return true
+    val origColor = (orig.colorHex ?: "").uppercase()
+    val newColor = (newEvent.colorHex ?: "").uppercase()
+    if (origColor.isNotEmpty() && newColor.isNotEmpty() && origColor != newColor) return true
+
+    // 6. Other flags
+    if (orig.repeatType != newEvent.repeatType) return true
+    if (orig.reminderMinutes != newEvent.reminderMinutes) return true
+    if (orig.isCompleted != newEvent.isCompleted) return true
+    if ((orig.linkedEstimateId ?: "") != (newEvent.linkedEstimateId ?: "")) return true
+    if (orig.teamId != newEvent.teamId) return true
+    if ((orig.slotPosition ?: "") != (newEvent.slotPosition ?: "")) return true
+
+    return false
 }
 
