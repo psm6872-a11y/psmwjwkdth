@@ -20,6 +20,13 @@ import androidx.compose.material.icons.filled.Send
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -67,6 +74,7 @@ fun SuggestionScreen(
     
     var showGuidelinesDialog by remember { mutableStateOf(false) }
     var reportTargetUser by remember { mutableStateOf<Pair<String, String>?>(null) } // (userId, nickname)
+    var isGuideBannerExpanded by remember { mutableStateOf(false) }
 
     if (showGuidelinesDialog) {
         CommunityGuidelinesDialog(onDismissRequest = { showGuidelinesDialog = false })
@@ -165,43 +173,80 @@ fun SuggestionScreen(
                     }
 
                     Column(modifier = Modifier.fillMaxSize()) {
-                        // Guide Banner
+                        // Collapsible Guide Banner
                         Card(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(12.dp),
+                                .padding(horizontal = 12.dp, vertical = 6.dp),
                             colors = CardDefaults.cardColors(
-                                containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.4f)
+                                containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.35f)
                             ),
                             shape = RoundedCornerShape(12.dp)
                         ) {
-                            Row(
-                                modifier = Modifier.padding(12.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Warning,
-                                    contentDescription = "경고",
-                                    tint = MaterialTheme.colorScheme.error,
-                                    modifier = Modifier.size(24.dp)
-                                )
-                                Spacer(modifier = Modifier.width(12.dp))
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text(
-                                        text = "건의함 이용안내:\n깨끗한 소통 공간을 위해 비방, 욕설, 허위사실 등 부적절한 내용은 예고 없이 삭제될 수 있습니다. 부적절한 글 발견 시 신고/차단 기능을 적극 활용해 주세요.",
-                                        fontSize = 11.sp,
-                                        lineHeight = 15.sp,
-                                        color = MaterialTheme.colorScheme.onErrorContainer,
-                                        fontWeight = FontWeight.Medium
+                            Column(modifier = Modifier.fillMaxWidth()) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable { isGuideBannerExpanded = !isGuideBannerExpanded }
+                                        .padding(horizontal = 12.dp, vertical = 10.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Warning,
+                                            contentDescription = "경고",
+                                            tint = MaterialTheme.colorScheme.error,
+                                            modifier = Modifier.size(20.dp)
+                                        )
+                                        Text(
+                                            text = "건의함 이용안내 및 가이드라인",
+                                            fontSize = 12.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = MaterialTheme.colorScheme.onErrorContainer
+                                        )
+                                    }
+                                    Icon(
+                                        imageVector = if (isGuideBannerExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                                        contentDescription = if (isGuideBannerExpanded) "접기" else "펼치기",
+                                        tint = MaterialTheme.colorScheme.onErrorContainer.copy(alpha = 0.7f),
+                                        modifier = Modifier.size(20.dp)
                                     )
-                                    Spacer(modifier = Modifier.height(4.dp))
-                                    Text(
-                                        text = "👉 이용규칙(가이드라인) 전문 보기",
-                                        fontSize = 11.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = MaterialTheme.colorScheme.primary,
-                                        modifier = Modifier.clickable { showGuidelinesDialog = true }
-                                    )
+                                }
+
+                                AnimatedVisibility(
+                                    visible = isGuideBannerExpanded,
+                                    enter = expandVertically() + fadeIn(),
+                                    exit = shrinkVertically() + fadeOut()
+                                ) {
+                                    Column(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(start = 12.dp, end = 12.dp, bottom = 12.dp)
+                                    ) {
+                                        HorizontalDivider(
+                                            color = MaterialTheme.colorScheme.onErrorContainer.copy(alpha = 0.2f),
+                                            modifier = Modifier.padding(bottom = 8.dp)
+                                        )
+                                        Text(
+                                            text = "깨끗한 소통 공간을 위해 비방, 욕설, 허위사실 등 부적절한 내용은 예고 없이 삭제될 수 있습니다. 부적절한 글 발견 시 신고/차단 기능을 적극 활용해 주세요.",
+                                            fontSize = 11.sp,
+                                            lineHeight = 15.sp,
+                                            color = MaterialTheme.colorScheme.onErrorContainer,
+                                            fontWeight = FontWeight.Medium
+                                        )
+                                        Spacer(modifier = Modifier.height(6.dp))
+                                        Text(
+                                            text = "👉 이용규칙(가이드라인) 전문 보기",
+                                            fontSize = 11.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = MaterialTheme.colorScheme.primary,
+                                            modifier = Modifier.clickable { showGuidelinesDialog = true }
+                                        )
+                                    }
                                 }
                             }
                         }
