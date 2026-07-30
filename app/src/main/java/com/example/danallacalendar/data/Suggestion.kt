@@ -15,7 +15,10 @@ data class Suggestion(
     var isReported: Boolean = false,
     @get:PropertyName("isAdmin")
     @set:PropertyName("isAdmin")
-    var isAdmin: Boolean = false
+    var isAdmin: Boolean = false,
+    @get:PropertyName("isPinned")
+    @set:PropertyName("isPinned")
+    var isPinned: Boolean = false
 )
 
 data class SuggestionComment(

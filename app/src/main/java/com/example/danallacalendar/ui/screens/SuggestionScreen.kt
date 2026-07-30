@@ -19,6 +19,7 @@ import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Send
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material.icons.filled.VpnKey
+import androidx.compose.material.icons.filled.PushPin
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.animation.AnimatedVisibility
@@ -242,7 +243,7 @@ fun SuggestionScreen(
             when (val state = screenState) {
                 is SuggestionScreenState.List -> {
                     val filteredSuggestions = remember(suggestions, blockedUsers, myUUID) {
-                        suggestions.filter {
+                        suggestions.sortedByDescending { it.isPinned }.filter {
                             !it.isReported && 
                             !it.reportedByUserIds.contains(myUUID) && 
                             !blockedUsers.contains(it.authorId)
@@ -362,11 +363,32 @@ fun SuggestionScreen(
                                                 screenState = SuggestionScreenState.Detail(item)
                                             },
                                         colors = CardDefaults.cardColors(
-                                            containerColor = MaterialTheme.colorScheme.surface
+                                            containerColor = if (item.isPinned) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.25f) else MaterialTheme.colorScheme.surface
                                         ),
+                                        border = if (item.isPinned) androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFFFB300)) else null,
                                         shape = RoundedCornerShape(12.dp)
                                     ) {
                                         Column(modifier = Modifier.padding(16.dp)) {
+                                            if (item.isPinned) {
+                                                Row(
+                                                    verticalAlignment = Alignment.CenterVertically,
+                                                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                                    modifier = Modifier.padding(bottom = 6.dp)
+                                                ) {
+                                                    Icon(
+                                                        imageVector = Icons.Default.PushPin,
+                                                        contentDescription = "상단 고정",
+                                                        tint = Color(0xFFE65100),
+                                                        modifier = Modifier.size(14.dp)
+                                                    )
+                                                    Text(
+                                                        text = "상단 고정 공지",
+                                                        fontSize = 11.sp,
+                                                        fontWeight = FontWeight.Bold,
+                                                        color = Color(0xFFE65100)
+                                                    )
+                                                }
+                                            }
                                             Text(
                                                 text = item.title,
                                                 fontWeight = FontWeight.Bold,

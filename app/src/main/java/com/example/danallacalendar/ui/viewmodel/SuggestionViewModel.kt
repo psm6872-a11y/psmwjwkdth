@@ -57,7 +57,7 @@ class SuggestionViewModel @Inject constructor(
                             android.util.Log.e("SuggestionViewModel", "Failed to parse suggestion doc ${doc.id}", e)
                             null
                         }
-                    }.sortedByDescending { it.createdAt }
+                    }.sortedWith(compareByDescending<Suggestion> { it.isPinned }.thenByDescending { it.createdAt })
                     _suggestions.value = list
                 }
             }
@@ -249,6 +249,25 @@ class SuggestionViewModel @Inject constructor(
                 blockUser(reportedUserId)
             } catch (e: Exception) {
                 android.util.Log.e("SuggestionViewModel", "Failed to report user", e)
+            }
+        }
+    }
+
+    fun togglePinSuggestion(suggestionId: String, currentPinnedState: Boolean) {
+        viewModelScope.launch {
+            try {
+                val newPinnedState = !currentPinnedState
+                firestore.collection("suggestions")
+                    .document(suggestionId)
+                    .update("isPinned", newPinnedState)
+                    .await()
+                
+                val currentList = _suggestions.value.map { item ->
+                    if (item.id == suggestionId) item.copy(isPinned = newPinnedState) else item
+                }.sortedWith(compareByDescending<Suggestion> { it.isPinned }.thenByDescending { it.createdAt })
+                _suggestions.value = currentList
+            } catch (e: Exception) {
+                android.util.Log.e("SuggestionViewModel", "Failed to toggle pin for suggestion", e)
             }
         }
     }
