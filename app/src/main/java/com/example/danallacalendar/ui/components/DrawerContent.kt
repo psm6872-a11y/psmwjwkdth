@@ -603,12 +603,13 @@ fun DrawerContent(
                         .fillMaxWidth()
                         .padding(horizontal = 4.dp, vertical = 4.dp)
                 ) {
+                    val isHost = isCreator || (creatorUUID != null && creatorUUID.isNotEmpty() && currentDeviceUUID == creatorUUID)
                     members.forEach { member ->
                         val isMe = member.deviceUUID == currentDeviceUUID
                         val displayName = if (isMe) "${member.nickname} (나)" else member.nickname
                         val firstChar = member.nickname.firstOrNull()?.toString() ?: "?"
                         val avatarColor = getAvatarColor(member.nickname)
- 
+
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
                             modifier = Modifier.fillMaxWidth(),
@@ -633,9 +634,9 @@ fun DrawerContent(
                                         fontWeight = FontWeight.Bold
                                     )
                                 }
- 
+
                                 Spacer(modifier = Modifier.width(12.dp))
- 
+
                                 // Info
                                 Column {
                                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -671,7 +672,7 @@ fun DrawerContent(
                                 }
                             }
                             
-                            if (isCreator && !isMe) {
+                            if (isHost && !isMe) {
                                 val isMemberCreator = creatorUUID != null && member.deviceUUID == creatorUUID
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
