@@ -202,7 +202,7 @@ exports.onCalendarEventWritten = onDocumentWritten("rooms/{roomCode}/events/{eve
     membersSnapshot.forEach(doc => {
         if (doc.id !== lastUpdatedBy) {
             const data = doc.data();
-            if (data.fcmToken) {
+            if (data.fcmToken && data.hasWritePermission === true) {
                 tokens.push(data.fcmToken);
             }
         }
@@ -310,7 +310,7 @@ exports.onDeadlineDateWritten = onDocumentWritten("rooms/{roomCode}/deadline_dat
     membersSnapshot.forEach(doc => {
         if (doc.id !== actorUuid) {
             const data = doc.data();
-            if (data.fcmToken) {
+            if (data.fcmToken && data.hasWritePermission === true) {
                 tokens.push(data.fcmToken);
             }
         }
