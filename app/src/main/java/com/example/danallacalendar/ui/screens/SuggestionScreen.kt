@@ -120,7 +120,7 @@ fun SuggestionScreen(
                             Toast.makeText(context, "관리자 권한이 해제되었습니다.", Toast.LENGTH_SHORT).show()
                         } else {
                             val trimmed = adminPasscodeInput.trim()
-                            if (trimmed == "7777" || trimmed == "danalla777" || trimmed == "danalla" || trimmed == "1234") {
+                            if (trimmed == "6872" || trimmed == "danalla6872" || trimmed == "7777" || trimmed == "danalla") {
                                 viewModel.setAdmin(true)
                                 isAdmin = true
                                 showAdminAuthDialog = false
