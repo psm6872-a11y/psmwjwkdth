@@ -153,7 +153,7 @@ fun AddEditEventScreen(
     var tempIsAmSelected by remember { mutableStateOf(false) }
     var tempIsPmSelected by remember { mutableStateOf(false) }
 
-    val isReadOnly = false
+    val isReadOnly = remember(userPreferences) { !userPreferences.hasWritePermission() }
     val localScope = rememberCoroutineScope()
 
     // Dialog control states
@@ -442,6 +442,9 @@ fun AddEditEventScreen(
                                     .pointerInput(Unit) {
                                         detectTapGestures(
                                             onTap = {
+                                                if (isReadOnly) {
+                                                    Toast.makeText(context, "읽기 전용 멤버는 견적서를 작성할 수 없습니다.", Toast.LENGTH_SHORT).show()
+                                                } else {
                                                 // 1. 일정 제목 첫줄이 07-22 같은 날짜 형식(MM-dd)이면 스텝3 이사날짜에 자동입력
                                                 val firstLine = title.lineSequence().firstOrNull()?.trim() ?: ""
                                                 val isDatePattern = firstLine.matches(Regex("""^\d{2}-\d{2}$"""))
@@ -470,6 +473,7 @@ fun AddEditEventScreen(
                                                 val resolvedPhone = notesList.firstOrNull { it.isNotBlank() } ?: ""
 
                                                 onNavigateToEstimate(resolvedMoveDate, resolvedDeparture, resolvedDestination, resolvedPhone, syncId ?: eventId?.toString(), null)
+                                                }
                                             },
                                             onLongPress = {
                                                 val phone = notesList.firstOrNull { it.isNotBlank() } ?: ""
@@ -586,6 +590,9 @@ fun AddEditEventScreen(
                                     },
                                     onClick = {
                                         showEstimateMenu = false
+                                        if (isReadOnly) {
+                                            Toast.makeText(context, "읽기 전용 멤버는 견적서를 수정할 수 없습니다.", Toast.LENGTH_SHORT).show()
+                                        } else {
                                         coroutineScope.launch {
                                             val est = viewModel.getEstimateById(linkedEstimateId!!)
                                             if (est != null) {
@@ -594,6 +601,7 @@ fun AddEditEventScreen(
                                             } else {
                                                 Toast.makeText(context, "견적서를 찾을 수 없습니다.", Toast.LENGTH_SHORT).show()
                                             }
+                                        }
                                         }
                                     },
                                     contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp)
@@ -1743,11 +1751,13 @@ fun AddEditEventScreen(
         LocalEstimateViewerDialog(
             estimate = selectedEstimateForDetail!!,
             onDismiss = { showEstimateDetailDialog = false },
-            onEditClick = {
-                showEstimateDetailDialog = false
-                val estimateJson = com.google.gson.Gson().toJson(selectedEstimateForDetail)
-                onNavigateToEstimate("", "", "", "", eventId?.toString(), estimateJson)
-            }
+            onEditClick = if (!isReadOnly) {
+                {
+                    showEstimateDetailDialog = false
+                    val estimateJson = com.google.gson.Gson().toJson(selectedEstimateForDetail)
+                    onNavigateToEstimate("", "", "", "", eventId?.toString(), estimateJson)
+                }
+            } else null
         )
     }
 

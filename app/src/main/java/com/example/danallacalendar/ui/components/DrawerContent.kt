@@ -262,17 +262,9 @@ fun DrawerContent(
                     )
                 } else {
                     TextButton(
-                        onClick = {
-                            if (isReadOnlySharedMember) {
-                                Toast.makeText(context, "읽기 전용 멤버는 접근할 수 없습니다.", Toast.LENGTH_SHORT).show()
-                            } else {
-                                onCheckForUpdateClick()
-                            }
-                        },
+                        onClick = onCheckForUpdateClick,
                         contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
-                        modifier = Modifier
-                            .height(28.dp)
-                            .alpha( if (isReadOnlySharedMember) 0.3f else 1.0f)
+                        modifier = Modifier.height(28.dp)
                     ) {
                         Text(
                             text = "업데이트 확인",

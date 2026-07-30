@@ -528,11 +528,7 @@ fun CalendarMainScreen(
                     events = monthlyEvents,
                     categories = categories,
                     onEventClick = {
-                        if (isReadOnlySharedMember) {
-                            Toast.makeText(context, "읽기 전용 멤버는 일정 편집 화면에 접근할 수 없습니다.", Toast.LENGTH_SHORT).show()
-                        } else {
-                            onNavigateToAddEditEvent(it.id)
-                        }
+                        onNavigateToAddEditEvent(it.id)
                     },
                     onDeleteEvent = {
                         if (!hasWritePermission) {
@@ -1042,12 +1038,8 @@ fun CalendarMainScreen(
                 categories = categories,
                 onDismissRequest = { showDayEventsDialogDate = null },
                 onEventClick = { event ->
-                    if (isReadOnlySharedMember) {
-                        Toast.makeText(context, "읽기 전용 멤버는 일정 편집 화면에 접근할 수 없습니다.", Toast.LENGTH_SHORT).show()
-                    } else {
-                        showDayEventsDialogDate = null
-                        onNavigateToAddEditEvent(event.id)
-                    }
+                    showDayEventsDialogDate = null
+                    onNavigateToAddEditEvent(event.id)
                 },
                 onDeleteEvent = {
                     if (!hasWritePermission) {
