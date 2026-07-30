@@ -242,11 +242,12 @@ fun SuggestionScreen(
         ) {
             when (val state = screenState) {
                 is SuggestionScreenState.List -> {
-                    val filteredSuggestions = remember(suggestions, blockedUsers, myUUID) {
-                        suggestions.sortedByDescending { it.isPinned }.filter {
-                            !it.isReported && 
-                            !it.reportedByUserIds.contains(myUUID) && 
-                            !blockedUsers.contains(it.authorId)
+                    val filteredSuggestions = remember(suggestions, blockedUsers, myUUID, isAdmin) {
+                        suggestions.sortedWith(compareByDescending<Suggestion> { it.isPinned }.thenByDescending { it.createdAt }).filter { suggestion ->
+                            val notReportedByMe = !suggestion.reportedByUserIds.contains(myUUID)
+                            val notBlocked = !blockedUsers.contains(suggestion.authorId)
+                            val reportCheck = if (isAdmin) true else !suggestion.isReported
+                            reportCheck && notReportedByMe && notBlocked
                         }
                     }
 
@@ -709,6 +710,49 @@ fun SuggestionScreen(
                                             expanded = showDetailMenu,
                                             onDismissRequest = { showDetailMenu = false }
                                         ) {
+                                            if (isAdmin) {
+                                                if (item.isReported) {
+                                                    DropdownMenuItem(
+                                                        text = {
+                                                            Text(
+                                                                text = "신고 해제 (게시글 복구)",
+                                                                color = Color(0xFF2E7D32),
+                                                                fontWeight = FontWeight.Bold
+                                                            )
+                                                        },
+                                                        onClick = {
+                                                            showDetailMenu = false
+                                                            viewModel.unreportSuggestion(item.id)
+                                                            Toast.makeText(context, "게시글 신고가 해제되어 복구되었습니다.", Toast.LENGTH_SHORT).show()
+                                                        }
+                                                    )
+                                                }
+                                                DropdownMenuItem(
+                                                    text = {
+                                                        Row(
+                                                            verticalAlignment = Alignment.CenterVertically,
+                                                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                                        ) {
+                                                            Icon(
+                                                                imageVector = Icons.Default.PushPin,
+                                                                contentDescription = "상단 고정",
+                                                                tint = Color(0xFFE65100),
+                                                                modifier = Modifier.size(18.dp)
+                                                            )
+                                                            Text(
+                                                                text = if (item.isPinned) "상단 고정 해제" else "상단 고정하기",
+                                                                fontWeight = FontWeight.Bold,
+                                                                color = Color(0xFFE65100)
+                                                            )
+                                                        }
+                                                    },
+                                                    onClick = {
+                                                        showDetailMenu = false
+                                                        viewModel.togglePinSuggestion(item.id, item.isPinned)
+                                                        Toast.makeText(context, if (item.isPinned) "상단 고정이 해제되었습니다." else "게시글이 상단에 고정되었습니다.", Toast.LENGTH_SHORT).show()
+                                                    }
+                                                )
+                                            }
                                             if (item.authorId == myUUID || isAdmin) {
                                                 DropdownMenuItem(
                                                     text = {

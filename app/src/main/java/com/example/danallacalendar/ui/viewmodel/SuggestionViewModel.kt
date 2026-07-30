@@ -51,16 +51,55 @@ class SuggestionViewModel @Inject constructor(
                 }
                 if (snapshot != null) {
                     val list = snapshot.documents.mapNotNull { doc ->
-                        try {
-                            doc.toObject(Suggestion::class.java)
-                        } catch (e: Exception) {
-                            android.util.Log.e("SuggestionViewModel", "Failed to parse suggestion doc ${doc.id}", e)
-                            null
-                        }
+                        parseSuggestion(doc)
                     }.sortedWith(compareByDescending<Suggestion> { it.isPinned }.thenByDescending { it.createdAt })
                     _suggestions.value = list
                 }
             }
+    }
+
+    private fun parseSuggestion(doc: com.google.firebase.firestore.DocumentSnapshot): Suggestion? {
+        return try {
+            val s = doc.toObject(Suggestion::class.java)
+            if (s != null) {
+                s.copy(id = if (s.id.isBlank()) doc.id else s.id)
+            } else {
+                parseSuggestionFallback(doc)
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("SuggestionViewModel", "Failed to parse suggestion doc ${doc.id}, using fallback", e)
+            parseSuggestionFallback(doc)
+        }
+    }
+
+    private fun parseSuggestionFallback(doc: com.google.firebase.firestore.DocumentSnapshot): Suggestion? {
+        return try {
+            val title = doc.getString("title") ?: ""
+            val content = doc.getString("content") ?: ""
+            val authorId = doc.getString("authorId") ?: ""
+            val authorNickname = doc.getString("authorNickname") ?: "익명"
+            val createdAt = doc.getLong("createdAt") ?: (doc.getTimestamp("createdAt")?.toDate()?.time ?: System.currentTimeMillis())
+            val isReported = doc.getBoolean("isReported") ?: doc.getBoolean("reported") ?: false
+            val isAdmin = doc.getBoolean("isAdmin") ?: doc.getBoolean("admin") ?: false
+            val isPinned = doc.getBoolean("isPinned") ?: doc.getBoolean("pinned") ?: false
+            val reportedByUserIds = (doc.get("reportedByUserIds") as? List<*>)?.mapNotNull { it?.toString() } ?: emptyList()
+
+            Suggestion(
+                id = doc.id,
+                title = title,
+                content = content,
+                authorId = authorId,
+                authorNickname = authorNickname,
+                createdAt = createdAt,
+                reportedByUserIds = reportedByUserIds,
+                isReported = isReported,
+                isAdmin = isAdmin,
+                isPinned = isPinned
+            )
+        } catch (e: Exception) {
+            android.util.Log.e("SuggestionViewModel", "Fallback parse failed for doc ${doc.id}", e)
+            null
+        }
     }
 
     fun observeComments(suggestionId: String) {
@@ -268,6 +307,22 @@ class SuggestionViewModel @Inject constructor(
                 _suggestions.value = currentList
             } catch (e: Exception) {
                 android.util.Log.e("SuggestionViewModel", "Failed to toggle pin for suggestion", e)
+            }
+        }
+    }
+
+    fun unreportSuggestion(suggestionId: String) {
+        viewModelScope.launch {
+            try {
+                firestore.collection("suggestions")
+                    .document(suggestionId)
+                    .update(
+                        "isReported", false,
+                        "reportedByUserIds", emptyList<String>()
+                    )
+                    .await()
+            } catch (e: Exception) {
+                android.util.Log.e("SuggestionViewModel", "Failed to unreport suggestion", e)
             }
         }
     }
