@@ -50,6 +50,14 @@ class UserPreferences(context: Context) {
         prefs.edit().putString(KEY_NICKNAME, nickname).apply()
     }
 
+    fun isAdmin(): Boolean {
+        return prefs.getBoolean("is_suggestion_admin", false) || getNickname() == "관리자" || getNickname() == "방장"
+    }
+
+    fun setAdmin(isAdmin: Boolean) {
+        prefs.edit().putBoolean("is_suggestion_admin", isAdmin).apply()
+    }
+
     fun getLastRoomCode(): String {
         return prefs.getString(KEY_LAST_ROOM_CODE, "") ?: ""
     }

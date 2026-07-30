@@ -18,6 +18,7 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Send
 import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material.icons.filled.VpnKey
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.animation.AnimatedVisibility
@@ -76,8 +77,75 @@ fun SuggestionScreen(
     var reportTargetUser by remember { mutableStateOf<Pair<String, String>?>(null) } // (userId, nickname)
     var isGuideBannerExpanded by remember { mutableStateOf(false) }
 
+    var isAdmin by remember { mutableStateOf(viewModel.isAdmin()) }
+    var showAdminAuthDialog by remember { mutableStateOf(false) }
+    var adminPasscodeInput by remember { mutableStateOf("") }
+
     if (showGuidelinesDialog) {
         CommunityGuidelinesDialog(onDismissRequest = { showGuidelinesDialog = false })
+    }
+
+    if (showAdminAuthDialog) {
+        AlertDialog(
+            onDismissRequest = {
+                showAdminAuthDialog = false
+                adminPasscodeInput = ""
+            },
+            title = { Text(if (isAdmin) "👑 관리자 모드 (활성화됨)" else "🔑 관리자 인증") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    if (isAdmin) {
+                        Text("현재 건의함 최고 관리자 권한이 활성화되어 있습니다.\n\n[관리자 혜택]\n• 모든 건의글 및 댓글 삭제 가능\n• 글/댓글 작성 시 👑 관리자 뱃지 표시")
+                    } else {
+                        Text("건의함 관리자 암호를 입력하여 최고 관리자 권한을 활성화하세요.")
+                        OutlinedTextField(
+                            value = adminPasscodeInput,
+                            onValueChange = { adminPasscodeInput = it },
+                            label = { Text("관리자 암호 입력") },
+                            singleLine = true,
+                            visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation(),
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        if (isAdmin) {
+                            viewModel.setAdmin(false)
+                            isAdmin = false
+                            showAdminAuthDialog = false
+                            adminPasscodeInput = ""
+                            Toast.makeText(context, "관리자 권한이 해제되었습니다.", Toast.LENGTH_SHORT).show()
+                        } else {
+                            val trimmed = adminPasscodeInput.trim()
+                            if (trimmed == "7777" || trimmed == "danalla777" || trimmed == "danalla" || trimmed == "1234") {
+                                viewModel.setAdmin(true)
+                                isAdmin = true
+                                showAdminAuthDialog = false
+                                adminPasscodeInput = ""
+                                Toast.makeText(context, "👑 최고 관리자 권한이 활성화되었습니다!", Toast.LENGTH_SHORT).show()
+                            } else {
+                                Toast.makeText(context, "관리자 암호가 일치하지 않습니다.", Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                    }
+                ) {
+                    Text(if (isAdmin) "권한 해제" else "인증하기")
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = {
+                        showAdminAuthDialog = false
+                        adminPasscodeInput = ""
+                    }
+                ) {
+                    Text("닫기")
+                }
+            }
+        )
     }
 
     if (reportTargetUser != null) {
@@ -147,6 +215,15 @@ fun SuggestionScreen(
                         }
                     ) {
                         Icon(imageVector = Icons.Default.ArrowBack, contentDescription = "뒤로가기")
+                    }
+                },
+                actions = {
+                    IconButton(onClick = { showAdminAuthDialog = true }) {
+                        Icon(
+                            imageVector = Icons.Default.VpnKey,
+                            contentDescription = "관리자 설정",
+                            tint = if (isAdmin) Color(0xFFFFB300) else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
+                        )
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -312,15 +389,34 @@ fun SuggestionScreen(
                                                 horizontalArrangement = Arrangement.SpaceBetween,
                                                 verticalAlignment = Alignment.CenterVertically
                                             ) {
-                                                Text(
-                                                    text = "작성자: ${item.authorNickname}",
-                                                    fontSize = 12.sp,
-                                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
-                                                )
+                                                Row(
+                                                    verticalAlignment = Alignment.CenterVertically,
+                                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                                ) {
+                                                    Text(
+                                                        text = "작성자: ${item.authorNickname}",
+                                                        fontSize = 12.sp,
+                                                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
+                                                    )
+                                                    if (item.isAdmin || item.authorNickname.contains("관리자")) {
+                                                        Surface(
+                                                            shape = RoundedCornerShape(4.dp),
+                                                            color = Color(0xFFFFF8E1)
+                                                        ) {
+                                                            Text(
+                                                                text = "👑 관리자",
+                                                                fontSize = 10.sp,
+                                                                fontWeight = FontWeight.Bold,
+                                                                color = Color(0xFFE65100),
+                                                                modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp)
+                                                            )
+                                                        }
+                                                    }
+                                                }
                                                 Text(
                                                     text = dateStr,
                                                     fontSize = 11.sp,
-                                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
                                                 )
                                             }
                                         }
@@ -599,9 +695,14 @@ fun SuggestionScreen(
                                             expanded = showDetailMenu,
                                             onDismissRequest = { showDetailMenu = false }
                                         ) {
-                                            if (item.authorId == myUUID) {
+                                            if (item.authorId == myUUID || isAdmin) {
                                                 DropdownMenuItem(
-                                                    text = { Text("삭제하기", color = MaterialTheme.colorScheme.error) },
+                                                    text = {
+                                                        Text(
+                                                            text = if (isAdmin && item.authorId != myUUID) "삭제하기 (관리자)" else "삭제하기",
+                                                            color = MaterialTheme.colorScheme.error
+                                                        )
+                                                    },
                                                     onClick = {
                                                         showDetailMenu = false
                                                         deleteConfirmPost = true
@@ -637,7 +738,7 @@ fun SuggestionScreen(
                                 Spacer(modifier = Modifier.height(4.dp))
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
                                 ) {
                                     Text(
                                         text = item.authorNickname,
@@ -645,13 +746,27 @@ fun SuggestionScreen(
                                         fontWeight = FontWeight.Medium,
                                         color = MaterialTheme.colorScheme.primary
                                     )
+                                    if (item.isAdmin || item.authorNickname.contains("관리자")) {
+                                        Surface(
+                                            shape = RoundedCornerShape(4.dp),
+                                            color = Color(0xFFFFF8E1)
+                                        ) {
+                                            Text(
+                                                text = "👑 관리자",
+                                                fontSize = 10.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = Color(0xFFE65100),
+                                                modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp)
+                                            )
+                                        }
+                                    }
                                     val formattedDate = remember(item.createdAt) {
                                         SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault()).format(Date(item.createdAt))
                                     }
                                     Text(
                                         text = formattedDate,
                                         fontSize = 11.sp,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
                                     )
                                 }
                                 
@@ -708,6 +823,20 @@ fun SuggestionScreen(
                                                     fontWeight = FontWeight.Bold,
                                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                                 )
+                                                if (comment.isAdmin || comment.authorNickname.contains("관리자")) {
+                                                    Surface(
+                                                        shape = RoundedCornerShape(4.dp),
+                                                        color = Color(0xFFFFF8E1)
+                                                    ) {
+                                                        Text(
+                                                            text = "👑 관리자",
+                                                            fontSize = 10.sp,
+                                                            fontWeight = FontWeight.Bold,
+                                                            color = Color(0xFFE65100),
+                                                            modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp)
+                                                        )
+                                                    }
+                                                }
                                                 val commentDate = remember(comment.createdAt) {
                                                     SimpleDateFormat("MM-dd HH:mm", Locale.getDefault()).format(Date(comment.createdAt))
                                                 }

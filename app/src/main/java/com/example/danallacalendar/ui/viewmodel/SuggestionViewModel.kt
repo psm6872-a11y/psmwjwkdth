@@ -97,13 +97,16 @@ class SuggestionViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 val ref = firestore.collection("suggestions").document()
+                val isAdmin = userPreferences.isAdmin()
+                val authorNick = userPreferences.getNickname().ifBlank { if (isAdmin) "관리자" else "익명" }
                 val suggestion = Suggestion(
                     id = ref.id,
                     title = title,
                     content = content,
                     authorId = userPreferences.getDeviceUUID(),
-                    authorNickname = userPreferences.getNickname().ifBlank { "익명" },
-                    createdAt = System.currentTimeMillis()
+                    authorNickname = authorNick,
+                    createdAt = System.currentTimeMillis(),
+                    isAdmin = isAdmin
                 )
                 ref.set(suggestion).await()
 
@@ -128,12 +131,15 @@ class SuggestionViewModel @Inject constructor(
                     .document(suggestionId)
                     .collection("comments")
                     .document()
+                val isAdmin = userPreferences.isAdmin()
+                val authorNick = userPreferences.getNickname().ifBlank { if (isAdmin) "관리자" else "익명" }
                 val comment = SuggestionComment(
                     id = ref.id,
                     content = content,
                     authorId = userPreferences.getDeviceUUID(),
-                    authorNickname = userPreferences.getNickname().ifBlank { "익명" },
-                    createdAt = System.currentTimeMillis()
+                    authorNickname = authorNick,
+                    createdAt = System.currentTimeMillis(),
+                    isAdmin = isAdmin
                 )
                 ref.set(comment).await()
 
@@ -249,6 +255,14 @@ class SuggestionViewModel @Inject constructor(
 
     fun getCurrentUserUUID(): String {
         return userPreferences.getDeviceUUID()
+    }
+
+    fun isAdmin(): Boolean {
+        return userPreferences.isAdmin()
+    }
+
+    fun setAdmin(isAdmin: Boolean) {
+        userPreferences.setAdmin(isAdmin)
     }
 
     override fun onCleared() {

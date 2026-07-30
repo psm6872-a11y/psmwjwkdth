@@ -12,7 +12,10 @@ data class Suggestion(
     val reportedByUserIds: List<String> = emptyList(),
     @get:PropertyName("isReported")
     @set:PropertyName("isReported")
-    var isReported: Boolean = false
+    var isReported: Boolean = false,
+    @get:PropertyName("isAdmin")
+    @set:PropertyName("isAdmin")
+    var isAdmin: Boolean = false
 )
 
 data class SuggestionComment(
@@ -24,7 +27,10 @@ data class SuggestionComment(
     val reportedByUserIds: List<String> = emptyList(),
     @get:PropertyName("isReported")
     @set:PropertyName("isReported")
-    var isReported: Boolean = false
+    var isReported: Boolean = false,
+    @get:PropertyName("isAdmin")
+    @set:PropertyName("isAdmin")
+    var isAdmin: Boolean = false
 )
 
 data class UserReport(
