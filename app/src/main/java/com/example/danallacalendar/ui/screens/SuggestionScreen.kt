@@ -354,14 +354,10 @@ fun SuggestionScreen(
                                     .fillMaxWidth()
                                     .weight(1f),
                                 contentPadding = PaddingValues(start = 12.dp, end = 12.dp, bottom = 80.dp),
-                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                                verticalArrangement = Arrangement.spacedBy(4.dp)
                             ) {
                                 itemsIndexed(filteredSuggestions, key = { _, item -> item.id }) { index, item ->
                                     val postNumber = filteredSuggestions.size - index
-                                    val dateStr = remember(item.createdAt) {
-                                        val sdf = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault())
-                                        sdf.format(Date(item.createdAt))
-                                    }
                                     Card(
                                         modifier = Modifier
                                             .fillMaxWidth()
@@ -373,48 +369,38 @@ fun SuggestionScreen(
                                             containerColor = if (item.isPinned) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.25f) else MaterialTheme.colorScheme.surface
                                         ),
                                         border = if (item.isPinned) androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFFFB300)) else null,
-                                        shape = RoundedCornerShape(12.dp)
+                                        shape = RoundedCornerShape(8.dp)
                                     ) {
-                                        Column(modifier = Modifier.padding(16.dp)) {
+                                        Row(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(horizontal = 12.dp, vertical = 8.dp),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
                                             if (item.isPinned) {
-                                                Row(
-                                                    verticalAlignment = Alignment.CenterVertically,
-                                                    horizontalArrangement = Arrangement.spacedBy(4.dp),
-                                                    modifier = Modifier.padding(bottom = 6.dp)
-                                                ) {
-                                                    Icon(
-                                                        imageVector = Icons.Default.PushPin,
-                                                        contentDescription = "상단 고정",
-                                                        tint = Color(0xFFE65100),
-                                                        modifier = Modifier.size(14.dp)
-                                                    )
-                                                    Text(
-                                                        text = "상단 고정 공지",
-                                                        fontSize = 11.sp,
-                                                        fontWeight = FontWeight.Bold,
-                                                        color = Color(0xFFE65100)
-                                                    )
-                                                }
-                                            }
-                                            Row(
-                                                verticalAlignment = Alignment.CenterVertically
-                                            ) {
-                                                Text(
-                                                    text = "$postNumber. ",
-                                                    fontWeight = FontWeight.Bold,
-                                                    fontSize = 16.sp,
-                                                    color = if (item.isPinned) Color(0xFFE65100) else MaterialTheme.colorScheme.primary
+                                                Icon(
+                                                    imageVector = Icons.Default.PushPin,
+                                                    contentDescription = "상단 고정",
+                                                    tint = Color(0xFFE65100),
+                                                    modifier = Modifier.size(15.dp)
                                                 )
-                                                Text(
-                                                    text = item.title,
-                                                    fontWeight = FontWeight.Bold,
-                                                    fontSize = 16.sp,
-                                                    maxLines = 1,
-                                                    overflow = TextOverflow.Ellipsis,
-                                                    color = MaterialTheme.colorScheme.onSurface,
-                                                    modifier = Modifier.weight(1f)
-                                                )
+                                                Spacer(modifier = Modifier.width(4.dp))
                                             }
+                                            Text(
+                                                text = "$postNumber. ",
+                                                fontWeight = FontWeight.Bold,
+                                                fontSize = 14.sp,
+                                                color = if (item.isPinned) Color(0xFFE65100) else MaterialTheme.colorScheme.primary
+                                            )
+                                            Text(
+                                                text = item.title,
+                                                fontWeight = FontWeight.Medium,
+                                                fontSize = 14.sp,
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis,
+                                                color = MaterialTheme.colorScheme.onSurface,
+                                                modifier = Modifier.weight(1f)
+                                            )
                                         }
                                     }
                                 }
