@@ -61,8 +61,9 @@ class SuggestionViewModel @Inject constructor(
     private fun parseSuggestion(doc: com.google.firebase.firestore.DocumentSnapshot): Suggestion? {
         return try {
             val s = doc.toObject(Suggestion::class.java)
-            if (s != null) {
-                s.copy(id = if (s.id.isBlank()) doc.id else s.id)
+            if (s != null && s.title.isNotBlank()) {
+                if (s.id.isBlank()) s.id = doc.id
+                s
             } else {
                 parseSuggestionFallback(doc)
             }
@@ -114,16 +115,53 @@ class SuggestionViewModel @Inject constructor(
                 }
                 if (snapshot != null) {
                     val list = snapshot.documents.mapNotNull { doc ->
-                        try {
-                            doc.toObject(SuggestionComment::class.java)
-                        } catch (e: Exception) {
-                            android.util.Log.e("SuggestionViewModel", "Failed to parse comment doc ${doc.id}", e)
-                            null
-                        }
+                        parseComment(doc)
                     }.sortedBy { it.createdAt }
                     _comments.value = list
                 }
             }
+    }
+
+    private fun parseComment(doc: com.google.firebase.firestore.DocumentSnapshot): SuggestionComment? {
+        return try {
+            val c = doc.toObject(SuggestionComment::class.java)
+            if (c != null && c.content.isNotBlank()) {
+                if (c.id.isBlank()) c.id = doc.id
+                c
+            } else {
+                parseCommentFallback(doc)
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("SuggestionViewModel", "Failed to parse comment doc ${doc.id}, using fallback", e)
+            parseCommentFallback(doc)
+        }
+    }
+
+    private fun parseCommentFallback(doc: com.google.firebase.firestore.DocumentSnapshot): SuggestionComment? {
+        return try {
+            val id = doc.getString("id")?.ifBlank { doc.id } ?: doc.id
+            val content = doc.getString("content") ?: ""
+            val authorId = doc.getString("authorId") ?: ""
+            val authorNickname = doc.getString("authorNickname") ?: "익명"
+            val createdAt = doc.getLong("createdAt") ?: (doc.getTimestamp("createdAt")?.toDate()?.time ?: System.currentTimeMillis())
+            val isReported = doc.getBoolean("isReported") ?: doc.getBoolean("reported") ?: false
+            val isAdmin = doc.getBoolean("isAdmin") ?: doc.getBoolean("admin") ?: false
+            val reportedByUserIds = (doc.get("reportedByUserIds") as? List<*>)?.mapNotNull { it?.toString() } ?: emptyList()
+
+            SuggestionComment(
+                id = id,
+                content = content,
+                authorId = authorId,
+                authorNickname = authorNickname,
+                createdAt = createdAt,
+                reportedByUserIds = reportedByUserIds,
+                isReported = isReported,
+                isAdmin = isAdmin
+            )
+        } catch (e: Exception) {
+            android.util.Log.e("SuggestionViewModel", "Fallback parse failed for comment doc ${doc.id}", e)
+            null
+        }
     }
 
     fun stopObservingComments() {
