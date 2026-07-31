@@ -9,6 +9,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
@@ -56,6 +57,7 @@ import androidx.compose.foundation.text.ClickableText
 sealed interface SuggestionScreenState {
     object List : SuggestionScreenState
     object Write : SuggestionScreenState
+    data class Edit(val suggestion: Suggestion) : SuggestionScreenState
     data class Detail(val suggestion: Suggestion) : SuggestionScreenState
 }
 
@@ -182,6 +184,7 @@ fun SuggestionScreen(
         when (screenState) {
             is SuggestionScreenState.List -> onNavigateBack()
             is SuggestionScreenState.Write -> screenState = SuggestionScreenState.List
+            is SuggestionScreenState.Edit -> screenState = SuggestionScreenState.Detail((screenState as SuggestionScreenState.Edit).suggestion)
             is SuggestionScreenState.Detail -> {
                 viewModel.stopObservingComments()
                 screenState = SuggestionScreenState.List
@@ -197,6 +200,7 @@ fun SuggestionScreen(
                         text = when (screenState) {
                             is SuggestionScreenState.List -> "건의함"
                             is SuggestionScreenState.Write -> "건의 등록"
+                            is SuggestionScreenState.Edit -> "건의 수정"
                             is SuggestionScreenState.Detail -> "건의 상세"
                         },
                         fontWeight = FontWeight.Bold
@@ -208,6 +212,7 @@ fun SuggestionScreen(
                             when (screenState) {
                                 is SuggestionScreenState.List -> onNavigateBack()
                                 is SuggestionScreenState.Write -> screenState = SuggestionScreenState.List
+                                is SuggestionScreenState.Edit -> screenState = SuggestionScreenState.Detail((screenState as SuggestionScreenState.Edit).suggestion)
                                 is SuggestionScreenState.Detail -> {
                                     viewModel.stopObservingComments()
                                     screenState = SuggestionScreenState.List
@@ -351,7 +356,8 @@ fun SuggestionScreen(
                                 contentPadding = PaddingValues(start = 12.dp, end = 12.dp, bottom = 80.dp),
                                 verticalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
-                                items(filteredSuggestions, key = { it.id }) { item ->
+                                itemsIndexed(filteredSuggestions, key = { _, item -> item.id }) { index, item ->
+                                    val postNumber = filteredSuggestions.size - index
                                     val dateStr = remember(item.createdAt) {
                                         val sdf = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault())
                                         sdf.format(Date(item.createdAt))
@@ -390,48 +396,23 @@ fun SuggestionScreen(
                                                     )
                                                 }
                                             }
-                                            Text(
-                                                text = item.title,
-                                                fontWeight = FontWeight.Bold,
-                                                fontSize = 16.sp,
-                                                maxLines = 1,
-                                                overflow = TextOverflow.Ellipsis,
-                                                color = MaterialTheme.colorScheme.onSurface
-                                            )
-                                            Spacer(modifier = Modifier.height(10.dp))
                                             Row(
-                                                modifier = Modifier.fillMaxWidth(),
-                                                horizontalArrangement = Arrangement.SpaceBetween,
                                                 verticalAlignment = Alignment.CenterVertically
                                             ) {
-                                                Row(
-                                                    verticalAlignment = Alignment.CenterVertically,
-                                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
-                                                ) {
-                                                    Text(
-                                                        text = "작성자: ${item.authorNickname}",
-                                                        fontSize = 12.sp,
-                                                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
-                                                    )
-                                                    if (item.isAdmin || item.authorNickname.contains("관리자")) {
-                                                        Surface(
-                                                            shape = RoundedCornerShape(4.dp),
-                                                            color = Color(0xFFFFF8E1)
-                                                        ) {
-                                                            Text(
-                                                                text = "👑 관리자",
-                                                                fontSize = 10.sp,
-                                                                fontWeight = FontWeight.Bold,
-                                                                color = Color(0xFFE65100),
-                                                                modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp)
-                                                            )
-                                                        }
-                                                    }
-                                                }
                                                 Text(
-                                                    text = dateStr,
-                                                    fontSize = 11.sp,
-                                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                                                    text = "$postNumber. ",
+                                                    fontWeight = FontWeight.Bold,
+                                                    fontSize = 16.sp,
+                                                    color = if (item.isPinned) Color(0xFFE65100) else MaterialTheme.colorScheme.primary
+                                                )
+                                                Text(
+                                                    text = item.title,
+                                                    fontWeight = FontWeight.Bold,
+                                                    fontSize = 16.sp,
+                                                    maxLines = 1,
+                                                    overflow = TextOverflow.Ellipsis,
+                                                    color = MaterialTheme.colorScheme.onSurface,
+                                                    modifier = Modifier.weight(1f)
                                                 )
                                             }
                                         }
@@ -554,6 +535,85 @@ fun SuggestionScreen(
                                 Text("등록 중...", color = Color.White, fontWeight = FontWeight.Bold)
                             } else {
                                 Text("등록하기", color = Color.White, fontWeight = FontWeight.Bold)
+                            }
+                        }
+                    }
+                }
+                is SuggestionScreenState.Edit -> {
+                    val item = state.suggestion
+                    var title by remember { mutableStateOf(item.title) }
+                    var content by remember { mutableStateOf(item.content) }
+                    var isSubmitting by remember { mutableStateOf(false) }
+
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        OutlinedTextField(
+                            value = title,
+                            onValueChange = { title = it },
+                            label = { Text("제목") },
+                            modifier = Modifier.fillMaxWidth(),
+                            singleLine = true,
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = MaterialTheme.colorScheme.primary,
+                                unfocusedBorderColor = MaterialTheme.colorScheme.outline
+                            )
+                        )
+
+                        OutlinedTextField(
+                            value = content,
+                            onValueChange = { content = it },
+                            label = { Text("내용") },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(220.dp),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = MaterialTheme.colorScheme.primary,
+                                unfocusedBorderColor = MaterialTheme.colorScheme.outline
+                            )
+                        )
+
+                        Button(
+                            onClick = {
+                                if (isSubmitting) return@Button
+                                if (title.isBlank() || content.isBlank()) {
+                                    Toast.makeText(context, "제목과 내용을 모두 입력해 주세요.", Toast.LENGTH_SHORT).show()
+                                    return@Button
+                                }
+                                isSubmitting = true
+                                viewModel.updateSuggestion(
+                                    suggestionId = item.id,
+                                    newTitle = title,
+                                    newContent = content,
+                                    onSuccess = { updatedItem ->
+                                        isSubmitting = false
+                                        Toast.makeText(context, "게시글이 수정되었습니다.", Toast.LENGTH_SHORT).show()
+                                        viewModel.observeComments(updatedItem.id)
+                                        screenState = SuggestionScreenState.Detail(updatedItem)
+                                    },
+                                    onError = { errorMsg ->
+                                        isSubmitting = false
+                                        Toast.makeText(context, "수정 실패: $errorMsg", Toast.LENGTH_LONG).show()
+                                    }
+                                )
+                            },
+                            enabled = !isSubmitting,
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                        ) {
+                            if (isSubmitting) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(20.dp),
+                                    color = Color.White,
+                                    strokeWidth = 2.dp
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("수정 중...", color = Color.White, fontWeight = FontWeight.Bold)
+                            } else {
+                                Text("수정 완료", color = Color.White, fontWeight = FontWeight.Bold)
                             }
                         }
                     }

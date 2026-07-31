@@ -212,6 +212,47 @@ class SuggestionViewModel @Inject constructor(
         }
     }
 
+    fun updateSuggestion(suggestionId: String, newTitle: String, newContent: String, onSuccess: (Suggestion) -> Unit, onError: (String) -> Unit = {}) {
+        viewModelScope.launch {
+            try {
+                if (suggestionId.isBlank() || newTitle.isBlank() || newContent.isBlank()) {
+                    onError("제목과 내용을 모두 입력해 주세요.")
+                    return@launch
+                }
+                val updates = hashMapOf<String, Any>(
+                    "title" to newTitle,
+                    "content" to newContent
+                )
+                firestore.collection("suggestions")
+                    .document(suggestionId)
+                    .update(updates)
+                    .await()
+
+                var updatedSuggestion: Suggestion? = null
+                val currentList = _suggestions.value.map { item ->
+                    if (item.id == suggestionId) {
+                        val updated = item.copy(title = newTitle, content = newContent)
+                        updatedSuggestion = updated
+                        updated
+                    } else {
+                        item
+                    }
+                }
+                _suggestions.value = currentList
+
+                if (updatedSuggestion != null) {
+                    onSuccess(updatedSuggestion!!)
+                } else {
+                    val fallback = Suggestion(id = suggestionId, title = newTitle, content = newContent)
+                    onSuccess(fallback)
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("SuggestionViewModel", "Failed to update suggestion", e)
+                onError(e.message ?: "게시글 수정에 실패했습니다.")
+            }
+        }
+    }
+
     fun addComment(suggestionId: String, content: String, onSuccess: () -> Unit, onError: (String) -> Unit = {}) {
         viewModelScope.launch {
             try {
