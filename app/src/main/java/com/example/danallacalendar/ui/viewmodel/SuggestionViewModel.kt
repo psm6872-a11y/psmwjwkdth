@@ -60,30 +60,28 @@ class SuggestionViewModel @Inject constructor(
 
     private fun parseSuggestion(doc: com.google.firebase.firestore.DocumentSnapshot): Suggestion? {
         return try {
-            val s = doc.toObject(Suggestion::class.java)
-            if (s != null && s.title.isNotBlank()) {
-                if (s.id.isBlank()) s.id = doc.id
-                s
-            } else {
-                parseSuggestionFallback(doc)
-            }
-        } catch (e: Exception) {
-            android.util.Log.e("SuggestionViewModel", "Failed to parse suggestion doc ${doc.id}, using fallback", e)
-            parseSuggestionFallback(doc)
-        }
-    }
-
-    private fun parseSuggestionFallback(doc: com.google.firebase.firestore.DocumentSnapshot): Suggestion? {
-        return try {
-            val title = doc.getString("title") ?: ""
-            val content = doc.getString("content") ?: ""
-            val authorId = doc.getString("authorId") ?: ""
-            val authorNickname = doc.getString("authorNickname") ?: "익명"
-            val createdAt = doc.getLong("createdAt") ?: (doc.getTimestamp("createdAt")?.toDate()?.time ?: System.currentTimeMillis())
-            val isReported = doc.getBoolean("isReported") ?: doc.getBoolean("reported") ?: false
-            val isAdmin = doc.getBoolean("isAdmin") ?: doc.getBoolean("admin") ?: false
-            val isPinned = doc.getBoolean("isPinned") ?: doc.getBoolean("pinned") ?: false
-            val reportedByUserIds = (doc.get("reportedByUserIds") as? List<*>)?.mapNotNull { it?.toString() } ?: emptyList()
+            val data = doc.data ?: return null
+            val title = doc.getString("title") ?: data["title"]?.toString() ?: data["subject"]?.toString() ?: ""
+            val content = doc.getString("content") ?: data["content"]?.toString() ?: data["body"]?.toString() ?: ""
+            val authorId = doc.getString("authorId") ?: data["authorId"]?.toString() ?: ""
+            val authorNickname = doc.getString("authorNickname") ?: data["authorNickname"]?.toString() ?: "익명"
+            val createdAt = doc.getLong("createdAt") 
+                ?: (data["createdAt"] as? Long) 
+                ?: (doc.getTimestamp("createdAt")?.toDate()?.time) 
+                ?: System.currentTimeMillis()
+            val isReported = doc.getBoolean("isReported") 
+                ?: (data["isReported"] as? Boolean) 
+                ?: doc.getBoolean("reported") 
+                ?: false
+            val isAdmin = doc.getBoolean("isAdmin") 
+                ?: (data["isAdmin"] as? Boolean) 
+                ?: doc.getBoolean("admin") 
+                ?: false
+            val isPinned = doc.getBoolean("isPinned") 
+                ?: (data["isPinned"] as? Boolean) 
+                ?: doc.getBoolean("pinned") 
+                ?: false
+            val reportedByUserIds = (data["reportedByUserIds"] as? List<*>)?.mapNotNull { it?.toString() } ?: emptyList()
 
             Suggestion(
                 id = doc.id,
@@ -98,7 +96,7 @@ class SuggestionViewModel @Inject constructor(
                 isPinned = isPinned
             )
         } catch (e: Exception) {
-            android.util.Log.e("SuggestionViewModel", "Fallback parse failed for doc ${doc.id}", e)
+            android.util.Log.e("SuggestionViewModel", "Parse failed for doc ${doc.id}", e)
             null
         }
     }
@@ -124,32 +122,26 @@ class SuggestionViewModel @Inject constructor(
 
     private fun parseComment(doc: com.google.firebase.firestore.DocumentSnapshot): SuggestionComment? {
         return try {
-            val c = doc.toObject(SuggestionComment::class.java)
-            if (c != null && c.content.isNotBlank()) {
-                if (c.id.isBlank()) c.id = doc.id
-                c
-            } else {
-                parseCommentFallback(doc)
-            }
-        } catch (e: Exception) {
-            android.util.Log.e("SuggestionViewModel", "Failed to parse comment doc ${doc.id}, using fallback", e)
-            parseCommentFallback(doc)
-        }
-    }
-
-    private fun parseCommentFallback(doc: com.google.firebase.firestore.DocumentSnapshot): SuggestionComment? {
-        return try {
-            val id = doc.getString("id")?.ifBlank { doc.id } ?: doc.id
-            val content = doc.getString("content") ?: ""
-            val authorId = doc.getString("authorId") ?: ""
-            val authorNickname = doc.getString("authorNickname") ?: "익명"
-            val createdAt = doc.getLong("createdAt") ?: (doc.getTimestamp("createdAt")?.toDate()?.time ?: System.currentTimeMillis())
-            val isReported = doc.getBoolean("isReported") ?: doc.getBoolean("reported") ?: false
-            val isAdmin = doc.getBoolean("isAdmin") ?: doc.getBoolean("admin") ?: false
-            val reportedByUserIds = (doc.get("reportedByUserIds") as? List<*>)?.mapNotNull { it?.toString() } ?: emptyList()
+            val data = doc.data ?: return null
+            val content = doc.getString("content") ?: data["content"]?.toString() ?: data["text"]?.toString() ?: ""
+            val authorId = doc.getString("authorId") ?: data["authorId"]?.toString() ?: ""
+            val authorNickname = doc.getString("authorNickname") ?: data["authorNickname"]?.toString() ?: "익명"
+            val createdAt = doc.getLong("createdAt") 
+                ?: (data["createdAt"] as? Long) 
+                ?: (doc.getTimestamp("createdAt")?.toDate()?.time) 
+                ?: System.currentTimeMillis()
+            val isReported = doc.getBoolean("isReported") 
+                ?: (data["isReported"] as? Boolean) 
+                ?: doc.getBoolean("reported") 
+                ?: false
+            val isAdmin = doc.getBoolean("isAdmin") 
+                ?: (data["isAdmin"] as? Boolean) 
+                ?: doc.getBoolean("admin") 
+                ?: false
+            val reportedByUserIds = (data["reportedByUserIds"] as? List<*>)?.mapNotNull { it?.toString() } ?: emptyList()
 
             SuggestionComment(
-                id = id,
+                id = doc.id,
                 content = content,
                 authorId = authorId,
                 authorNickname = authorNickname,
@@ -159,7 +151,7 @@ class SuggestionViewModel @Inject constructor(
                 isAdmin = isAdmin
             )
         } catch (e: Exception) {
-            android.util.Log.e("SuggestionViewModel", "Fallback parse failed for comment doc ${doc.id}", e)
+            android.util.Log.e("SuggestionViewModel", "Parse failed for comment doc ${doc.id}", e)
             null
         }
     }
@@ -176,16 +168,35 @@ class SuggestionViewModel @Inject constructor(
                 val ref = firestore.collection("suggestions").document()
                 val isAdmin = userPreferences.isAdmin()
                 val authorNick = userPreferences.getNickname().ifBlank { if (isAdmin) "관리자" else "익명" }
+                val authorId = userPreferences.getDeviceUUID()
+                val now = System.currentTimeMillis()
+
+                val suggestionMap = hashMapOf<String, Any>(
+                    "id" to ref.id,
+                    "title" to title,
+                    "content" to content,
+                    "authorId" to authorId,
+                    "authorNickname" to authorNick,
+                    "createdAt" to now,
+                    "reportedByUserIds" to emptyList<String>(),
+                    "isReported" to false,
+                    "isAdmin" to isAdmin,
+                    "isPinned" to false
+                )
+                ref.set(suggestionMap).await()
+
                 val suggestion = Suggestion(
                     id = ref.id,
                     title = title,
                     content = content,
-                    authorId = userPreferences.getDeviceUUID(),
+                    authorId = authorId,
                     authorNickname = authorNick,
-                    createdAt = System.currentTimeMillis(),
-                    isAdmin = isAdmin
+                    createdAt = now,
+                    reportedByUserIds = emptyList(),
+                    isReported = false,
+                    isAdmin = isAdmin,
+                    isPinned = false
                 )
-                ref.set(suggestion).await()
 
                 // 로컬 리스트에 즉시 추가 (네트워크 지연이나 렌더링 타이밍 이슈 방지)
                 val currentList = _suggestions.value.toMutableList()
@@ -210,26 +221,41 @@ class SuggestionViewModel @Inject constructor(
                     .document()
                 val isAdmin = userPreferences.isAdmin()
                 val authorNick = userPreferences.getNickname().ifBlank { if (isAdmin) "관리자" else "익명" }
+                val authorId = userPreferences.getDeviceUUID()
+                val now = System.currentTimeMillis()
+
+                val commentMap = hashMapOf<String, Any>(
+                    "id" to ref.id,
+                    "content" to content,
+                    "authorId" to authorId,
+                    "authorNickname" to authorNick,
+                    "createdAt" to now,
+                    "reportedByUserIds" to emptyList<String>(),
+                    "isReported" to false,
+                    "isAdmin" to isAdmin
+                )
+                ref.set(commentMap).await()
+
                 val comment = SuggestionComment(
                     id = ref.id,
                     content = content,
-                    authorId = userPreferences.getDeviceUUID(),
+                    authorId = authorId,
                     authorNickname = authorNick,
-                    createdAt = System.currentTimeMillis(),
+                    createdAt = now,
+                    reportedByUserIds = emptyList(),
+                    isReported = false,
                     isAdmin = isAdmin
                 )
-                ref.set(comment).await()
 
-                // 로컬 댓글 리스트에 즉시 추가
-                val currentComments = _comments.value.toMutableList()
-                currentComments.removeAll { it.id == comment.id }
-                currentComments.add(comment)
-                _comments.value = currentComments
+                val currentList = _comments.value.toMutableList()
+                currentList.removeAll { it.id == comment.id }
+                currentList.add(comment)
+                _comments.value = currentList
 
                 onSuccess()
             } catch (e: Exception) {
                 android.util.Log.e("SuggestionViewModel", "Failed to add comment", e)
-                onError(e.message ?: "댓글 등록에 실패했습니다.")
+                onError(e.message ?: "댓글 작성에 실패했습니다.")
             }
         }
     }
