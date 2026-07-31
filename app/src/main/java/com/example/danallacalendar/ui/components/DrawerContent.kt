@@ -290,7 +290,7 @@ fun DrawerContent(
                         onEstimateListClick()
                     }
                 }
-                .alpha( if (isReadOnlySharedMember) 0.3f else 1.0f)
+                .alpha(if (isReadOnlySharedMember) 0.3f else 1.0f)
                 .background(MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.4f))
                 .padding(vertical = 12.dp, horizontal = 12.dp),
             verticalAlignment = Alignment.CenterVertically
@@ -323,7 +323,7 @@ fun DrawerContent(
                         onEstimateClick()
                     }
                 }
-                .alpha( if (isReadOnlySharedMember) 0.3f else 1.0f)
+                .alpha(if (isReadOnlySharedMember) 0.3f else 1.0f)
                 .background(MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.2f))
                 .padding(vertical = 12.dp, horizontal = 12.dp),
             verticalAlignment = Alignment.CenterVertically
@@ -375,14 +375,7 @@ fun DrawerContent(
             modifier = Modifier
                 .fillMaxWidth()
                 .clip(MaterialTheme.shapes.medium)
-                .clickable {
-                    if (isReadOnlySharedMember) {
-                        Toast.makeText(context, "읽기 전용 멤버는 접근할 수 없습니다.", Toast.LENGTH_SHORT).show()
-                    } else {
-                        onSuggestionsClick()
-                    }
-                }
-                .alpha( if (isReadOnlySharedMember) 0.3f else 1.0f)
+                .clickable { onSuggestionsClick() }
                 .background(MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.2f))
                 .padding(vertical = 12.dp, horizontal = 12.dp),
             verticalAlignment = Alignment.CenterVertically
@@ -426,14 +419,7 @@ fun DrawerContent(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(MaterialTheme.shapes.medium)
-                    .clickable {
-                        if (isReadOnlySharedMember) {
-                            Toast.makeText(context, "읽기 전용 멤버는 접근할 수 없습니다.", Toast.LENGTH_SHORT).show()
-                        } else {
-                            onToggleCategory(category)
-                        }
-                    }
-                    .alpha( if (isReadOnlySharedMember) 0.3f else 1.0f)
+                    .clickable { onToggleCategory(category) }
                     .padding(vertical = 12.dp, horizontal = 8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -650,15 +636,15 @@ fun DrawerContent(
                                     val isMemberCreator = creatorUUID != null && member.deviceUUID == creatorUUID
                                     val statusText = if (isMemberCreator) {
                                         "방장"
-                                    } else if (member.hasWritePermission) {
-                                        "읽기/쓰기 가능"
+                                    } else if (isHost) {
+                                        if (member.hasWritePermission) "읽기/쓰기 가능" else "읽기 전용"
                                     } else {
-                                        "읽기 전용"
+                                        "참여중"
                                     }
                                     Text(
                                         text = statusText,
                                         fontSize = 11.sp,
-                                        color = if (isMemberCreator) Color(0xFFF2C94C) else if (member.hasWritePermission) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                                        color = if (isMemberCreator) Color(0xFFF2C94C) else if (isHost && member.hasWritePermission) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
                                         fontWeight = FontWeight.Medium
                                     )
                                 }
