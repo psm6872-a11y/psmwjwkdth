@@ -206,7 +206,7 @@ class UserPreferences(context: Context) {
     }
 
     fun isRoomCreator(roomCode: String): Boolean {
-        if (roomCode.isEmpty()) return true
+        if (roomCode.isEmpty()) return false
         return prefs.getBoolean("is_creator_$roomCode", false)
     }
 

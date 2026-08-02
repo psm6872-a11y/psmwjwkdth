@@ -146,6 +146,7 @@ class CalendarRepository @Inject constructor(
             .get()
             .addOnSuccessListener { document ->
                 if (document.exists()) {
+                    userPreferences.removeRoomCreator(roomCode) // 참여자는 방장이 아님을 명시적 확정
                     userPreferences.setLastRoomCode(roomCode)
                     registerMemberInFirestore(roomCode)
                     onSuccess()
@@ -163,6 +164,7 @@ class CalendarRepository @Inject constructor(
         if (roomCode.isEmpty() || currentNickname.isEmpty()) return
 
         val targetDeviceUUID = userPreferences.getDeviceUUID()
+        val isLocalCreator = userPreferences.isRoomCreator(roomCode)
 
         firestore.collection("rooms")
             .document(roomCode)
@@ -171,10 +173,13 @@ class CalendarRepository @Inject constructor(
             .get()
             .addOnSuccessListener { detailsDoc ->
                 val creatorUUID = detailsDoc.getString("createdBy") ?: ""
-                val isCreator = creatorUUID.isNotEmpty() && creatorUUID == targetDeviceUUID
+                val isCreator = isLocalCreator || (creatorUUID.isNotEmpty() && creatorUUID == targetDeviceUUID)
 
                 if (isCreator) {
+                    userPreferences.markAsRoomCreator(roomCode)
                     userPreferences.setWritePermission(true)
+                } else {
+                    userPreferences.removeRoomCreator(roomCode)
                 }
 
                 com.google.firebase.messaging.FirebaseMessaging.getInstance().token
@@ -209,6 +214,7 @@ class CalendarRepository @Inject constructor(
                     }
             }
             .addOnFailureListener {
+                val isCreator = isLocalCreator
                 com.google.firebase.messaging.FirebaseMessaging.getInstance().token
                     .addOnCompleteListener { task ->
                         val fcmToken = if (task.isSuccessful) task.result else ""
@@ -217,7 +223,7 @@ class CalendarRepository @Inject constructor(
                             "fcmToken" to fcmToken,
                             "updatedAt" to Timestamp.now(),
                             "joinedAt" to Timestamp.now(),
-                            "hasWritePermission" to false
+                            "hasWritePermission" to isCreator
                         )
                         firestore.collection("rooms")
                             .document(roomCode)

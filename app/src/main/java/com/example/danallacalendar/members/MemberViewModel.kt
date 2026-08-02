@@ -42,7 +42,7 @@ class MemberViewModel @Inject constructor(
 
     fun initializeRoom(roomCode: String) {
         if (roomCode.isBlank()) {
-            _isCreator.value = true
+            _isCreator.value = false
             _hasWritePermission.value = true
             return
         }
@@ -51,13 +51,10 @@ class MemberViewModel @Inject constructor(
         val localIsCreator = userPreferences.isRoomCreator(roomCode)
         _isCreator.value = localIsCreator
         _hasWritePermission.value = if (localIsCreator) true else userPreferences.hasWritePermission()
-        if (localIsCreator) {
-            userPreferences.setWritePermission(true)
-        }
 
         registerCurrentUser()
         observeCreator(roomCode)   // 방장 여부를 먼저 확인한 후
-        observeMembers(roomCode)   // 멤버 목록 관찰 (isCreator가 이미 설정된 상태)
+        observeMembers(roomCode)   // 멤버 목록 관찰
     }
 
     fun registerCurrentUser() {
@@ -73,18 +70,19 @@ class MemberViewModel @Inject constructor(
             memberRepository.getMembersFlow(roomCode).collect { memberList ->
                 _members.value = memberList
                 
-                val isMeCreator = _isCreator.value || userPreferences.isRoomCreator(roomCode) || (_creatorUUID.value != null && _creatorUUID.value == deviceUUID)
+                val isMeCreator = (_creatorUUID.value != null && _creatorUUID.value == deviceUUID) || userPreferences.isRoomCreator(roomCode)
                 if (isMeCreator) {
                     _isCreator.value = true
                     userPreferences.markAsRoomCreator(roomCode)
-                    userPreferences.setWritePermission(true)
+                    userPreferences.setRoomWritePermission(roomCode, true)
                     _hasWritePermission.value = true
                 } else {
+                    _isCreator.value = false
+                    userPreferences.removeRoomCreator(roomCode)
                     val me = memberList.firstOrNull { it.deviceUUID == deviceUUID }
-                    if (me != null) {
-                        userPreferences.setWritePermission(me.hasWritePermission)
-                        _hasWritePermission.value = me.hasWritePermission
-                    }
+                    val allowed = me?.hasWritePermission ?: false
+                    userPreferences.setRoomWritePermission(roomCode, allowed)
+                    _hasWritePermission.value = allowed
                 }
                 
                 val nickname = userPreferences.getNickname()
@@ -119,12 +117,18 @@ class MemberViewModel @Inject constructor(
         viewModelScope.launch {
             memberRepository.getRoomCreatorFlow(roomCode).collect { creatorUUID ->
                 _creatorUUID.value = creatorUUID
-                val isMeCreator = userPreferences.isRoomCreator(roomCode) || (creatorUUID != null && creatorUUID == deviceUUID)
+                val isMeCreator = creatorUUID != null && (creatorUUID == deviceUUID || userPreferences.isRoomCreator(roomCode))
                 _isCreator.value = isMeCreator
                 if (isMeCreator) {
                     userPreferences.markAsRoomCreator(roomCode)
-                    userPreferences.setWritePermission(true)
+                    userPreferences.setRoomWritePermission(roomCode, true)
                     _hasWritePermission.value = true
+                } else if (creatorUUID != null && creatorUUID != deviceUUID) {
+                    userPreferences.removeRoomCreator(roomCode)
+                    val me = _members.value.firstOrNull { it.deviceUUID == deviceUUID }
+                    val allowed = me?.hasWritePermission ?: false
+                    userPreferences.setRoomWritePermission(roomCode, allowed)
+                    _hasWritePermission.value = allowed
                 }
             }
         }

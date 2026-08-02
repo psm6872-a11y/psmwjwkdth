@@ -633,18 +633,16 @@ fun DrawerContent(
                                         )
                                     }
                                     Spacer(modifier = Modifier.height(2.dp))
-                                    val isMemberCreator = creatorUUID != null && member.deviceUUID == creatorUUID
+                                    val isMemberCreator = (creatorUUID != null && member.deviceUUID == creatorUUID) || (member.deviceUUID == currentDeviceUUID && isCreator)
                                     val statusText = if (isMemberCreator) {
                                         "방장"
-                                    } else if (isHost) {
-                                        if (member.hasWritePermission) "읽기/쓰기 가능" else "읽기 전용"
                                     } else {
-                                        "참여중"
+                                        if (member.hasWritePermission) "읽기/쓰기 가능" else "읽기 전용"
                                     }
                                     Text(
                                         text = statusText,
                                         fontSize = 11.sp,
-                                        color = if (isMemberCreator) Color(0xFFF2C94C) else if (isHost && member.hasWritePermission) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                                        color = if (isMemberCreator) Color(0xFFF2C94C) else if (member.hasWritePermission) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
                                         fontWeight = FontWeight.Medium
                                     )
                                 }
