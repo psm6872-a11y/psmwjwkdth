@@ -154,4 +154,24 @@ class MemberViewModel @Inject constructor(
             }
         }
     }
+
+    fun leaveRoom(newHostUUID: String? = null, onComplete: () -> Unit) {
+        if (currentRoomCode.isBlank() || deviceUUID.isBlank()) {
+            onComplete()
+            return
+        }
+        viewModelScope.launch {
+            try {
+                if (!newHostUUID.isNullOrBlank()) {
+                    memberRepository.transferHost(currentRoomCode, newHostUUID)
+                    memberRepository.updateWritePermission(currentRoomCode, newHostUUID, true)
+                }
+                memberRepository.removeMember(currentRoomCode, deviceUUID)
+            } catch (e: Exception) {
+                android.util.Log.e("MemberViewModel", "Failed to leave room", e)
+            } finally {
+                onComplete()
+            }
+        }
+    }
 }

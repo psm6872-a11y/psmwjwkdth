@@ -58,7 +58,7 @@ class CalendarRepository @Inject constructor(
     // Suspending wrapper for createRoom with offline fallback
     suspend fun createRoomSuspended(): String {
         return try {
-            kotlinx.coroutines.withTimeout(3000) {
+            kotlinx.coroutines.withTimeout(5000) {
                 suspendCancellableCoroutine<String> { continuation ->
                     createRoom(
                         onSuccess = { code ->
@@ -79,7 +79,7 @@ class CalendarRepository @Inject constructor(
     // Suspending wrapper for joinRoom with timeout
     suspend fun joinRoomSuspended(roomCode: String): Unit {
         try {
-            kotlinx.coroutines.withTimeout(3000) {
+            kotlinx.coroutines.withTimeout(5000) {
                 suspendCancellableCoroutine<Unit> { continuation ->
                     joinRoom(
                         roomCode = roomCode,
@@ -109,12 +109,13 @@ class CalendarRepository @Inject constructor(
         onFailure: (Exception) -> Unit
     ) {
         val roomCode = generateRoomCode()
+        val myUUID = userPreferences.getDeviceUUID()
         userPreferences.setLastRoomCode(roomCode) // Save locally first for offline support!
         userPreferences.setWritePermission(true) // 방 생성자는 즉시 쓰기 권한 부여 (Race Condition 방지)
         
         val roomData = Room(
             createdAt = Timestamp.now(),
-            createdBy = userPreferences.getDeviceUUID()
+            createdBy = myUUID
         )
 
         firestore.collection("rooms")
@@ -171,76 +172,42 @@ class CalendarRepository @Inject constructor(
                 val creatorUUID = detailsDoc.getString("createdBy") ?: ""
                 val isCreator = creatorUUID.isNotEmpty() && creatorUUID == targetDeviceUUID
 
-                firestore.collection("rooms")
-                    .document(roomCode)
-                    .collection("members")
-                    .whereEqualTo("nickname", currentNickname)
-                    .get()
-                    .addOnSuccessListener { querySnapshot ->
-                        var finalUUID = targetDeviceUUID
-                        if (querySnapshot != null && !querySnapshot.isEmpty) {
-                            val existingDoc = querySnapshot.documents[0]
-                            val existingUUID = existingDoc.id
-                            if (existingUUID != targetDeviceUUID) {
-                                userPreferences.setDeviceUUID(existingUUID)
-                                finalUUID = existingUUID
+                if (isCreator) {
+                    userPreferences.setWritePermission(true)
+                }
+
+                com.google.firebase.messaging.FirebaseMessaging.getInstance().token
+                    .addOnCompleteListener { task ->
+                        val fcmToken = if (task.isSuccessful) task.result else ""
+                        val memberData = hashMapOf<String, Any>(
+                            "nickname" to currentNickname,
+                            "fcmToken" to fcmToken,
+                            "updatedAt" to Timestamp.now()
+                        )
+
+                        val docRef = firestore.collection("rooms")
+                            .document(roomCode)
+                            .collection("members")
+                            .document(targetDeviceUUID)
+
+                        docRef.get().addOnSuccessListener { memberDoc ->
+                            if (!memberDoc.exists() || memberDoc.get("joinedAt") == null) {
+                                memberData["joinedAt"] = Timestamp.now()
                             }
+                            if (isCreator) {
+                                memberData["hasWritePermission"] = true
+                            } else if (!memberDoc.exists() || memberDoc.get("hasWritePermission") == null) {
+                                memberData["hasWritePermission"] = false
+                            }
+                            docRef.set(memberData, com.google.firebase.firestore.SetOptions.merge())
+                        }.addOnFailureListener {
+                            memberData["joinedAt"] = Timestamp.now()
+                            memberData["hasWritePermission"] = isCreator
+                            docRef.set(memberData, com.google.firebase.firestore.SetOptions.merge())
                         }
-
-                        com.google.firebase.messaging.FirebaseMessaging.getInstance().token
-                            .addOnCompleteListener { task ->
-                                val fcmToken = if (task.isSuccessful) task.result else ""
-                                val memberData = hashMapOf<String, Any>(
-                                    "nickname" to currentNickname,
-                                    "fcmToken" to fcmToken,
-                                    "updatedAt" to Timestamp.now()
-                                )
-
-                                val docRef = firestore.collection("rooms")
-                                    .document(roomCode)
-                                    .collection("members")
-                                    .document(finalUUID)
-
-                                docRef.get().addOnSuccessListener { memberDoc ->
-                                    if (!memberDoc.exists() || memberDoc.get("joinedAt") == null) {
-                                        memberData["joinedAt"] = Timestamp.now()
-                                    }
-                                    if (!memberDoc.exists() || memberDoc.get("hasWritePermission") == null) {
-                                        memberData["hasWritePermission"] = isCreator
-                                    } else {
-                                        if (isCreator) {
-                                            memberData["hasWritePermission"] = true
-                                        }
-                                    }
-                                    docRef.set(memberData, com.google.firebase.firestore.SetOptions.merge())
-                                }.addOnFailureListener {
-                                    memberData["joinedAt"] = Timestamp.now()
-                                    memberData["hasWritePermission"] = isCreator
-                                    docRef.set(memberData, com.google.firebase.firestore.SetOptions.merge())
-                                }
-                            }
-                    }
-                    .addOnFailureListener {
-                        com.google.firebase.messaging.FirebaseMessaging.getInstance().token
-                            .addOnCompleteListener { task ->
-                                val fcmToken = if (task.isSuccessful) task.result else ""
-                                val memberData = hashMapOf<String, Any>(
-                                    "nickname" to currentNickname,
-                                    "fcmToken" to fcmToken,
-                                    "updatedAt" to Timestamp.now(),
-                                    "joinedAt" to Timestamp.now(),
-                                    "hasWritePermission" to isCreator
-                                )
-                                firestore.collection("rooms")
-                                    .document(roomCode)
-                                    .collection("members")
-                                    .document(targetDeviceUUID)
-                                    .set(memberData, com.google.firebase.firestore.SetOptions.merge())
-                            }
                     }
             }
             .addOnFailureListener {
-                // If details cannot be loaded, fallback to checking nickname
                 com.google.firebase.messaging.FirebaseMessaging.getInstance().token
                     .addOnCompleteListener { task ->
                         val fcmToken = if (task.isSuccessful) task.result else ""
@@ -249,7 +216,7 @@ class CalendarRepository @Inject constructor(
                             "fcmToken" to fcmToken,
                             "updatedAt" to Timestamp.now(),
                             "joinedAt" to Timestamp.now(),
-                            "hasWritePermission" to false // default to false
+                            "hasWritePermission" to false
                         )
                         firestore.collection("rooms")
                             .document(roomCode)

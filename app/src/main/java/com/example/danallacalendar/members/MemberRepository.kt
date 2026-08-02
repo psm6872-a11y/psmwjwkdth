@@ -35,93 +35,45 @@ class MemberRepository @Inject constructor(
                 val creatorUUID = detailsDoc.getString("createdBy") ?: ""
                 val isCreator = creatorUUID.isNotEmpty() && creatorUUID == deviceUUID
 
-                firestore.collection("rooms")
-                    .document(roomCode)
-                    .collection("members")
-                    .whereEqualTo("nickname", nickname)
-                    .get()
-                    .addOnSuccessListener { querySnapshot ->
-                        var targetUUID = deviceUUID
-                        if (querySnapshot != null && !querySnapshot.isEmpty) {
-                            val existingDoc = querySnapshot.documents[0]
-                            val existingUUID = existingDoc.id
-                            if (existingUUID != deviceUUID) {
-                                userPreferences.setDeviceUUID(existingUUID)
-                                targetUUID = existingUUID
-                                android.util.Log.d("MemberRepository", "Restored existing deviceUUID ($existingUUID) for nickname: $nickname")
-                            }
-                        }
-                        
-                        val docRef = firestore.collection("rooms")
-                            .document(roomCode)
-                            .collection("members")
-                            .document(targetUUID)
-                            
-                        docRef.get().addOnSuccessListener { document ->
-                            val data = hashMapOf<String, Any>(
-                                "nickname" to nickname,
-                                "lastSeen" to Timestamp.now()
-                            )
-                            if (!document.exists() || document.get("joinedAt") == null) {
-                                data["joinedAt"] = Timestamp.now()
-                            }
-                            if (!document.exists() || document.get("hasWritePermission") == null) {
-                                data["hasWritePermission"] = isCreator
-                            } else {
-                                if (isCreator) {
-                                    data["hasWritePermission"] = true
-                                }
-                            }
-                            docRef.set(data, com.google.firebase.firestore.SetOptions.merge())
-                        }.addOnFailureListener {
-                            val data = hashMapOf<String, Any>(
-                                "nickname" to nickname,
-                                "joinedAt" to Timestamp.now(),
-                                "lastSeen" to Timestamp.now(),
-                                "hasWritePermission" to isCreator
-                            )
-                            docRef.set(data, com.google.firebase.firestore.SetOptions.merge())
-                        }
-                    }
-                    .addOnFailureListener {
-                        val docRef = firestore.collection("rooms")
-                            .document(roomCode)
-                            .collection("members")
-                            .document(deviceUUID)
-                            
-                        docRef.get().addOnSuccessListener { document ->
-                            val data = hashMapOf<String, Any>(
-                                "nickname" to nickname,
-                                "lastSeen" to Timestamp.now()
-                            )
-                            if (!document.exists() || document.get("joinedAt") == null) {
-                                data["joinedAt"] = Timestamp.now()
-                            }
-                            if (!document.exists() || document.get("hasWritePermission") == null) {
-                                data["hasWritePermission"] = isCreator
-                            } else {
-                                if (isCreator) {
-                                    data["hasWritePermission"] = true
-                                }
-                            }
-                            docRef.set(data, com.google.firebase.firestore.SetOptions.merge())
-                        }.addOnFailureListener {
-                            val data = hashMapOf<String, Any>(
-                                "nickname" to nickname,
-                                "joinedAt" to Timestamp.now(),
-                                "lastSeen" to Timestamp.now(),
-                                "hasWritePermission" to isCreator
-                            )
-                            docRef.set(data, com.google.firebase.firestore.SetOptions.merge())
-                        }
-                    }
-            }
-            .addOnFailureListener {
-                // detailsDoc load failure, fallback to default registration without creator UUID check
+                if (isCreator) {
+                    userPreferences.setWritePermission(true)
+                }
+
                 val docRef = firestore.collection("rooms")
                     .document(roomCode)
                     .collection("members")
                     .document(deviceUUID)
+                    
+                docRef.get().addOnSuccessListener { document ->
+                    val data = hashMapOf<String, Any>(
+                        "nickname" to nickname,
+                        "lastSeen" to Timestamp.now()
+                    )
+                    if (!document.exists() || document.get("joinedAt") == null) {
+                        data["joinedAt"] = Timestamp.now()
+                    }
+                    if (isCreator) {
+                        data["hasWritePermission"] = true
+                    } else if (!document.exists() || document.get("hasWritePermission") == null) {
+                        data["hasWritePermission"] = false
+                    }
+                    docRef.set(data, com.google.firebase.firestore.SetOptions.merge())
+                }.addOnFailureListener {
+                    val data = hashMapOf<String, Any>(
+                        "nickname" to nickname,
+                        "joinedAt" to Timestamp.now(),
+                        "lastSeen" to Timestamp.now(),
+                        "hasWritePermission" to isCreator
+                    )
+                    docRef.set(data, com.google.firebase.firestore.SetOptions.merge())
+                }
+            }
+            .addOnFailureListener {
+                val docRef = firestore.collection("rooms")
+                    .document(roomCode)
+                    .collection("members")
+                    .document(deviceUUID)
+                    
                 docRef.get().addOnSuccessListener { document ->
                     val data = hashMapOf<String, Any>(
                         "nickname" to nickname,

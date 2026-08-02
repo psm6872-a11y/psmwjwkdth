@@ -200,6 +200,10 @@ fun CalendarMainScreen(
     val hasWritePermission by memberViewModel.hasWritePermission.collectAsStateWithLifecycle()
     val isReadOnlySharedMember = isLoggedIn && !isCreator && !hasWritePermission
 
+    var showLeaveRoomConfirmDialog by remember { mutableStateOf(false) }
+    var showSelectNewHostDialog by remember { mutableStateOf(false) }
+    var selectedNewHostUUID by remember { mutableStateOf("") }
+
     LaunchedEffect(isReadOnlySharedMember) {
         if (isReadOnlySharedMember) {
             viewModel.setEventFilter(EventFilter.CONTRACT)
@@ -375,7 +379,16 @@ fun CalendarMainScreen(
                     onTransferHost = { memberViewModel.transferHost(it) },
                     creatorUUID = creatorUUID,
                     onToggleWritePermission = { targetUUID, hasWrite -> memberViewModel.updateWritePermission(targetUUID, hasWrite) },
-                    onLogoutClick = { viewModel.logout() },
+                    onLogoutClick = {
+                        scope.launch { drawerState.close() }
+                        val otherMembers = members.filter { it.deviceUUID != memberViewModel.deviceUUID }
+                        if (isCreator && otherMembers.isNotEmpty()) {
+                            selectedNewHostUUID = otherMembers.first().deviceUUID
+                            showSelectNewHostDialog = true
+                        } else {
+                            showLeaveRoomConfirmDialog = true
+                        }
+                    },
                     onToggleCategory = { viewModel.toggleCategoryVisibility(it) },
                     onImportClick = {
                         scope.launch { drawerState.close() }
@@ -1071,6 +1084,141 @@ fun CalendarMainScreen(
                 estimate = selectedEstimateForDetail!!,
                 onDismiss = { showEstimateDetailDialog = false },
                 onEditClick = null
+            )
+        }
+
+        if (showSelectNewHostDialog) {
+            val otherMembers = members.filter { it.deviceUUID != memberViewModel.deviceUUID }
+            AlertDialog(
+                onDismissRequest = { showSelectNewHostDialog = false },
+                title = {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text("👑 ", fontSize = 18.sp)
+                        Text(
+                            text = "새 방장 지정 후 나가기",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 17.sp,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+                },
+                text = {
+                    Column {
+                        Text(
+                            text = "방장이 방을 나가려면 다음 방장을 지정해야 합니다.\n새 방장이 될 참여 멤버를 선택해 주세요.",
+                            fontSize = 13.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Spacer(modifier = Modifier.height(14.dp))
+                        
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .heightIn(max = 220.dp)
+                                .verticalScroll(rememberScrollState()),
+                            verticalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            otherMembers.forEach { member ->
+                                val isSelected = (selectedNewHostUUID == member.deviceUUID)
+                                Surface(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clip(RoundedCornerShape(10.dp))
+                                        .clickable { selectedNewHostUUID = member.deviceUUID },
+                                    color = if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                                    shape = RoundedCornerShape(10.dp)
+                                ) {
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(horizontal = 12.dp, vertical = 10.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        RadioButton(
+                                            selected = isSelected,
+                                            onClick = { selectedNewHostUUID = member.deviceUUID },
+                                            colors = RadioButtonDefaults.colors(selectedColor = MaterialTheme.colorScheme.primary)
+                                        )
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Column {
+                                            Text(
+                                                text = member.nickname,
+                                                fontWeight = FontWeight.Bold,
+                                                fontSize = 14.sp,
+                                                color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface
+                                            )
+                                            Text(
+                                                text = if (member.hasWritePermission) "읽기/쓰기 가능" else "읽기 전용",
+                                                fontSize = 11.sp,
+                                                color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f) else Color.Gray
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            showSelectNewHostDialog = false
+                            if (selectedNewHostUUID.isNotEmpty()) {
+                                memberViewModel.leaveRoom(newHostUUID = selectedNewHostUUID) {
+                                    viewModel.logout()
+                                }
+                            }
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                    ) {
+                        Text("방장 위임 및 나가기", fontWeight = FontWeight.Bold, color = Color.White)
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showSelectNewHostDialog = false }) {
+                        Text("취소", color = Color.Gray)
+                    }
+                }
+            )
+        }
+
+        if (showLeaveRoomConfirmDialog) {
+            val isSingleHost = isCreator && members.none { it.deviceUUID != memberViewModel.deviceUUID }
+            AlertDialog(
+                onDismissRequest = { showLeaveRoomConfirmDialog = false },
+                title = {
+                    Text(
+                        text = "방 나가기",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 17.sp,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                },
+                text = {
+                    Text(
+                        text = if (isSingleHost) "방에 다른 참여 멤버가 없습니다.\n정말 방에서 나가시겠습니까?" else "정말 현재 공유 방에서 나가시겠습니까?",
+                        fontSize = 14.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            showLeaveRoomConfirmDialog = false
+                            memberViewModel.leaveRoom(newHostUUID = null) {
+                                viewModel.logout()
+                            }
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                    ) {
+                        Text("나가기", fontWeight = FontWeight.Bold, color = Color.White)
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showLeaveRoomConfirmDialog = false }) {
+                        Text("취소", color = Color.Gray)
+                    }
+                }
             )
         }
 
