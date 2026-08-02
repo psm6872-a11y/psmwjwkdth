@@ -110,6 +110,7 @@ class CalendarRepository @Inject constructor(
     ) {
         val roomCode = generateRoomCode()
         val myUUID = userPreferences.getDeviceUUID()
+        userPreferences.markAsRoomCreator(roomCode) // 방 생성자로 로컬에 즉시 영구 기록!
         userPreferences.setLastRoomCode(roomCode) // Save locally first for offline support!
         userPreferences.setWritePermission(true) // 방 생성자는 즉시 쓰기 권한 부여 (Race Condition 방지)
         

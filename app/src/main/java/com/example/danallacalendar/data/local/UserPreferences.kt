@@ -182,4 +182,24 @@ class UserPreferences(context: Context) {
     fun setWritePermission(allowed: Boolean) {
         prefs.edit().putBoolean("has_write_permission", allowed).apply()
     }
+
+    fun isRoomCreator(roomCode: String): Boolean {
+        if (roomCode.isEmpty()) return true
+        return prefs.getBoolean("is_creator_$roomCode", false)
+    }
+
+    fun markAsRoomCreator(roomCode: String) {
+        if (roomCode.isNotEmpty()) {
+            prefs.edit()
+                .putBoolean("is_creator_$roomCode", true)
+                .putBoolean("has_write_permission", true)
+                .apply()
+        }
+    }
+
+    fun removeRoomCreator(roomCode: String) {
+        if (roomCode.isNotEmpty()) {
+            prefs.edit().remove("is_creator_$roomCode").apply()
+        }
+    }
 }

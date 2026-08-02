@@ -42,12 +42,19 @@ class MemberViewModel @Inject constructor(
 
     fun initializeRoom(roomCode: String) {
         if (roomCode.isBlank()) {
+            _isCreator.value = true
             _hasWritePermission.value = true
             return
         }
         currentRoomCode = roomCode
-        // 로컬에 이미 저장된 쓰기 권한이 있으면 즉시 반영 (방 생성자 재진입 시 Race Condition 방지)
-        _hasWritePermission.value = userPreferences.hasWritePermission()
+        
+        val localIsCreator = userPreferences.isRoomCreator(roomCode)
+        _isCreator.value = localIsCreator
+        _hasWritePermission.value = if (localIsCreator) true else userPreferences.hasWritePermission()
+        if (localIsCreator) {
+            userPreferences.setWritePermission(true)
+        }
+
         registerCurrentUser()
         observeCreator(roomCode)   // 방장 여부를 먼저 확인한 후
         observeMembers(roomCode)   // 멤버 목록 관찰 (isCreator가 이미 설정된 상태)
@@ -66,15 +73,18 @@ class MemberViewModel @Inject constructor(
             memberRepository.getMembersFlow(roomCode).collect { memberList ->
                 _members.value = memberList
                 
-                val me = memberList.firstOrNull { it.deviceUUID == deviceUUID }
-                if (me != null) {
-                    // 방장은 항상 쓰기 권한 보장 (Race Condition 방지)
-                    val allowed = if (_isCreator.value) true else me.hasWritePermission
-                    userPreferences.setWritePermission(allowed)
-                    _hasWritePermission.value = allowed
-                } else if (_isCreator.value) {
+                val isMeCreator = _isCreator.value || userPreferences.isRoomCreator(roomCode) || (_creatorUUID.value != null && _creatorUUID.value == deviceUUID)
+                if (isMeCreator) {
+                    _isCreator.value = true
+                    userPreferences.markAsRoomCreator(roomCode)
                     userPreferences.setWritePermission(true)
                     _hasWritePermission.value = true
+                } else {
+                    val me = memberList.firstOrNull { it.deviceUUID == deviceUUID }
+                    if (me != null) {
+                        userPreferences.setWritePermission(me.hasWritePermission)
+                        _hasWritePermission.value = me.hasWritePermission
+                    }
                 }
                 
                 val nickname = userPreferences.getNickname()
@@ -109,9 +119,10 @@ class MemberViewModel @Inject constructor(
         viewModelScope.launch {
             memberRepository.getRoomCreatorFlow(roomCode).collect { creatorUUID ->
                 _creatorUUID.value = creatorUUID
-                val isMeCreator = (creatorUUID != null && creatorUUID == deviceUUID)
+                val isMeCreator = userPreferences.isRoomCreator(roomCode) || (creatorUUID != null && creatorUUID == deviceUUID)
                 _isCreator.value = isMeCreator
                 if (isMeCreator) {
+                    userPreferences.markAsRoomCreator(roomCode)
                     userPreferences.setWritePermission(true)
                     _hasWritePermission.value = true
                 }
@@ -135,6 +146,7 @@ class MemberViewModel @Inject constructor(
         if (currentRoomCode.isNotEmpty() && newHostUUID.isNotEmpty()) {
             viewModelScope.launch {
                 try {
+                    userPreferences.removeRoomCreator(currentRoomCode)
                     memberRepository.transferHost(currentRoomCode, newHostUUID)
                 } catch (e: Exception) {
                     android.util.Log.e("MemberViewModel", "Failed to transfer host privilege", e)
