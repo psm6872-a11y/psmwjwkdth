@@ -169,19 +169,29 @@ class MemberViewModel @Inject constructor(
 
     fun leaveRoom(newHostUUID: String? = null, onComplete: () -> Unit) {
         if (currentRoomCode.isBlank() || deviceUUID.isBlank()) {
+            _isCreator.value = false
+            _hasWritePermission.value = false
+            _creatorUUID.value = null
+            _members.value = emptyList()
             onComplete()
             return
         }
         viewModelScope.launch {
             try {
                 if (!newHostUUID.isNullOrBlank()) {
+                    userPreferences.removeRoomCreator(currentRoomCode)
                     memberRepository.transferHost(currentRoomCode, newHostUUID)
                     memberRepository.updateWritePermission(currentRoomCode, newHostUUID, true)
                 }
+                userPreferences.clearRoomState(currentRoomCode)
                 memberRepository.removeMember(currentRoomCode, deviceUUID)
             } catch (e: Exception) {
                 android.util.Log.e("MemberViewModel", "Failed to leave room", e)
             } finally {
+                _isCreator.value = false
+                _hasWritePermission.value = false
+                _creatorUUID.value = null
+                _members.value = emptyList()
                 onComplete()
             }
         }

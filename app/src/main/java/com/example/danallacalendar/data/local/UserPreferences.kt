@@ -121,7 +121,13 @@ class UserPreferences(context: Context) {
     }
 
     fun clearAll() {
-        prefs.edit().remove(KEY_NICKNAME).remove(KEY_LAST_ROOM_CODE).apply()
+        val roomCode = getLastRoomCode()
+        clearRoomState(roomCode)
+        prefs.edit()
+            .remove(KEY_NICKNAME)
+            .remove(KEY_LAST_ROOM_CODE)
+            .remove("has_write_permission")
+            .apply()
     }
 
     fun getDismissedContractSyncIds(): Set<String> {
@@ -175,12 +181,28 @@ class UserPreferences(context: Context) {
     }
 
     fun hasWritePermission(): Boolean {
-        if (getLastRoomCode().isEmpty()) return true
-        return prefs.getBoolean("has_write_permission", false)
+        val currentCode = getLastRoomCode()
+        if (currentCode.isEmpty()) return true
+        if (isRoomCreator(currentCode)) return true
+        return prefs.getBoolean("write_perm_$currentCode", prefs.getBoolean("has_write_permission", false))
     }
 
     fun setWritePermission(allowed: Boolean) {
-        prefs.edit().putBoolean("has_write_permission", allowed).apply()
+        val currentCode = getLastRoomCode()
+        val editor = prefs.edit().putBoolean("has_write_permission", allowed)
+        if (currentCode.isNotEmpty()) {
+            editor.putBoolean("write_perm_$currentCode", allowed)
+        }
+        editor.apply()
+    }
+
+    fun setRoomWritePermission(roomCode: String, allowed: Boolean) {
+        if (roomCode.isNotEmpty()) {
+            prefs.edit()
+                .putBoolean("write_perm_$roomCode", allowed)
+                .putBoolean("has_write_permission", allowed)
+                .apply()
+        }
     }
 
     fun isRoomCreator(roomCode: String): Boolean {
@@ -192,6 +214,7 @@ class UserPreferences(context: Context) {
         if (roomCode.isNotEmpty()) {
             prefs.edit()
                 .putBoolean("is_creator_$roomCode", true)
+                .putBoolean("write_perm_$roomCode", true)
                 .putBoolean("has_write_permission", true)
                 .apply()
         }
@@ -200,6 +223,18 @@ class UserPreferences(context: Context) {
     fun removeRoomCreator(roomCode: String) {
         if (roomCode.isNotEmpty()) {
             prefs.edit().remove("is_creator_$roomCode").apply()
+        }
+    }
+
+    fun clearRoomState(roomCode: String) {
+        if (roomCode.isNotEmpty()) {
+            prefs.edit()
+                .remove("is_creator_$roomCode")
+                .remove("write_perm_$roomCode")
+                .remove("has_write_permission")
+                .apply()
+        } else {
+            prefs.edit().remove("has_write_permission").apply()
         }
     }
 }

@@ -215,6 +215,8 @@ class CalendarViewModel @Inject constructor(
     }
 
     fun logout() {
+        val currentCode = userPreferences.getLastRoomCode()
+        userPreferences.clearRoomState(currentCode)
         userPreferences.setLastRoomCode("")
         _roomCodeState.value = ""
         _isLoggedIn.value = false

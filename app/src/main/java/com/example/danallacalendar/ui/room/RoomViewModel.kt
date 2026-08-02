@@ -29,6 +29,11 @@ class RoomViewModel @Inject constructor(
     val error = _error.asStateFlow()
 
     fun createRoom(onSuccess: (String) -> Unit) {
+        val currentNick = userPreferences.getNickname().trim()
+        if (currentNick.isBlank()) {
+            _error.value = "공유방을 생성하려면 닉네임을 먼저 설정해야 합니다."
+            return
+        }
         _loading.value = true
         _error.value = ""
         viewModelScope.launch {
@@ -46,6 +51,12 @@ class RoomViewModel @Inject constructor(
     }
 
     fun joinRoom(code: String, onSuccess: () -> Unit) {
+        val currentNick = userPreferences.getNickname().trim()
+        if (currentNick.isBlank()) {
+            _error.value = "공유방에 참여하려면 닉네임을 먼저 설정해야 합니다."
+            return
+        }
+
         // Normalize code input (trim space and replace dashes if any)
         val formattedCode = code.trim().replace(" ", "")
         if (formattedCode.length != 7 || !formattedCode.contains("-")) {

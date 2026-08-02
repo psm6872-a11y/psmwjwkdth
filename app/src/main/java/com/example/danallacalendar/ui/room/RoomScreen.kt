@@ -7,6 +7,7 @@ import android.widget.Toast
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
@@ -85,12 +86,31 @@ fun RoomScreen(
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Text(
-                    text = "환영합니다, ${nickname}님!",
+                    text = if (nickname.isBlank()) "닉네임을 먼저 설정해 주세요" else "환영합니다, ${nickname}님!",
                     fontSize = 20.sp,
                     fontWeight = FontWeight.Bold,
                     color = Color.White,
-                    modifier = Modifier.padding(bottom = 24.dp)
+                    modifier = Modifier.padding(bottom = 16.dp)
                 )
+
+                if (nickname.isBlank()) {
+                    Surface(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 16.dp)
+                            .clickable { onNavigateToNickname() },
+                        color = Color(0xFFEF4444).copy(alpha = 0.2f),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Text(
+                            text = "⚠️ 공유방을 생성하거나 참여하려면 닉네임 설정이 필수입니다. [터치하여 닉네임 설정]",
+                            fontSize = 12.sp,
+                            color = Color(0xFFFCA5A5),
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(12.dp)
+                        )
+                    }
+                }
 
                 if (loading) {
                     CircularProgressIndicator(color = Color(0xFF6366F1))
@@ -110,8 +130,13 @@ fun RoomScreen(
                     // Host Room Mode
                     Button(
                         onClick = {
-                            viewModel.createRoom { code ->
-                                // Optional auto copy or direct navigation
+                            if (nickname.isBlank()) {
+                                Toast.makeText(context, "닉네임을 먼저 설정해 주세요.", Toast.LENGTH_SHORT).show()
+                                onNavigateToNickname()
+                            } else {
+                                viewModel.createRoom { code ->
+                                    // Optional auto copy or direct navigation
+                                }
                             }
                         },
                         modifier = Modifier
@@ -156,7 +181,14 @@ fun RoomScreen(
                         }
                         Spacer(modifier = Modifier.height(16.dp))
                         Button(
-                            onClick = onNavigateToCalendar,
+                            onClick = {
+                                if (nickname.isBlank()) {
+                                    Toast.makeText(context, "닉네임을 먼저 설정해 주세요.", Toast.LENGTH_SHORT).show()
+                                    onNavigateToNickname()
+                                } else {
+                                    onNavigateToCalendar()
+                                }
+                            },
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(50.dp),
@@ -205,7 +237,10 @@ fun RoomScreen(
 
                     Button(
                         onClick = {
-                            if (!isNetworkAvailable(context)) {
+                            if (nickname.isBlank()) {
+                                Toast.makeText(context, "닉네임을 먼저 설정해 주세요.", Toast.LENGTH_SHORT).show()
+                                onNavigateToNickname()
+                            } else if (!isNetworkAvailable(context)) {
                                 Toast.makeText(context, "인터넷 연결을 확인해주세요", Toast.LENGTH_SHORT).show()
                             } else {
                                 viewModel.joinRoom(inputCode) {
