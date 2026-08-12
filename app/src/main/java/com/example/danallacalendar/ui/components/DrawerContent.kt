@@ -632,19 +632,16 @@ fun DrawerContent(
                                                 .background(Color(0xFF34C759)) // Green dot
                                         )
                                     }
-                                    Spacer(modifier = Modifier.height(2.dp))
                                     val isMemberCreator = (creatorUUID != null && member.deviceUUID == creatorUUID) || (member.deviceUUID == currentDeviceUUID && isCreator)
-                                    val statusText = if (isMemberCreator) {
-                                        "방장"
-                                    } else {
-                                        if (member.hasWritePermission) "읽기/쓰기 가능" else "읽기 전용"
+                                    if (isMemberCreator) {
+                                        Spacer(modifier = Modifier.height(2.dp))
+                                        Text(
+                                            text = "방장",
+                                            fontSize = 11.sp,
+                                            color = Color(0xFFF2C94C),
+                                            fontWeight = FontWeight.Medium
+                                        )
                                     }
-                                    Text(
-                                        text = statusText,
-                                        fontSize = 11.sp,
-                                        color = if (isMemberCreator) Color(0xFFF2C94C) else if (member.hasWritePermission) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
-                                        fontWeight = FontWeight.Medium
-                                    )
                                 }
                             }
                             

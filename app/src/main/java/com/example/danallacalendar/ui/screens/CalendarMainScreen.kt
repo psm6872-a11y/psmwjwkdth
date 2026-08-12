@@ -3742,8 +3742,16 @@ fun getKoreanHolidayName(dateInMillis: Long): String? {
 }
 
 fun getKoreanLunarDateString(timeInMillis: Long): String {
-    val cc = android.icu.util.ChineseCalendar()
-    cc.timeInMillis = timeInMillis
+    val kstZone = android.icu.util.TimeZone.getTimeZone("Asia/Seoul")
+    val cc = android.icu.util.ChineseCalendar(kstZone)
+    val cal = java.util.Calendar.getInstance(java.util.TimeZone.getTimeZone("Asia/Seoul"))
+    cal.timeInMillis = timeInMillis
+    cal.set(java.util.Calendar.HOUR_OF_DAY, 12)
+    cal.set(java.util.Calendar.MINUTE, 0)
+    cal.set(java.util.Calendar.SECOND, 0)
+    cal.set(java.util.Calendar.MILLISECOND, 0)
+
+    cc.timeInMillis = cal.timeInMillis
     val month = cc.get(android.icu.util.ChineseCalendar.MONTH) + 1
     val day = cc.get(android.icu.util.ChineseCalendar.DAY_OF_MONTH)
     val isLeap = cc.get(android.icu.util.ChineseCalendar.IS_LEAP_MONTH) == 1
@@ -3751,8 +3759,16 @@ fun getKoreanLunarDateString(timeInMillis: Long): String {
 }
 
 fun isSonEopNeunDay(timeInMillis: Long): Boolean {
-    val cc = android.icu.util.ChineseCalendar()
-    cc.timeInMillis = timeInMillis
+    val kstZone = android.icu.util.TimeZone.getTimeZone("Asia/Seoul")
+    val cc = android.icu.util.ChineseCalendar(kstZone)
+    val cal = java.util.Calendar.getInstance(java.util.TimeZone.getTimeZone("Asia/Seoul"))
+    cal.timeInMillis = timeInMillis
+    cal.set(java.util.Calendar.HOUR_OF_DAY, 12)
+    cal.set(java.util.Calendar.MINUTE, 0)
+    cal.set(java.util.Calendar.SECOND, 0)
+    cal.set(java.util.Calendar.MILLISECOND, 0)
+
+    cc.timeInMillis = cal.timeInMillis
     val lunarDay = cc.get(android.icu.util.ChineseCalendar.DAY_OF_MONTH)
     return lunarDay == 9 || lunarDay == 10 || lunarDay == 19 || lunarDay == 20 || lunarDay == 29 || lunarDay == 30
 }
