@@ -207,6 +207,8 @@ fun CalendarMainScreen(
     LaunchedEffect(isReadOnlySharedMember) {
         if (isReadOnlySharedMember) {
             viewModel.setEventFilter(EventFilter.CONTRACT)
+        } else {
+            viewModel.setEventFilter(EventFilter.ALL)
         }
     }
 
