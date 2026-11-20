@@ -4,14 +4,11 @@ import com.example.danallacalendar.data.Event
 import com.google.firebase.Timestamp
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
-import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.tasks.await
 import java.text.SimpleDateFormat
 import java.util.*
 import javax.inject.Inject
 import javax.inject.Singleton
-import kotlin.coroutines.resume
-import kotlin.coroutines.resumeWithException
 
 data class BackupEntry(
     val id: String = "",          // date string, e.g. "2026-06-01"
@@ -53,9 +50,14 @@ class BackupRepository @Inject constructor(
                 "syncId"          to e.syncId,
                 "isSynced"        to e.isSynced,
                 "colorHex"        to e.colorHex,
-                "isCompleted"     to e.isCompleted,
-                "createdAt"       to e.createdAt,
-                "updatedAt"       to e.updatedAt
+                "isCompleted"      to e.isCompleted,
+                "createdAt"        to e.createdAt,
+                "updatedAt"        to e.updatedAt,
+                "linkedEstimateId" to e.linkedEstimateId,
+                "teamId"           to e.teamId,
+                "slotPosition"     to e.slotPosition,
+                "createdBy"        to e.createdBy,
+                "updatedBy"        to e.updatedBy
             )
         }
 
@@ -76,7 +78,7 @@ class BackupRepository @Inject constructor(
         dateKey
     }
 
-    // ── 백업 목록 조회 (최근 7일) ─────────────────────────────────────────────
+    // ── 백업 목록 조회 (최근 7일, 임시 복원전 백업 제외) ───────────────────────
     suspend fun getBackupList(roomCode: String): Result<List<BackupEntry>> = runCatching {
         if (roomCode.isEmpty()) return@runCatching emptyList()
 
@@ -84,16 +86,19 @@ class BackupRepository @Inject constructor(
             .document(roomCode)
             .collection("backups")
             .orderBy("createdAt", Query.Direction.DESCENDING)
-            .limit(BACKUP_RETENTION_DAYS.toLong())
+            .limit(20L)
             .get()
             .await()
 
-        snapshot.documents.mapNotNull { doc ->
-            val date       = doc.getString("date") ?: return@mapNotNull null
-            val createdAt  = doc.getTimestamp("createdAt")
-            val eventCount = doc.getLong("eventCount")?.toInt() ?: 0
-            BackupEntry(id = doc.id, date = date, createdAt = createdAt, eventCount = eventCount)
-        }
+        snapshot.documents
+            .filter { !it.id.startsWith("restore_backup_before_") }
+            .take(BACKUP_RETENTION_DAYS)
+            .mapNotNull { doc ->
+                val date       = doc.getString("date") ?: return@mapNotNull null
+                val createdAt  = doc.getTimestamp("createdAt")
+                val eventCount = doc.getLong("eventCount")?.toInt() ?: 0
+                BackupEntry(id = doc.id, date = date, createdAt = createdAt, eventCount = eventCount)
+            }
     }
 
     // ── 백업 복원 (이벤트 목록 반환) ──────────────────────────────────────────
@@ -130,9 +135,14 @@ class BackupRepository @Inject constructor(
                     syncId          = map["syncId"] as? String,
                     isSynced        = (map["isSynced"] as? Boolean) ?: false,
                     colorHex        = map["colorHex"] as? String,
-                    isCompleted     = (map["isCompleted"] as? Boolean) ?: false,
-                    createdAt       = (map["createdAt"] as? Long) ?: System.currentTimeMillis(),
-                    updatedAt       = (map["updatedAt"] as? Long) ?: System.currentTimeMillis()
+                    isCompleted      = (map["isCompleted"] as? Boolean) ?: false,
+                    createdAt        = (map["createdAt"] as? Long) ?: System.currentTimeMillis(),
+                    updatedAt        = (map["updatedAt"] as? Long) ?: System.currentTimeMillis(),
+                    linkedEstimateId = map["linkedEstimateId"] as? String,
+                    teamId           = (map["teamId"] as? Number)?.toInt(),
+                    slotPosition     = map["slotPosition"] as? String,
+                    createdBy        = map["createdBy"] as? String ?: "",
+                    updatedBy        = map["updatedBy"] as? String ?: ""
                 )
             } catch (e: Exception) {
                 android.util.Log.e(TAG, "이벤트 파싱 실패", e)
@@ -152,7 +162,9 @@ class BackupRepository @Inject constructor(
             .get()
             .await()
 
-        val toDelete = snapshot.documents.drop(BACKUP_RETENTION_DAYS)
+        val regularBackups = snapshot.documents.filter { !it.id.startsWith("restore_backup_before_") }
+        val tempBackups = snapshot.documents.filter { it.id.startsWith("restore_backup_before_") }
+        val toDelete = regularBackups.drop(BACKUP_RETENTION_DAYS) + tempBackups.drop(3)
         toDelete.forEach { it.reference.delete().await() }
         toDelete.size
     }

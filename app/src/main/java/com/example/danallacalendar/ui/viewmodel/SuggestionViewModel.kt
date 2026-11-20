@@ -31,6 +31,7 @@ class SuggestionViewModel @Inject constructor(
     private val _blockedUsers = MutableStateFlow<Set<String>>(emptySet())
     val blockedUsers: StateFlow<Set<String>> = _blockedUsers.asStateFlow()
 
+    private var suggestionsListenerRegistration: com.google.firebase.firestore.ListenerRegistration? = null
     private var commentsListenerRegistration: com.google.firebase.firestore.ListenerRegistration? = null
 
     init {
@@ -43,7 +44,8 @@ class SuggestionViewModel @Inject constructor(
     }
 
     private fun observeSuggestions() {
-        firestore.collection("suggestions")
+        suggestionsListenerRegistration?.remove()
+        suggestionsListenerRegistration = firestore.collection("suggestions")
             .addSnapshotListener { snapshot, error ->
                 if (error != null) {
                     android.util.Log.e("SuggestionViewModel", "Error listening to suggestions", error)
@@ -446,6 +448,8 @@ class SuggestionViewModel @Inject constructor(
 
     override fun onCleared() {
         super.onCleared()
+        suggestionsListenerRegistration?.remove()
+        suggestionsListenerRegistration = null
         stopObservingComments()
     }
 }

@@ -56,25 +56,30 @@ val TEAM_COUNT_KEY = intPreferencesKey("team_count")
 
 fun uriToBase64(context: Context, uri: android.net.Uri): String? {
     return try {
-        context.contentResolver.openInputStream(uri)?.use { inputStream ->
-            val bytes = inputStream.readBytes()
-            android.util.Base64.encodeToString(bytes, android.util.Base64.NO_WRAP)
+        val rawBytes = context.contentResolver.openInputStream(uri)?.use { it.readBytes() } ?: return null
+        val bitmap = android.graphics.BitmapFactory.decodeByteArray(rawBytes, 0, rawBytes.size)
+        if (bitmap == null) {
+            return android.util.Base64.encodeToString(rawBytes, android.util.Base64.NO_WRAP)
         }
+        val maxDim = 400
+        val scaled = if (bitmap.width > maxDim || bitmap.height > maxDim) {
+            val ratio = minOf(maxDim.toFloat() / bitmap.width, maxDim.toFloat() / bitmap.height)
+            val newW = (bitmap.width * ratio).toInt().coerceAtLeast(1)
+            val newH = (bitmap.height * ratio).toInt().coerceAtLeast(1)
+            android.graphics.Bitmap.createScaledBitmap(bitmap, newW, newH, true).also {
+                if (it !== bitmap) bitmap.recycle()
+            }
+        } else {
+            bitmap
+        }
+        val baos = java.io.ByteArrayOutputStream()
+        scaled.compress(android.graphics.Bitmap.CompressFormat.PNG, 90, baos)
+        scaled.recycle()
+        android.util.Base64.encodeToString(baos.toByteArray(), android.util.Base64.NO_WRAP)
     } catch (e: Exception) {
         e.printStackTrace()
         null
     }
-}
-
-fun updateCompanyInfo(roomCode: String, field: String, value: String) {
-    if (roomCode.isEmpty()) return
-    val firestore = FirebaseFirestore.getInstance()
-    val docRef = firestore.collection("company_info").document(roomCode)
-    val data = mapOf(field to value)
-    docRef.set(data, SetOptions.merge())
-        .addOnFailureListener { e ->
-            e.printStackTrace()
-        }
 }
 
 val TEAM_1_NAME_KEY = stringPreferencesKey("team_1_name")
@@ -206,9 +211,8 @@ fun SettingsScreen(
             scope.launch(kotlinx.coroutines.Dispatchers.IO) {
                 val base64Str = uriToBase64(context, it)
                 if (base64Str != null) {
-                    val mimeType = context.contentResolver.getType(it) ?: "image/png"
                     scope.launch(kotlinx.coroutines.Dispatchers.Main) {
-                        logoBase64 = "data:$mimeType;base64,$base64Str"
+                        logoBase64 = "data:image/png;base64,$base64Str"
                     }
                 }
             }
@@ -222,9 +226,8 @@ fun SettingsScreen(
             scope.launch(kotlinx.coroutines.Dispatchers.IO) {
                 val base64Str = uriToBase64(context, it)
                 if (base64Str != null) {
-                    val mimeType = context.contentResolver.getType(it) ?: "image/png"
                     scope.launch(kotlinx.coroutines.Dispatchers.Main) {
-                        stampBase64 = "data:$mimeType;base64,$base64Str"
+                        stampBase64 = "data:image/png;base64,$base64Str"
                     }
                 }
             }

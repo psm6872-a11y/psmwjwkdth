@@ -36,11 +36,15 @@ class MemberViewModel @Inject constructor(
     val kickedEvent = _kickedEvent.asSharedFlow()
 
     private var hasLoadedMembers = false
+    private var creatorJob: kotlinx.coroutines.Job? = null
+    private var membersJob: kotlinx.coroutines.Job? = null
 
     var currentRoomCode: String = ""
         private set
 
     fun initializeRoom(roomCode: String) {
+        creatorJob?.cancel()
+        membersJob?.cancel()
         if (roomCode.isBlank()) {
             _isCreator.value = false
             _hasWritePermission.value = true
@@ -66,7 +70,8 @@ class MemberViewModel @Inject constructor(
 
     private fun observeMembers(roomCode: String) {
         hasLoadedMembers = false
-        viewModelScope.launch {
+        membersJob?.cancel()
+        membersJob = viewModelScope.launch {
             memberRepository.getMembersFlow(roomCode).collect { memberList ->
                 _members.value = memberList
                 
@@ -114,7 +119,8 @@ class MemberViewModel @Inject constructor(
     }
 
     private fun observeCreator(roomCode: String) {
-        viewModelScope.launch {
+        creatorJob?.cancel()
+        creatorJob = viewModelScope.launch {
             memberRepository.getRoomCreatorFlow(roomCode).collect { creatorUUID ->
                 _creatorUUID.value = creatorUUID
                 val isMeCreator = creatorUUID != null && (creatorUUID == deviceUUID || userPreferences.isRoomCreator(roomCode))
@@ -152,6 +158,7 @@ class MemberViewModel @Inject constructor(
                 try {
                     userPreferences.removeRoomCreator(currentRoomCode)
                     memberRepository.transferHost(currentRoomCode, newHostUUID)
+                    memberRepository.updateWritePermission(currentRoomCode, newHostUUID, true)
                 } catch (e: Exception) {
                     android.util.Log.e("MemberViewModel", "Failed to transfer host privilege", e)
                 }

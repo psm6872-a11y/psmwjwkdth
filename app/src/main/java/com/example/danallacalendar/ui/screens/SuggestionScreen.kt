@@ -123,7 +123,16 @@ fun SuggestionScreen(
                             Toast.makeText(context, "관리자 권한이 해제되었습니다.", Toast.LENGTH_SHORT).show()
                         } else {
                             val trimmed = adminPasscodeInput.trim()
-                            if (trimmed == "6872" || trimmed == "danalla6872" || trimmed == "7777" || trimmed == "danalla") {
+                            val inputHash = java.security.MessageDigest.getInstance("SHA-256")
+                                .digest(trimmed.toByteArray(Charsets.UTF_8))
+                                .joinToString("") { "%02x".format(it) }
+                            val validHashes = setOf(
+                                "44767b18f96c592e71c8f50ce5fb44bdc1cd22f7537bca233589af9981806fdc",
+                                "2fb959a10ce574156eae00e0a71235478eea4e507e6c36fc54a19280c1275e23",
+                                "41c991eb6a66242c0454191244278183ce58cf4a6bcd372f799e4b9cc01886af",
+                                "6fd8657c5aa0d3997aa1815657f833d1fcbb8474e9252141943091a932a3c591"
+                            )
+                            if (inputHash in validHashes) {
                                 viewModel.setAdmin(true)
                                 isAdmin = true
                                 showAdminAuthDialog = false
@@ -605,11 +614,10 @@ fun SuggestionScreen(
                     }
                 }
                 is SuggestionScreenState.Detail -> {
-                    val item = state.suggestion
-                    val filteredComments = remember(comments, blockedUsers, myUUID) {
+                    val item = suggestions.find { it.id == state.suggestion.id } ?: state.suggestion
+                    val filteredComments = remember(comments, blockedUsers, myUUID, isAdmin) {
                         comments.filter {
-                            !it.isReported && 
-                            !it.reportedByUserIds.contains(myUUID) && 
+                            (isAdmin || (!it.isReported && !it.reportedByUserIds.contains(myUUID))) &&
                             !blockedUsers.contains(it.authorId)
                         }
                     }
@@ -799,6 +807,15 @@ fun SuggestionScreen(
                                                     }
                                                 )
                                             }
+                                            if (item.authorId == myUUID) {
+                                                DropdownMenuItem(
+                                                    text = { Text("수정하기") },
+                                                    onClick = {
+                                                        showDetailMenu = false
+                                                        screenState = SuggestionScreenState.Edit(item)
+                                                    }
+                                                )
+                                            }
                                             if (item.authorId == myUUID || isAdmin) {
                                                 DropdownMenuItem(
                                                     text = {
@@ -850,7 +867,7 @@ fun SuggestionScreen(
                                         fontWeight = FontWeight.Medium,
                                         color = MaterialTheme.colorScheme.primary
                                     )
-                                    if (item.isAdmin || item.authorNickname.contains("관리자")) {
+                                    if (item.isAdmin) {
                                         Surface(
                                             shape = RoundedCornerShape(4.dp),
                                             color = Color(0xFFFFF8E1)
@@ -927,7 +944,7 @@ fun SuggestionScreen(
                                                     fontWeight = FontWeight.Bold,
                                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                                 )
-                                                if (comment.isAdmin || comment.authorNickname.contains("관리자")) {
+                                                if (comment.isAdmin) {
                                                     Surface(
                                                         shape = RoundedCornerShape(4.dp),
                                                         color = Color(0xFFFFF8E1)
@@ -963,9 +980,14 @@ fun SuggestionScreen(
                                                     expanded = showCommentMenu,
                                                     onDismissRequest = { showCommentMenu = false }
                                                 ) {
-                                                    if (comment.authorId == myUUID) {
+                                                    if (comment.authorId == myUUID || isAdmin) {
                                                         DropdownMenuItem(
-                                                            text = { Text("삭제", color = MaterialTheme.colorScheme.error) },
+                                                            text = {
+                                                                Text(
+                                                                    text = if (isAdmin && comment.authorId != myUUID) "삭제 (관리자)" else "삭제",
+                                                                    color = MaterialTheme.colorScheme.error
+                                                                )
+                                                            },
                                                             onClick = {
                                                                 showCommentMenu = false
                                                                 viewModel.deleteComment(item.id, comment.id)

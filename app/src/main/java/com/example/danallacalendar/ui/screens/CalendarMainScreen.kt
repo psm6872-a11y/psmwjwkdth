@@ -360,6 +360,195 @@ fun CalendarMainScreen(
 
 
 
+    val handleConfirmContract: (Event, Int, String) -> Unit = { evt, teamId, slotPos ->
+        if (!hasWritePermission) {
+            Toast.makeText(context, "쓰기 권한이 없습니다. 방장에게 권한을 요청하세요.", Toast.LENGTH_SHORT).show()
+        } else {
+            val estimateId = evt.linkedEstimateId
+            if (!estimateId.isNullOrBlank()) {
+                scope.launch {
+                    try {
+                        val estimate = viewModel.getEstimateById(estimateId)
+                        if (estimate != null) {
+                            val sharedCategoryId = viewModel.getOrCreateSharedCategory()
+
+                            val dateCal = Calendar.getInstance()
+                            val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.KOREAN)
+                            try {
+                                val parsedDate = dateFormat.parse(estimate.moveDate)
+                                if (parsedDate != null) {
+                                    dateCal.time = parsedDate
+                                }
+                            } catch (e: Exception) {
+                                android.util.Log.e("CalendarMainScreen", "Error parsing moveDate: ${estimate.moveDate}", e)
+                            }
+
+                            dateCal.set(Calendar.HOUR_OF_DAY, 0)
+                            dateCal.set(Calendar.MINUTE, 0)
+                            dateCal.set(Calendar.SECOND, 0)
+                            dateCal.set(Calendar.MILLISECOND, 0)
+                            val startMillis = dateCal.timeInMillis
+
+                            dateCal.set(Calendar.HOUR_OF_DAY, 23)
+                            dateCal.set(Calendar.MINUTE, 59)
+                            dateCal.set(Calendar.SECOND, 59)
+                            dateCal.set(Calendar.MILLISECOND, 999)
+                            val endMillis = dateCal.timeInMillis
+
+                            val teamPref = teamPrefsList.getOrNull(teamId - 1) ?: (TeamConfigs.getOrNull(teamId - 1)?.let { it.defaultName to it.defaultColor } ?: ("" to 0xFF4CAF50L))
+                            val teamName = teamPref.first
+                            val teamColorLong = teamPref.second
+
+                            val resolvedVolume = if (estimate.totalVolume.isNotBlank()) {
+                                if (estimate.totalVolume.contains("톤")) estimate.totalVolume else "${estimate.totalVolume}톤"
+                            } else {
+                                "-"
+                            }
+
+                            val resolvedStartTime = if (estimate.startTime.isNotBlank()) {
+                                estimate.startTime
+                            } else {
+                                "-"
+                            }
+
+                            val departureFirstWord = run {
+                                val mainPart = estimate.departure.split("|").firstOrNull() ?: ""
+                                val firstWord = mainPart.trim().split(" ").firstOrNull() ?: ""
+                                if (firstWord.isNotBlank()) firstWord else "-"
+                            }
+
+                            val destinationFirstWord = run {
+                                val mainPart = estimate.destination.split("|").firstOrNull() ?: ""
+                                val firstWord = mainPart.trim().split(" ").firstOrNull() ?: ""
+                                if (firstWord.isNotBlank()) firstWord else "-"
+                            }
+
+                            val departureFloor = if (estimate.departureFloorType.isNotBlank()) estimate.departureFloorType else "-"
+                            val destinationFloor = if (estimate.destinationFloorType.isNotBlank()) estimate.destinationFloorType else "-"
+
+                            val titleText = "$teamName. $resolvedStartTime. $resolvedVolume\n$departureFirstWord. $destinationFirstWord. $departureFloor/$destinationFloor"
+
+                            val departureAddr: String
+                            val departureDetail: String
+                            if (estimate.departure.contains("|")) {
+                                val parts = estimate.departure.split("|")
+                                departureAddr = parts.getOrNull(0) ?: ""
+                                departureDetail = parts.getOrNull(1) ?: ""
+                            } else {
+                                departureAddr = estimate.departure
+                                departureDetail = ""
+                            }
+
+                            val destinationAddr: String
+                            val destinationDetail: String
+                            if (estimate.destination.contains("|")) {
+                                val parts = estimate.destination.split("|")
+                                destinationAddr = parts.getOrNull(0) ?: ""
+                                destinationDetail = parts.getOrNull(1) ?: ""
+                            } else {
+                                destinationAddr = estimate.destination
+                                destinationDetail = ""
+                            }
+
+                            val locationField = "$departureAddr|||$departureDetail|||$destinationAddr|||$destinationDetail"
+
+                            val isStorageMove = estimate.moveInfo == "보관이사" || estimate.moveType == "보관이사"
+                            val finalTitleText = if (isStorageMove) "[보관입고] $titleText" else titleText
+                            val notesField = if (isStorageMove) "${estimate.phoneNumber}|||보관이사" else estimate.phoneNumber
+                            val colorHexField = String.format("#%08X", teamColorLong)
+
+                            val syncId = java.util.UUID.randomUUID().toString()
+                            val newEvent = com.example.danallacalendar.data.Event(
+                                title = finalTitleText,
+                                startMillis = startMillis,
+                                endMillis = endMillis,
+                                isAllDay = true,
+                                location = locationField,
+                                notes = notesField,
+                                colorHex = colorHexField,
+                                calendarId = sharedCategoryId,
+                                syncId = syncId,
+                                isSynced = true,
+                                linkedEstimateId = estimateId,
+                                teamId = teamId,
+                                slotPosition = slotPos,
+                                createdAt = System.currentTimeMillis(),
+                                updatedAt = System.currentTimeMillis(),
+                                createdBy = userName,
+                                updatedBy = userName
+                            )
+
+                            val conflicts = viewModel.checkContractConflict(
+                                dateStr = estimate.moveDate,
+                                teamId = teamId,
+                                slotPos = slotPos
+                            )
+
+                            if (conflicts.isNotEmpty()) {
+                                val firstConf = conflicts.first()
+                                val confTitle = firstConf.title.split("\n").firstOrNull() ?: ""
+                                conflictMessage = "주의: 선택하신 날짜와 팀/시간대에 이미 확정된 일정이 있습니다.\n(기존 일정: $confTitle)\n\n그래도 중복으로 배정하시겠습니까?"
+                                pendingNewEvent = newEvent
+                                showConflictConfirmDialog = true
+                            } else {
+                                viewModel.dismissContract(syncId)
+                                viewModel.addEvent(newEvent)
+
+                                if (isStorageMove && estimate.outDate.isNotBlank() && estimate.outDate != "미정") {
+                                    try {
+                                        val outCal = Calendar.getInstance()
+                                        val parsedOutDate = dateFormat.parse(estimate.outDate)
+                                        if (parsedOutDate != null) {
+                                            outCal.time = parsedOutDate
+                                            outCal.set(Calendar.HOUR_OF_DAY, 0)
+                                            outCal.set(Calendar.MINUTE, 0)
+                                            outCal.set(Calendar.SECOND, 0)
+                                            outCal.set(Calendar.MILLISECOND, 0)
+                                            val outStartMillis = outCal.timeInMillis
+
+                                            outCal.set(Calendar.HOUR_OF_DAY, 23)
+                                            outCal.set(Calendar.MINUTE, 59)
+                                            outCal.set(Calendar.SECOND, 59)
+                                            outCal.set(Calendar.MILLISECOND, 999)
+                                            val outEndMillis = outCal.timeInMillis
+
+                                            val outSyncId = java.util.UUID.randomUUID().toString()
+                                            val outTitleText = "[보관출고] $titleText"
+                                            val newEventOut = newEvent.copy(
+                                                title = outTitleText,
+                                                startMillis = outStartMillis,
+                                                endMillis = outEndMillis,
+                                                syncId = outSyncId
+                                            )
+                                            viewModel.dismissContract(outSyncId)
+                                            viewModel.addEvent(newEventOut)
+                                        }
+                                    } catch (e: Exception) {
+                                        android.util.Log.e("CalendarMainScreen", "Error creating storage out event", e)
+                                    }
+                                }
+
+                                val formattedDate = try {
+                                    val parsed = SimpleDateFormat("yyyy-MM-dd", Locale.KOREAN).parse(estimate.moveDate)
+                                    if (parsed != null) {
+                                        SimpleDateFormat("M월 d일", Locale.KOREAN).format(parsed)
+                                    } else {
+                                        estimate.moveDate
+                                    }
+                                } catch (e: Exception) {
+                                    estimate.moveDate
+                                }
+                                autoInputToastMessage = "${formattedDate}에 일정이 자동 입력되었습니다."
+                            }
+                        }
+                    } catch (e: Exception) {
+                        android.util.Log.e("CalendarMainScreen", "Failed to auto-create move schedule", e)
+                    }
+                }
+            }
+        }
+    }
+
     Box(modifier = Modifier.fillMaxSize()) {
         ModalNavigationDrawer(
             modifier = Modifier
@@ -566,203 +755,7 @@ fun CalendarMainScreen(
                             viewModel.updateEvent(it)
                         }
                     },
-                    onConfirmContract = { evt, teamId, slotPos ->
-                        if (!hasWritePermission) {
-                            Toast.makeText(context, "쓰기 권한이 없습니다. 방장에게 권한을 요청하세요.", Toast.LENGTH_SHORT).show()
-                        } else {
-                            val estimateId = evt.linkedEstimateId
-                        if (!estimateId.isNullOrBlank()) {
-                            scope.launch {
-                                try {
-                                    val estimate = viewModel.getEstimateById(estimateId)
-                                    if (estimate != null) {
-                                        val sharedCategoryId = viewModel.getOrCreateSharedCategory()
-                                        
-                                        // date 파싱 (yyyy-MM-dd)
-                                        val dateCal = Calendar.getInstance()
-                                        val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.KOREAN)
-                                        try {
-                                            val parsedDate = dateFormat.parse(estimate.moveDate)
-                                            if (parsedDate != null) {
-                                                dateCal.time = parsedDate
-                                            }
-                                        } catch (e: Exception) {
-                                            android.util.Log.e("CalendarMainScreen", "Error parsing moveDate: ${estimate.moveDate}", e)
-                                        }
-                                        
-                                        dateCal.set(Calendar.HOUR_OF_DAY, 0)
-                                        dateCal.set(Calendar.MINUTE, 0)
-                                        dateCal.set(Calendar.SECOND, 0)
-                                        dateCal.set(Calendar.MILLISECOND, 0)
-                                        val startMillis = dateCal.timeInMillis
-                                        
-                                        dateCal.set(Calendar.HOUR_OF_DAY, 23)
-                                        dateCal.set(Calendar.MINUTE, 59)
-                                        dateCal.set(Calendar.SECOND, 59)
-                                        dateCal.set(Calendar.MILLISECOND, 999)
-                                        val endMillis = dateCal.timeInMillis
-                                        
-                                        // 선택한 팀 이름 및 색상
-                                        val teamPref = teamPrefsList.getOrNull(teamId - 1) ?: (TeamConfigs.getOrNull(teamId - 1)?.let { it.defaultName to it.defaultColor } ?: ("" to 0xFF4CAF50L))
-                                        val teamName = teamPref.first
-                                        val teamColorLong = teamPref.second
-                                        
-                                        val resolvedVolume = if (estimate.totalVolume.isNotBlank()) {
-                                            if (estimate.totalVolume.contains("톤")) estimate.totalVolume else "${estimate.totalVolume}톤"
-                                        } else {
-                                            "-"
-                                        }
-
-                                        val resolvedStartTime = if (estimate.startTime.isNotBlank()) {
-                                            estimate.startTime
-                                        } else {
-                                            "-"
-                                        }
-
-                                        val departureFirstWord = run {
-                                            val mainPart = estimate.departure.split("|").firstOrNull() ?: ""
-                                            val firstWord = mainPart.trim().split(" ").firstOrNull() ?: ""
-                                            if (firstWord.isNotBlank()) firstWord else "-"
-                                        }
-
-                                        val destinationFirstWord = run {
-                                            val mainPart = estimate.destination.split("|").firstOrNull() ?: ""
-                                            val firstWord = mainPart.trim().split(" ").firstOrNull() ?: ""
-                                            if (firstWord.isNotBlank()) firstWord else "-"
-                                        }
-
-                                        val departureFloor = if (estimate.departureFloorType.isNotBlank()) estimate.departureFloorType else "-"
-                                        val destinationFloor = if (estimate.destinationFloorType.isNotBlank()) estimate.destinationFloorType else "-"
-
-                                        val titleText = "$teamName. $resolvedStartTime. $resolvedVolume\n$departureFirstWord. $destinationFirstWord. $departureFloor/$destinationFloor"
-                                        
-                                        // 출발지/도착지 및 동호수 처리 -> ||| 로 결합
-                                        val departureAddr: String
-                                        val departureDetail: String
-                                        if (estimate.departure.contains("|")) {
-                                            val parts = estimate.departure.split("|")
-                                            departureAddr = parts.getOrNull(0) ?: ""
-                                            departureDetail = parts.getOrNull(1) ?: ""
-                                        } else {
-                                            departureAddr = estimate.departure
-                                            departureDetail = ""
-                                        }
-                                        
-                                        val destinationAddr: String
-                                        val destinationDetail: String
-                                        if (estimate.destination.contains("|")) {
-                                            val parts = estimate.destination.split("|")
-                                            destinationAddr = parts.getOrNull(0) ?: ""
-                                            destinationDetail = parts.getOrNull(1) ?: ""
-                                        } else {
-                                            destinationAddr = estimate.destination
-                                            destinationDetail = ""
-                                        }
-                                        
-                                        val locationField = "$departureAddr|||$departureDetail|||$destinationAddr|||$destinationDetail"
-                                        
-                                        val isStorageMove = estimate.moveInfo == "보관이사"
-                                        val finalTitleText = if (isStorageMove) "[보관입고] $titleText" else titleText
-                                        val notesField = if (isStorageMove) "${estimate.phoneNumber}|||보관이사" else estimate.phoneNumber
-                                        val colorHexField = when (teamId) {
-                                            1 -> "#FF4CAF50"
-                                            2 -> "#FFFFEB3B"
-                                            else -> String.format("#%08X", teamColorLong)
-                                        }
-                                        
-                                        val syncId = java.util.UUID.randomUUID().toString()
-                                        val newEvent = com.example.danallacalendar.data.Event(
-                                            title = finalTitleText,
-                                            startMillis = startMillis,
-                                            endMillis = endMillis,
-                                            isAllDay = true,
-                                            location = locationField,
-                                            notes = notesField,
-                                            colorHex = colorHexField,
-                                            calendarId = sharedCategoryId,
-                                            syncId = syncId,
-                                            isSynced = true,
-                                            linkedEstimateId = estimateId,
-                                            teamId = teamId,
-                                            slotPosition = slotPos,
-                                            createdAt = System.currentTimeMillis(),
-                                            updatedAt = System.currentTimeMillis(),
-                                            createdBy = userName,
-                                            updatedBy = userName
-                                        )
-
-                                        // 중복 일정 체크
-                                        val conflicts = viewModel.checkContractConflict(
-                                            dateStr = estimate.moveDate,
-                                            teamId = teamId,
-                                            slotPos = slotPos
-                                        )
-
-                                        if (conflicts.isNotEmpty()) {
-                                            val firstConf = conflicts.first()
-                                            val confTitle = firstConf.title.split("\n").firstOrNull() ?: ""
-                                            conflictMessage = "주의: 선택하신 날짜와 팀/시간대에 이미 확정된 일정이 있습니다.\n(기존 일정: $confTitle)\n\n그래도 중복으로 배정하시겠습니까?"
-                                            pendingNewEvent = newEvent
-                                            showConflictConfirmDialog = true
-                                        } else {
-                                            viewModel.dismissContract(syncId)
-                                            viewModel.addEvent(newEvent)
-
-                                            // 보관이사인 경우 출고일 일정도 함께 자동 생성 (출고일이 '미정'이 아닌 경우만)
-                                            if (isStorageMove && estimate.outDate.isNotBlank() && estimate.outDate != "미정") {
-                                                try {
-                                                    val outCal = Calendar.getInstance()
-                                                    val parsedOutDate = dateFormat.parse(estimate.outDate)
-                                                    if (parsedOutDate != null) {
-                                                        outCal.time = parsedOutDate
-                                                        outCal.set(Calendar.HOUR_OF_DAY, 0)
-                                                        outCal.set(Calendar.MINUTE, 0)
-                                                        outCal.set(Calendar.SECOND, 0)
-                                                        outCal.set(Calendar.MILLISECOND, 0)
-                                                        val outStartMillis = outCal.timeInMillis
-
-                                                        outCal.set(Calendar.HOUR_OF_DAY, 23)
-                                                        outCal.set(Calendar.MINUTE, 59)
-                                                        outCal.set(Calendar.SECOND, 59)
-                                                        outCal.set(Calendar.MILLISECOND, 999)
-                                                        val outEndMillis = outCal.timeInMillis
-
-                                                        val outSyncId = java.util.UUID.randomUUID().toString()
-                                                        val outTitleText = "[보관출고] $titleText"
-                                                        val newEventOut = newEvent.copy(
-                                                            title = outTitleText,
-                                                            startMillis = outStartMillis,
-                                                            endMillis = outEndMillis,
-                                                            syncId = outSyncId
-                                                        )
-                                                        viewModel.dismissContract(outSyncId)
-                                                        viewModel.addEvent(newEventOut)
-                                                    }
-                                                } catch (e: Exception) {
-                                                    android.util.Log.e("CalendarMainScreen", "Error creating storage out event", e)
-                                                }
-                                            }
-
-                                            val formattedDate = try {
-                                                val parsed = SimpleDateFormat("yyyy-MM-dd", Locale.KOREAN).parse(estimate.moveDate)
-                                                if (parsed != null) {
-                                                    SimpleDateFormat("M월 d일", Locale.KOREAN).format(parsed)
-                                                } else {
-                                                    estimate.moveDate
-                                                }
-                                            } catch (e: Exception) {
-                                                estimate.moveDate
-                                            }
-                                            autoInputToastMessage = "${formattedDate}에 일정이 자동 입력되었습니다."
-                                        }
-                                    }
-                                } catch (e: Exception) {
-                                    android.util.Log.e("CalendarMainScreen", "Failed to auto-create move schedule", e)
-                                }
-                            }
-                        }
-                        }
-                    },
+                    onConfirmContract = handleConfirmContract,
                     isDeadlineSet = deadlineDates.any { isSameDay(it, selectedDate) },
                     onDeadlineToggle = { dateMillis ->
                         if (!hasWritePermission) {
@@ -1076,6 +1069,10 @@ fun CalendarMainScreen(
                     } else {
                         viewModel.updateEvent(it)
                     }
+                },
+                onConfirmContract = { evt, tId, sPos ->
+                    showDayEventsDialogDate = null
+                    handleConfirmContract(evt, tId, sPos)
                 },
                 viewModel = viewModel
             )
@@ -3822,6 +3819,7 @@ fun DayEventsDialog(
     onDeleteEvent: (Event) -> Unit,
     onToggleComplete: (Event) -> Unit,
     onUpdateEvent: (Event) -> Unit,
+    onConfirmContract: (Event, Int, String) -> Unit = { _, _, _ -> },
     viewModel: CalendarViewModel
 ) {
     val configuration = androidx.compose.ui.platform.LocalConfiguration.current
@@ -3910,6 +3908,7 @@ fun DayEventsDialog(
                                 onDelete = { onDeleteEvent(event) },
                                 onToggleComplete = { onToggleComplete(event) },
                                 onUpdate = onUpdateEvent,
+                                onConfirmContract = onConfirmContract,
                                 viewModel = viewModel
                             )
                         }

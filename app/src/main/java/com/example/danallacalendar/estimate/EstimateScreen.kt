@@ -128,6 +128,7 @@ fun EstimateScreen(
 ) {
     val context = LocalContext.current
     val userPrefs = remember { com.example.danallacalendar.data.local.UserPreferences(context) }
+    val coroutineScope = rememberCoroutineScope()
     
 
 
@@ -645,15 +646,16 @@ fun EstimateScreen(
                                     balanceOut = balanceOut,
                                     storageCost = storageCost,
                                     onPrint = {
-                                        // WebView createPrintDocumentAdapter 방식: HTML을 직접 PrintManager에 전달
-                                        // 이 방식은 Android가 A4 크기에 맞게 렌더링하므로 이미지 축소 문제 없음
+                                        // WebView createPrintDocumentAdapter 방식: HTML을 비동기로 생성 후 PrintManager에 전달
                                         val estimate = viewModel.buildCurrentEstimate()
                                         val printedEstimate = estimate.copy(
                                             departure = estimate.departure.replace("|", " "),
                                             destination = estimate.destination.replace("|", " ")
                                         )
-                                        val html = com.example.danallacalendar.estimate.EstimateHtmlGenerator.generateEstimateHtml(context, printedEstimate)
-                                        EstimatePrintHelper.printEstimate(context, html, printedEstimate)
+                                        coroutineScope.launch {
+                                            val html = com.example.danallacalendar.estimate.EstimateHtmlGenerator.generateEstimateHtmlAsync(context, printedEstimate)
+                                            EstimatePrintHelper.printEstimate(context, html, printedEstimate)
+                                        }
                                     },
                                     onSendSms = { smsText ->
                                         if (savedJpgPath != null) {
@@ -937,7 +939,7 @@ fun EstimateScreen(
             title = { Text("견적 저장 오류 발생", color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("오류 원인 스택 트레이스 (제미나이 전달용):", color = MaterialTheme.colorScheme.onSurface, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                    Text("오류 상세 정보:", color = MaterialTheme.colorScheme.onSurface, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()

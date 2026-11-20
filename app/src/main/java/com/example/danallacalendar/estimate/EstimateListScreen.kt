@@ -1528,16 +1528,18 @@ fun LocalEstimateViewerDialog(
     var showOverwriteConfirmDialog by remember { mutableStateOf(false) }
     var nextFileNameToUpload by remember { mutableStateOf<String?>(null) }
 
-    val htmlContent = remember(estimate) {
-        EstimateHtmlGenerator.generateEstimateHtml(context, estimate)
+    var htmlContent by remember(estimate) { mutableStateOf<String?>(null) }
+    LaunchedEffect(estimate) {
+        htmlContent = EstimateHtmlGenerator.generateEstimateHtmlAsync(context, estimate)
     }
 
     fun performUpload(targetFileName: String?) {
+        val currentHtml = htmlContent ?: return
         isUploading = true
         coroutineScope.launch {
             try {
                 val account = GoogleDriveHelper.getSignedInAccount(context) ?: return@launch
-                val jpgPath = EstimatePrintHelper.renderHtmlToJpg(context, htmlContent, estimate)
+                val jpgPath = EstimatePrintHelper.renderHtmlToJpg(context, currentHtml, estimate)
                 if (jpgPath != null) {
                     val jpgFile = java.io.File(jpgPath)
                     val dateStr = estimate.estimateDate.ifBlank { estimate.moveDate }
@@ -1731,8 +1733,9 @@ fun LocalEstimateViewerDialog(
                     // 2. 인쇄 / PDF 저장
                     TextButton(
                         onClick = {
-                            EstimatePrintHelper.printEstimate(context, htmlContent, estimate)
+                            htmlContent?.let { EstimatePrintHelper.printEstimate(context, it, estimate) }
                         },
+                        enabled = htmlContent != null,
                         modifier = Modifier.weight(1f),
                         contentPadding = PaddingValues(vertical = 4.dp)
                     ) {
@@ -1751,8 +1754,9 @@ fun LocalEstimateViewerDialog(
                     // 3. 문자 발송 (MMS)
                     TextButton(
                         onClick = {
-                            EstimatePrintHelper.shareEstimateAsJpg(context, htmlContent, estimate)
+                            htmlContent?.let { EstimatePrintHelper.shareEstimateAsJpg(context, it, estimate) }
                         },
+                        enabled = htmlContent != null,
                         modifier = Modifier.weight(1f),
                         contentPadding = PaddingValues(vertical = 4.dp)
                     ) {
@@ -1771,10 +1775,10 @@ fun LocalEstimateViewerDialog(
                     // 4. 카카오톡 공유
                     TextButton(
                         onClick = {
+                            val currentHtml = htmlContent ?: return@TextButton
                             Toast.makeText(context, "카카오톡 공유용 이미지 생성 중...", Toast.LENGTH_SHORT).show()
-                            val scope = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Main)
-                            scope.launch {
-                                val jpgPath = EstimatePrintHelper.renderHtmlToJpg(context, htmlContent, estimate)
+                            coroutineScope.launch {
+                                val jpgPath = EstimatePrintHelper.renderHtmlToJpg(context, currentHtml, estimate)
                                 if (jpgPath != null) {
                                     val jpgFile = java.io.File(jpgPath)
                                     val fileUri = androidx.core.content.FileProvider.getUriForFile(
@@ -1789,12 +1793,19 @@ fun LocalEstimateViewerDialog(
                                         addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
                                         addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
                                     }
-                                    context.startActivity(intent)
+                                    try {
+                                        context.startActivity(intent)
+                                    } catch (e: android.content.ActivityNotFoundException) {
+                                        Toast.makeText(context, "카카오톡이 설치되어 있지 않습니다.", Toast.LENGTH_SHORT).show()
+                                    } catch (e: Exception) {
+                                        Toast.makeText(context, "공유 중 오류가 발생했습니다.", Toast.LENGTH_SHORT).show()
+                                    }
                                 } else {
                                     Toast.makeText(context, "이미지 생성 실패", Toast.LENGTH_SHORT).show()
                                 }
                             }
                         },
+                        enabled = htmlContent != null,
                         modifier = Modifier.weight(1f),
                         contentPadding = PaddingValues(vertical = 4.dp)
                     ) {
@@ -1820,30 +1831,40 @@ fun LocalEstimateViewerDialog(
                 )
 
                 // WebView
-                AndroidView(
-                    factory = { ctx ->
-                        WebView(ctx).apply {
-                            webViewClient = WebViewClient()
-                            settings.javaScriptEnabled = true
-                            settings.domStorageEnabled = true
-                            settings.useWideViewPort = true
-                            settings.loadWithOverviewMode = true
-                            settings.textZoom = 100
-                            settings.setSupportZoom(true)
-                            settings.builtInZoomControls = true
-                            settings.displayZoomControls = false
-                            settings.cacheMode = android.webkit.WebSettings.LOAD_NO_CACHE
-                            clearCache(true)
-                            loadDataWithBaseURL("file:///android_asset/", htmlContent, "text/html", "UTF-8", null)
-                        }
-                    },
-                    update = { webView ->
-                        webView.settings.cacheMode = android.webkit.WebSettings.LOAD_NO_CACHE
-                        webView.clearCache(true)
-                        webView.loadDataWithBaseURL("file:///android_asset/", htmlContent, "text/html", "UTF-8", null)
-                    },
-                    modifier = Modifier.fillMaxSize()
-                )
+                val readyHtml = htmlContent
+                if (readyHtml == null) {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator(color = Color.White)
+                    }
+                } else {
+                    AndroidView(
+                        factory = { ctx ->
+                            WebView(ctx).apply {
+                                webViewClient = WebViewClient()
+                                settings.javaScriptEnabled = true
+                                settings.domStorageEnabled = true
+                                settings.useWideViewPort = true
+                                settings.loadWithOverviewMode = true
+                                settings.textZoom = 100
+                                settings.setSupportZoom(true)
+                                settings.builtInZoomControls = true
+                                settings.displayZoomControls = false
+                                settings.cacheMode = android.webkit.WebSettings.LOAD_NO_CACHE
+                                clearCache(true)
+                                loadDataWithBaseURL("file:///android_asset/", readyHtml, "text/html", "UTF-8", null)
+                            }
+                        },
+                        update = { webView ->
+                            webView.settings.cacheMode = android.webkit.WebSettings.LOAD_NO_CACHE
+                            webView.clearCache(true)
+                            webView.loadDataWithBaseURL("file:///android_asset/", readyHtml, "text/html", "UTF-8", null)
+                        },
+                        modifier = Modifier.fillMaxSize()
+                    )
+                }
 
                 if (showOverwriteConfirmDialog) {
                     AlertDialog(

@@ -28,10 +28,15 @@ class StatisticsViewModel @Inject constructor(
     private val _activeAreas = MutableStateFlow("")
     val activeAreas: StateFlow<String> = _activeAreas.asStateFlow()
 
+    private val _isDataLoaded = MutableStateFlow(false)
+    val isDataLoaded: StateFlow<Boolean> = _isDataLoaded.asStateFlow()
+
+    private var companyInfoListener: com.google.firebase.firestore.ListenerRegistration? = null
+
     init {
         val roomCode = userPreferences.getLastRoomCode()
         if (roomCode.isNotEmpty()) {
-            firestore.collection("company_info").document(roomCode)
+            companyInfoListener = firestore.collection("company_info").document(roomCode)
                 .addSnapshotListener { snapshot, _ ->
                     if (snapshot != null && snapshot.exists()) {
                         _companyAddress.value = snapshot.getString("companyAddress") ?: ""
@@ -43,6 +48,7 @@ class StatisticsViewModel @Inject constructor(
 
     // 1. All events from local Room DB in real-time
     val allEvents: StateFlow<List<Event>> = calendarRepository.eventDao.getAllEventsFlow()
+        .onEach { _isDataLoaded.value = true }
         .stateIn(
             viewModelScope,
             SharingStarted.WhileSubscribed(5000),
@@ -89,9 +95,16 @@ class StatisticsViewModel @Inject constructor(
         }
         
         mergedMap.values.toList()
-    }.stateIn(
+    }.onEach { _isDataLoaded.value = true }
+    .stateIn(
         viewModelScope,
         SharingStarted.WhileSubscribed(5000),
         emptyList()
     )
+
+    override fun onCleared() {
+        super.onCleared()
+        companyInfoListener?.remove()
+        companyInfoListener = null
+    }
 }

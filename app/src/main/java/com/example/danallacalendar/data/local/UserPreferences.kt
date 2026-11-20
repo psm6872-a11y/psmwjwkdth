@@ -51,7 +51,7 @@ class UserPreferences(context: Context) {
     }
 
     fun isAdmin(): Boolean {
-        return prefs.getBoolean("is_suggestion_admin", false) || getNickname() == "관리자" || getNickname() == "방장"
+        return prefs.getBoolean("is_suggestion_admin", false)
     }
 
     fun setAdmin(isAdmin: Boolean) {

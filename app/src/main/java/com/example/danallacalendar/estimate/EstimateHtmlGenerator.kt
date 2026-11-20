@@ -8,6 +8,12 @@ import com.example.danallacalendar.data.local.UserPreferences
 
 object EstimateHtmlGenerator {
 
+    suspend fun generateEstimateHtmlAsync(context: Context, estimate: Estimate): String {
+        return kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+            generateEstimateHtml(context, estimate)
+        }
+    }
+
     fun generateEstimateHtml(context: Context, estimate: Estimate): String {
         val templateName = when (estimate.moveType) {
             "보관이사" -> "storage_estimate_template.html"
@@ -33,17 +39,14 @@ object EstimateHtmlGenerator {
         var stampBase64 = ""
 
         if (roomCode.isNotEmpty()) {
+            val executor = java.util.concurrent.Executors.newSingleThreadExecutor()
             try {
-                // Tasks.await가 메인 스레드에서 불릴 때의 IllegalStateException을 피하기 위해 
-                // 백그라운드 싱글 스레드 Executor를 생성하여 Tasks.await를 그 위에서 실행시키고 메인 스레드에서 future.get()으로 대기합니다.
-                val executor = java.util.concurrent.Executors.newSingleThreadExecutor()
                 val future = executor.submit(java.util.concurrent.Callable {
                     val firestore = FirebaseFirestore.getInstance()
                     val task = firestore.collection("company_info").document(roomCode).get()
-                    Tasks.await(task)
+                    Tasks.await(task, 5, java.util.concurrent.TimeUnit.SECONDS)
                 })
-                val documentSnapshot = future.get()
-                executor.shutdown()
+                val documentSnapshot = future.get(6, java.util.concurrent.TimeUnit.SECONDS)
                 
                 if (documentSnapshot != null && documentSnapshot.exists()) {
                     companyName = documentSnapshot.getString("companyName")?.ifBlank { "다날라 익스프레스" } ?: "다날라 익스프레스"
@@ -58,6 +61,8 @@ object EstimateHtmlGenerator {
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
+            } finally {
+                executor.shutdownNow()
             }
         }
 

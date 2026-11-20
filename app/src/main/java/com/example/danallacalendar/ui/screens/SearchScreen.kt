@@ -33,6 +33,8 @@ fun SearchScreen(
     val searchQuery by viewModel.searchQuery.collectAsStateWithLifecycle()
     val searchResults by viewModel.searchResults.collectAsStateWithLifecycle()
     val categories by viewModel.categories.collectAsStateWithLifecycle()
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val userPrefs = remember(context) { com.example.danallacalendar.data.local.UserPreferences(context) }
 
     Scaffold(
         topBar = {
@@ -124,8 +126,20 @@ fun SearchScreen(
                                 viewModel.selectDate(event.startMillis)
                                 onNavigateBack()
                             },
-                            onDelete = { viewModel.deleteEvent(event) },
-                            onToggleComplete = { viewModel.updateEvent(event.copy(isCompleted = !event.isCompleted)) },
+                            onDelete = {
+                                if (userPrefs.hasWritePermission()) {
+                                    viewModel.deleteEvent(event)
+                                } else {
+                                    android.widget.Toast.makeText(context, "읽기 전용 멤버는 일정을 삭제할 수 없습니다.", android.widget.Toast.LENGTH_SHORT).show()
+                                }
+                            },
+                            onToggleComplete = {
+                                if (userPrefs.hasWritePermission()) {
+                                    viewModel.updateEvent(event.copy(isCompleted = !event.isCompleted))
+                                } else {
+                                    android.widget.Toast.makeText(context, "읽기 전용 멤버는 일정을 수정할 수 없습니다.", android.widget.Toast.LENGTH_SHORT).show()
+                                }
+                            },
                             viewModel = viewModel
                         )
                     }

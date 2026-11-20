@@ -41,6 +41,9 @@ fun BlacklistScreen(
 ) {
     val context = LocalContext.current
     val blacklistItems by viewModel.blacklistItems.collectAsStateWithLifecycle()
+    val hasWritePermission = remember(context) {
+        com.example.danallacalendar.data.local.UserPreferences(context).hasWritePermission()
+    }
 
     var phoneInput by remember { mutableStateOf("") }
     var reasonInput by remember { mutableStateOf("") }
@@ -73,7 +76,8 @@ fun BlacklistScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // Input Card
+            // Input Card (쓰기 권한이 있는 경우만 표시)
+            if (hasWritePermission) {
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)),
@@ -159,6 +163,7 @@ fun BlacklistScreen(
                     }
                 }
             }
+            }
 
             // List Title
             Text(
@@ -230,31 +235,33 @@ fun BlacklistScreen(
                                     )
                                 }
 
-                                Column(
-                                    horizontalAlignment = Alignment.CenterHorizontally,
-                                    verticalArrangement = Arrangement.spacedBy(4.dp)
-                                ) {
-                                    IconButton(
-                                        onClick = { editingItem = item },
-                                        modifier = Modifier.size(36.dp)
+                                if (hasWritePermission) {
+                                    Column(
+                                        horizontalAlignment = Alignment.CenterHorizontally,
+                                        verticalArrangement = Arrangement.spacedBy(4.dp)
                                     ) {
-                                        Icon(
-                                            imageVector = Icons.Default.Edit,
-                                            contentDescription = "수정",
-                                            tint = MaterialTheme.colorScheme.primary,
-                                            modifier = Modifier.size(20.dp)
-                                        )
-                                    }
-                                    IconButton(
-                                        onClick = { viewModel.deleteBlacklist(item) },
-                                        modifier = Modifier.size(36.dp)
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Default.Delete,
-                                            contentDescription = "삭제",
-                                            tint = MaterialTheme.colorScheme.error,
-                                            modifier = Modifier.size(20.dp)
-                                        )
+                                        IconButton(
+                                            onClick = { editingItem = item },
+                                            modifier = Modifier.size(36.dp)
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.Edit,
+                                                contentDescription = "수정",
+                                                tint = MaterialTheme.colorScheme.primary,
+                                                modifier = Modifier.size(20.dp)
+                                            )
+                                        }
+                                        IconButton(
+                                            onClick = { viewModel.deleteBlacklist(item) },
+                                            modifier = Modifier.size(36.dp)
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.Delete,
+                                                contentDescription = "삭제",
+                                                tint = MaterialTheme.colorScheme.error,
+                                                modifier = Modifier.size(20.dp)
+                                            )
+                                        }
                                     }
                                 }
                             }

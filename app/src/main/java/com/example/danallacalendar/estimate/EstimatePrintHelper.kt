@@ -143,6 +143,19 @@ object EstimatePrintHelper {
                     }
                     webView.setLayerType(android.view.View.LAYER_TYPE_SOFTWARE, null)
 
+                    fun cleanupWebView() {
+                        try {
+                            handler.removeCallbacksAndMessages(null)
+                            webView.stopLoading()
+                            webView.removeJavascriptInterface("AndroidBridge")
+                            webView.destroy()
+                        } catch (_: Throwable) {}
+                    }
+
+                    continuation.invokeOnCancellation {
+                        handler.post { cleanupWebView() }
+                    }
+
                     fun doRenderWithHeight(contentHeight: Int) {
                         if (hasResumed) return
                         hasResumed = true
@@ -155,7 +168,6 @@ object EstimatePrintHelper {
 
                             val tempDir = File(context.cacheDir, "danalla_temp")
                             if (!tempDir.exists()) tempDir.mkdirs()
-                            tempDir.listFiles()?.forEach { it.delete() }
 
                             val dateStr = estimate.estimateDate.ifBlank { estimate.moveDate }
                             val dateParts = dateStr.split("-")
@@ -164,6 +176,14 @@ object EstimatePrintHelper {
                             val last4 = if (rawPhone.length >= 4) rawPhone.takeLast(4) else "0000"
                             val fileName = "${monthDay}_$last4.jpg"
                             val jpgFile = File(tempDir, fileName)
+
+                            // 24시간 이상 지난 오래된 임시 파일만 정리 (최근 생성/캐시된 파일 보호)
+                            val cutoff = System.currentTimeMillis() - 24L * 60 * 60 * 1000
+                            tempDir.listFiles()?.forEach { file ->
+                                if (file.name != fileName && file.lastModified() < cutoff) {
+                                    file.delete()
+                                }
+                            }
 
                             // 고해상도 비트맵 생성 (scale=2.5)
                             val scale = 2.5f
@@ -194,6 +214,8 @@ object EstimatePrintHelper {
                             if (continuation.isActive) {
                                 continuation.resume(null)
                             }
+                        } finally {
+                            cleanupWebView()
                         }
                     }
 

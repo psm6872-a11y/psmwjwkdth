@@ -143,6 +143,7 @@ fun AddEditEventScreen(
     var swapTargetTeamId by remember { mutableStateOf<Int?>(null) }
     var swapTargetSlotPos by remember { mutableStateOf<String?>(null) }
     var swapMessage by remember { mutableStateOf("") }
+    var pendingSwappedEvent by remember { mutableStateOf<Event?>(null) }
 
     var tempTeamId by remember { mutableStateOf<Int?>(null) }
     var tempIsAmSelected by remember { mutableStateOf(false) }
@@ -395,6 +396,10 @@ fun AddEditEventScreen(
             }
 
             if (hasChanged) {
+                pendingSwappedEvent?.let { swapped ->
+                    viewModel.updateEvent(swapped)
+                    pendingSwappedEvent = null
+                }
                 if (eventId == null) {
                     viewModel.addEvent(event)
                 } else {
@@ -1993,7 +1998,7 @@ fun AddEditEventScreen(
                                         )
                                     }
                                     
-                                    // 상대방 이벤트를 나의 예전 날짜 및 배정 정보로 업데이트 (DB 반영)
+                                    // 상대방 이벤트를 저장 시 함께 반영되도록 보류 (취소 시 데이터 불일치 방지)
                                     val updatedTargetEvent = targetEvent.copy(
                                         startMillis = preConflictStartMillis,
                                         endMillis = preConflictEndMillis,
@@ -2002,7 +2007,7 @@ fun AddEditEventScreen(
                                         title = newTargetTitle,
                                         updatedAt = System.currentTimeMillis()
                                     )
-                                    viewModel.updateEvent(updatedTargetEvent)
+                                    pendingSwappedEvent = updatedTargetEvent
                                     
                                     // 나의 타이틀 팀명 접두사를 상대방이 가졌던 팀명으로 변경
                                     val myNewTeamName = teamPrefsList.getOrNull(targetTeam - 1)?.first ?: ""
@@ -2032,12 +2037,19 @@ fun AddEditEventScreen(
                                         )
                                     }
                                     
-                                    // 상대방 이벤트를 나의 예전 배정정보로 업데이트 (DB 반영)
-                                    viewModel.updateEventTitleAndAssignment(
-                                        event = targetEvent,
-                                        newTeamId = teamId ?: 0,
-                                        newSlotPos = slotPosition ?: "",
-                                        newTitle = newTargetTitle
+                                    // 상대방 이벤트를 저장 시 함께 반영되도록 보류 (취소 시 데이터 불일치 방지)
+                                    val myOldTeamColorLong = teamId?.let { teamPrefsList.getOrNull(it - 1)?.second }
+                                    val targetNewColorHex = if (myOldTeamColorLong != null) {
+                                        String.format("#%08X", myOldTeamColorLong)
+                                    } else {
+                                        targetEvent.colorHex
+                                    }
+                                    pendingSwappedEvent = targetEvent.copy(
+                                        teamId = teamId ?: 0,
+                                        slotPosition = slotPosition ?: "",
+                                        title = newTargetTitle,
+                                        colorHex = targetNewColorHex,
+                                        updatedAt = System.currentTimeMillis()
                                     )
                                     
                                     // 나의 타이틀 팀명 접두사를 상대방이 가졌던 팀명으로 변경
@@ -2056,7 +2068,10 @@ fun AddEditEventScreen(
                                     // 나의 배정 정보를 업데이트 (로컬 상태)
                                     teamId = targetTeam
                                     slotPosition = targetSlot
-                                    if (targetTeam == 1) {
+                                    val myNewTeamColorLong = teamPrefsList.getOrNull(targetTeam - 1)?.second
+                                    if (myNewTeamColorLong != null) {
+                                        selectedColorHex = String.format("#%08X", myNewTeamColorLong)
+                                    } else if (targetTeam == 1) {
                                         selectedColorHex = "#FF4CAF50"
                                     } else if (targetTeam == 2) {
                                         selectedColorHex = "#FFFFEB3B"

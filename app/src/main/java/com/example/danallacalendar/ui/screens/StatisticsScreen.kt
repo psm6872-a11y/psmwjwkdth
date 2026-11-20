@@ -62,6 +62,7 @@ fun StatisticsScreen(
     val allEstimates by viewModel.allEstimates.collectAsStateWithLifecycle()
     val companyAddress by viewModel.companyAddress.collectAsStateWithLifecycle()
     val activeAreas by viewModel.activeAreas.collectAsStateWithLifecycle()
+    val isDataLoaded by viewModel.isDataLoaded.collectAsStateWithLifecycle()
 
     val currentCal = remember { Calendar.getInstance() }
     var selectedYear by remember { mutableIntStateOf(currentCal.get(Calendar.YEAR)) }
@@ -179,7 +180,7 @@ fun StatisticsScreen(
                     .fillMaxSize()
                     .padding(16.dp)
             ) {
-                if (allEstimates.isEmpty() && allEvents.isEmpty()) {
+                if (!isDataLoaded && allEstimates.isEmpty() && allEvents.isEmpty()) {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             CircularProgressIndicator()
@@ -1871,10 +1872,11 @@ fun determineZone(
 
     // 1.2. 추가 활동 영역(activeAreas)에 출발지 시군구 키가 포함되어 있으면 관내(IN_CITY)로 판정
     if (activeAreas.isNotBlank() && depSigunguKey.isNotEmpty()) {
+        val normalizedDepKey = depSigunguKey.replace(Regex("[시군구]$"), "").trim()
         val activeKeys = activeAreas.split(",")
             .map { it.trim().replace(Regex("[시군구]$"), "").trim() }
             .filter { it.isNotEmpty() }
-        if (activeKeys.contains(depSigunguKey)) {
+        if (activeKeys.contains(depSigunguKey) || activeKeys.contains(normalizedDepKey)) {
             return DistanceZone.IN_CITY
         }
     }
@@ -1963,15 +1965,6 @@ fun computeEstimateContractStats(estimates: List<Estimate>, events: List<Event>,
             }
         }
 
-    android.util.Log.d("STATS_DEBUG", "=== START STATS ===")
-    android.util.Log.d("STATS_DEBUG", "estimates size: ${estimates.size}, uniqueEstimates size: ${uniqueEstimates.size}")
-    uniqueEstimates.take(15).forEach { est ->
-        android.util.Log.d("STATS_DEBUG", "Est -> ID: '${est.id}', Name: '${est.customerName}', Phone: '${est.phoneNumber}', totalCost: '${est.totalCost}', amount: ${est.amount}")
-    }
-    events.filter { !it.linkedEstimateId.isNullOrBlank() }.take(20).forEach { evt ->
-        android.util.Log.d("STATS_DEBUG", "Evt -> Title: '${evt.title}', LinkedID: '${evt.linkedEstimateId}', isAllDay: ${evt.isAllDay}, startMillis: ${evt.startMillis}")
-    }
-
     val filteredEstimates = uniqueEstimates.filter { est ->
         val cal = Calendar.getInstance().apply { timeInMillis = est.createdAt }
         cal.get(Calendar.YEAR) == year && cal.get(Calendar.MONTH) == month
@@ -1986,15 +1979,9 @@ fun computeEstimateContractStats(estimates: List<Estimate>, events: List<Event>,
     
     val conversion = if (total > 0) (contractedCount.toDouble() / total) * 100 else 0.0
     
-    val selectedYearMonthStr = String.format("%04d-%02d", year, month + 1)
     val visitCompletedEstimates = filteredEstimates.filter { est ->
         val estEvents = events.filter { it.linkedEstimateId == est.id }
         estEvents.isNotEmpty()
-    }
-    
-    android.util.Log.d("STATS_DEBUG", "selectedYearMonthStr: $selectedYearMonthStr, visitCompletedEstimates size: ${visitCompletedEstimates.size}")
-    visitCompletedEstimates.forEach { est ->
-        android.util.Log.d("STATS_DEBUG", "Matched Est -> Name: '${est.customerName}', visitDate: '${est.visitDate}', moveDate: '${est.moveDate}', totalCost: '${est.totalCost}', amount: ${est.amount}")
     }
 
     val totalVisitCompletedCost = visitCompletedEstimates.sumOf { est ->
@@ -2072,7 +2059,7 @@ fun computeEstimateContractStats(estimates: List<Estimate>, events: List<Event>,
         monthly[mKey] = 0
     }
     
-    estimates.filter { est ->
+    uniqueEstimates.filter { est ->
         val cal = Calendar.getInstance().apply { timeInMillis = est.createdAt }
         cal.get(Calendar.YEAR) == year
     }.forEach { est ->
@@ -2224,7 +2211,7 @@ fun computeOperationsCargoStats(estimates: List<Estimate>, events: List<Event>, 
     contractedEstimatesInMonth.forEach { est ->
         val ton = parseTonnage(est.totalVolume)
         when {
-            ton <= 0.0 -> cargoCounts["7톤이상"] = (cargoCounts["7톤이상"] ?: 0) + 1
+            ton <= 0.0 -> { /* 톤수 미입력은 집계 제외 */ }
             ton <= 2.0 -> cargoCounts["1-2톤"] = (cargoCounts["1-2톤"] ?: 0) + 1
             ton <= 4.0 -> cargoCounts["3-4톤"] = (cargoCounts["3-4톤"] ?: 0) + 1
             ton <= 6.0 -> cargoCounts["5-6톤"] = (cargoCounts["5-6톤"] ?: 0) + 1
@@ -2346,8 +2333,10 @@ fun computeDistanceRegionStats(estimates: List<Estimate>, companyAddress: String
                 emptyList()
             }
 
+            val normalizedDestKey = destSigunguKey.replace(Regex("[시군구]$"), "").trim()
             val isLocalDestination = (mySigunguKey.isNotEmpty() && destSigunguKey == mySigunguKey) || 
-                                     activeKeys.contains(destSigunguKey)
+                                     activeKeys.contains(destSigunguKey) ||
+                                     activeKeys.contains(normalizedDestKey)
 
             val isValidDest = validSidos.contains(destSido) && isValidSigungu(destSigungu)
 
@@ -2966,9 +2955,8 @@ fun computeGrowthStats(estimates: List<Estimate>, events: List<Event>, year: Int
     val conversionRateYoYChange = conversionRateCurrent - lastYearMonthConversionRate
     val conversionRateMoMChange = conversionRateCurrent - prevMonthConversionRate
 
-    // Helper function to get average contract price for a given month (by move date)
+    // Helper function to get average contract price for a given month
     fun getAverageContractPrice(y: Int, m: Int): Long {
-        val targetMonthStr = String.format("%04d-%02d", y, m + 1)
         val contractedInMonth = uniqueEstimates.filter { est ->
             val cal = Calendar.getInstance().apply { timeInMillis = est.createdAt }
             val isTargetMonth = cal.get(Calendar.YEAR) == y && cal.get(Calendar.MONTH) == m
