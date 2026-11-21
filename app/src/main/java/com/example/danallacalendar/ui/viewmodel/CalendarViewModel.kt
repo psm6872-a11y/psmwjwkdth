@@ -559,23 +559,9 @@ class CalendarViewModel @Inject constructor(
         events.filter { event ->
             cats.find { it.id == event.calendarId }?.isVisible ?: true
         }.sortedWith(
-            compareBy<Event>(
-                { if (it.isAllDay) 0 else 1 },
-                { if (it.isAllDay) (it.teamId ?: 999) else 0 },
-                {
-                    if (it.isAllDay) {
-                        when (it.slotPosition) {
-                            "top" -> 0
-                            "bottom" -> 1
-                            "both" -> 2
-                            else -> 3
-                        }
-                    } else {
-                        0
-                    }
-                },
-                { it.startMillis }
-            )
+            compareByDescending<Event> { it.startMillis }
+                .thenBy { if (it.isAllDay) 0 else 1 }
+                .thenBy { if (it.isAllDay) (it.teamId ?: 999) else 0 }
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 

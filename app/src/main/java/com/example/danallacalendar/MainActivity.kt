@@ -436,6 +436,11 @@ fun AppNavigation(userPreferences: UserPreferences) {
                 onNavigateBack = {
                     navController.popBackStack()
                 },
+                onNavigateToAddEditEvent = { eventId ->
+                    navController.navigate("add_edit_event?id=$eventId") {
+                        popUpTo("search") { inclusive = true }
+                    }
+                },
                 viewModel = viewModel
             )
         }

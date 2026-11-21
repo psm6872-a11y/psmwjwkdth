@@ -27,6 +27,7 @@ import com.example.danallacalendar.ui.viewmodel.CalendarViewModel
 @Composable
 fun SearchScreen(
     onNavigateBack: () -> Unit,
+    onNavigateToAddEditEvent: (Int) -> Unit,
     viewModel: CalendarViewModel,
     modifier: Modifier = Modifier
 ) {
@@ -43,7 +44,7 @@ fun SearchScreen(
                     TextField(
                         value = searchQuery,
                         onValueChange = { viewModel.setSearchQuery(it) },
-                        placeholder = { Text("일정 제목, 메모, 위치 검색", fontSize = 16.sp) },
+                        placeholder = { Text("고객명, 전화번호, 제목, 위치 검색", fontSize = 16.sp) },
                         singleLine = true,
                         colors = TextFieldDefaults.colors(
                             focusedContainerColor = Color.Transparent,
@@ -122,9 +123,9 @@ fun SearchScreen(
                             event = event,
                             category = category,
                             onClick = {
-                                // Select this date and navigate to Main screen
+                                // Select this date and open Add/Edit Event screen
                                 viewModel.selectDate(event.startMillis)
-                                onNavigateBack()
+                                onNavigateToAddEditEvent(event.id)
                             },
                             onDelete = {
                                 if (userPrefs.hasWritePermission()) {

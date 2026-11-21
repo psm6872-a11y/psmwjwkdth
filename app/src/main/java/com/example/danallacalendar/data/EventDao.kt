@@ -84,18 +84,17 @@ interface EventDao {
         SELECT events.* FROM events 
         INNER JOIN calendar_categories ON events.calendarId = calendar_categories.id 
         WHERE calendar_categories.isVisible = 1 
-        AND (events.title LIKE :query OR events.notes LIKE :query OR events.location LIKE :query OR events.customerName LIKE :query) 
-        ORDER BY 
-            CASE WHEN events.teamId IS NULL THEN 999 ELSE events.teamId END ASC,
-            CASE 
-                WHEN events.slotPosition = 'top' THEN 0 
-                WHEN events.slotPosition = 'bottom' THEN 1 
-                WHEN events.slotPosition = 'both' THEN 2 
-                ELSE 3 
-            END ASC,
-            events.startMillis ASC
+        AND (
+            events.title LIKE :query 
+            OR events.notes LIKE :query 
+            OR events.location LIKE :query 
+            OR events.customerName LIKE :query
+            OR (:digitsQuery != '' AND REPLACE(REPLACE(events.notes, '-', ''), ' ', '') LIKE :digitsQuery)
+            OR (:digitsQuery != '' AND REPLACE(REPLACE(events.title, '-', ''), ' ', '') LIKE :digitsQuery)
+        ) 
+        ORDER BY events.startMillis DESC
     """)
-    fun searchEvents(query: String): Flow<List<Event>>
+    fun searchEvents(query: String, digitsQuery: String = ""): Flow<List<Event>>
 
     @Query("SELECT * FROM events WHERE id = :id")
     suspend fun getEventById(id: Int): Event?

@@ -243,7 +243,15 @@ class CalendarRepository @Inject constructor(
     
     fun getEventsInRange(start: Long, end: Long): Flow<List<Event>> = eventDao.getEventsInRange(start, end)
     
-    fun searchEvents(query: String): Flow<List<Event>> = eventDao.searchEvents("%$query%")
+    fun searchEvents(query: String): Flow<List<Event>> {
+        val trimmed = query.trim()
+        val isPhoneLike = trimmed.isNotEmpty() && trimmed.all {
+            it.isDigit() || it == '-' || it == ' ' || it == '+' || it == '(' || it == ')'
+        }
+        val digitsOnly = if (isPhoneLike) trimmed.replace(Regex("[^0-9]"), "") else ""
+        val digitsQuery = if (digitsOnly.isNotEmpty()) "%$digitsOnly%" else ""
+        return eventDao.searchEvents("%$trimmed%", digitsQuery)
+    }
     
     fun getAllEventsFlow(): Flow<List<Event>> = eventDao.getAllEventsFlow()
     

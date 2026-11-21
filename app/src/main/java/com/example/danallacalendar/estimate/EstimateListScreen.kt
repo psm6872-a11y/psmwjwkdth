@@ -578,21 +578,26 @@ fun EstimateListScreen(
                         .fillMaxSize()
                         .widthIn(max = 450.dp)
                 ) {
-                    val filteredList = remember(estimateList, selectedFilter, linkedEvents) {
-                        when (selectedFilter) {
-                            "계약완료" -> {
-                                estimateList.filter { est ->
-                                    val estimateEvents = linkedEvents.filter { it.linkedEstimateId == est.id }
-                                    estimateEvents.isNotEmpty() && estimateEvents.any { it.isAllDay }
+                    val activeSearchQuery by viewModel.searchQuery.collectAsStateWithLifecycle()
+                    val filteredList = remember(estimateList, selectedFilter, linkedEvents, activeSearchQuery) {
+                        if (activeSearchQuery.isNotBlank()) {
+                            estimateList
+                        } else {
+                            when (selectedFilter) {
+                                "계약완료" -> {
+                                    estimateList.filter { est ->
+                                        val estimateEvents = linkedEvents.filter { it.linkedEstimateId == est.id }
+                                        estimateEvents.isNotEmpty() && estimateEvents.any { it.isAllDay }
+                                    }
                                 }
-                            }
-                            "방문완료" -> {
-                                estimateList.filter { est ->
-                                    val estimateEvents = linkedEvents.filter { it.linkedEstimateId == est.id }
-                                    estimateEvents.isNotEmpty() && estimateEvents.none { it.isAllDay }
+                                "방문완료" -> {
+                                    estimateList.filter { est ->
+                                        val estimateEvents = linkedEvents.filter { it.linkedEstimateId == est.id }
+                                        estimateEvents.isNotEmpty() && estimateEvents.none { it.isAllDay }
+                                    }
                                 }
+                                else -> estimateList
                             }
-                            else -> estimateList
                         }
                     }
 

@@ -134,10 +134,16 @@ class EstimateListViewModel @Inject constructor(
             sortedList
         } else {
             val trimmed = query.trim().lowercase(java.util.Locale.getDefault())
+            val isPhoneLike = trimmed.all {
+                it.isDigit() || it == '-' || it == ' ' || it == '+' || it == '(' || it == ')'
+            }
+            val digitsOnly = if (isPhoneLike) trimmed.replace(Regex("[^0-9]"), "") else ""
             sortedList.filter { est ->
                 est.customerName.lowercase(java.util.Locale.getDefault()).contains(trimmed) ||
                 est.phoneNumber.lowercase(java.util.Locale.getDefault()).contains(trimmed) ||
-                est.departure.lowercase(java.util.Locale.getDefault()).contains(trimmed)
+                (digitsOnly.isNotEmpty() && est.phoneNumber.replace(Regex("[^0-9]"), "").contains(digitsOnly)) ||
+                est.departure.lowercase(java.util.Locale.getDefault()).contains(trimmed) ||
+                est.destination.lowercase(java.util.Locale.getDefault()).contains(trimmed)
             }
         }
     }.stateIn(
