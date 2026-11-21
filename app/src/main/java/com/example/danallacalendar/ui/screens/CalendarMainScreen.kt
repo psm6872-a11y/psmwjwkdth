@@ -3746,51 +3746,59 @@ data class KasiLunarDate(
     val isLeap: Boolean
 )
 
+private val kasiLunarLock = Any()
+private val kasiLunarCache = java.util.concurrent.ConcurrentHashMap<Int, KasiLunarDate>()
+
 /**
- * 한국천문연구원(KASI) 공식 음력 산출 엔진
- * ICU ChineseCalendar의 중국(120°E, UTC+8) 합삭 시각과
- * 한국천문연구원(135°E, KST UTC+9) 합삭 시각 간의 시차(23:00~00:00)로 발생하는
- * 음력 1일 차이 구간을 한국 공식 표준에 100% 일치하도록 보정합니다.
+ * 한국천문연구원(KASI) 공식 음력 산출 엔진 (1000년 ~ 2050년)
+ * 중국 표준시(UTC+8) 기반 ICU ChineseCalendar 대신 한국천문연구원(KASI, KST UTC+9) 공식
+ * 음력 테이블(KoreanLunarCalendar)을 사용하여 시차 오차·경계일 중복 없이 100% 정확한 한국 음력을 반환합니다.
  */
 fun getKasiOfficialLunarDate(timeInMillis: Long): KasiLunarDate {
-    val kstZone = android.icu.util.TimeZone.getTimeZone("Asia/Seoul")
-    val cal = java.util.Calendar.getInstance(java.util.TimeZone.getTimeZone("Asia/Seoul"))
+    val kstTimeZone = java.util.TimeZone.getTimeZone("Asia/Seoul")
+    val cal = java.util.Calendar.getInstance(kstTimeZone)
     cal.timeInMillis = timeInMillis
-    cal.set(java.util.Calendar.HOUR_OF_DAY, 12)
-    cal.set(java.util.Calendar.MINUTE, 0)
-    cal.set(java.util.Calendar.SECOND, 0)
-    cal.set(java.util.Calendar.MILLISECOND, 0)
 
     val year = cal.get(java.util.Calendar.YEAR)
     val month = cal.get(java.util.Calendar.MONTH) + 1
     val day = cal.get(java.util.Calendar.DAY_OF_MONTH)
+    val cacheKey = year * 10000 + month * 100 + day
 
-    // 한국천문연구원(KASI) - 중국(ICU) 합삭 시차 보정 구간 (135°E KST 자정 경계 차이)
-    val needKasiOffset = when {
-        // 2026년 음력 9월 (양력 2026-10-11 ~ 2026-11-08): KASI 10/11 시작, ICU 10/10 시작 (+1일차이)
-        (year == 2026 && ((month == 10 && day >= 11) || (month == 11 && day <= 8))) -> true
-        // 2028년 음력 8월 (양력 2028-09-19 ~ 2028-10-17): KASI 09/19 시작, ICU 09/18 시작 (+1일차이)
-        (year == 2028 && ((month == 9 && day >= 19) || (month == 10 && day <= 17))) -> true
-        // 2030년 음력 7월 (양력 2030-07-30 ~ 2030-08-28): KASI 07/30 시작, ICU 07/29 시작 (+1일차이)
-        (year == 2030 && ((month == 7 && day >= 30) || (month == 8 && day <= 28))) -> true
-        else -> false
-    }
+    kasiLunarCache[cacheKey]?.let { return it }
 
-    val queryCal = if (needKasiOffset) {
-        val adjusted = cal.clone() as java.util.Calendar
-        adjusted.add(java.util.Calendar.DAY_OF_MONTH, -1)
-        adjusted
+    val result = if (year in 1001..2050) {
+        synchronized(kasiLunarLock) {
+            val engine = com.example.danallacalendar.util.KoreanLunarCalendar.getInstance()
+            if (engine.setSolarDate(year, month, day)) {
+                KasiLunarDate(
+                    month = engine.lunarMonth,
+                    day = engine.lunarDay,
+                    isLeap = engine.isIntercalation
+                )
+            } else {
+                val kstIcuZone = android.icu.util.TimeZone.getTimeZone("Asia/Seoul")
+                val cc = android.icu.util.ChineseCalendar(kstIcuZone)
+                cc.timeInMillis = timeInMillis
+                KasiLunarDate(
+                    month = cc.get(android.icu.util.ChineseCalendar.MONTH) + 1,
+                    day = cc.get(android.icu.util.ChineseCalendar.DAY_OF_MONTH),
+                    isLeap = cc.get(android.icu.util.ChineseCalendar.IS_LEAP_MONTH) == 1
+                )
+            }
+        }
     } else {
-        cal
+        val kstIcuZone = android.icu.util.TimeZone.getTimeZone("Asia/Seoul")
+        val cc = android.icu.util.ChineseCalendar(kstIcuZone)
+        cc.timeInMillis = timeInMillis
+        KasiLunarDate(
+            month = cc.get(android.icu.util.ChineseCalendar.MONTH) + 1,
+            day = cc.get(android.icu.util.ChineseCalendar.DAY_OF_MONTH),
+            isLeap = cc.get(android.icu.util.ChineseCalendar.IS_LEAP_MONTH) == 1
+        )
     }
 
-    val cc = android.icu.util.ChineseCalendar(kstZone)
-    cc.timeInMillis = queryCal.timeInMillis
-    val lMonth = cc.get(android.icu.util.ChineseCalendar.MONTH) + 1
-    val lDay = cc.get(android.icu.util.ChineseCalendar.DAY_OF_MONTH)
-    val isLeap = cc.get(android.icu.util.ChineseCalendar.IS_LEAP_MONTH) == 1
-
-    return KasiLunarDate(month = lMonth, day = lDay, isLeap = isLeap)
+    kasiLunarCache[cacheKey] = result
+    return result
 }
 
 fun getKoreanLunarDateString(timeInMillis: Long): String {
