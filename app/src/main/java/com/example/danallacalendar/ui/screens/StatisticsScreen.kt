@@ -1949,6 +1949,15 @@ fun parseTonnage(volume: String): Double {
     return clean.toDoubleOrNull() ?: 0.0
 }
 
+fun parseCostToWon(totalCost: String, fallbackAmount: Long): Long {
+    val clean = totalCost.replace(Regex("[^0-9.]"), "")
+    val parsed = clean.toDoubleOrNull()
+    if (parsed != null && parsed > 0.0) {
+        return if (parsed < 10000.0) kotlin.math.round(parsed * 10000.0).toLong() else kotlin.math.round(parsed).toLong()
+    }
+    return if (fallbackAmount > 0L && fallbackAmount < 10000L) fallbackAmount * 10000L else fallbackAmount
+}
+
 // ----------------------------------------
 // Computation Functions
 // ----------------------------------------
@@ -1985,10 +1994,7 @@ fun computeEstimateContractStats(estimates: List<Estimate>, events: List<Event>,
     }
 
     val totalVisitCompletedCost = visitCompletedEstimates.sumOf { est ->
-        val costStr = est.totalCost.replace(Regex("[^0-9]"), "")
-        val cost = costStr.toLongOrNull() ?: 0L
-        val rawCost = if (cost > 0L) cost else est.amount
-        if (rawCost > 0L && rawCost < 10000L) rawCost * 10000L else rawCost
+        parseCostToWon(est.totalCost, est.amount)
     }
     val avgAmount = if (visitCompletedEstimates.isNotEmpty()) {
         totalVisitCompletedCost / visitCompletedEstimates.size
@@ -2002,10 +2008,7 @@ fun computeEstimateContractStats(estimates: List<Estimate>, events: List<Event>,
     }
     val actualContractedCount = contractedEstimatesInMonth.size
     val totalContractedCost = contractedEstimatesInMonth.sumOf { est ->
-        val costStr = est.totalCost.replace(Regex("[^0-9]"), "")
-        val cost = costStr.toLongOrNull() ?: 0L
-        val rawCost = if (cost > 0L) cost else est.amount
-        if (rawCost > 0L && rawCost < 10000L) rawCost * 10000L else rawCost
+        parseCostToWon(est.totalCost, est.amount)
     }
     val avgContractAmount = if (contractedEstimatesInMonth.isNotEmpty()) {
         totalContractedCost / contractedEstimatesInMonth.size
@@ -2085,10 +2088,7 @@ fun computeEstimateContractStats(estimates: List<Estimate>, events: List<Event>,
         val ton = parseTonnage(est.totalVolume).toInt()
         if (ton in 1..6) {
             if (tonnagePrices[ton] == null) tonnagePrices[ton] = mutableListOf()
-            val costStr = est.totalCost.replace(Regex("[^0-9]"), "")
-            val cost = costStr.toLongOrNull() ?: 0L
-            val rawCost = if (cost > 0L) cost else est.amount
-            val normalizedCost = if (rawCost > 0L && rawCost < 10000L) rawCost * 10000L else rawCost
+            val normalizedCost = parseCostToWon(est.totalCost, est.amount)
             tonnagePrices[ton]?.add(normalizedCost)
         }
     }
@@ -2435,10 +2435,7 @@ fun computeAnnualRevenueStats(estimates: List<Estimate>, events: List<Event>, ye
     }
 
     val annualTotal = yearContractedEstimates.sumOf { est ->
-        val costStr = est.totalCost.replace(Regex("[^0-9]"), "")
-        val cost = costStr.toLongOrNull() ?: 0L
-        val rawCost = if (cost > 0L) cost else est.amount
-        if (rawCost > 0L && rawCost < 10000L) rawCost * 10000L else rawCost
+        parseCostToWon(est.totalCost, est.amount)
     }
 
     val monthlyRevenues = mutableMapOf<String, Long>()
@@ -2448,10 +2445,7 @@ fun computeAnnualRevenueStats(estimates: List<Estimate>, events: List<Event>, ye
             val dateParts = est.moveDate.split("-")
             if (dateParts.size >= 2) {
                 val monthKey = "${dateParts[0]}-${dateParts[1]}"
-                val costStr = est.totalCost.replace(Regex("[^0-9]"), "")
-                val cost = costStr.toLongOrNull() ?: 0L
-                val rawCost = if (cost > 0L) cost else est.amount
-                val normalizedCost = if (rawCost > 0L && rawCost < 10000L) rawCost * 10000L else rawCost
+                val normalizedCost = parseCostToWon(est.totalCost, est.amount)
                 monthlyRevenues[monthKey] = (monthlyRevenues[monthKey] ?: 0L) + normalizedCost
             }
         } catch (e: Exception) {
@@ -2966,10 +2960,7 @@ fun computeGrowthStats(estimates: List<Estimate>, events: List<Event>, year: Int
         }
         if (contractedInMonth.isEmpty()) return 0L
         val totalPrice = contractedInMonth.sumOf { est ->
-            val costStr = est.totalCost.replace(Regex("[^0-9]"), "")
-            val cost = costStr.toLongOrNull() ?: 0L
-            val rawCost = if (cost > 0L) cost else est.amount
-            if (rawCost > 0L && rawCost < 10000L) rawCost * 10000L else rawCost
+            parseCostToWon(est.totalCost, est.amount)
         }
         return totalPrice / contractedInMonth.size
     }

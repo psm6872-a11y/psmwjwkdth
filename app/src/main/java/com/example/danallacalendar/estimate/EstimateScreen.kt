@@ -599,15 +599,15 @@ fun EstimateScreen(
                                 extraTruck = extraTruck,
                                 onExtraTruckChange = { viewModel.extraTruck.value = it; viewModel.debounceAutoSave() },
                                 moveCost = moveCost,
-                                onMoveCostChange = { viewModel.moveCost.value = it; viewModel.onMoveCostOrOptionChanged(); viewModel.debounceAutoSave() },
+                                onMoveCostChange = { viewModel.moveCost.value = viewModel.sanitizeDecimalCost(it); viewModel.onMoveCostOrOptionChanged(updateDeposit = true); viewModel.debounceAutoSave() },
                                 totalCost = totalCost,
-                                onTotalCostChange = { viewModel.totalCost.value = it; viewModel.debounceAutoSave() },
+                                onTotalCostChange = { viewModel.totalCost.value = viewModel.sanitizeDecimalCost(it); viewModel.onDepositChanged(); viewModel.debounceAutoSave() },
                                 deposit = deposit,
-                                onDepositChange = { viewModel.deposit.value = it; viewModel.onDepositChanged(); viewModel.debounceAutoSave() },
+                                onDepositChange = { viewModel.deposit.value = viewModel.sanitizeDecimalCost(it); viewModel.onDepositChanged(); viewModel.debounceAutoSave() },
                                 balance = balance,
-                                onBalanceChange = { viewModel.balance.value = it; viewModel.debounceAutoSave() },
+                                onBalanceChange = { viewModel.balance.value = viewModel.sanitizeDecimalCost(it, allowNegative = true); viewModel.debounceAutoSave() },
                                 optionCost = optionCost,
-                                onOptionCostChange = { viewModel.optionCost.value = it; viewModel.onMoveCostOrOptionChanged(); viewModel.autoSaveToFirestore() },
+                                onOptionCostChange = { viewModel.optionCost.value = viewModel.sanitizeDecimalCost(it, allowNegative = true); viewModel.onMoveCostOrOptionChanged(updateDeposit = false); viewModel.autoSaveToFirestore() },
                                 outDate = outDate,
                                 onSelectOutDate = {
                                     showDatePicker(if (outDate == "미정") java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault()).format(java.util.Date()) else outDate) {
@@ -616,9 +616,9 @@ fun EstimateScreen(
                                     }
                                 },
                                 moveCostOut = moveCostOut,
-                                onMoveCostOutChange = { viewModel.moveCostOut.value = it; viewModel.onMoveCostOrOptionChanged(); viewModel.debounceAutoSave() },
+                                onMoveCostOutChange = { viewModel.moveCostOut.value = viewModel.sanitizeDecimalCost(it); viewModel.onMoveCostOrOptionChanged(updateDeposit = true); viewModel.debounceAutoSave() },
                                 balanceOut = balanceOut,
-                                onBalanceOutChange = { viewModel.balanceOut.value = it; viewModel.debounceAutoSave() },
+                                onBalanceOutChange = { viewModel.balanceOut.value = viewModel.sanitizeDecimalCost(it, allowNegative = true); viewModel.debounceAutoSave() },
                                 storageCost = storageCost,
                                 onStorageCostChange = { viewModel.storageCost.value = it; viewModel.debounceAutoSave() },
                                 totalExpectedVolume = totalExpectedVolumeStr,
@@ -3856,6 +3856,7 @@ fun Step3CustomerInfo(
                             modifier = Modifier.weight(1f),
                             prefix = "₩ ",
                             suffix = " 만원",
+                            keyboardType = KeyboardType.Decimal,
                             textFieldModifier = Modifier.width(amountFieldWidth),
                             onFocusChanged = { focused ->
                                 if (focused && !isMoveCostFocused) {
@@ -3891,6 +3892,7 @@ fun Step3CustomerInfo(
                                 modifier = Modifier.weight(1f),
                                 prefix = "₩ ",
                                 suffix = " 만원",
+                                keyboardType = KeyboardType.Decimal,
                                 textFieldModifier = Modifier.width(amountFieldWidth),
                                 onFocusChanged = { focused ->
                                     if (focused && !isMoveCostOutFocused) {
@@ -3961,12 +3963,13 @@ fun Step3CustomerInfo(
                             }
                         }
                         TableCell(
-                            label = if ((optionCost.toLongOrNull() ?: 0L) < 0) "할인" else "옵션비용",
+                            label = if ((optionCost.toDoubleOrNull() ?: 0.0) < 0.0) "할인" else "옵션비용",
                             value = optionCost,
                             onValueChange = onOptionCostChange,
                             modifier = Modifier.weight(1f),
                             prefix = "₩ ",
                             suffix = " 만원",
+                            keyboardType = KeyboardType.Decimal,
                             textFieldModifier = Modifier.width(amountFieldWidth),
                             onFocusChanged = { focused ->
                                 if (focused && !isOptionCostFocused) {
@@ -4065,6 +4068,7 @@ fun Step3CustomerInfo(
                             modifier = Modifier.weight(1f),
                             prefix = "₩ ",
                             suffix = " 만원",
+                            keyboardType = KeyboardType.Decimal,
                             textFieldModifier = Modifier.width(amountFieldWidth),
                             onFocusChanged = { focused ->
                                 if (focused && !isTotalCostFocused) {
@@ -4163,6 +4167,7 @@ fun Step3CustomerInfo(
                             modifier = Modifier.weight(1f),
                             prefix = "₩ ",
                             suffix = " 만원",
+                            keyboardType = KeyboardType.Decimal,
                             textFieldModifier = Modifier.width(amountFieldWidth),
                             onFocusChanged = { focused ->
                                 if (focused && !isDepositFocused) {
@@ -4196,6 +4201,7 @@ fun Step3CustomerInfo(
                             modifier = Modifier.weight(1f),
                             prefix = "₩ ",
                             suffix = " 만원",
+                            keyboardType = KeyboardType.Decimal,
                             textFieldModifier = Modifier.width(amountFieldWidth),
                             onFocusChanged = { focused ->
                                 if (focused && !isBalanceFocused) {
@@ -4222,6 +4228,7 @@ fun Step3CustomerInfo(
                                 modifier = Modifier.weight(1f),
                                 prefix = "₩ ",
                                 suffix = " 만원",
+                                keyboardType = KeyboardType.Decimal,
                                 textFieldModifier = Modifier.width(amountFieldWidth),
                                 onFocusChanged = { focused ->
                                     if (focused && !isBalanceOutFocused) {

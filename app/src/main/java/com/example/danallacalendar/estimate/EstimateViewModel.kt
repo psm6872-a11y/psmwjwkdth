@@ -352,36 +352,82 @@ class EstimateViewModel @Inject constructor(
         return sb.toString().trim()
     }
 
-    // 이사비용 또는 옵션비용 변경 시 총비용 자동계산
-    fun onMoveCostOrOptionChanged() {
-        val move = moveCost.value.toLongOrNull() ?: 0L
-        val moveOut = if (moveInfo.value == "보관이사") moveCostOut.value.toLongOrNull() ?: 0L else 0L
-        val option = optionCost.value.toLongOrNull() ?: 0L
-        val total = move + moveOut + option
-        totalCost.value = if (total > 0) total.toString() else ""
-        // 잔금 자동계산
-        val depositVal = deposit.value.toLongOrNull() ?: 0L
-        val remaining = if (total > 0) total - depositVal else 0L
-        if (moveInfo.value == "보관이사") {
-            val half = remaining / 2
-            balance.value = if (total > 0) half.toString() else ""
-            balanceOut.value = if (total > 0) half.toString() else ""
+    // 소수점 1자리까지 허용하는 금액 입력 정제
+    fun sanitizeDecimalCost(input: String, allowNegative: Boolean = false): String {
+        if (input.isEmpty()) return ""
+        val sb = StringBuilder()
+        var hasDot = false
+        var decimalsCount = 0
+        for (i in input.indices) {
+            val c = input[i]
+            when {
+                c == '-' && allowNegative && sb.isEmpty() -> sb.append(c)
+                c.isDigit() -> {
+                    if (hasDot) {
+                        if (decimalsCount < 1) {
+                            sb.append(c)
+                            decimalsCount++
+                        }
+                    } else {
+                        sb.append(c)
+                    }
+                }
+                c == '.' && !hasDot -> {
+                    hasDot = true
+                    if (sb.isEmpty() || (sb.length == 1 && sb[0] == '-')) {
+                        sb.append('0')
+                    }
+                    sb.append('.')
+                }
+            }
+        }
+        return sb.toString()
+    }
+
+    // 소수점 1자리 반올림 포맷 (정수면 소수점 생략)
+    private fun formatCostValue(value: Double): String {
+        val rounded = kotlin.math.round(value * 10.0) / 10.0
+        return if (rounded == kotlin.math.truncate(rounded)) {
+            rounded.toLong().toString()
         } else {
-            balance.value = if (total > 0) remaining.toString() else ""
+            String.format(Locale.US, "%.1f", rounded)
         }
     }
 
-    // 계약금 변경 시 잔금 자동계산
-    fun onDepositChanged() {
-        val total = totalCost.value.toLongOrNull() ?: 0L
-        val dep = deposit.value.toLongOrNull() ?: 0L
-        val remaining = if (total > 0) total - dep else 0L
+    // 이사비용 또는 옵션비용 변경 시 총비용 및 잔금 자동계산 (이사비용 변경 시 계약금 10% 자동입력)
+    fun onMoveCostOrOptionChanged(updateDeposit: Boolean = false) {
+        val move = moveCost.value.toDoubleOrNull() ?: 0.0
+        val moveOut = if (moveInfo.value == "보관이사") moveCostOut.value.toDoubleOrNull() ?: 0.0 else 0.0
+        val moveTotal = move + moveOut
+        if (updateDeposit) {
+            deposit.value = if (moveTotal > 0.0) formatCostValue(moveTotal * 0.1) else ""
+        }
+        val option = optionCost.value.toDoubleOrNull() ?: 0.0
+        val total = moveTotal + option
+        totalCost.value = if (total > 0.0) formatCostValue(total) else ""
+        // 잔금 자동계산
+        val depositVal = deposit.value.toDoubleOrNull() ?: 0.0
+        val remaining = if (total > 0.0) total - depositVal else 0.0
         if (moveInfo.value == "보관이사") {
-            val half = remaining / 2
-            balance.value = if (total > 0) half.toString() else ""
-            balanceOut.value = if (total > 0) half.toString() else ""
+            val half = remaining / 2.0
+            balance.value = if (total > 0.0) formatCostValue(half) else ""
+            balanceOut.value = if (total > 0.0) formatCostValue(half) else ""
         } else {
-            balance.value = if (total > 0) remaining.toString() else ""
+            balance.value = if (total > 0.0) formatCostValue(remaining) else ""
+        }
+    }
+
+    // 계약금 또는 총비용 변경 시 잔금 자동계산
+    fun onDepositChanged() {
+        val total = totalCost.value.toDoubleOrNull() ?: 0.0
+        val dep = deposit.value.toDoubleOrNull() ?: 0.0
+        val remaining = if (total > 0.0) total - dep else 0.0
+        if (moveInfo.value == "보관이사") {
+            val half = remaining / 2.0
+            balance.value = if (total > 0.0) formatCostValue(half) else ""
+            balanceOut.value = if (total > 0.0) formatCostValue(half) else ""
+        } else {
+            balance.value = if (total > 0.0) formatCostValue(remaining) else ""
         }
     }
 
@@ -413,12 +459,12 @@ class EstimateViewModel @Inject constructor(
 
     // 출발지사다리 금액 또는 도착지사다리 금액 변경 시 옵션비용 자동계산
     fun onLadderCostChanged() {
-        val start = laddersStartCost.value.toLongOrNull() ?: 0L
-        val end = laddersEndCost.value.toLongOrNull() ?: 0L
+        val start = laddersStartCost.value.toDoubleOrNull() ?: 0.0
+        val end = laddersEndCost.value.toDoubleOrNull() ?: 0.0
         val option = start + end
-        optionCost.value = if (option > 0) option.toString() else ""
+        optionCost.value = if (option > 0.0) formatCostValue(option) else ""
         // 옵션비용 변경됐으니 총비용/잔금도 연쇄 자동계산
-        onMoveCostOrOptionChanged()
+        onMoveCostOrOptionChanged(updateDeposit = false)
     }
 
     private fun convertRoomItemsToLong(map: Map<String, Map<String, Int>>): Map<String, Map<String, Long>> {

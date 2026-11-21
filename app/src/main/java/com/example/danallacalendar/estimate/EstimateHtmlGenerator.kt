@@ -93,8 +93,8 @@ object EstimateHtmlGenerator {
             return "₩ $clean 만원"
         }
 
-        val optionCostVal = estimate.optionCost.toLongOrNull() ?: 0L
-        val optionLabel = if (optionCostVal < 0) "할인" else "옵션비용"
+        val optionCostVal = estimate.optionCost.toDoubleOrNull() ?: 0.0
+        val optionLabel = if (optionCostVal < 0.0) "할인" else "옵션비용"
 
         // Replace basic fields
         var html = template
