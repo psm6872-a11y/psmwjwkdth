@@ -86,7 +86,7 @@ val calendarColors = listOf(
 fun AddEditEventScreen(
     eventId: Int?,
     onNavigateBack: () -> Unit,
-    onNavigateToEstimate: (moveDate: String, departure: String, destination: String, phone: String, scheduleId: String?, copyFromEstimateJson: String?) -> Unit,
+    onNavigateToEstimate: (moveDate: String, departure: String, destination: String, phone: String, customerName: String, scheduleId: String?, copyFromEstimateJson: String?) -> Unit,
     viewModel: CalendarViewModel,
     modifier: Modifier = Modifier
 ) {
@@ -107,6 +107,7 @@ fun AddEditEventScreen(
 
     // Form States
     var title by remember { mutableStateOf("") }
+    var customerName by remember { mutableStateOf("") }
     var linkedEstimateId by remember { mutableStateOf<String?>(null) }
     var isAllDay by remember { mutableStateOf(false) }
     var startMillis by remember { mutableStateOf(selectedDate) }
@@ -251,6 +252,7 @@ fun AddEditEventScreen(
                 updatedAt = if (event.updatedAt <= 0L) System.currentTimeMillis() else event.updatedAt
                 createdBy = event.createdBy
                 updatedBy = event.updatedBy
+                customerName = event.customerName
                 // linkedEstimateId로 찾은 견적서 (기존 연결)
                 val estById = event.linkedEstimateId?.let { viewModel.getEstimateById(it) }
                 // scheduleId로 가장 최신 견적서 조회 (수정 이력 반영)
@@ -325,7 +327,8 @@ fun AddEditEventScreen(
                     teamId = teamId,
                     slotPosition = slotPosition,
                     createdBy = createdBy,
-                    updatedBy = updatedBy
+                    updatedBy = updatedBy,
+                    customerName = customerName
                 )
                 isLoaded = true
             }
@@ -387,7 +390,8 @@ fun AddEditEventScreen(
                 teamId = teamId,
                 slotPosition = slotPosition,
                 createdBy = if (eventId == null) viewModel.userName.value else createdBy,
-                updatedBy = viewModel.userName.value
+                updatedBy = viewModel.userName.value,
+                customerName = customerName
             )
             val hasChanged = if (eventId != null && originalEvent != null) {
                 hasEventSubstantiallyChanged(originalEvent!!, event)
@@ -472,7 +476,7 @@ fun AddEditEventScreen(
                                                 // 4. 일정의 전화번호를 스텝3 연락처에 자동입력
                                                 val resolvedPhone = notesList.firstOrNull { it.isNotBlank() } ?: ""
 
-                                                onNavigateToEstimate(resolvedMoveDate, resolvedDeparture, resolvedDestination, resolvedPhone, syncId ?: eventId?.toString(), null)
+                                                onNavigateToEstimate(resolvedMoveDate, resolvedDeparture, resolvedDestination, resolvedPhone, customerName.trim(), syncId ?: eventId?.toString(), null)
                                                 }
                                             },
                                             onLongPress = {
@@ -597,7 +601,7 @@ fun AddEditEventScreen(
                                             val est = viewModel.getEstimateById(linkedEstimateId!!)
                                             if (est != null) {
                                                 val estimateJson = com.google.gson.Gson().toJson(est)
-                                                onNavigateToEstimate("", "", "", "", syncId ?: eventId?.toString(), estimateJson)
+                                                onNavigateToEstimate("", "", "", "", customerName.trim(), syncId ?: eventId?.toString(), estimateJson)
                                             } else {
                                                 Toast.makeText(context, "견적서를 찾을 수 없습니다.", Toast.LENGTH_SHORT).show()
                                             }
@@ -1408,6 +1412,66 @@ fun AddEditEventScreen(
                 }
             }
 
+            // 고객명 입력 카드 (시간 설정 바로 아래)
+            Card(
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Person,
+                        contentDescription = "고객명",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .defaultMinSize(minHeight = 28.dp),
+                        contentAlignment = Alignment.CenterStart
+                    ) {
+                        if (customerName.isEmpty()) {
+                            Text(
+                                text = "고객명",
+                                fontSize = 15.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        BasicTextField(
+                            value = customerName,
+                            onValueChange = { customerName = it },
+                            singleLine = true,
+                            enabled = !isReadOnly,
+                            keyboardOptions = KeyboardOptions(
+                                keyboardType = KeyboardType.Text,
+                                imeAction = ImeAction.Done
+                            ),
+                            keyboardActions = KeyboardActions(
+                                onDone = { focusManager.clearFocus() }
+                            ),
+                            textStyle = androidx.compose.ui.text.TextStyle(
+                                fontSize = 15.sp,
+                                color = if (isReadOnly) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface
+                            ),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .onFocusChanged { focusState ->
+                                    if (focusState.isFocused) {
+                                        focusedField = "customerName"
+                                        originalValue = customerName
+                                    }
+                                }
+                        )
+                    }
+                }
+            }
+
             // Category & Repeat & Alerts Card
             Card(
                 shape = RoundedCornerShape(20.dp),
@@ -1729,7 +1793,7 @@ fun AddEditEventScreen(
                 {
                     showEstimateDetailDialog = false
                     val estimateJson = com.google.gson.Gson().toJson(selectedEstimateForDetail)
-                    onNavigateToEstimate("", "", "", "", eventId?.toString(), estimateJson)
+                    onNavigateToEstimate("", "", "", "", customerName.trim(), eventId?.toString(), estimateJson)
                 }
             } else null
         )
@@ -2572,8 +2636,9 @@ fun PhoneInputField(
 }
 
 fun hasEventSubstantiallyChanged(orig: Event, newEvent: Event): Boolean {
-    // 1. Title
+    // 1. Title & Customer Name
     if (orig.title.trim() != newEvent.title.trim()) return true
+    if (orig.customerName.trim() != newEvent.customerName.trim()) return true
 
     // 2. Dates & Times
     if (orig.isAllDay != newEvent.isAllDay) return true

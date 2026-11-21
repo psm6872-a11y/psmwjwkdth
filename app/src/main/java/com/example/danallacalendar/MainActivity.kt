@@ -194,7 +194,7 @@ fun AppNavigation(userPreferences: UserPreferences) {
 
     NavHost(navController = navController, startDestination = initialRoute) {
         composable(
-            route = "estimate?moveDate={moveDate}&departure={departure}&destination={destination}&phone={phone}&copyFromEstimateJson={copyFromEstimateJson}&scheduleId={scheduleId}",
+            route = "estimate?moveDate={moveDate}&departure={departure}&destination={destination}&phone={phone}&customerName={customerName}&copyFromEstimateJson={copyFromEstimateJson}&scheduleId={scheduleId}",
             arguments = listOf(
                 navArgument("moveDate") {
                     type = NavType.StringType
@@ -212,6 +212,11 @@ fun AppNavigation(userPreferences: UserPreferences) {
                     defaultValue = null
                 },
                 navArgument("phone") {
+                    type = NavType.StringType
+                    nullable = true
+                    defaultValue = null
+                },
+                navArgument("customerName") {
                     type = NavType.StringType
                     nullable = true
                     defaultValue = null
@@ -399,14 +404,18 @@ fun AppNavigation(userPreferences: UserPreferences) {
                 onNavigateBack = {
                     navController.popBackStack()
                 },
-                onNavigateToEstimate = { moveDate, departure, destination, phone, scheduleId, copyFromEstimateJson ->
+                onNavigateToEstimate = { moveDate, departure, destination, phone, customerName, scheduleId, copyFromEstimateJson ->
                     val encDate = android.net.Uri.encode(moveDate)
                     val encDep = android.net.Uri.encode(departure)
                     val encDest = android.net.Uri.encode(destination)
                     val encPhone = android.net.Uri.encode(phone)
+                    val encCustomerName = android.net.Uri.encode(customerName)
                     val encJson = if (copyFromEstimateJson != null) android.net.Uri.encode(copyFromEstimateJson) else null
                     val route = buildString {
                         append("estimate?moveDate=$encDate&departure=$encDep&destination=$encDest&phone=$encPhone")
+                        if (customerName.isNotBlank()) {
+                            append("&customerName=$encCustomerName")
+                        }
                         if (scheduleId != null) {
                             append("&scheduleId=$scheduleId")
                         }

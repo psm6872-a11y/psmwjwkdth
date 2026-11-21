@@ -150,6 +150,7 @@ class EstimateViewModel @Inject constructor(
                 val argDeparture = savedStateHandle.get<String>("departure")
                 val argDestination = savedStateHandle.get<String>("destination")
                 val argPhone = savedStateHandle.get<String>("phone")
+                val argCustomerName = savedStateHandle.get<String>("customerName")
 
                 val decodeParam = { value: String? ->
                     if (value == null) ""
@@ -175,6 +176,12 @@ class EstimateViewModel @Inject constructor(
                     if (!argPhone.isNullOrBlank()) {
                         phoneNumber.value = decodeParam(argPhone)
                     }
+                    if (!argCustomerName.isNullOrBlank()) {
+                        val decodedName = decodeParam(argCustomerName).trim()
+                        if (decodedName.isNotBlank()) {
+                            customerName.value = decodedName
+                        }
+                    }
                 }
             } catch (e: Exception) {
                 android.util.Log.e("EstimateViewModel", "Error decoding navigation arguments", e)
@@ -185,6 +192,17 @@ class EstimateViewModel @Inject constructor(
         android.util.Log.d("EstimateViewModel", "[COPY] copyFromEstimateJson parameter received: ${copyFromEstimateJson?.length ?: 0} chars, isCopyMode = $isCopyMode")
         if (isCopyMode) {
             loadAndCopyEstimateFromJson(copyFromEstimateJson!!)
+            val argCustomerName = savedStateHandle.get<String>("customerName")
+            if (customerName.value.isBlank() && !argCustomerName.isNullOrBlank()) {
+                val decodedName = try {
+                    java.net.URLDecoder.decode(argCustomerName, "UTF-8").trim()
+                } catch (e: Exception) {
+                    argCustomerName.trim()
+                }
+                if (decodedName.isNotBlank()) {
+                    customerName.value = decodedName
+                }
+            }
         }
     }
 

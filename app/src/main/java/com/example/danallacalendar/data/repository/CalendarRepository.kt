@@ -599,6 +599,7 @@ class CalendarRepository @Inject constructor(
                                     val slotPosition = doc.getString("slotPosition")
                                     val createdBy = doc.getString("createdBy") ?: ""
                                     val updatedBy = doc.getString("updatedBy") ?: ""
+                                    val customerName = doc.getString("customerName") ?: ""
                                     
                                     Event(
                                         title = title,
@@ -620,7 +621,8 @@ class CalendarRepository @Inject constructor(
                                         teamId = teamId,
                                         slotPosition = slotPosition,
                                         createdBy = createdBy,
-                                        updatedBy = updatedBy
+                                        updatedBy = updatedBy,
+                                        customerName = customerName
                                     )
                                 }
                                 
@@ -645,7 +647,8 @@ class CalendarRepository @Inject constructor(
                                             mainExisting.teamId != remote.teamId ||
                                             mainExisting.slotPosition != remote.slotPosition ||
                                             mainExisting.createdBy != remote.createdBy ||
-                                            mainExisting.updatedBy != remote.updatedBy
+                                            mainExisting.updatedBy != remote.updatedBy ||
+                                            mainExisting.customerName != remote.customerName
                                         ) {
                                             eventDao.updateEvent(updated)
                                             EventReminderHelper.scheduleAlarm(context, updated)
@@ -707,7 +710,8 @@ class CalendarRepository @Inject constructor(
             "createdAt" to event.createdAt,
             "updatedAt" to event.updatedAt,
             "teamId" to event.teamId,
-            "slotPosition" to event.slotPosition
+            "slotPosition" to event.slotPosition,
+            "customerName" to event.customerName
         )
         
         firestore.collection("rooms")
