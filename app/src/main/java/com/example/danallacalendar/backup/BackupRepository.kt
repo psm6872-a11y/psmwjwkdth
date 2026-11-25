@@ -58,7 +58,8 @@ class BackupRepository @Inject constructor(
                 "slotPosition"     to e.slotPosition,
                 "createdBy"        to e.createdBy,
                 "updatedBy"        to e.updatedBy,
-                "customerName"     to e.customerName
+                "customerName"     to e.customerName,
+                "editHistory"      to e.editHistory
             )
         }
 
@@ -144,7 +145,8 @@ class BackupRepository @Inject constructor(
                     slotPosition     = map["slotPosition"] as? String,
                     createdBy        = map["createdBy"] as? String ?: "",
                     updatedBy        = map["updatedBy"] as? String ?: "",
-                    customerName     = map["customerName"] as? String ?: ""
+                    customerName     = map["customerName"] as? String ?: "",
+                    editHistory      = map["editHistory"] as? String ?: ""
                 )
             } catch (e: Exception) {
                 android.util.Log.e(TAG, "이벤트 파싱 실패", e)

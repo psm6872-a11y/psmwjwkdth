@@ -38,7 +38,8 @@ data class Event(
     val slotPosition: String? = null,
     val createdBy: String = "",
     val updatedBy: String = "",
-    val customerName: String = ""
+    val customerName: String = "",
+    val editHistory: String = ""
 )
 
 @Entity(tableName = "deadline_dates")

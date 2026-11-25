@@ -696,12 +696,98 @@ class CalendarViewModel @Inject constructor(
             } else {
                 event
             }
+            val now = System.currentTimeMillis()
             val currentNickname = userPreferences.getNickname()
+            val previousEvent = if (eventToUpdate.id > 0) {
+                repository.getEventById(eventToUpdate.id)
+            } else if (!eventToUpdate.syncId.isNullOrBlank()) {
+                repository.eventDao.getEventBySyncId(eventToUpdate.syncId)
+            } else {
+                null
+            }
+            val changeSummary = buildChangeSummary(previousEvent, eventToUpdate)
+            val newEntry = "$now|$currentNickname|$changeSummary"
+            val existingHistory = (previousEvent?.editHistory ?: eventToUpdate.editHistory).trim()
+            val updatedHistory = when {
+                existingHistory.isNotEmpty() -> "$existingHistory\n$newEntry"
+                (previousEvent ?: eventToUpdate).let { it.updatedAt - it.createdAt >= 1000L } -> {
+                    val prev = previousEvent ?: eventToUpdate
+                    "${prev.updatedAt}|${prev.updatedBy}|\n$newEntry"
+                }
+                else -> newEntry
+            }
             val eventWithAuthor = eventToUpdate.copy(
-                updatedBy = currentNickname
+                updatedBy = currentNickname,
+                updatedAt = now,
+                editHistory = updatedHistory
             )
             repository.updateEvent(eventWithAuthor)
         }
+    }
+
+    private fun buildChangeSummary(old: Event?, updated: Event): String {
+        if (old == null) return "내용수정"
+        val changes = mutableListOf<String>()
+
+        if (old.isCompleted != updated.isCompleted) {
+            changes.add(if (updated.isCompleted) "완료버튼" else "완료해제")
+        }
+        if (old.title.trim() != updated.title.trim()) {
+            changes.add("제목변경")
+        }
+        if (old.customerName.trim() != updated.customerName.trim()) {
+            changes.add("고객명변경")
+        }
+
+        val oldStartCal = Calendar.getInstance().apply { timeInMillis = old.startMillis }
+        val newStartCal = Calendar.getInstance().apply { timeInMillis = updated.startMillis }
+        val dateChanged = oldStartCal.get(Calendar.YEAR) != newStartCal.get(Calendar.YEAR) ||
+            oldStartCal.get(Calendar.DAY_OF_YEAR) != newStartCal.get(Calendar.DAY_OF_YEAR)
+        val timeChanged = !updated.isAllDay && (
+            oldStartCal.get(Calendar.HOUR_OF_DAY) != newStartCal.get(Calendar.HOUR_OF_DAY) ||
+            oldStartCal.get(Calendar.MINUTE) != newStartCal.get(Calendar.MINUTE)
+        )
+        if (dateChanged) changes.add("날짜변경")
+        if (old.isAllDay != updated.isAllDay) {
+            changes.add("종일변경")
+        } else if (timeChanged) {
+            changes.add("시간변경")
+        }
+
+        val normOldLoc = old.location.split("|||").map { it.trim() }.dropLastWhile { it.isEmpty() }.joinToString("|||")
+        val normNewLoc = updated.location.split("|||").map { it.trim() }.dropLastWhile { it.isEmpty() }.joinToString("|||")
+        if (normOldLoc != normNewLoc) {
+            changes.add("주소변경")
+        }
+
+        val normOldNotes = old.notes.split("|||").map { it.trim() }.filter { it.isNotEmpty() }.joinToString("|||")
+        val normNewNotes = updated.notes.split("|||").map { it.trim() }.filter { it.isNotEmpty() }.joinToString("|||")
+        if (normOldNotes != normNewNotes) {
+            changes.add("전화번호변경")
+        }
+
+        if (old.teamId != updated.teamId || (old.slotPosition ?: "") != (updated.slotPosition ?: "")) {
+            changes.add("팀배정변경")
+        }
+        if ((old.linkedEstimateId ?: "") != (updated.linkedEstimateId ?: "")) {
+            changes.add(if (!updated.linkedEstimateId.isNullOrBlank()) "견적연결" else "견적해제")
+        }
+        if (old.repeatType != updated.repeatType) {
+            changes.add("반복변경")
+        }
+        if (old.reminderMinutes != updated.reminderMinutes) {
+            changes.add("알림변경")
+        }
+        if (old.calendarId != updated.calendarId) {
+            changes.add("캘린더변경")
+        }
+        if ((old.colorHex ?: "").uppercase() != (updated.colorHex ?: "").uppercase() &&
+            !changes.contains("팀배정변경")
+        ) {
+            changes.add("색상변경")
+        }
+
+        return if (changes.isEmpty()) "내용수정" else changes.joinToString(", ")
     }
 
     fun deleteEvent(event: Event) {

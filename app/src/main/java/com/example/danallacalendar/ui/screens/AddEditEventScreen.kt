@@ -129,6 +129,7 @@ fun AddEditEventScreen(
     var updatedAt by remember { mutableStateOf(System.currentTimeMillis()) }
     var createdBy by remember { mutableStateOf("") }
     var updatedBy by remember { mutableStateOf("") }
+    var editHistory by remember { mutableStateOf("") }
     var isDestinationExpanded by remember { mutableStateOf(false) }
     var isEndExpanded by remember { mutableStateOf(false) }
 
@@ -253,6 +254,7 @@ fun AddEditEventScreen(
                 createdBy = event.createdBy
                 updatedBy = event.updatedBy
                 customerName = event.customerName
+                editHistory = event.editHistory
                 // linkedEstimateId로 찾은 견적서 (기존 연결)
                 val estById = event.linkedEstimateId?.let { viewModel.getEstimateById(it) }
                 // scheduleId로 가장 최신 견적서 조회 (수정 이력 반영)
@@ -328,7 +330,8 @@ fun AddEditEventScreen(
                     slotPosition = slotPosition,
                     createdBy = createdBy,
                     updatedBy = updatedBy,
-                    customerName = customerName
+                    customerName = customerName,
+                    editHistory = editHistory
                 )
                 isLoaded = true
             }
@@ -391,7 +394,8 @@ fun AddEditEventScreen(
                 slotPosition = slotPosition,
                 createdBy = if (eventId == null) viewModel.userName.value else createdBy,
                 updatedBy = viewModel.userName.value,
-                customerName = customerName
+                customerName = customerName,
+                editHistory = editHistory
             )
             val hasChanged = if (eventId != null && originalEvent != null) {
                 hasEventSubstantiallyChanged(originalEvent!!, event)
@@ -1633,7 +1637,40 @@ fun AddEditEventScreen(
                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
                 )
                 
-                if (eventId != null && (updatedAt - createdAt >= 1000L)) {
+                val historyLines = remember(editHistory) {
+                    editHistory.split("\n")
+                        .map { it.trim() }
+                        .filter { it.isNotEmpty() }
+                        .mapNotNull { line ->
+                            val parts = line.split("|")
+                            val millis = parts.getOrNull(0)?.toLongOrNull()
+                            val author = parts.getOrNull(1)?.trim() ?: ""
+                            val summary = parts.getOrNull(2)?.trim() ?: ""
+                            if (millis != null && millis > 0L) Triple(millis, author, summary) else null
+                        }
+                }
+
+                if (eventId != null && historyLines.isNotEmpty()) {
+                    historyLines.forEach { (millis, author, summary) ->
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(1.dp)
+                        ) {
+                            Text(
+                                text = "수정: ${sdf.format(Date(millis))}${if (author.isNotBlank()) " ($author)" else ""}",
+                                fontSize = 12.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                            )
+                            if (summary.isNotBlank()) {
+                                Text(
+                                    text = "($summary)",
+                                    fontSize = 11.sp,
+                                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.75f)
+                                )
+                            }
+                        }
+                    }
+                } else if (eventId != null && (updatedAt - createdAt >= 1000L)) {
                     Text(
                         text = "수정: ${sdf.format(Date(updatedAt))}${if (updatedBy.isNotBlank()) " ($updatedBy)" else ""}",
                         fontSize = 12.sp,
