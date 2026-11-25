@@ -1183,6 +1183,66 @@ fun AddEditEventScreen(
                             }
                         }
                     }
+
+                    HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
+
+                    // ── 고객명 (전화번호 바로 아래) ──
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(
+                            modifier = Modifier.size(32.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Person,
+                                contentDescription = "고객명",
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(40.dp),
+                            contentAlignment = Alignment.CenterStart
+                        ) {
+                            if (customerName.isEmpty()) {
+                                Text(
+                                    text = "고객명",
+                                    fontSize = 15.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            BasicTextField(
+                                value = customerName,
+                                onValueChange = { customerName = it },
+                                singleLine = true,
+                                enabled = !isReadOnly,
+                                keyboardOptions = KeyboardOptions(
+                                    keyboardType = KeyboardType.Text,
+                                    imeAction = ImeAction.Done
+                                ),
+                                keyboardActions = KeyboardActions(
+                                    onDone = { focusManager.clearFocus() }
+                                ),
+                                textStyle = androidx.compose.ui.text.TextStyle(
+                                    fontSize = 15.sp,
+                                    color = if (isReadOnly) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface
+                                ),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .onFocusChanged { focusState ->
+                                        if (focusState.isFocused) {
+                                            focusedField = "customerName"
+                                            originalValue = customerName
+                                        }
+                                    }
+                            )
+                        }
+                    }
                 }
             }
 
@@ -1431,66 +1491,6 @@ fun AddEditEventScreen(
                                 Text(displayText, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                             }
                         }
-                    }
-                }
-            }
-
-            // 고객명 입력 카드 (시간 설정 바로 아래)
-            Card(
-                shape = RoundedCornerShape(20.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 12.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Person,
-                        contentDescription = "고객명",
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(20.dp)
-                    )
-                    Spacer(modifier = Modifier.width(12.dp))
-                    Box(
-                        modifier = Modifier
-                            .weight(1f)
-                            .defaultMinSize(minHeight = 28.dp),
-                        contentAlignment = Alignment.CenterStart
-                    ) {
-                        if (customerName.isEmpty()) {
-                            Text(
-                                text = "고객명",
-                                fontSize = 15.sp,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                        BasicTextField(
-                            value = customerName,
-                            onValueChange = { customerName = it },
-                            singleLine = true,
-                            enabled = !isReadOnly,
-                            keyboardOptions = KeyboardOptions(
-                                keyboardType = KeyboardType.Text,
-                                imeAction = ImeAction.Done
-                            ),
-                            keyboardActions = KeyboardActions(
-                                onDone = { focusManager.clearFocus() }
-                            ),
-                            textStyle = androidx.compose.ui.text.TextStyle(
-                                fontSize = 15.sp,
-                                color = if (isReadOnly) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface
-                            ),
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .onFocusChanged { focusState ->
-                                    if (focusState.isFocused) {
-                                        focusedField = "customerName"
-                                        originalValue = customerName
-                                    }
-                                }
-                        )
                     }
                 }
             }
