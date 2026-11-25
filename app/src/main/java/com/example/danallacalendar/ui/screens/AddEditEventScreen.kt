@@ -107,6 +107,7 @@ fun AddEditEventScreen(
 
     // Form States
     var title by remember { mutableStateOf("") }
+    var selectedTitleYear by remember { mutableStateOf<Int?>(null) }
     var customerName by remember { mutableStateOf("") }
     var linkedEstimateId by remember { mutableStateOf<String?>(null) }
     var isAllDay by remember { mutableStateOf(false) }
@@ -453,14 +454,32 @@ fun AddEditEventScreen(
                                                 if (isReadOnly) {
                                                     Toast.makeText(context, "읽기 전용 멤버는 견적서를 작성할 수 없습니다.", Toast.LENGTH_SHORT).show()
                                                 } else {
-                                                // 1. 일정 제목 첫줄이 07-22 같은 날짜 형식(MM-dd)이면 스텝3 이사날짜에 자동입력
+                                                // 1. 일정 제목 첫줄이 날짜 형식(yyyy-MM-dd 또는 MM-dd)이면 스텝3 이사날짜에 자동입력
                                                 val firstLine = title.lineSequence().firstOrNull()?.trim() ?: ""
+                                                val isFullDatePattern = firstLine.matches(Regex("""^\d{4}-\d{2}-\d{2}$"""))
                                                 val isDatePattern = firstLine.matches(Regex("""^\d{2}-\d{2}$"""))
-                                                val resolvedMoveDate = if (isDatePattern) {
-                                                    val currentYear = java.util.Calendar.getInstance().get(java.util.Calendar.YEAR)
-                                                    "$currentYear-$firstLine"
-                                                } else {
-                                                    ""
+                                                val resolvedMoveDate = when {
+                                                    isFullDatePattern -> firstLine
+                                                    isDatePattern -> {
+                                                        val resolvedYear = selectedTitleYear ?: run {
+                                                            val baseCal = java.util.Calendar.getInstance().apply {
+                                                                timeInMillis = if (startMillis > 0L) startMillis else System.currentTimeMillis()
+                                                            }
+                                                            val baseYear = baseCal.get(java.util.Calendar.YEAR)
+                                                            val baseMonth = baseCal.get(java.util.Calendar.MONTH) + 1
+                                                            val baseDay = baseCal.get(java.util.Calendar.DAY_OF_MONTH)
+                                                            val parts = firstLine.split("-")
+                                                            val pickedMonth = parts[0].toIntOrNull() ?: baseMonth
+                                                            val pickedDay = parts[1].toIntOrNull() ?: baseDay
+                                                            if (pickedMonth < baseMonth || (pickedMonth == baseMonth && pickedDay < baseDay)) {
+                                                                baseYear + 1
+                                                            } else {
+                                                                baseYear
+                                                            }
+                                                        }
+                                                        "$resolvedYear-$firstLine"
+                                                    }
+                                                    else -> ""
                                                 }
 
                                                 // 2. 일정의 출발지 주소 + 동/호수 구분자(|)로 결합하여 자동입력
@@ -1688,7 +1707,7 @@ fun AddEditEventScreen(
     
     // Title Date Picker Dialog
     if (showTitleDatePicker) {
-        val initialDialogMillis = remember(title) {
+        val initialDialogMillis = remember(title, selectedTitleYear) {
             val fallbackMillis = System.currentTimeMillis()
             try {
                 val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.KOREAN)
@@ -1696,11 +1715,17 @@ fun AddEditEventScreen(
             } catch (e: Exception) {
                 try {
                     val sdf2 = SimpleDateFormat("MM-dd", Locale.KOREAN)
-                    val calParsed = Calendar.getInstance().apply {
-                        time = sdf2.parse(title) ?: Date(fallbackMillis)
-                        set(Calendar.YEAR, Calendar.getInstance().get(Calendar.YEAR))
+                    val parsedDate = sdf2.parse(title)
+                    if (parsedDate != null) {
+                        val calParsed = Calendar.getInstance().apply {
+                            time = parsedDate
+                            val targetYear = selectedTitleYear ?: Calendar.getInstance().get(Calendar.YEAR)
+                            set(Calendar.YEAR, targetYear)
+                        }
+                        calParsed.timeInMillis
+                    } else {
+                        fallbackMillis
                     }
-                    calParsed.timeInMillis
                 } catch (e2: Exception) {
                     fallbackMillis
                 }
@@ -1710,6 +1735,8 @@ fun AddEditEventScreen(
             initialMillis = initialDialogMillis,
             onDismiss = { showTitleDatePicker = false },
             onDateSelected = { selectedDateMillis ->
+                val pickedCal = Calendar.getInstance().apply { timeInMillis = selectedDateMillis }
+                selectedTitleYear = pickedCal.get(Calendar.YEAR)
                 val formatter = SimpleDateFormat("MM-dd", Locale.KOREAN)
                 title = formatter.format(Date(selectedDateMillis))
                 showTitleDatePicker = false
