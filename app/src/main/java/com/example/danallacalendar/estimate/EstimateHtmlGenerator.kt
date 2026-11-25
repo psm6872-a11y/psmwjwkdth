@@ -96,6 +96,14 @@ object EstimateHtmlGenerator {
         val optionCostVal = estimate.optionCost.toDoubleOrNull() ?: 0.0
         val optionLabel = if (optionCostVal < 0.0) "할인" else "옵션비용"
 
+        val formattedCustomerName = estimate.customerName.trim().let { name ->
+            when {
+                name.isEmpty() -> ""
+                name.endsWith("님") -> name
+                else -> "$name 님"
+            }
+        }
+
         // Replace basic fields
         var html = template
             .replace("{{companyName}}", companyName)
@@ -118,7 +126,7 @@ object EstimateHtmlGenerator {
             .replace("{{moveInfo}}", estimate.moveInfo.ifBlank { estimate.moveType })
             .replace("{{startTime}}", estimate.startTime)
             .replace("{{outDate}}", if (estimate.outDate == "미정") "" else estimate.outDate)
-            .replace("{{customerName}}", estimate.customerName)
+            .replace("{{customerName}}", formattedCustomerName)
             .replace("{{memo}}", estimate.memo.replace("\n", "<br>"))
             .replace("{{totalVolume}}", if (estimate.totalVolume.isNotEmpty()) "${estimate.totalVolume} 톤" else "")
             .replace("{{workers}}", if (estimate.workersM.isNotEmpty() || estimate.workersF.isNotEmpty()) "남${estimate.workersM} 여${estimate.workersF}" else "")

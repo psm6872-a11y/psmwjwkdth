@@ -4161,7 +4161,7 @@ fun Step3CustomerInfo(
                             }
                         }
                         TableCell(
-                            label = "계약금",
+                            label = "계약금(10%)",
                             value = deposit,
                             onValueChange = onDepositChange,
                             modifier = Modifier.weight(1f),
@@ -4285,6 +4285,9 @@ fun Step3CustomerInfo(
                     value = customerName,
                     onValueChange = onCustomerNameChange,
                     label = { Text("성명 또는 회사명(계약금 입금자명)", maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                    suffix = if (customerName.isNotBlank() && !customerName.trimEnd().endsWith("님")) {
+                        { Text(" 님", color = Color.White.copy(alpha = 0.85f)) }
+                    } else null,
                     colors = textFieldColors,
                     modifier = Modifier.fillMaxWidth().onFocusChanged { focusState ->
                         if (focusState.isFocused && !isCustomerNameFocused) {
