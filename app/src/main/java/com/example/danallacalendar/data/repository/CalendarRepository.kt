@@ -146,10 +146,70 @@ class CalendarRepository @Inject constructor(
             .get()
             .addOnSuccessListener { document ->
                 if (document.exists()) {
-                    userPreferences.removeRoomCreator(roomCode) // 참여자는 방장이 아님을 명시적 확정
+                    val myUUID = userPreferences.getDeviceUUID()
+                    val currentNickname = userPreferences.getNickname()
+                    val creatorUUID = document.getString("createdBy") ?: ""
+                    val isCreator = creatorUUID.isNotEmpty() && creatorUUID == myUUID
+
+                    if (isCreator) {
+                        userPreferences.markAsRoomCreator(roomCode)
+                        userPreferences.setWritePermission(true)
+                    } else {
+                        userPreferences.removeRoomCreator(roomCode)
+                    }
                     userPreferences.setLastRoomCode(roomCode)
-                    registerMemberInFirestore(roomCode)
-                    onSuccess()
+
+                    // 캘린더 입장 전에 멤버 문서를 Firestore에 먼저 확실히 저장하여
+                    // 입장 직후 초기 스냅샷에서 강퇴로 오판되는 레이스 컨디션을 방지합니다.
+                    if (myUUID.isNotEmpty() && currentNickname.isNotEmpty()) {
+                        val memberDocRef = firestore.collection("rooms")
+                            .document(roomCode)
+                            .collection("members")
+                            .document(myUUID)
+
+                        memberDocRef.get()
+                            .addOnSuccessListener { existingMember ->
+                                val memberData = hashMapOf<String, Any>(
+                                    "nickname" to currentNickname,
+                                    "updatedAt" to Timestamp.now(),
+                                    "lastSeen" to Timestamp.now()
+                                )
+                                if (!existingMember.exists() || existingMember.get("joinedAt") == null) {
+                                    memberData["joinedAt"] = Timestamp.now()
+                                }
+                                if (isCreator) {
+                                    memberData["hasWritePermission"] = true
+                                } else if (!existingMember.exists() || existingMember.get("hasWritePermission") == null) {
+                                    memberData["hasWritePermission"] = false
+                                }
+                                memberDocRef.set(memberData, com.google.firebase.firestore.SetOptions.merge())
+                                    .addOnSuccessListener {
+                                        registerMemberInFirestore(roomCode) // FCM 토큰은 백그라운드에서 비동기 갱신
+                                        onSuccess()
+                                    }
+                                    .addOnFailureListener {
+                                        registerMemberInFirestore(roomCode)
+                                        onSuccess()
+                                    }
+                            }
+                            .addOnFailureListener {
+                                val fallbackData = hashMapOf<String, Any>(
+                                    "nickname" to currentNickname,
+                                    "joinedAt" to Timestamp.now(),
+                                    "updatedAt" to Timestamp.now(),
+                                    "lastSeen" to Timestamp.now(),
+                                    "hasWritePermission" to isCreator
+                                )
+                                memberDocRef.set(fallbackData, com.google.firebase.firestore.SetOptions.merge())
+                                    .addOnCompleteListener {
+                                        registerMemberInFirestore(roomCode)
+                                        onSuccess()
+                                    }
+                            }
+                    } else {
+                        registerMemberInFirestore(roomCode)
+                        onSuccess()
+                    }
                 } else {
                     onFailure("존재하지 않는 방 코드입니다.")
                 }

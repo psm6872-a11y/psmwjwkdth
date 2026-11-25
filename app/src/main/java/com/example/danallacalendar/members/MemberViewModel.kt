@@ -35,7 +35,7 @@ class MemberViewModel @Inject constructor(
     private val _kickedEvent = kotlinx.coroutines.flow.MutableSharedFlow<Unit>()
     val kickedEvent = _kickedEvent.asSharedFlow()
 
-    private var hasLoadedMembers = false
+    private var hasSeenSelfInMembers = false
     private var creatorJob: kotlinx.coroutines.Job? = null
     private var membersJob: kotlinx.coroutines.Job? = null
 
@@ -45,6 +45,7 @@ class MemberViewModel @Inject constructor(
     fun initializeRoom(roomCode: String) {
         creatorJob?.cancel()
         membersJob?.cancel()
+        hasSeenSelfInMembers = false
         if (roomCode.isBlank()) {
             _isCreator.value = false
             _hasWritePermission.value = true
@@ -69,7 +70,7 @@ class MemberViewModel @Inject constructor(
     }
 
     private fun observeMembers(roomCode: String) {
-        hasLoadedMembers = false
+        hasSeenSelfInMembers = false
         membersJob?.cancel()
         membersJob = viewModelScope.launch {
             memberRepository.getMembersFlow(roomCode).collect { memberList ->
@@ -92,13 +93,11 @@ class MemberViewModel @Inject constructor(
                 
                 val nickname = userPreferences.getNickname()
                 if (nickname.isNotEmpty()) {
-                    if (memberList.isNotEmpty()) {
-                        hasLoadedMembers = true
-                        val isMePresent = memberList.any { it.deviceUUID == deviceUUID }
-                        if (!isMePresent) {
-                            handleKicked()
-                        }
-                    } else if (hasLoadedMembers) {
+                    val isMePresent = memberList.any { it.deviceUUID == deviceUUID }
+                    if (isMePresent) {
+                        hasSeenSelfInMembers = true
+                    } else if (hasSeenSelfInMembers) {
+                        // 입장 후 멤버 목록에 본인이 1회 이상 확인된 뒤 사라졌을 때만 강퇴로 판정
                         handleKicked()
                     }
                 }
@@ -107,13 +106,19 @@ class MemberViewModel @Inject constructor(
     }
 
     private fun handleKicked() {
+        hasSeenSelfInMembers = false
         viewModelScope.launch {
+            val roomToClear = currentRoomCode
             try {
-                memberRepository.removeMember(currentRoomCode, deviceUUID)
+                if (roomToClear.isNotEmpty()) {
+                    memberRepository.removeMember(roomToClear, deviceUUID)
+                }
             } catch (e: Exception) {
                 // Ignore
             }
-            userPreferences.clearAll()
+            // 강퇴 시 방 정보만 초기화하고 사용자 닉네임은 보존
+            userPreferences.clearRoomState(roomToClear)
+            userPreferences.setLastRoomCode("")
             _kickedEvent.emit(Unit)
         }
     }
