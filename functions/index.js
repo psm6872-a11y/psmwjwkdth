@@ -35,15 +35,15 @@ exports.onCalendarEventWritten = onDocumentWritten("rooms/{roomCode}/events/{eve
     if (afterData && !beforeData) {
         changeType = "CREATE";
         eventTitle = afterData.title || "(제목 없음)";
-        lastUpdatedBy = afterData.createdBy || afterData.lastUpdatedBy || "";
+        lastUpdatedBy = afterData.lastUpdatedBy || "";
     } else if (afterData && beforeData) {
         changeType = "UPDATE";
         eventTitle = afterData.title || "(제목 없음)";
-        lastUpdatedBy = afterData.lastUpdatedBy || afterData.createdBy || "";
+        lastUpdatedBy = afterData.lastUpdatedBy || "";
     } else if (!afterData && beforeData) {
         changeType = "DELETE";
         eventTitle = beforeData.title || "(제목 없음)";
-        lastUpdatedBy = beforeData.lastUpdatedBy || beforeData.createdBy || "";
+        lastUpdatedBy = beforeData.lastUpdatedBy || "";
     }
 
     if (!changeType) return null;

@@ -12,22 +12,30 @@ import com.example.danallacalendar.MainActivity
 import com.example.danallacalendar.R
 
 object NotificationHelper {
-    private const val CHANNEL_ID = "calendar_shared_channel"
-    private const val CHANNEL_NAME = "Calendar Event Updates"
-    private const val CHANNEL_DESC = "Notifications for shared calendar updates"
+    private const val LEGACY_CHANNEL_ID = "calendar_shared_channel"
+    private const val CHANNEL_ID = "calendar_shared_channel_danalla_v2"
+    private const val CHANNEL_NAME = "공유 캘린더 알림"
+    private const val CHANNEL_DESC = "공유 캘린더 일정 및 마감도장 변경 알림"
     private const val NOTIFICATION_ID = 1001
 
     fun showNotification(context: Context, title: String, body: String, dateMillis: Long, syncId: String? = null) {
         val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        val soundUri = Uri.parse("android.resource://${context.packageName}/${R.raw.danalla}")
 
-        // Create channel for Android 8.0+
+        // Create channel for Android 8.0+ with custom Danalla notification sound
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            notificationManager.deleteNotificationChannel(LEGACY_CHANNEL_ID)
+            val audioAttributes = android.media.AudioAttributes.Builder()
+                .setContentType(android.media.AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                .setUsage(android.media.AudioAttributes.USAGE_NOTIFICATION)
+                .build()
             val channel = NotificationChannel(
                 CHANNEL_ID,
                 CHANNEL_NAME,
                 NotificationManager.IMPORTANCE_HIGH
             ).apply {
                 description = CHANNEL_DESC
+                setSound(soundUri, audioAttributes)
             }
             notificationManager.createNotificationChannel(channel)
         }
@@ -44,10 +52,11 @@ object NotificationHelper {
         ).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
         }
-        
+
+        val notifKey = if (!syncId.isNullOrBlank()) syncId.hashCode() else System.currentTimeMillis().toInt()
         val pendingIntent = PendingIntent.getActivity(
             context,
-            dateMillis.toInt(), // unique request code to avoid overriding
+            notifKey,
             intent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
@@ -59,8 +68,10 @@ object NotificationHelper {
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setAutoCancel(true)
             .setContentIntent(pendingIntent)
+            .setSound(soundUri)
+            .setDefaults(NotificationCompat.DEFAULT_VIBRATE or NotificationCompat.DEFAULT_LIGHTS)
 
-        notificationManager.notify(NOTIFICATION_ID + dateMillis.toInt(), builder.build())
+        notificationManager.notify(NOTIFICATION_ID + (notifKey and 0x7FFFFFFF) % 100000, builder.build())
     }
 
     fun showCallScanNotification(context: Context, title: String, body: String, deepLinkUri: String) {
