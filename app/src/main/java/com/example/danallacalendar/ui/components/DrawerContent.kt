@@ -114,6 +114,7 @@ fun DrawerContent(
     var memberToRemove: Member? by remember { mutableStateOf(null) }
     var memberToTransferHost: Member? by remember { mutableStateOf(null) }
     var showSettingsScreen by remember { mutableStateOf(false) }
+    var isCalendarSelectExpanded by remember { mutableStateOf(false) }
     var isMembersExpanded by remember { mutableStateOf(false) }
     val isReadOnlySharedMember = remember(isLoggedIn, isCreator, members, currentDeviceUUID) {
         if (isLoggedIn) {
@@ -399,66 +400,6 @@ fun DrawerContent(
         HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
         Spacer(modifier = Modifier.height(16.dp))
 
-        Text(
-            text = "캘린더 선택",
-            fontSize = 14.sp,
-            fontWeight = FontWeight.SemiBold,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 8.dp)
-        )
-
-        val targetNames = listOf("공유 캘린더", "내 캘린더", "공휴일")
-        val filteredCategories = categories
-            .filter { it.name in targetNames }
-            .sortedBy { targetNames.indexOf(it.name) }
-
-        filteredCategories.forEach { category ->
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(MaterialTheme.shapes.medium)
-                    .clickable { onToggleCategory(category) }
-                    .padding(vertical = 12.dp, horizontal = 8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                // Category Color Badge
-                Box(
-                    modifier = Modifier
-                        .size(16.dp)
-                        .clip(CircleShape)
-                        .background(Color(android.graphics.Color.parseColor(category.colorHex))),
-                    contentAlignment = Alignment.Center
-                ) {
-                    if (category.isVisible) {
-                        Icon(
-                            imageVector = Icons.Default.Check,
-                            contentDescription = null,
-                            tint = Color.White,
-                            modifier = Modifier.size(10.dp)
-                        )
-                    }
-                }
-
-                Spacer(modifier = Modifier.width(16.dp))
-
-                Text(
-                    text = category.name,
-                    fontSize = 16.sp,
-                    color = MaterialTheme.colorScheme.onBackground,
-                    fontWeight = if (category.isVisible) FontWeight.Medium else FontWeight.Normal,
-                    modifier = Modifier.weight(1f)
-                )
-            }
-        }
-
-        Spacer(modifier = Modifier.height(16.dp))
-        HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
-        Spacer(modifier = Modifier.height(8.dp))
-
-        Spacer(modifier = Modifier.height(8.dp))
-
         if (isLoggedIn) {
             Card(
                 modifier = Modifier
@@ -697,6 +638,84 @@ fun DrawerContent(
             HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
             Spacer(modifier = Modifier.height(16.dp))
         }
+
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable { isCalendarSelectExpanded = !isCalendarSelectExpanded }
+                .padding(vertical = 8.dp)
+        ) {
+            Text(
+                text = "캘린더 선택",
+                fontSize = 14.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(modifier = Modifier.weight(1f))
+            Icon(
+                imageVector = if (isCalendarSelectExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                contentDescription = if (isCalendarSelectExpanded) "접기" else "펼치기",
+                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                modifier = Modifier.size(20.dp)
+            )
+        }
+
+        val targetNames = listOf("공유 캘린더", "내 캘린더", "공휴일")
+        val filteredCategories = categories
+            .filter { it.name in targetNames }
+            .sortedBy { targetNames.indexOf(it.name) }
+
+        AnimatedVisibility(
+            visible = isCalendarSelectExpanded,
+            enter = expandVertically() + androidx.compose.animation.fadeIn(),
+            exit = shrinkVertically() + androidx.compose.animation.fadeOut()
+        ) {
+            Column(modifier = Modifier.fillMaxWidth()) {
+                filteredCategories.forEach { category ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(MaterialTheme.shapes.medium)
+                            .clickable { onToggleCategory(category) }
+                            .padding(vertical = 12.dp, horizontal = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        // Category Color Badge
+                        Box(
+                            modifier = Modifier
+                                .size(16.dp)
+                                .clip(CircleShape)
+                                .background(Color(android.graphics.Color.parseColor(category.colorHex))),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            if (category.isVisible) {
+                                Icon(
+                                    imageVector = Icons.Default.Check,
+                                    contentDescription = null,
+                                    tint = Color.White,
+                                    modifier = Modifier.size(10.dp)
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.width(16.dp))
+
+                        Text(
+                            text = category.name,
+                            fontSize = 16.sp,
+                            color = MaterialTheme.colorScheme.onBackground,
+                            fontWeight = if (category.isVisible) FontWeight.Medium else FontWeight.Normal,
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(12.dp))
+        HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
+        Spacer(modifier = Modifier.height(16.dp))
 
         // 📦 백업 관리 버튼
         Row(
